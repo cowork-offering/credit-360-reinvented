@@ -45,6 +45,15 @@ import { REL_ROUTE_WORDS, buildRelEnvelope } from "./relBrain";
 import { NO_COMPLIANCE_ROW_CHIP, relBookFor, type RelBook } from "./relBook";
 import { COVENANT_REVIEW, FIELD_EXAM_OFFER, STAGE_A_FIELD_EXAM, asksForFieldExam } from "./fieldExam";
 import { buildRelReadCard, readRelTopic, relReadGap } from "./relReads";
+import { RoomBoundary } from "../workroom/RoomBoundary";
+import {
+  KEEP_THE_PLAN,
+  TRY_AGAIN,
+  byDeadline,
+  executeDeadlineLine,
+  isDeadline,
+  stageDeadlineLine,
+} from "../workroom/deadline";
 import { useClientMail } from "../workroom/clientMail";
 import { useRoomFeed } from "../../intent/feed";
 import { intentFor, intentMailNote, noteFiled } from "../../intent/open";
@@ -680,6 +689,12 @@ export function RelationshipRoom({
   const [phase, setPhase] = useState<"work" | "filed">("work");
   const [flow, setFlow] = useState<null | { staging: StagedRelPlan | null; running: boolean; status: number }>(null);
   const [filing, setFiling] = useState(false);
+  /* THE IN-FLIGHT LOCK, CLOSED IN THE SAME TICK AS THE GESTURE (item 12).
+     `filing` is state, and a second click inside the same commit reads what the
+     first one saw. The ref cannot be raced that way. */
+  const filingRef = useRef(false);
+  /** The staging gesture, reachable from `say`, which is built above it. */
+  const openFlowRef = useRef<() => Promise<void>>(async () => {});
   const [sealed, setSealed] = useState(false);
   const [draft, setDraft] = useState("");
   /** The composer input, so the plus menu can write into it and land the caret
@@ -1387,6 +1402,37 @@ export function RelationshipRoom({
          is serial by construction, so there is exactly one line in flight. */
       fedRef.current = opts?.fed ?? null;
 
+      /* ============ THE FAULT-STATE CHIPS ANSWER HERE, BEFORE THE GRAMMAR
+
+         Two lines the ROOM put in the banker's mouth after a deadline. They are
+         gestures, not instructions, and the review grammar would read them as
+         neither: "try that again" is not one of the six, and answering it with
+         the five-way would be the room forgetting what it just offered. */
+      if (text.toLowerCase() === TRY_AGAIN.say) {
+        const mine = step + 1;
+        setStep(mine);
+        setItems((prev) => [...prev, relBankerLine(mine, (said ?? heard).trim(), opts?.fed)]);
+        if (!route) {
+          push({ kind: "agent", id: nextId("agent"), text: "There is nothing staged to put up again. Pick a review above and I will collect what it needs." });
+          return;
+        }
+        void openFlowRef.current();
+        return;
+      }
+      if (text.toLowerCase() === KEEP_THE_PLAN.say) {
+        const mine = step + 1;
+        setStep(mine);
+        setItems((prev) => [...prev, relBankerLine(mine, (said ?? heard).trim(), opts?.fed)]);
+        push({
+          kind: "agent",
+          id: nextId("agent"),
+          text:
+            "What you have collected stands exactly as it is. Nothing has been sent to the org and nothing has been filed. " +
+            "Put it up whenever you are ready.",
+        });
+        return;
+      }
+
       /* A READ DOES NOT PICK A REVIEW (F1). The route gate used to intercept
          every line, so a question about the book was answered with the five-way
          rather than with the card the room was already holding. */
@@ -1781,10 +1827,29 @@ export function RelationshipRoom({
 
     setFlow({ staging: null, running: false, status: 0 });
     try {
-      const staged = await stageRelPlan(route, ctx, answers, keyRef.current, deps);
+      /* THE STAGING CALL CARRIES A CLOCK (2026-09-05), the facility room's own
+         budget and for the facility room's own reason: `callTool` has no wall
+         clock, so a connector that accepts the call and never answers leaves
+         the flow card open on a plan that will never arrive. */
+      const staged = await byDeadline(
+        stageRelPlan(route, ctx, answers, keyRef.current, deps),
+        "stage",
+        `staging this ${REL_ROUTE_WORD[route]}`,
+      );
       setFlow((f) => (f ? { ...f, staging: staged } : f));
     } catch (e) {
       setFlow(null);
+      /* THE ROOM'S CLOCK, NOT THE ORG'S ANSWER. Staging is zero-DML by
+         contract, so nothing was filed and the room may say so. */
+      if (isDeadline(e)) {
+        push({
+          kind: "agent",
+          id: nextId("agent"),
+          text: stageDeadlineLine(e, `staging this ${REL_ROUTE_WORD[route]}`),
+          options: [TRY_AGAIN, KEEP_THE_PLAN],
+        });
+        return;
+      }
       if (neverReachedTheOrg(e)) {
         push({
           kind: "notice",
@@ -1806,10 +1871,11 @@ export function RelationshipRoom({
       });
     }
   }, [answers, ctx, deps, push, route]);
+  openFlowRef.current = openFlow;
 
   const execute = useCallback(async () => {
     const staging = flow?.staging;
-    if (!route || !staging?.decisionToken || filing || sealed) return;
+    if (!route || !staging?.decisionToken || filing || filingRef.current || sealed) return;
     if (!ctx.approver) {
       push({
         kind: "agent",
@@ -1818,6 +1884,7 @@ export function RelationshipRoom({
       });
       return;
     }
+    filingRef.current = true;
     setFiling(true);
     setFlow((f) => (f ? { ...f, running: true } : f));
     /* ONE CALL, REPLAYABLE. The org answers a spent idempotency key off the
@@ -1827,8 +1894,15 @@ export function RelationshipRoom({
     const planHash = staging.planHash;
     const decisionToken = staging.decisionToken;
     const approverUserId = ctx.approver;
+    /* THE WRITE CARRIES A CLOCK, AND THE CLOCK IS NEVER A VERDICT. Past the
+       budget the room stops waiting on the socket and reads the org's own
+       staging record; it never re-executes on its own and never says failed. */
     const run = () =>
-      executeRelPlan(route, { idempotencyKey: keyRef.current, stagingId, planHash, decisionToken, approverUserId }, deps);
+      byDeadline(
+        executeRelPlan(route, { idempotencyKey: keyRef.current, stagingId, planHash, decisionToken, approverUserId }, deps),
+        "execute",
+        "the filing",
+      );
     try {
       let result: Awaited<ReturnType<typeof executeRelPlan>>;
       try {
@@ -1837,8 +1911,10 @@ export function RelationshipRoom({
         /* THE CALL REACHED THE ORG AND THE ANSWER DID NOT COME BACK: a filing
            in progress, not a failure. Wait on the org's own trail, then ask the
            tool again under the same key. Never a second approval. */
-        if (!(e instanceof RelFlowError && e.dispatched)) throw e;
-        push({ kind: "agent", id: nextId("agent"), text: FILING_IN_FLIGHT });
+        /* A DEADLINE IS AMBIGUOUS BY CONSTRUCTION, so it takes the same road a
+           dispatched failure takes: the org's record decides, not the room. */
+        if (!isDeadline(e) && !(e instanceof RelFlowError && e.dispatched)) throw e;
+        push({ kind: "agent", id: nextId("agent"), text: isDeadline(e) ? executeDeadlineLine(e) : FILING_IN_FLIGHT });
         const verdict = await awaitFiling(ctx.accountId, stagingId, deps.settle ?? LIVE_SETTLE);
         setFlow((f) => (f ? { ...f, running: false } : f));
         if (verdict.kind === "never-ran") throw e;
@@ -1881,8 +1957,9 @@ export function RelationshipRoom({
       /* A dispatched call that the wait could not settle has already said so
          above and sealed the approval; anything else is the org's own refusal,
          said in its own words, with the plan still staged. */
-      if (e instanceof RelFlowError && e.dispatched) setSealed(true);
+      if (isDeadline(e) || (e instanceof RelFlowError && e.dispatched)) setSealed(true);
     } finally {
+      filingRef.current = false;
       setFiling(false);
     }
   }, [answers, ctx, deps, filing, flow, laneRows, onFiled, push, route, sealed]);
@@ -2144,35 +2221,39 @@ export function RelationshipRoom({
                       </button>
                     )}
                     {group.items.map((item) => {
+                      /* ONE BAD ITEM IS ONE BAD ITEM (2026-09-05). Per item,
+                         not per room: the rest of the thread really is fine. */
                       const block = (
-                        <RelBlock
-                          item={item}
-                          opening={openingItem}
-                          spec={flowSpec}
-                          packages={ctx.packages}
-                          onAnchorPackage={onAnchorPackage}
-                          lit={lit}
-                          hold={item.kind === "dossier" ? finale.hold : 0}
-                          /* Only in the finale: while the room is open the lane
-                             beside the card is already saying this. */
-                          filed={item.kind === "dossier" && finaleState !== "off" ? filedLines : null}
-                          filedHead={filedHead}
-                          onOpenPeek={openPeek}
-                          onOption={(sayText, label) => void say(sayText, label)}
-                          expanded={item.kind === "settled" ? settle.isOpen(item.id) : false}
-                          onExpand={settle.toggle}
-                          onRestart={(restart) => {
-                            setAnswers({});
-                            setOrder([]);
-                            askedRef.current = null;
-                            readyRef.current = false;
-                            briefedRef.current = null;
-                            detailedRef.current = false;
-                            setDetailId(null);
-                            choreo.reset();
-                            routerRef.current?.onRestart(restart.route, restart.say);
-                          }}
-                        />
+                        <RoomBoundary what={`this ${item.kind}`}>
+                          <RelBlock
+                            item={item}
+                            opening={openingItem}
+                            spec={flowSpec}
+                            packages={ctx.packages}
+                            onAnchorPackage={onAnchorPackage}
+                            lit={lit}
+                            hold={item.kind === "dossier" ? finale.hold : 0}
+                            /* Only in the finale: while the room is open the lane
+                               beside the card is already saying this. */
+                            filed={item.kind === "dossier" && finaleState !== "off" ? filedLines : null}
+                            filedHead={filedHead}
+                            onOpenPeek={openPeek}
+                            onOption={(sayText, label) => void say(sayText, label)}
+                            expanded={item.kind === "settled" ? settle.isOpen(item.id) : false}
+                            onExpand={settle.toggle}
+                            onRestart={(restart) => {
+                              setAnswers({});
+                              setOrder([]);
+                              askedRef.current = null;
+                              readyRef.current = false;
+                              briefedRef.current = null;
+                              detailedRef.current = false;
+                              setDetailId(null);
+                              choreo.reset();
+                              routerRef.current?.onRestart(restart.route, restart.say);
+                            }}
+                          />
+                        </RoomBoundary>
                       );
                       const tier = relTierOf(item, detailId);
                       const inWave = finaleExit(item.id);
@@ -3107,23 +3188,30 @@ export function RelationshipRoomHost() {
   /* Keyed on the route so binding one REBUILDS the room rather than carrying
      one review's collected answers into another. Route binding is final per
      plan, and this key is what makes that structural rather than a promise. */
+  /* THE ROOM'S OUTER BOUNDARY (2026-09-05). It should never fire: every item
+     in the thread already has one of its own. If it does, the room says so in
+     its own voice, over the cockpit, and the banker still has every way out.
+     A component stack on the glass in front of a client is the failure, not
+     the diagnosis, so the detail goes to the console and nowhere else. */
   return (
-    <RelationshipRoom
-      key={`${session.accountId}-${session.route ?? "unbound"}`}
-      ctx={ctx}
-      route={session.route}
-      router={router}
-      /* THE SECOND LANE, WIRED HERE AND NOWHERE ELSE, on the same capability
-         gate the facility room uses: with no mcp capability there is no arm of
-         the bridge that returns a reply, so the prop is ABSENT and the room
-         keeps the step machine alone. */
-      brain={relBrainLane()}
-      mail={mail}
-      mailGate={mailGate}
-      onFiled={onFiled}
-      onAnchorPackage={anchorRelPackage}
-      onClose={close}
-    />
+    <RoomBoundary what="the relationship room" scope="room">
+      <RelationshipRoom
+        key={`${session.accountId}-${session.route ?? "unbound"}`}
+        ctx={ctx}
+        route={session.route}
+        router={router}
+        /* THE SECOND LANE, WIRED HERE AND NOWHERE ELSE, on the same capability
+           gate the facility room uses: with no mcp capability there is no arm of
+           the bridge that returns a reply, so the prop is ABSENT and the room
+           keeps the step machine alone. */
+        brain={relBrainLane()}
+        mail={mail}
+        mailGate={mailGate}
+        onFiled={onFiled}
+        onAnchorPackage={anchorRelPackage}
+        onClose={close}
+      />
+    </RoomBoundary>
   );
 }
 

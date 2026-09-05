@@ -20,6 +20,7 @@ import { openMemoRoom } from "../memo/memoSession";
 import { changesFromFiled, splitOfFiled } from "../memo/carry";
 import type { FiledLine } from "./FiledList";
 import { Workroom, neutralAsk, smartAsk, type WorkroomRouter } from "./Workroom";
+import { RoomBoundary } from "./RoomBoundary";
 import type { ReadSource } from "./readCard";
 
 /** The one mount. Anything, anywhere, calls `openWorkroom(context)` (a caller
@@ -269,41 +270,48 @@ export function WorkroomHost() {
   // PACKAGE is part of that key because one session is one package is one plan:
   // a manifest composed against one package must not survive into another. The
   // MODE is part of it because binding a route is a rebuild, never a swap.
+  /* THE ROOM'S OUTER BOUNDARY (2026-09-05). It should never fire: every item
+     in the thread already has one of its own. If it does, the room says so in
+     its own voice, over the cockpit, and the banker still has every way out.
+     A component stack on the glass in front of a client is the failure, not
+     the diagnosis, so the detail goes to the console and nowhere else. */
   return (
-    <Workroom
-      key={`${context.mode}-${context.door}-${context.accountId}-${context.productPackageId ?? "none"}`}
-      context={context}
-      engine={engine}
-      router={router}
-      eligibleMemberIds={eligibleMemberIds}
-      reads={reads}
-      onOpenAssist={openAssist}
-      brain={brain}
-      /* The org's own Lightning host, never a guessed My Domain. Absent leaves
-         the dossier's link unrendered rather than wrong (A29). */
-      instanceUrl={data.meta?.instanceUrl}
-      approverUserId={resolveApproverUserId(data.meta) ?? undefined}
-      onFiled={onFiled}
-      /* THE GLASS LIFTS, AND THE WASH SETTLES (rule 62). Every route out of the
-         room — the close button, Escape, the scrim — comes through this one
-         prop, so arming the wash here catches all three. */
-      onClose={close}
-      /* THE SECOND DOOR IN THE AFTERGLOW. The room hands over the ledger its
-         card is showing and this opens the memo room on it. */
-      onDraftMemo={openMemo}
-      onAnchor={(choice) =>
-        session
-          ? anchorFacilityRoom(choice.id)
-          : openWorkroom({ ...context, productPackageId: choice.id, packageName: choice.label })
-      }
-      /* WRITE-BACK THROUGH THE GLASS. The room hands over the committed delta
-         its own manifest carried; the cockpit's figures roll to it behind the
-         blur. This host dispatches rather than the room, because the room has
-         no provider above it in its render test — and because a dispatch that
-         touched `livePatches` would rebuild the room's engine mid-scene. */
-      onExecuted={(committedDeltaMM) =>
-        dispatch({ type: "WRITE_BACK", accountId: context.accountId, committedDeltaMM })
-      }
-    />
+    <RoomBoundary what="the facility room" scope="room">
+      <Workroom
+        key={`${context.mode}-${context.door}-${context.accountId}-${context.productPackageId ?? "none"}`}
+        context={context}
+        engine={engine}
+        router={router}
+        eligibleMemberIds={eligibleMemberIds}
+        reads={reads}
+        onOpenAssist={openAssist}
+        brain={brain}
+        /* The org's own Lightning host, never a guessed My Domain. Absent leaves
+           the dossier's link unrendered rather than wrong (A29). */
+        instanceUrl={data.meta?.instanceUrl}
+        approverUserId={resolveApproverUserId(data.meta) ?? undefined}
+        onFiled={onFiled}
+        /* THE GLASS LIFTS, AND THE WASH SETTLES (rule 62). Every route out of the
+           room — the close button, Escape, the scrim — comes through this one
+           prop, so arming the wash here catches all three. */
+        onClose={close}
+        /* THE SECOND DOOR IN THE AFTERGLOW. The room hands over the ledger its
+           card is showing and this opens the memo room on it. */
+        onDraftMemo={openMemo}
+        onAnchor={(choice) =>
+          session
+            ? anchorFacilityRoom(choice.id)
+            : openWorkroom({ ...context, productPackageId: choice.id, packageName: choice.label })
+        }
+        /* WRITE-BACK THROUGH THE GLASS. The room hands over the committed delta
+           its own manifest carried; the cockpit's figures roll to it behind the
+           blur. This host dispatches rather than the room, because the room has
+           no provider above it in its render test — and because a dispatch that
+           touched `livePatches` would rebuild the room's engine mid-scene. */
+        onExecuted={(committedDeltaMM) =>
+          dispatch({ type: "WRITE_BACK", accountId: context.accountId, committedDeltaMM })
+        }
+      />
+    </RoomBoundary>
   );
 }

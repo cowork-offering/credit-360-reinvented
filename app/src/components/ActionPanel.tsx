@@ -37,6 +37,7 @@ import { ConfirmGate } from "./ConfirmGate";
 import { StepTracker } from "./StepTracker";
 import { TechnicalToggle } from "./ui";
 import { isSimulationAllowed, simulateStagedOutput, type StagedOutput } from "../actions/stagedPlan";
+import { byDeadline, isDeadline } from "./workroom/deadline";
 import {
   executeAction,
   isWriteAction,
@@ -963,7 +964,22 @@ export function ActionPanel({
               if (!built) throw { code: "NOT_STAGEABLE", message: "There is no staging tool for this action in this view." };
               return "simulated, nothing left this page";
             }
-            const res = await stageAction(actionId, payload as never);
+            /* THE STAGING CALL CARRIES A CLOCK (2026-09-05). This line is
+               inside the compile sequence, and a line that cannot tick is a
+               sequence that cannot end: the panel would sit on a filling
+               chevron for the life of the page. Staging writes nothing, so an
+               expiry here is clean and the sequence fails on its own line. */
+            const res = await byDeadline(stageAction(actionId, payload as never), "stage", "staging this plan").catch((e) => {
+              if (isDeadline(e)) {
+                throw {
+                  code: "TRANSPORT",
+                  message:
+                    "The org has not answered the staging call in 25 seconds, so I have stopped waiting on it. " +
+                    "Staging writes nothing, so nothing has been filed and the briefing is exactly as you left it.",
+                };
+              }
+              throw e;
+            });
             if (!res.ok) {
               // The tool returns the legal picklist set on a mismatch; adopt it
               // so the briefing can offer the real values on the next attempt.
@@ -1089,7 +1105,10 @@ export function ActionPanel({
     setToolError(null);
     setContinuing(true);
     try {
-      const again = await executeAction(actionId as never, {
+      /* THE RESUME CARRIES THE WRITE BUDGET, and the budget is never a verdict:
+         a resume that ran out of clock says only that the panel stopped
+         waiting, and the affordance stays exactly where it was. */
+      const again = await byDeadline(executeAction(actionId as never, {
         idempotencyKey: idempotencyKeyRef.current,
         stagingId: plan.stagingId,
         planHash: plan.planHash,
@@ -1097,7 +1116,7 @@ export function ActionPanel({
         // Apex resume path never reads it; a null is refused by the platform.
         decisionToken: plan.decisionToken,
         approverUserId: bound,
-      });
+      }), "execute", "the filing");
       // #10 — a failed resume goes through the same doctrine as a failed first
       // execution: typed code, the org's own words, and no invented retry.
       if (!again.ok) {
@@ -1106,6 +1125,16 @@ export function ActionPanel({
       }
       onConfirmed(token, again.result);
     } catch (e) {
+      if (isDeadline(e)) {
+        setToolError({
+          code: "TRANSPORT",
+          message:
+            "The org has not answered in 45 seconds. I will not tell you this failed, because I cannot see that. " +
+            "Check the record in Salesforce before sending it again; nothing here has changed.",
+          resumable: true,
+        });
+        return;
+      }
       const f = e as { code?: string; fix?: string; message?: string };
       setToolError({ code: f.code ?? "TRANSPORT", message: f.message ?? f.fix ?? String(e) });
     } finally {
