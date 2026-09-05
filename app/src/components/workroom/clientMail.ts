@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { BrainMail } from "../../channel/brainLane";
 import { distinctiveToken, matchesAccount, searchMailbox, type MailHit } from "../../channel/cockpitTools";
 import { mcpAvailable } from "../../channel/mcp";
+import { byDeadline } from "./deadline";
 import type { BorrowerBundle } from "../../data/contract";
 import { fmtDate, fmtMoney } from "../../data/format";
 import { readRouteIntent } from "./route";
@@ -199,7 +200,11 @@ export function useClientMail(args: {
     }, MAIL_GATE_MS);
     void (async () => {
       try {
-        const { hits } = await searchMailbox(accountName);
+        /* THE READ CARRIES A CLOCK (2026-09-05). The gate below already opens
+           the room on a timer, so a hung mailbox never held the greeting; what
+           it did hold was a promise and its callbacks, for the life of the
+           page. Fifteen seconds is the ordinary read budget. */
+        const { hits } = await byDeadline(searchMailbox(accountName), "read", "the mailbox");
         if (alive) setLive({ note: mailNoteFromHits(hits, accountName, generatedAt), hits });
       } catch {
         // Silent by contract. A banker told the mailbox could not be reached

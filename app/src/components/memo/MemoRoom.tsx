@@ -43,6 +43,8 @@ import {
 import { createPaneBuffers, type BufferPane, type PaneBuffers, type PaneRole } from "./paneBuffer";
 import type { MemoGreeting } from "./memoGreeting";
 import type { MemoRequestSource, MemoTrigger } from "./memoSession";
+import { DEADLINES, byDeadline, isDeadline, narrateDeadlineLine, steerDeadlineLine, withDeadline } from "../workroom/deadline";
+import { RoomBoundary } from "../workroom/RoomBoundary";
 import "../../styles/workroom.css";
 import "../../styles/memo.css";
 
@@ -243,6 +245,18 @@ export function steerTarget(text: string, sections: readonly MemoSection[]): str
  *  it again, on the same thread the composer types into. So the pane's own
  *  readiness is the second half of the rule: see `busy` below. */
 const STREAM_FRAME_MS = 400;
+
+/** How many sections may run out of clock back to back before the draft stops
+ *  asking. Two, because one is a slow section and two is a door that has
+ *  stopped answering; nine of them is six minutes of a timeline that claims to
+ *  be working. */
+const LATE_SECTIONS_BEFORE_STOPPING = 2;
+
+/** What one section's round trip did. `timeout` carries the room's own clock
+ *  so the sentence can name how long it waited. */
+type SectionOutcome = "ok" | "declined" | "no-desk" | { kind: "timeout"; error: unknown };
+const wroteOk = (o: SectionOutcome): boolean => o === "ok";
+const lateFrom = (o: SectionOutcome): unknown => (typeof o === "object" && o.kind === "timeout" ? o.error : null);
 
 export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClose }: MemoRoomProps) {
   const narrate = deps?.narrate;
@@ -446,37 +460,59 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
   const paneBusy = useRef<() => boolean>(() => false);
 
   const writeSection = useCallback(
-    async (spec: NarrativeSpec, title: string, steer?: string | null): Promise<boolean> => {
-      if (!narrate) return false;
+    async (spec: NarrativeSpec, title: string, steer?: string | null): Promise<SectionOutcome> => {
+      if (!narrate) return "no-desk";
       const controller = new AbortController();
       abort.current = controller;
       let last = 0;
       const prompt = narrativePrompt({ spec, dossier, sectionTitle: title, steer, written: written.current });
       try {
-        const reply = await narrate({
-          prompt,
-          signal: controller.signal,
-          onText: (text) => {
-            const now = Date.now();
-            if (now - last < STREAM_FRAME_MS) return;
-            /* THE PANE SETS THE PACE IT CAN ACTUALLY KEEP. While a document is
-               still being parsed, another rebuild would replace it before it
-               landed: the reader sees nothing sooner and the main thread does
-               the work twice. The text is not lost: it is still in `reply`,
-               and the section lands in full below whatever happened here. */
-            if (paneBusy.current()) return;
-            last = now;
-            setStreaming(narrativesFromReply(spec, text));
-          },
-        });
+        /* ============ THE DESK CARRIES A CLOCK, AND THE CLOCK CANCELS (2026-09-05)
+
+           The sample lane takes an AbortSignal and honours it, so a section that
+           has not answered inside its budget is not merely abandoned: the stream
+           is stopped, and the tokens after it are never paid for. The budget is
+           per SECTION, not per draft, so one slow section cannot take a
+           nine-section memo down with it. A steer is shorter than a draft
+           section for one reason: the banker is watching this one. */
+        const stream = (expiry: AbortSignal) => {
+          // The clock's own signal drives the door's: one abort, two listeners.
+          expiry.addEventListener("abort", () => controller.abort());
+          return narrate({
+            prompt,
+            signal: controller.signal,
+            onText: (text) => {
+              const now = Date.now();
+              if (now - last < STREAM_FRAME_MS) return;
+              /* THE PANE SETS THE PACE IT CAN ACTUALLY KEEP. While a document
+                 is still being parsed, another rebuild would replace it before
+                 it landed: the reader sees nothing sooner and the main thread
+                 does the work twice. The text is not lost: it is still in
+                 `reply`, and the section lands in full below whatever happened
+                 here. */
+              if (paneBusy.current()) return;
+              last = now;
+              setStreaming(narrativesFromReply(spec, text));
+            },
+          });
+        };
+        const reply = await withDeadline(
+          stream,
+          steer ? "steer" : "narrate",
+          title,
+          steer ? DEADLINES.steer : DEADLINES.narrate,
+        );
         const landed = narrativesFromReply(spec, reply);
         written.current = { ...written.current, ...landed };
         setStreaming({});
         setNarratives((prev) => ({ ...prev, ...landed }));
-        return true;
-      } catch {
+        return "ok";
+      } catch (e) {
         setStreaming({});
-        return false;
+        /* THE SECTION IS LEFT WITH ITS PENDING MARKER EITHER WAY. What differs
+           is what the room says: a desk that refused is absence, and a desk
+           that ran out of clock is a fact the banker can act on. */
+        return isDeadline(e) ? { kind: "timeout", error: e } : "declined";
       }
     },
     [narrate, dossier],
@@ -583,7 +619,14 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
       generator: "cockpit",
       renderPlan: plan,
       sections: sections.map((s) => recordFor(s, sectionState)),
-      narratives,
+      /* THE PROSE, READ SYNCHRONOUSLY (2026-09-05). `written` is the copy the
+         draft loop keeps for exactly this reason: it is current the instant a
+         section lands, where the state behind `narratives` is current only
+         after React has committed. The store write fires at the END of the
+         loop, and a builder reading state could be handed the memo as it stood
+         one section ago. Merged rather than substituted so a narrative that
+         only ever existed in state is still carried. */
+      narratives: { ...narratives, ...written.current },
       /* THE BANKER'S WORDS OUTRANK THE RENDERER'S. Where a section was edited
          in the frame, what is stored is the section as the banker left it. */
       html: applyEditedSections(html, edits.current),
@@ -630,9 +673,10 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
       const started = openWork("steer", [{ id: target, title }]);
       pushWork(startRow(started, target, Date.now()));
       setWriting(target);
-      const ok = await writeSection(spec, title, line);
-      pushWork(finishRow(work.current ?? started, target, Date.now(), !ok));
-      closeWork(ex);
+      const outcome = await writeSection(spec, title, line);
+      pushWork(finishRow(work.current ?? started, target, Date.now(), !wroteOk(outcome)));
+      const late = lateFrom(outcome);
+      closeWork(ex, late ? () => say("agent", steerDeadlineLine(late, title), true) : undefined);
     },
     [say, openWork, pushWork, writeSection, closeWork],
   );
@@ -666,18 +710,52 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
       "draft",
       specs.map((s) => ({ id: s.module, title: titleOf(s.module, sectionsRef.current) })),
     );
+    /* ONE SECTION SHORT IS A GAP; NINE IS A DEAD DESK (2026-09-05).
+
+       A section that ran out of clock does not stop the draft: the memo is
+       whole and deterministic without any of the prose, and the other eight are
+       worth having. But a draft that kept going would spend forty seconds per
+       section against a door that has already stopped answering twice, and nine
+       of those is six minutes of a timeline that says "working" and is not.
+       Two consecutive is the room's evidence that the desk is gone, and it
+       stops there and names what it did not write. */
+    const late: string[] = [];
+    let lateError: unknown = null;
+    let consecutive = 0;
     for (const spec of specs) {
+      const title = titleOf(spec.module, sectionsRef.current);
+      if (consecutive >= LATE_SECTIONS_BEFORE_STOPPING) {
+        late.push(title);
+        continue;
+      }
       pushWork(startRow(work.current ?? started, spec.module, Date.now()));
       setWriting(spec.module);
-      const ok = await writeSection(spec, titleOf(spec.module, sectionsRef.current));
-      pushWork(finishRow(work.current ?? started, spec.module, Date.now(), !ok));
+      const outcome = await writeSection(spec, title);
+      pushWork(finishRow(work.current ?? started, spec.module, Date.now(), !wroteOk(outcome)));
+      const err = lateFrom(outcome);
+      if (err) {
+        late.push(title);
+        lateError = err;
+        consecutive += 1;
+      } else {
+        consecutive = 0;
+      }
     }
     setDrafted(true);
     /* THE DRAFT OUTLIVES THE VIEW. A memo that were only stored on publication
        would leave "Open latest memo" with nothing to open for every memo a
        banker started and came back to. */
     if (save) void save(latestDraft.current());
-    closeWork(ex, () => say("agent", DRAFTED_LINE, true));
+    closeWork(ex, () =>
+      say(
+        "agent",
+        lateError
+          ? `${narrateDeadlineLine(lateError, late.length === 1 ? late[0] : `${late.length} sections`)} ` +
+            "The memo stands on its figures, and I will write the rest when the desk answers."
+          : DRAFTED_LINE,
+        true,
+      ),
+    );
   }, [plan, narrate, say, settleExchange, greeting.lead, openWork, pushWork, writeSection, closeWork, save]);
 
   /**
@@ -727,9 +805,28 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
   const onPublish = useCallback(async () => {
     if (!attested || publishing || published) return;
     setPublishing(true);
-    const result = await publish(buildDraft());
+    /* THE PUBLISH CARRIES THE WRITE BUDGET. It is five connector writes behind
+       one gesture; past forty-five seconds the room stops waiting on the socket
+       and says what it knows, which is that it cannot see the outcome. */
+    let result: Awaited<ReturnType<typeof publish>>;
+    try {
+      result = await byDeadline(publish(buildDraft()), "execute", "publishing this memo");
+    } catch (e) {
+      setPublishing(false);
+      say(
+        "agent",
+        isDeadline(e)
+          ? "The publish call has not answered in 45 seconds. I will not tell you it failed, because I cannot see that. " +
+              "Check the memo in nCino before publishing again, and nothing here has changed in the meantime."
+          : NOT_WIRED_LINE,
+        true,
+      );
+      return;
+    }
     setPublication(result);
-    if (save) await save(buildDraft());
+    /* THE STORE IS BOOKKEEPING AND NEVER A GATE: a save that hung would hold
+       the room on a publication that has already happened. */
+    if (save) await byDeadline(save(buildDraft()), "execute", "storing this memo").catch(() => {});
     if (result.status !== "published") say("agent", result.reason ?? NOT_WIRED_LINE, true);
     setPublished(true);
     setPublishing(false);
@@ -868,22 +965,27 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
                           squeeze a child that will let it, so the row owns the
                           overflow and the wrapper owns the height transition. */}
                       <div className="wk-ex-in">
-                        {item.kind === "settled" ? (
-                          <SettledLine
-                            row={item.row}
-                            open={settle.isOpen(item.id)}
-                            onToggle={() => settle.toggle(item.id)}
-                            id={item.id}
-                          />
-                        ) : item.kind === "work" ? (
-                          <WorkTimeline work={item.work} />
-                        ) : (
-                          <div className={`wk-msg wk-${item.who}`} data-who={item.who === "banker" ? "You" : "Agent"}>
-                            <div className="wk-bub">
-                              {item.who === "agent" ? <Words text={item.text} /> : item.text}
+                        {/* ONE BAD ITEM IS ONE BAD ITEM (2026-09-05). A row the
+                            memo cannot render leaves its own gap marker and the
+                            timeline above and below it keeps working. */}
+                        <RoomBoundary what={`this ${item.kind}`}>
+                          {item.kind === "settled" ? (
+                            <SettledLine
+                              row={item.row}
+                              open={settle.isOpen(item.id)}
+                              onToggle={() => settle.toggle(item.id)}
+                              id={item.id}
+                            />
+                          ) : item.kind === "work" ? (
+                            <WorkTimeline work={item.work} />
+                          ) : (
+                            <div className={`wk-msg wk-${item.who}`} data-who={item.who === "banker" ? "You" : "Agent"}>
+                              <div className="wk-bub">
+                                {item.who === "agent" ? <Words text={item.text} /> : item.text}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </RoomBoundary>
                       </div>
                     </div>
                   );

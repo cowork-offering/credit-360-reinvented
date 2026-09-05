@@ -3355,3 +3355,34 @@ body.wk-open #root {
     transform: none;
   }
 }
+
+/* ------------------------------------------------------------------ the gap
+   GARBAGE IN, CALM OUT (2026-09-05). What a module renders when its payload
+   came back in a shape it could not read. It is deliberately NOT an error
+   surface: no red, no icon, no border. It is the same quiet marker the memo
+   uses for a figure the source system does not carry, because that is what
+   this is from the banker's side: a figure that is not there, plus the one
+   line saying why. A module that shouted about its own exception would draw
+   more attention to the fault than to the rest of the room, which is fine. */
+.wk-gap {
+  align-self: flex-start;
+  max-width: 86%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--wash-2);
+  border: 1px solid var(--border);
+}
+.wk-gap-mark {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink-faint);
+}
+.wk-gap-why {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-body);
+}

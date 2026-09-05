@@ -12,6 +12,7 @@ import type { ActionHistoryRow } from "../../data/contract";
 import { MemoRoom, type MemoContext, type MemoDeps, type MemoNarrator } from "./MemoRoom";
 import { closeMemoRoom, useMemoRoom } from "./memoSession";
 import { executedRead, memoGreeting } from "./memoGreeting";
+import { RoomBoundary } from "../workroom/RoomBoundary";
 
 /* =============================================================================
    THE ONE MOUNT.
@@ -176,18 +177,25 @@ export function MemoRoomHost() {
     source: session.source,
   };
 
+  /* THE ROOM'S OUTER BOUNDARY (2026-09-05). It should never fire: every item
+     in the thread already has one of its own. If it does, the room says so in
+     its own voice, over the cockpit, and the banker still has every way out.
+     A component stack on the glass in front of a client is the failure, not
+     the diagnosis, so the detail goes to the console and nowhere else. */
   return (
-    <MemoRoom
-      /* Keyed on the package: a memo composed against one version must never
-         survive into another, exactly as a manifest must not. */
-      key={`memo-${session.accountId}-${packageId ?? "none"}`}
-      ctx={ctx}
-      dossier={dossier}
-      changes={changes}
-      greeting={greeting}
-      latest={latest}
-      deps={deps}
-      onClose={closeMemoRoom}
-    />
+    <RoomBoundary what="the memo room" scope="room">
+      <MemoRoom
+        /* Keyed on the package: a memo composed against one version must never
+           survive into another, exactly as a manifest must not. */
+        key={`memo-${session.accountId}-${packageId ?? "none"}`}
+        ctx={ctx}
+        dossier={dossier}
+        changes={changes}
+        greeting={greeting}
+        latest={latest}
+        deps={deps}
+        onClose={closeMemoRoom}
+      />
+    </RoomBoundary>
   );
 }

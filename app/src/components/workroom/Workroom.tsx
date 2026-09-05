@@ -9,6 +9,27 @@ import { addEntry, addressManifest, figuresFor, removeEntry } from "../../workro
 import { vocabularyFor } from "../../workroom/modes";
 import { stepperState } from "../../workroom/stepper";
 import { awaitFiling, FILED_FAILED, FILING_IN_FLIGHT, LIVE_SETTLE, STILL_WRITING, type SettleDeps } from "./settleExecution";
+import {
+  KEEP_THE_PLAN,
+  TRY_AGAIN,
+  byDeadline,
+  executeDeadlineLine,
+  isDeadline,
+  stageDeadlineLine,
+} from "./deadline";
+import {
+  RESUMED_NOTE,
+  RESUME_CHIP,
+  START_OVER_CHIP,
+  clearPlan,
+  isResumeSay,
+  isStartOverSay,
+  readStoredPlan,
+  resumeOffer,
+  savePlan,
+  type PlanRoute,
+  type StagedPlanDoc,
+} from "./planStore";
 import type {
   DraftedReply,
   HaveRow,
@@ -27,6 +48,7 @@ import type { SourceChip } from "../../workroom/scripts";
 import { BrandGlyph } from "../brand";
 import { odoRoll } from "../Odometer";
 import { Peek, usePeek } from "./Peek";
+import { RoomBoundary } from "./RoomBoundary";
 import { GooFilter, LiquidMark, Orbit } from "./Liquid";
 import { TypeIcon, iconForDelta, iconForMember, type IconKind } from "./TypeIcon";
 import {
@@ -697,6 +719,49 @@ function nothingWasFiled(e: unknown): boolean {
   return neverReachedTheOrg(e) || (e as { dispatched?: unknown } | null | undefined)?.dispatched === false;
 }
 
+/* =============== IS THIS A PLAN, OR ONLY THE SHAPE OF ONE? (2026-09-05)
+
+   FOUND BY THE CHAOS PROBE, garbage-on-stage. A connector that answers the
+   staging call with a payload of the wrong shape produced a staging object the
+   room accepted: the compile card resolved, the approve control rendered
+   (disabled, because there was no token in it), and the room said NOTHING. A
+   banker looking at that sees a plan that will not go, with no reason given.
+
+   A PLAN IS A DECISION TOKEN AND AT LEAST ONE STEP. Both come off the org and
+   neither can be inferred, so their absence is the whole test. Checked in the
+   room rather than in the engine because the engine is byte-fenced, and checked
+   after staging rather than at render because a control that is quietly dead is
+   the defect this closes. */
+const isReadablePlan = (staged: StagedWorkroomPlan | null | undefined): boolean =>
+  Boolean(staged?.decisionToken) && Array.isArray(staged?.plan?.steps) && (staged?.plan?.steps?.length ?? 0) > 0;
+
+/** WHAT THE ROOM SAYS TO A PLAN IT CANNOT READ. It names the two things that
+ *  were missing, states the one fact staging's zero-DML contract makes safe,
+ *  and offers the two moves. No stack, no code, no apology. */
+const UNREADABLE_PLAN =
+  "The org answered the staging call with something I could not read: there is no decision token and no steps in it, " +
+  "so there is no plan here to put up. Staging writes nothing, so nothing has been filed and the manifest is exactly as you left it.";
+
+/* =============== IS THIS A FILING, OR ONLY THE SHAPE OF ONE? (2026-09-05)
+
+   FOUND BY THE SAME PROBE, garbage-on-execute. A malformed execute result
+   carried an empty `filed` list through to the dossier, and the room lit the
+   afterglow: "Close workroom / Draft the credit memo", which is the room
+   claiming a write the org never confirmed. That is the one thing this cockpit
+   may never do.
+
+   AN EXECUTION IS A `filed` LIST. Not a long one, necessarily: a plan can file
+   one row. But a result with no list at all is a result the room cannot read,
+   and an unreadable result is not evidence of a filing. */
+const isReadableExecution = (landed: WorkroomExecution | null | undefined): boolean =>
+  Array.isArray(landed?.filed) && landed.filed.length > 0 && landed.filed.some((f) => Boolean(f.recordId));
+
+/** WHAT THE ROOM SAYS TO A RESULT IT CANNOT READ. It claims nothing either way
+ *  and it sends the banker to the record that knows. */
+const UNREADABLE_EXECUTION =
+  "The org answered the filing call with something I could not read, so I will not tell you what it did. " +
+  "The staging record holds the outcome: ask me to check it and I will read it back. Nothing needs approving again.";
+
 /** TRUE where the room never reached an org at all. THE CHANNEL-NONE DOCTRINE:
  *  no connector means no plan, nothing simulated, and no token ever burnt. This
  *  is the one failure that earns a surface of its own rather than a sentence in
@@ -1178,6 +1243,29 @@ export function Workroom({
      updated in the same statement as the state, so a second confirm in the same
      tick composes with the first instead of overwriting it. */
   const entriesRef = useRef<WorkroomDelta[]>([]);
+
+  /* ===================================== THE PLAN OUTLIVES THE PAGE (2026-09-05)
+
+     The engine already remembers a CLOSE: `engine.resume()` hands the manifest
+     back when the room reopens on the same package. It cannot remember a
+     RELOAD, because that memory is a module in this page. These three refs are
+     the half that can.
+
+     `planSaidRef` is the banker's own instructions, and only the ones that put
+     something on the manifest: a question, a chip and a refused line are not
+     plan. `lastSaidRef` is the line in flight, held until the manifest moves,
+     which is the only honest way to know which line earned which card without
+     asking every composer to report itself. `planOfferRef` is the document the
+     store handed back, so the offer's two chips can act on it. */
+  const planSaidRef = useRef<string[]>([]);
+  const lastSaidRef = useRef<string | null>(null);
+  const planOfferRef = useRef<StagedPlanDoc | null>(null);
+  const openFlowRef = useRef<() => void>(() => {});
+  /* THE IN-FLIGHT LOCK, SET IN THE SAME TICK AS THE GESTURE (feedback item 12).
+     `filing` is React state and a second click inside the same commit reads the
+     value the first one saw. A ref is set synchronously, so the second click
+     lands on a lock that is already closed. */
+  const filingRef = useRef(false);
   /** WHY THE PRICING GATE RAN, by facility: the entry that made it necessary.
    *  Checked again at approve time, because a plan that lost the change the
    *  pricing was FOR is a version nobody meant to file. */
@@ -1460,7 +1548,29 @@ export function Workroom({
       // the package they were composed for, and the room says what it picked up
       // rather than presenting the lane as if it had always been there.
       const resumed = engine.resume();
-      if (!resumed.length) return;
+      if (!resumed.length) {
+        /* ============ AND WHAT A RELOAD TOOK (2026-09-05)
+
+           The engine remembers a close; it cannot remember a reload. Where the
+           store holds a plan for this package and the engine holds nothing, the
+           room OFFERS it rather than restaging on its own: a banker who came
+           back to start over should not find yesterday's manifest putting
+           itself back up. The read carries the ordinary read deadline, and
+           every kind of absence, no store, no document, a document that did
+           not survive its reader, a read that ran out of clock, is the same
+           silence, which is exactly the room as it was before this existed. */
+        if (context.productPackageId) {
+          void readStoredPlan(context.accountId, context.productPackageId, context.mode as PlanRoute).then((doc) => {
+            if (!doc || !doc.said.length) return;
+            planOfferRef.current = doc;
+            setItems((prev) => [
+              ...prev,
+              { kind: "agent", id: nextId("agent"), step: 0, text: resumeOffer(doc), options: [RESUME_CHIP, START_OVER_CHIP] },
+            ]);
+          });
+        }
+        return;
+      }
       const [one, many] = vocabulary.changeWord;
       setEntries(resumed);
       // A MANIFEST THAT SURVIVED THE LAST CLOSE HAS ALREADY BOUND THE ROUTE.
@@ -3111,6 +3221,81 @@ export function Workroom({
          have dealt with it, whether by reloading or by carrying on. */
       unhushRef.current?.();
 
+      /* ============ THE FAULT-STATE CHIPS ANSWER HERE, BEFORE THE GRAMMAR
+
+         Four lines the ROOM put in the banker's mouth, and each is a gesture
+         rather than an instruction: they are what a deadline and a resume offer
+         leave behind. They are intercepted ahead of the parser because a parser
+         that met "try that again" would answer it as a change to a facility
+         called "that", which is the room misreading its own words back.
+
+         Each lands the banker's own bubble first, on the same rule every other
+         refusal in this room follows: an answer with nothing visible above it
+         reads as the room talking to itself. */
+      if (trimmed.toLowerCase() === TRY_AGAIN.say) {
+        const mine = step + 1;
+        setStep(mine);
+        setItems((prev) => [...prev, bankerLine(mine, (said ?? heard).trim(), opts?.fed)]);
+        if (!entriesRef.current.length) {
+          agent("There is nothing on the manifest to put up. Say the change you want and I will stage it.");
+          return;
+        }
+        openFlowRef.current();
+        return;
+      }
+      if (trimmed.toLowerCase() === KEEP_THE_PLAN.say) {
+        const mine = step + 1;
+        setStep(mine);
+        setItems((prev) => [...prev, bankerLine(mine, (said ?? heard).trim(), opts?.fed)]);
+        agent(
+          "The manifest stands exactly as it is. Nothing has been sent to the org and nothing has been filed. " +
+            "Put it up whenever you are ready.",
+        );
+        return;
+      }
+      if (isResumeSay(trimmed) && planOfferRef.current) {
+        const doc = planOfferRef.current;
+        planOfferRef.current = null;
+        // The record rebuilds from the replay, so the room does not end up
+        // holding two copies of a line the banker said once.
+        planSaidRef.current = [];
+        const mine = step + 1;
+        setStep(mine);
+        setItems((prev) => [...prev, bankerLine(mine, (said ?? heard).trim(), opts?.fed)]);
+        /* THE ROUTE THE PLAN WAS BUILT ON, BOUND BEFORE ITS LINES GO BACK IN.
+           The stored plan is read by route, so this is always the route the
+           room already carries: the bind closes the three-way question rather
+           than changing engine, exactly as picking the manifest up after a
+           close does. Without it the first replayed line would meet the route
+           gate and be answered with the question again. */
+        setAsk(null);
+        routerRef.current?.onBind(context.mode);
+        /* THE LINES GO BACK THROUGH THE FRONT DOOR, one at a time, in the order
+           they were said. Nothing is restored: every gate, every question and
+           every refusal runs again, and the org stages afresh. */
+        for (const line of doc.said) await sayRef.current(line);
+        /* AND THE RE-STAGE NOTE COMES LAST, WHERE IT CAN BE READ (2026-09-05).
+           Said before the replay it was true, on the glass, and gone: each
+           replayed line advances the step, and the room folds every earlier
+           step into "earlier steps" within a second. A warning about a spent
+           token that the banker never sees is not a warning. */
+        agent(RESUMED_NOTE);
+        return;
+      }
+      if (isStartOverSay(trimmed) && planOfferRef.current) {
+        const doc = planOfferRef.current;
+        planOfferRef.current = null;
+        planSaidRef.current = [];
+        void clearPlan(doc.accountId, doc.packageId, doc.route);
+        const mine = step + 1;
+        setStep(mine);
+        setItems((prev) => [...prev, bankerLine(mine, (said ?? heard).trim(), opts?.fed)]);
+        agent("Starting over. The rail is empty and the plan you left is discarded. Say the first change whenever you like.");
+        return;
+      }
+      /* THE LINE IN FLIGHT, held until the manifest moves. See `planSaidRef`. */
+      lastSaidRef.current = trimmed;
+
       /* FREE TEXT ALWAYS WINS (founder, 2026-08-31). While the route is open the
          line does not go to the engine — it decides WHICH engine hears it. A
          line that names no route is answered by the question again, because
@@ -4067,6 +4252,12 @@ export function Workroom({
     ],
   );
 
+  /** THE ROOM SAYING A LINE TO ITSELF. Only the resume path uses it, and only
+   *  to put the banker's own recorded instructions back through the same front
+   *  door they came in by. A ref because `say` cannot depend on itself. */
+  const sayRef = useRef(say);
+  sayRef.current = say;
+
   /** THE QUESTION IS ANSWERED BY A CHIP. "Something else" answers nothing: it
    *  falls through to the neutral three-way, which is the whole point of
    *  offering a suggestion rather than assuming one. */
@@ -4631,7 +4822,13 @@ export function Workroom({
     }
     setFlow({ staging: null, running: false, status: 0, held: [] });
     try {
-      const staged = await engine.stagePlan(entries, context);
+      /* THE STAGING CALL CARRIES A CLOCK (2026-09-05). `callTool` normalises
+         every failure the platform REPORTS but has no wall clock of its own, so
+         a connector that accepts the call and never answers used to leave this
+         await pending for the life of the page, with the flow card open and a
+         chevron filling behind it. Twenty-five seconds is one Apex round trip
+         with room to spare; past it the room says so and the rail is untouched. */
+      const staged = await byDeadline(engine.stagePlan(entries, context), "stage", "staging this plan");
       /* ================== THE PLAN HAS TO NAME EVERY ARM IT WAS SENT (2026-09-02)
 
          An exclusion writes no record, so there is no id to check afterwards and
@@ -4647,6 +4844,13 @@ export function Workroom({
          empty the approval is closed and `execute` refuses: the only ways on are
          to take the entry off the manifest, or to discard the plan and stage
          again. Nothing has been written either way. */
+      /* A PLAN THE ROOM CANNOT READ IS NOT A PLAN, and it never becomes a
+         compile card with a dead button on it. */
+      if (!isReadablePlan(staged)) {
+        setFlow(null);
+        agent(UNREADABLE_PLAN, [TRY_AGAIN, KEEP_THE_PLAN]);
+        return;
+      }
       const planned = new Set((staged.plan.steps ?? []).map((s) => s.id));
       const missing = armStepPairs(entries).filter((a) => !planned.has(a.writeStepId));
       setFlow((f) => (f ? { ...f, staging: staged, held: missing.map((m) => `${m.title} on ${m.target}`) } : f));
@@ -4659,6 +4863,14 @@ export function Workroom({
       }
     } catch (e) {
       setFlow(null);
+      /* THE ROOM'S OWN CLOCK RAN OUT, which is a fact about the room and not
+         about the org. Staging is zero-DML by contract, so "nothing was filed"
+         is the one thing that CAN be stated here, and the two chips are the two
+         real moves: say it again, or leave the manifest alone. */
+      if (isDeadline(e)) {
+        agent(stageDeadlineLine(e, "staging this plan"), [TRY_AGAIN, KEEP_THE_PLAN]);
+        return;
+      }
       // NO CONNECTOR IS NOT A SENTENCE IN THE FLOW, it is the reason nothing can
       // happen. It gets a glass surface of its own and says what to do next, and
       // no token was ever burnt getting here.
@@ -4700,12 +4912,59 @@ export function Workroom({
     }
   }, [agent, context, engine, entries, lostPricingCause, push, relayError]);
 
+  openFlowRef.current = openFlow;
+
+  /* ================== THE MANIFEST IS WRITTEN DOWN WHERE A RELOAD CANNOT REACH
+
+     The banker's own lines, and only the ones that put something on the rail.
+     `lastSaidRef` holds the line in flight; when the manifest GROWS, that line
+     is what earned the card, and it joins the record. Nothing else is stored:
+     no token, no staging id, no plan hash, no payload. See planStore.ts.
+
+     FIRE AND FORGET, ALWAYS. The rail is already on the glass; a room that
+     awaited its own bookkeeping would be the stuck room this wave is about. */
+  const manifestCount = useRef(0);
+  useEffect(() => {
+    const grew = entries.length > manifestCount.current;
+    const discarded = manifestCount.current > 0 && entries.length === 0;
+    manifestCount.current = entries.length;
+    if (grew && lastSaidRef.current) {
+      if (planSaidRef.current[planSaidRef.current.length - 1] !== lastSaidRef.current) planSaidRef.current.push(lastSaidRef.current);
+      lastSaidRef.current = null;
+    }
+    if (!context.productPackageId) return;
+    if (!entries.length) {
+      /* AN EMPTY RAIL IS NOT A DISCARD (2026-09-05). Every room opens on one,
+         so clearing here unconditionally deleted the stored plan on the way IN,
+         a moment before the read that would have offered it. Only a manifest
+         that went from something to nothing is the banker throwing it away. */
+      if (discarded && context.productPackageId) {
+        void clearPlan(context.accountId, context.productPackageId, context.mode as PlanRoute);
+      }
+      return;
+    }
+    if (!planSaidRef.current.length) return;
+    void savePlan({
+      accountId: context.accountId,
+      accountName: context.accountName,
+      packageId: context.productPackageId,
+      packageName: brief.packageName,
+      route: context.mode as PlanRoute,
+      said: planSaidRef.current,
+      cards: entries.map((e) => ({ title: e.title, target: e.target, after: e.after })),
+    });
+  }, [brief.packageName, context.accountId, context.accountName, context.mode, context.productPackageId, entries]);
+
   /* `resume` is the STATUS RE-READ, and only the status chip passes it. It is
      not a second approval and it cannot become one: the engine answers a resume
      off the staging record, and the approve control stays sealed throughout. */
   const execute = useCallback(async (resume = false) => {
     const staging = flow?.staging;
-    if (!staging?.decisionToken || filing) return;
+    /* THE LOCK IS THE REF, AND IT IS CLOSED IN THIS TICK (feedback item 12).
+       `filing` is state: a second click, a second Enter or a chip pressed
+       inside the same commit all read the value the first gesture saw, and the
+       second one would spend a token the first one is already spending. */
+    if (!staging?.decisionToken || filing || filingRef.current) return;
     if (!resume && sealed) return;
     // THE GATE, CHECKED WHERE THE TOKEN WOULD BE SPENT. The button is already
     // closed; this is the half that does not depend on a rendered control.
@@ -4716,6 +4975,7 @@ export function Workroom({
       );
       return;
     }
+    filingRef.current = true;
     setFiling(true);
     setFlow((f) => (f ? { ...f, running: true } : f));
     try {
@@ -4754,7 +5014,11 @@ export function Workroom({
           return null;
         }
         setFlow((f) => (f ? { ...f, running: true } : f));
-        return engine.execute(approval);
+        /* THE SECOND ASK, UNDER THE SAME KEY, ALSO CARRIES A CLOCK. The org
+           answers a spent key off the staging record before any check runs and
+           has been measured at 0.27s doing it, so a call that has not answered
+           in the execute budget is a call that will not. */
+        return byDeadline(engine.execute(approval), "execute", "the filing");
       };
 
       let landed: WorkroomExecution | null;
@@ -4765,18 +5029,35 @@ export function Workroom({
         landed = await waitOut(new Error(STILL_WRITING));
       } else {
         try {
-          landed = await engine.execute(approval);
+          /* THE WRITE CARRIES A CLOCK TOO, AND THE CLOCK IS NOT A VERDICT
+             (2026-09-05). Forty-five seconds is the room deciding to stop
+             waiting on a socket; it is never the room deciding what the org
+             did. A deadline here falls into exactly the same wait a lost
+             answer does, and the org's own staging record says what happened.
+             `nothingWasFiled` cannot claim a deadline: it has no `dispatched`
+             stamp and no channel-none code, which is the whole design. */
+          landed = await byDeadline(engine.execute(approval), "execute", "the filing");
         } catch (e) {
           /* THE ANSWER WAS LOST, NOT THE FILING. Only a failure that PROVES
              nothing was written skips the wait; everything else is ambiguous,
              and the room reads the org rather than guessing at it. Waiting costs
              one read a second and can never write. */
           if (nothingWasFiled(e)) throw e;
-          agent(FILING_IN_FLIGHT);
+          agent(isDeadline(e) ? executeDeadlineLine(e) : FILING_IN_FLIGHT);
           landed = await waitOut(e);
         }
       }
       if (!landed) return;
+      /* AND A RESULT THE ROOM CANNOT READ IS NOT A FILING. The approval is
+         sealed either way: the call reached the org and the token may be spent,
+         so re-offering it would be the room guessing about a write it just said
+         it could not see. */
+      if (!isReadableExecution(landed)) {
+        setFlow(null);
+        setSealed(true);
+        push({ kind: "agent", id: nextId("agent"), text: UNREADABLE_EXECUTION, statusChip: true });
+        return;
+      }
       const result = landed;
 
       // THE DOSSIER IS BUILT FROM THE REAL MANIFEST AND THE REAL RESULT, before
@@ -4822,6 +5103,10 @@ export function Workroom({
       // The change set is finished. Nothing is left to pick up on a reopen, and
       // the next room on this package starts on an empty lane.
       engine.release();
+      // AND THE STORE IS TOLD. A plan that outlived its own filing would be
+      // offered back on the next load as work still to do.
+      planSaidRef.current = [];
+      if (context.productPackageId) void clearPlan(context.accountId, context.productPackageId, context.mode as PlanRoute);
       setItems((prev) => {
         const mine = prev.length ? prev[prev.length - 1].step : 0;
         const tail: ThreadItem[] = [{ kind: "dossier", id: nextId("dossier"), step: mine, dossier }];
@@ -4888,7 +5173,11 @@ export function Workroom({
           push({ kind: "agent", id: nextId("agent"), text, statusChip: true });
         };
         try {
-          const finished = await completeNewFacilityDetail(staging.stagingId, approverId);
+          const finished = await byDeadline(
+            completeNewFacilityDetail(staging.stagingId, approverId),
+            "execute",
+            "the facility's purpose",
+          );
           if (finished.ok) {
             quiet(finished.result.outcome);
           } else {
@@ -4926,6 +5215,7 @@ export function Workroom({
          more: it is waited out above, against the record that knows. */
       if (reachedTheOrg(e)) setSealed(true);
     } finally {
+      filingRef.current = false;
       setFiling(false);
     }
   }, [agent, brief.baselineCommittedMM, brief.packageName, context.approver, context.productPackageId, elicitMembers, engine, entries, figures.committedMM, filing, flow, instanceUrl, onExecuted, onFiled, pricingDeclined, push, relayError, sealed, vocabulary.filedWord]);
@@ -5358,36 +5648,45 @@ export function Workroom({
                          arrived, declined or failed leaves the paragraph exactly
                          where it was: degrade parity is a contract. */
                       const spoken = speaksFor(item, group.items[at + 1], narration.viewFor(group.items[at + 1]?.id ?? ""));
+                      /* ============ ONE BAD ITEM IS ONE BAD ITEM (2026-09-05)
+
+                         A malformed payload reaching a card used to unmount the
+                         whole React tree and leave a white page over the
+                         cockpit. The boundary is per ITEM rather than per room
+                         because that is the honest render: the rest of the
+                         thread really is fine, and it keeps working. */
                       const block = (
-                        <ThreadBlock
-                          item={spoken}
-                          entries={entries}
-                          filedWord={vocabulary.filedWord}
-                          opening={openingItem}
-                          members={membersItem}
-                          packages={brief.packageChoices}
-                          roster={roster}
-                          anchored={anchoredPackage}
-                          lit={lit}
-                          hold={item.kind === "dossier" ? finale.hold : 0}
-                          /* THE LEDGER RIDES THE CARD, AND ONLY IN THE FINALE.
-                             Before the room drains, the rail is still on the
-                             glass saying exactly this; the card repeats it only
-                             once the rail is gone. */
-                          filed={item.kind === "dossier" && finaleState !== "off" ? filedLines : null}
-                          filedHead={filedHead}
-                          onAnchor={onAnchor}
-                          onOpenPeek={openPeek}
-                          onConfirm={confirmChip}
-                          onDiscard={settleOpenChip}
-                          onAcknowledge={acknowledge}
-                          onTakeAdvice={takeAdvice}
-                          onOption={(sayText, label) => void say(sayText, label)}
-                          onStatus={() => void execute(true)}
-                          onRestartRoute={restartRoute}
-                          expanded={item.kind === "settled" ? settle.isOpen(item.id) : false}
-                          onExpand={settle.toggle}
-                        />
+                        <RoomBoundary what={`this ${item.kind}`}>
+                          <ThreadBlock
+                            item={spoken}
+                            entries={entries}
+                            filedWord={vocabulary.filedWord}
+                            opening={openingItem}
+                            members={membersItem}
+                            packages={brief.packageChoices}
+                            roster={roster}
+                            anchored={anchoredPackage}
+                            lit={lit}
+                            hold={item.kind === "dossier" ? finale.hold : 0}
+                            /* THE LEDGER RIDES THE CARD, AND ONLY IN THE FINALE.
+                               Before the room drains, the rail is still on the
+                               glass saying exactly this; the card repeats it only
+                               once the rail is gone. */
+                            filed={item.kind === "dossier" && finaleState !== "off" ? filedLines : null}
+                            filedHead={filedHead}
+                            onAnchor={onAnchor}
+                            onOpenPeek={openPeek}
+                            onConfirm={confirmChip}
+                            onDiscard={settleOpenChip}
+                            onAcknowledge={acknowledge}
+                            onTakeAdvice={takeAdvice}
+                            onOption={(sayText, label) => void say(sayText, label)}
+                            onStatus={() => void execute(true)}
+                            onRestartRoute={restartRoute}
+                            expanded={item.kind === "settled" ? settle.isOpen(item.id) : false}
+                            onExpand={settle.toggle}
+                          />
+                        </RoomBoundary>
                       );
                       const tier = tierOf(item);
                       /* WHERE THIS ITEM STANDS IN THE FINALE. Null on every item
