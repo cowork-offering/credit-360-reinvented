@@ -50,6 +50,13 @@ afterEach(() => {
 });
 
 describe("the mirrored surface", () => {
+  it("names the connector exactly as claude.ai must spell it", () => {
+    // The page resolves a connector by DISPLAY NAME. A drifted string here is
+    // silent: the fallback lane simply never finds a door and the outage the
+    // lane exists for looks identical to the one it was meant to survive.
+    expect(GATEWAY_SERVER).toBe("Salesforce Read Backup");
+  });
+
   it("covers exactly the ten Customer 360 reads", () => {
     expect(MIRRORED_READS).toHaveLength(10);
     expect(new Set(MIRRORED_READS).size).toBe(10);
@@ -70,7 +77,7 @@ describe("the mirrored surface", () => {
 });
 
 describe("callGateway", () => {
-  it("calls the gateway connector by display name, with the inputs array unchanged", async () => {
+  it("calls the backup connector by display name, with the inputs array unchanged", async () => {
     const calls = installMcp(async () => envelope({ accountId: "001a" }));
     const res = await callGateway(TOOLS.snapshot, [{ accountId: "001a" }]);
     expect(calls[0][0]).toBe(GATEWAY_SERVER);

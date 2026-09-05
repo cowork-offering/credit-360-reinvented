@@ -1,4 +1,4 @@
-# The gateway lane: what to wrap, and where
+# The backup lane: what to wrap, and where
 
 Backlog item 9, `knowledge/projects/customer-360/COWORK-FEEDBACK-20260903.md`.
 
@@ -14,16 +14,16 @@ line-level change list for whoever merges.
 
 ## What already exists on this branch
 
-`app/src/channel/gateway/lane.ts`, with tests in `lane.test.ts` (22 passing, `tsc --noEmit` clean):
+`app/src/channel/gateway/lane.ts`, with tests in `lane.test.ts` (23 passing, `tsc --noEmit` clean):
 
 | Export | What it does |
 | --- | --- |
-| `GATEWAY_SERVER` | `"Connectry C360 Gateway"`, the connector's display name |
+| `GATEWAY_SERVER` | `"Salesforce Read Backup"`, the connector's display name |
 | `MIRRORED_READS` | the ten Customer 360 reads, and nothing else |
 | `gatewayToolName(tool)` | `Customer360Snapshot` to `gw_Customer360Snapshot` |
-| `callGateway(tool, inputs, options)` | one read through the gateway; rejects `bad_request` for anything not on the mirror list |
+| `callGateway(tool, inputs, options)` | one read through the backup; rejects `bad_request` for anything not on the mirror list |
 | `shouldFallBack(failure)` | true for `server_unavailable` / `upstream_error` / `cancelled`, or a 502 / timeout in the message; false for every authz denial and for `noCapability` |
-| `readWithFallback(primary, gateway, hooks)` | Customer 360 first, gateway on a hop failure, result stamped `via: "gateway"` |
+| `readWithFallback(primary, gateway, hooks)` | Customer 360 first, backup on a hop failure, result stamped `via: "gateway"` |
 | `readThroughEitherLane(tool, inputs, options, hooks)` | the whole thing for one mirrored read, one line at a call site |
 | `gatewayHealth()` | `gw_health`, for the health line in backlog item 10 |
 
@@ -32,7 +32,14 @@ connector: `gw_Customer360Snapshot` and `gw_Customer360Covenants` for Hartwell r
 `{ content: [ { actionName, errors, expectedError, invocationId, isSuccess, outcome, outputValues,
 sortOrder, version } ] }` byte for byte, key order included. All ten mirrors are byte-compatible
 with the raw Apex REST answer. So `unwrapInvocable`, `unwrapInvocableOne` and every reader
-downstream of them work unchanged on a gateway answer.
+downstream of them work unchanged on a backup answer.
+
+**The connector was renamed on 2026-09-06** and now runs on the founder's own box, off any company
+infrastructure and under a name that says what it is rather than who built it. `GATEWAY_SERVER` is
+the one string that moved. The ELEVEN TOOL NAMES DID NOT: `gw_Customer360Snapshot` and its ten
+siblings are unchanged, so `gatewayToolName`, `MIRRORED_READS` and the generated manifest below all
+stand as written. The exported symbols in `lane.ts` keep their `gateway` spelling too: they name a
+lane, not a host, and churning them would put a rename into every wrap site below for nothing.
 
 ## The five integration points
 
@@ -66,12 +73,12 @@ a relationship on.
 ```
 
 Wrap it. Keep the `inputs` object construction above it exactly as it is: the `maxResults` vs
-`limit` defect (2026-09-03) is in that object, not in the call, and the gateway passes the inputs
+`limit` defect (2026-09-03) is in that object, not in the call, and the backup passes the inputs
 array through untouched, so an unknown invocable variable fails identically on both lanes.
 
 Do NOT wrap `readActionState` at line 276-281. It is the poller a room waits on after an execute,
-it is deliberately uncached, and it reads the trail of a write the gateway did not make. A row the
-banker's own session filed is Private to that banker; the gateway's service identity would read a
+it is deliberately uncached, and it reads the trail of a write the backup did not make. A row the
+banker's own session filed is Private to that banker; the backup's service identity would read a
 different trail and the poller would wait forever on a row it cannot see.
 
 ### 3. `app/src/channel/useLivePortfolio.ts:79-82` — the home view's portfolio watch
@@ -101,8 +108,8 @@ health line can say which door the band is showing. Leave the retract branch alo
 ```
 
 Both wrap. These are the seven reads behind the covenant-sync flake. `pace()` stays OUTSIDE the
-fallback so a gateway retry still costs a pacer slot: the point of the pacer is the connector
-budget, and the gateway rides the same relay.
+fallback so a backup retry still costs a pacer slot: the point of the pacer is the connector
+budget, and the backup rides the same relay.
 
 `app/src/book/aggregate.ts:147-156` is the same shape (the eight-read open) and takes the same
 wrap. Counting it with the sweep because the edit is character-for-character the same.
@@ -115,7 +122,7 @@ wrap. Counting it with the sweep because the edit is character-for-character the
 ```
 
 Both wrap directly. `readCatalog` already returns `null` on any failure, so its wrap is pure
-upside: the chip sets fall back to the shell's mirror today and would fall back to the gateway
+upside: the chip sets fall back to the shell's mirror today and would fall back to the backup
 first instead.
 
 ### The constant, in `app/src/channel/mcp.ts:92-104`
@@ -125,11 +132,11 @@ Add one line to `SERVERS`:
 ```ts
   /** The relay-independent READ lane. Reads only: writes stay on Customer 360,
    *  where the acting identity is the banker's own. */
-  c360Gateway: "Connectry C360 Gateway",
+  readBackup: "Salesforce Read Backup",
 ```
 
 `lane.ts` currently declares `GATEWAY_SERVER` itself so this branch touches no existing file. On
-merge, point `GATEWAY_SERVER` at `SERVERS.c360Gateway` and delete the local constant. Note that
+merge, point `GATEWAY_SERVER` at `SERVERS.readBackup` and delete the local constant. Note that
 `SERVERS.gateway` is already taken by "IDB Gateway"; the key must not collide.
 
 Do NOT add the eleven `gw_*` names to `TOOLS`. They are derived from the Customer 360 names by
@@ -140,14 +147,14 @@ Do NOT add the eleven `gw_*` names to `TOOLS`. They are derived from the Custome
 `client-360/assets/capabilities.json` is GENERATED. Do not hand-edit it. The source change is in
 `client-360/render/capabilities.mjs`:
 
-1. Add to the `SERVERS` map at line 39: `c360Gateway: "Connectry C360 Gateway",`.
+1. Add to the `SERVERS` map at line 39: `readBackup: "Salesforce Read Backup",`.
 2. Add a key list beside `GATEWAY_KEYS` at line 48:
 
 ```js
 /** The relay-independent read lane: the ten Customer 360 reads with a gw_ prefix,
- *  plus the gateway's own health tool. Derived from the Customer 360 grant so the
+ *  plus the backup's own health tool. Derived from the Customer 360 grant so the
  *  two lanes cannot drift apart. */
-const C360_GATEWAY_TOOLS = (manifestPath) =>
+const READ_BACKUP_TOOLS = (manifestPath) =>
   manifestToolNames(manifestPath)
     .filter((n) => n.startsWith("Customer360"))
     .map((n) => `gw_${n}`)
@@ -157,21 +164,21 @@ const C360_GATEWAY_TOOLS = (manifestPath) =>
 3. Add the server to `buildCapabilities()` at line 113, after the Customer 360 entry:
 
 ```js
-        { server: SERVERS.c360Gateway, tools: C360_GATEWAY_TOOLS(manifestPath) },
+        { server: SERVERS.readBackup, tools: READ_BACKUP_TOOLS(manifestPath) },
 ```
 
 4. Regenerate and gate: `node client-360/render/capabilities.mjs` then
    `node client-360/render/capabilities.mjs --check`, and `node --test
    client-360/render/capabilities.test.mjs`.
 
-A page published without the gateway in `capabilities` gets `not_in_manifest` on the first
-fallback call, which is exactly the failure the fallback exists to avoid. The manifest entry is
-not optional.
+A page published without the backup connector in `capabilities` gets `not_in_manifest` on the
+first fallback call, which is exactly the failure the fallback exists to avoid. The manifest entry
+is not optional.
 
 ## What must never be wrapped
 
 The eighteen `stage_*` and `execute_*` tools, `complete_new_facility_detail`, and every memo
-writeback on "Experience / nCino" and "AFS". The gateway holds ONE service credential. A filing
-made through it would carry the gateway's identity, not the banker's, and the staged-plan pattern
+writeback on "Experience / nCino" and "AFS". The backup holds ONE service credential. A filing
+made through it would carry the service's identity, not the banker's, and the staged-plan pattern
 rests on `approverUserId` being the running human. `callGateway` refuses these by name at runtime;
 `MIRRORED_READS` refuses them at the type level. Both guards are tested.
