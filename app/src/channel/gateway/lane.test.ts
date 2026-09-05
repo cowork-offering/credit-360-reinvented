@@ -11,7 +11,8 @@ import {
   readWithFallback,
   shouldFallBack,
 } from "./lane";
-import { describeFailure, TOOLS, type McpFailure } from "../mcp";
+import { describeFailure, RETRY_ATTEMPTS, TOOLS, type McpFailure } from "../mcp";
+import { __resetLaneHealthForTests, laneOf } from "../laneHealth";
 
 /* The runtime is stubbed the way every other channel test stubs it: a
    pre-injected `window.claude.mcp`, which `mcp()` honours synchronously. */
@@ -47,6 +48,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete (globalThis as unknown as { window?: unknown }).window;
+  __resetLaneHealthForTests();
 });
 
 describe("the mirrored surface", () => {
@@ -196,7 +198,13 @@ describe("readWithFallback", () => {
 });
 
 describe("readThroughEitherLane", () => {
-  it("tries Customer 360 first and the gateway second, with the same inputs", async () => {
+  it("spends the primary's WHOLE retry budget before it tries the other door, with the same inputs", async () => {
+    /* THE BACKUP IS THE LAST RESORT, NOT THE SECOND CHOICE. The common failure
+       is an idle Salesforce MCP session that re-handshakes on the second knock,
+       and the door the banker owns is the one to come back to: the backup reads
+       as a service identity, so every answer it gives is one the banker's own
+       grant did not gate. So all three attempts go to Customer 360 first, and
+       only a lane that is genuinely shut falls through. */
     const calls = installMcp(async (server) => {
       if (server === "Customer 360") throw { code: "server_unavailable", message: "request failed (502)", retryable: false };
       return envelope({ accountId: "001bb00001I7FPNAA3" });
@@ -204,10 +212,23 @@ describe("readThroughEitherLane", () => {
     const out = await readThroughEitherLane(TOOLS.snapshot, [{ accountId: "001bb00001I7FPNAA3" }]);
     expect(out.via).toBe("gateway");
     expect(calls.map((c) => [c[0], c[1]])).toEqual([
-      ["Customer 360", "Customer360Snapshot"],
+      ...Array.from({ length: RETRY_ATTEMPTS }, () => ["Customer 360", "Customer360Snapshot"]),
       [GATEWAY_SERVER, "gw_Customer360Snapshot"],
     ]);
-    expect(calls[0][2]).toEqual(calls[1][2]);
+    // The inputs travel unchanged: a mirror that reshaped them would not be one.
+    expect(calls[0][2]).toEqual(calls.at(-1)![2]);
+  });
+
+  it("records the Salesforce lane as served BY the backup, not as unreachable", async () => {
+    // What the health line reads. The figures on screen are the org's own and
+    // current; saying "unreachable" over them would simply be false.
+    installMcp(async (server) => {
+      if (server === "Customer 360") throw { code: "server_unavailable", message: "502", retryable: false };
+      return envelope({ accountId: "001a" });
+    });
+    await readThroughEitherLane(TOOLS.snapshot, [{ accountId: "001a" }]);
+    expect(laneOf("Customer 360")?.state).toBe("backup");
+    expect(laneOf(GATEWAY_SERVER)?.state).toBe("live");
   });
 
   it("returns the same envelope shape from either lane, so unwrappers do not branch", async () => {

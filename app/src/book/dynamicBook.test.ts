@@ -165,7 +165,11 @@ describe("the eight reads", () => {
   it("names a read that did not come back rather than inventing its slice", async () => {
     installConnector({
       callTool: vi.fn(async (_s: string, tool: string) => {
-        if (tool === "Customer360Covenants") throw { code: "upstream_error", message: "boom" };
+        // Both doors: the read falls back to the backup lane's `gw_` twin, and
+        // a slice is only absent when neither door answered for it.
+        if (tool === "Customer360Covenants" || tool === "gw_Customer360Covenants") {
+          throw { code: "upstream_error", message: "boom" };
+        }
         if (tool === "Customer360Snapshot") return ok({ accountId: BRIGHT, name: "Bright Horizon Health" });
         if (tool === "Customer360Exposure") return ok({ accountId: BRIGHT, facilities: FACILITIES });
         return ok({});

@@ -17,7 +17,22 @@
 
 import type { ActionHistoryRow, ActivityEntry, BorrowerBundle, ClientRequest, Id } from "../data/contract";
 import { readMailRequest, toClientRequest } from "../actions/mailIntake";
-import { callTool, DETAIL_KEYS, DETAIL_TOOLS, SERVERS, TOOLS, unwrapInvocable, type McpFailure, type McpOk } from "./mcp";
+import {
+  DETAIL_KEYS,
+  DETAIL_TOOLS,
+  isLaneTimeout,
+  laneTimeout,
+  READ_DEADLINE_MS,
+  SERVERS,
+  TOOLS,
+  unwrapInvocable,
+  withDeadline,
+  type McpFailure,
+  type McpOk,
+} from "./mcp";
+import { laneOf } from "./laneHealth";
+import { fmtAsOf } from "../data/format";
+import { readThroughEitherLane, type LaneResult } from "./gateway/lane";
 import { putLastGood } from "./lastGood";
 import { fetchActionHistory, matchesAccount, searchMailbox, type MailHit } from "./cockpitTools";
 
@@ -119,11 +134,54 @@ export interface SweepOptions {
   /** Launch pacing, overridable for tests. */
   launchGapMs?: number;
   maxInFlight?: number;
+  /** How long one lane may take before it is reported as timed out. Test seam;
+   *  nothing in the app passes it. Zero or less disables the deadline. */
+  deadlineMs?: number;
   /** Injected for tests. */
   sleep?: (ms: number) => Promise<void>;
 }
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/* ------------------------------------------------------------ lane deadline
+
+   A CALL THAT NEVER ANSWERS IS NOT A SLOW CALL, IT IS A STUCK SWEEP.
+
+   `callTool` carries a wall clock of its own now (READ_DEADLINE_MS), and that
+   bounds ONE ATTEMPT. A lane here is up to four of them: three on Customer 360
+   as the retry policy spends its budget, and one more through the read backup.
+   So the lane needs its own clock on top, or a hung door could hold a pacer
+   slot, the console and the Sync button for a minute rather than for ever,
+   which is not the improvement it sounds like.
+
+   THE DEADLINE IS INSIDE THE PACER, deliberately. A hung call that only timed
+   out at the settled() layer would still be holding its pacer slot, and the two
+   in-flight slots are the whole sweep's throughput: the other lanes would wait
+   on a lane that is never coming back. Timing out where the pacer can see it
+   releases the slot and lets the rest of the sweep finish without it.
+
+   RECOVERY IS NOT THIS FUNCTION'S JOB. The line reports failed with the lane's
+   last good clock, the section keeps the value it had, and openRefresh's quiet
+   60s knock is what brings the figures back. */
+
+/** How long one lane in the sweep may take before it is treated as gone. The
+ *  same fifteen seconds one attempt gets, because what a banker will sit
+ *  through does not change with how many doors were tried behind the line. */
+export const LANE_DEADLINE_MS = READ_DEADLINE_MS;
+
+/** One lane's wall clock, in the CONSOLE's voice: a failed line names what did
+ *  not come back and when its section was last true. */
+const laneExpiry = (label: string, ms: number, lastGoodAt?: number) =>
+  laneTimeout({
+    server: SERVERS.customer360,
+    tool: label,
+    ms,
+    // A read that never answered wrote nothing and may have written nothing.
+    ambiguous: false,
+    fix:
+      `${label} did not answer in ${Math.round(ms / 1000)}s. The previous value is still shown` +
+      `${lastGoodAt ? `, ${fmtAsOf(lastGoodAt)}` : ""}.`,
+  });
 
 /** At most this many connector calls in flight at once. */
 export const MAX_IN_FLIGHT = 2;
@@ -198,8 +256,20 @@ export async function runSyncSweep(opts: SweepOptions): Promise<SyncResult> {
   // Nothing here may reject unhandled while a slower line is still displaying.
   const settled = <T,>(p: Promise<T>) => p.then((v) => ({ ok: true as const, v }), (e) => ({ ok: false as const, e }));
 
-  const portfolio = settled(
-    pace(() => callTool(SERVERS.customer360, TOOLS.portfolio, { inputs: [{}] }, { read: true, cache: { staleTime: 15_000 } })),
+  /* EITHER DOOR, AND `pace()` STAYS OUTSIDE IT. The pacer exists to keep the
+     artifact-to-connector relay off a burst, and the backup rides that same
+     relay: a fallback attempt has to cost a pacer slot or the budget the pacer
+     protects is not being protected during exactly the outage it matters in. */
+  /** One lane, paced, under its own wall clock. The deadline is INSIDE the
+   *  pacer so a hung call releases its slot instead of stalling the sweep. */
+  const deadlineMs = opts.deadlineMs ?? LANE_DEADLINE_MS;
+  const lane = <T,>(label: string, run: () => Promise<T>) =>
+    settled(
+      pace(() => withDeadline(run(), deadlineMs, () => laneExpiry(label, deadlineMs, laneOf(SERVERS.customer360)?.lastGoodAt))),
+    );
+
+  const portfolio = lane("Portfolio position", () =>
+    readThroughEitherLane(TOOLS.portfolio, [{}], { cache: { staleTime: 15_000 } }),
   );
   // SCOPE: only the OPEN account's detail is read. The sweep has never fanned
   // out across the book, and this is where that would show up if it ever did.
@@ -220,12 +290,10 @@ export async function runSyncSweep(opts: SweepOptions): Promise<SyncResult> {
     // NOT CALLED AT ALL inside the window. This is the budget relief and the
     // flake relief both: a call that does not happen cannot fail.
     if (servedFromCache(key)) return null;
-    return settled(
-      pace(() => callTool(SERVERS.customer360, tool, { inputs: [{ accountId }] }, { read: true, cache: { staleTime: 15_000 } })),
-    );
+    return lane(DETAIL_LABELS[i], () => readThroughEitherLane(tool, [{ accountId }], { cache: { staleTime: 15_000 } }));
   });
-  const mail = settled(pace(() => searchMailbox(accountName)));
-  const history = settled(pace(() => fetchActionHistory(accountId)));
+  const mail = lane("Your inbox for this relationship", () => searchMailbox(accountName));
+  const history = lane("Actions filed against this relationship", () => fetchActionHistory(accountId));
 
   const lines: SyncLine[] = [
     { id: "portfolio", label: "Portfolio position", state: "pending" },
@@ -268,9 +336,10 @@ export async function runSyncSweep(opts: SweepOptions): Promise<SyncResult> {
       }
       partial = true;
       // Retryable ⇒ the platform stamped it and `callTool` already spent the
-      // one retry. Anything else refused for its own reason and is not an
-      // unreachability claim.
-      if ((outcome.e as McpFailure)?.retryable === true) unreachable += 1;
+      // one retry. A lane that ran out its own clock is unreachable by
+      // definition: nothing answered at all. Anything else refused for its own
+      // reason and is not an unreachability claim.
+      if ((outcome.e as McpFailure)?.retryable === true || isLaneTimeout(outcome.e)) unreachable += 1;
       line.state = "failed";
       // The platform's code and message ride behind the fix sentence, so a
       // failed line names its layer (founder, 2026-09-03).
@@ -314,14 +383,23 @@ export async function runSyncSweep(opts: SweepOptions): Promise<SyncResult> {
       continue;
     }
 
-    await step(key, call, (ok: McpOk<unknown>) => {
+    await step(key, call, (res: LaneResult<McpOk<unknown>>) => {
+      const ok = res.value;
       if (ok.cache?.storedAt && (storedAt === undefined || ok.cache.storedAt > storedAt)) storedAt = ok.cache.storedAt;
       const slot = unwrapInvocable(ok.payload, 1)[0];
       if (!slot.ok) return { failed: KEPT };
       (patch as Record<string, unknown>)[key] = slot.data;
       // REMEMBERED, so the next open of this relationship has something true to
-      // paint before the org answers. Reads only, fire and forget.
-      void putLastGood(accountId, key, DETAIL_TOOLS[i], slot.data, ok.cache?.storedAt ?? startedAt);
+      // paint before the org answers. Reads only, fire and forget, and a backup
+      // answer is remembered exactly like a primary one, stamped with its door.
+      void putLastGood(
+        accountId,
+        key,
+        DETAIL_TOOLS[i],
+        slot.data,
+        ok.cache?.storedAt ?? startedAt,
+        res.via === "gateway" ? "gateway" : undefined,
+      );
       if (SLOW_TIER_KEYS.has(key)) fetchedAt[key] = startedAt;
     });
   }

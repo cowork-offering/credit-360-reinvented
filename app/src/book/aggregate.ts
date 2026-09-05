@@ -1,5 +1,6 @@
 import type { AccountRow, ActionHistoryRow, BorrowerBundle, Id } from "../data/contract";
-import { callTool, DETAIL_TOOLS, SERVERS, TOOLS, unwrapInvocable, type McpFailure, type McpOk } from "../channel/mcp";
+import { DETAIL_TOOLS, TOOLS, unwrapInvocable, type McpFailure, type McpOk } from "../channel/mcp";
+import { readThroughEitherLane, type LaneResult } from "../channel/gateway/lane";
 import { fetchActionHistory } from "../channel/cockpitTools";
 import { createPacer, LAUNCH_GAP_MS, MAX_IN_FLIGHT } from "../channel/syncSweep";
 import type { AccountMatch } from "./search";
@@ -144,15 +145,17 @@ export async function aggregateBorrower(args: {
   });
 
   const settled = <T,>(p: Promise<T>) => p.then((v) => ({ ok: true as const, v }), (e) => ({ ok: false as const, e }));
-  const read = (tool: string) =>
-    settled(pace(() => callTool(SERVERS.customer360, tool, { inputs: [{ accountId }] }, { read: true, cache: { staleTime: 15_000 } })));
+  /* EITHER DOOR, with `pace()` outside the fallback exactly as the sweep has
+     it: the backup rides the same relay and costs the same budget. */
+  const read = (tool: (typeof DETAIL_TOOLS)[number]) =>
+    settled(pace(() => readThroughEitherLane(tool, [{ accountId }], { cache: { staleTime: 15_000 } })));
 
   /* ALL EIGHT ARE LAUNCHED ON THE ONE GESTURE, paced. The order of the array is
      the order the pacer launches them, so the slow graph goes LAST and the six
      the room actually opens on are already coming back while it runs. */
   const details = DETAIL_TOOLS.map((tool, i) => (DETAIL_KEYS[i] === "graph" ? null : read(tool)));
   const portfolio = settled(
-    pace(() => callTool(SERVERS.customer360, TOOLS.portfolio, { inputs: [{}] }, { read: true, cache: { staleTime: 15_000 } })),
+    pace(() => readThroughEitherLane(TOOLS.portfolio, [{}], { cache: { staleTime: 15_000 } })),
   );
   const history = settled(pace(() => fetchActionHistory(accountId)));
   const graphIndex = DETAIL_KEYS.indexOf("graph" as (typeof DETAIL_KEYS)[number]);
@@ -166,7 +169,10 @@ export async function aggregateBorrower(args: {
     args.onProgress?.({ done, total: READ_COUNT, label: LABELS[key] ?? key });
   };
 
-  const land = async (key: string, call: Promise<{ ok: true; v: McpOk<unknown> } | { ok: false; e: unknown }>) => {
+  const land = async (
+    key: string,
+    call: Promise<{ ok: true; v: LaneResult<McpOk<unknown>> } | { ok: false; e: unknown }>,
+  ) => {
     const outcome = await call;
     if (!outcome.ok) {
       // Absent connector and failed read are DIFFERENT facts, and neither is a
@@ -175,7 +181,7 @@ export async function aggregateBorrower(args: {
       tick(key);
       return;
     }
-    const slot = unwrapInvocable(outcome.v.payload, 1)[0];
+    const slot = unwrapInvocable(outcome.v.value.payload, 1)[0];
     if (!slot.ok) {
       missing.push(key);
       tick(key);

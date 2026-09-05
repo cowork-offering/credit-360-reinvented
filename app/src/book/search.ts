@@ -1,4 +1,5 @@
-import { callTool, SERVERS, TOOLS, unwrapInvocable } from "../channel/mcp";
+import { TOOLS, unwrapInvocable } from "../channel/mcp";
+import { readThroughEitherLane } from "../channel/gateway/lane";
 
 /* =============================================================================
    FINDING A RELATIONSHIP THE SNAPSHOT NEVER BAKED.
@@ -64,13 +65,12 @@ export async function searchAccounts(
   const input: Record<string, unknown> = { name: query, maxResults: opts.maxResults ?? MAX_RESULTS };
   if (opts.industry) input.industry = opts.industry;
 
-  const res = await callTool(
-    SERVERS.customer360,
+  const { value: res } = await readThroughEitherLane(
     TOOLS.searchAccounts,
-    { inputs: [input] },
+    [input],
     // A name search is stable for the length of a palette session; the platform
     // cache keeps a banker retyping one letter off the connector budget.
-    { read: true, cache: { staleTime: 30_000 }, signal: opts.signal },
+    { cache: { staleTime: 30_000 }, signal: opts.signal },
   );
   const slot = unwrapInvocable<Record<string, unknown>>(res.payload, 1)[0];
   if (!slot.ok) throw { code: "tool_error", message: slot.error, fix: slot.error };

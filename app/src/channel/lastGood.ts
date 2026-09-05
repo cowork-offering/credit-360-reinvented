@@ -44,6 +44,13 @@ export interface CachedRead {
   /** The tool that produced it, so a stored answer can always be traced. */
   tool: string;
   payload: unknown;
+  /** Present only when the READ BACKUP answered instead of Customer 360. A
+   *  backup answer is a good answer (same org, same envelope, same instant),
+   *  so it is stored like any other, and the stamp is there so a stored
+   *  document can always say which door it came through. Absent means the
+   *  primary lane, which is what every document written before the backup
+   *  existed says by saying nothing. */
+  via?: "gateway";
 }
 
 /** A single document past this size is not worth a quota error on somebody
@@ -70,7 +77,12 @@ export function readCachedDoc(raw: unknown, now: number = Date.now()): CachedRea
   if (storedAt > now + 60_000) return null;
   if (now - storedAt > MAX_AGE_MS) return null;
   if (raw.payload === undefined || raw.payload === null) return null;
-  return { storedAt, tool, payload: raw.payload };
+  // Anything but the one word this field can carry is dropped rather than
+  // rendered: the store is shared, and a document is only as trusted as its
+  // shape check.
+  return raw.via === "gateway"
+    ? { storedAt, tool, payload: raw.payload, via: "gateway" }
+    : { storedAt, tool, payload: raw.payload };
 }
 
 /**
@@ -85,10 +97,11 @@ export async function putLastGood(
   tool: string,
   payload: unknown,
   storedAt: number = Date.now(),
+  via?: "gateway",
 ): Promise<void> {
   const store = db();
   if (!store || !accountId || !slice) return;
-  const doc: CachedRead = { storedAt, tool, payload };
+  const doc: CachedRead = via ? { storedAt, tool, payload, via } : { storedAt, tool, payload };
   let serialised: string;
   try {
     serialised = JSON.stringify(doc);

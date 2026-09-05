@@ -10,6 +10,7 @@
 import type { ActionChangeCounts, ActionHistoryRow, ActionStep, BorrowerBundle, C360Data, Id } from "../data/contract";
 import { buildGroundedPrompt } from "../data/grounding";
 import { callTool, SERVERS, TOOLS, unwrapInvocable, unwrapLlm, unwrapMail, type LlmAnswer } from "./mcp";
+import { readThroughEitherLane } from "./gateway/lane";
 
 /* ------------------------------------------------------------------ chat */
 
@@ -161,12 +162,12 @@ export async function fetchActionHistory(
   const inputs: Record<string, unknown> = { accountId, maxResults: limit };
   if (opts.includeSteps) inputs.includeSteps = true;
   if (opts.productPackageId) inputs.productPackageId = opts.productPackageId;
-  const res = await callTool(
-    SERVERS.customer360,
-    TOOLS.actionHistory,
-    { inputs: [inputs] },
-    { read: true, cache: { staleTime: 15_000 } },
-  );
+  /* EITHER DOOR, and the INPUTS OBJECT ABOVE IS UNTOUCHED. The `maxResults` vs
+     `limit` defect (2026-09-03) lives in that object, not in the call, and the
+     backup passes the inputs array through as it stands: an unknown invocable
+     variable fails identically on both lanes, which is the only honest way for
+     a mirror to behave. */
+  const { value: res } = await readThroughEitherLane(TOOLS.actionHistory, [inputs], { cache: { staleTime: 15_000 } });
   const slot = unwrapInvocable<Record<string, unknown>>(res.payload, 1)[0];
   if (!slot.ok) throw { code: "tool_error", message: slot.error, fix: slot.error };
 
@@ -201,6 +202,12 @@ export function isTerminalStatus(status: string | undefined): boolean {
  * Returns undefined when the row is not on the trail yet, which is a state and
  * not an error: the trail is Private to the acting banker and a row that has not
  * committed is a row nobody can see.
+ *
+ * AND THAT IS WHY IT NEVER GOES THROUGH THE READ BACKUP, even though it calls a
+ * mirrored tool. The backup reads as one service identity; the row this poller
+ * waits on was filed by the banker's own session and is Private to them, so the
+ * backup would read a different trail and the poller would wait forever on a
+ * row it cannot see.
  */
 export async function readActionState(accountId: Id, stagingId: string): Promise<ActionHistoryRow | undefined> {
   const res = await callTool(

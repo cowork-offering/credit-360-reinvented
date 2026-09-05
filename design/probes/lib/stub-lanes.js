@@ -12,8 +12,21 @@
                                 so the page's last-good cache and the intent
                                 watch have somewhere real to read and write.
 
+   AND THREE CONNECTORS BEHIND THE FIRST DOOR. "Customer 360" and, since the
+   backup lane was wired in, "Salesforce Read Backup": the SAME ten reads under
+   `gw_`-prefixed names, answered from the same table, with a mode and a grant
+   of their own so the drive can shut either door independently. That is the
+   whole point of the lane, and a stub that could only shut both at once could
+   not tell the fallback working from the fallback never being reached.
+
    THE CONTROL SURFACE is `window.__LANES`, which the drive flips mid-run:
-     mode        "ok" | "down" | "failTwice" | "slow"
+     mode        "ok" | "down" | "failTwice" | "slow" | "hang" | "denied"
+     backupMode  the same set, for the read backup. Default "ok".
+     backup      "granted" | "absent". Absent means the viewer never added the
+                 connector: it is missing from listTools and every call to it is
+                 refused server_not_connected, which is what claude.ai does.
+     hangTools   UNPREFIXED tool names that never settle on EITHER door, so the
+                 drive can hang exactly one lane and watch the rest finish
      latencyMs   how long every answer takes in "slow"
      attempts    per-tool attempt counter, so the drive can count retries
 
@@ -23,7 +36,9 @@
 (function () {
   var ACCOUNT = "001bb00001DLtRMAA1";
 
-  window.__LANES = { mode: "ok", latencyMs: 0, attempts: {}, calls: [] };
+  var BACKUP_SERVER = "Salesforce Read Backup";
+
+  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, attempts: {}, calls: [] };
   window.__DRIVE_OUT = { errors: [] };
   window.addEventListener("error", function (e) {
     window.__DRIVE_OUT.errors.push(String((e && e.message) || e));
@@ -33,6 +48,11 @@
   });
 
   var UNAVAILABLE = { code: "server_unavailable", message: "request failed (502)", retryable: false };
+  /* AN AUTHZ DENIAL, which is about WHO is asking. The lane must NOT fall back
+     on it: the backup asks as a service identity, so a fallback here would
+     quietly serve data the viewer was just refused. */
+  var DENIED = { code: "needs_reauth", message: "the session is no longer authorised", retryable: false };
+  var NOT_CONNECTED = { code: "server_not_connected", message: BACKUP_SERVER + " is not connected", retryable: false };
 
   /* The org's own envelope, so the page's unwrapper is the real one. Figures
      are deliberately DIFFERENT from anything baked or cached, so the drive can
@@ -65,40 +85,64 @@
     return new Promise(function (r) { setTimeout(r, ms); });
   };
 
-  function answer(tool) {
+  /** The backup mirrors by name: gw_Customer360Snapshot is Customer360Snapshot. */
+  function unprefixed(tool) {
+    return tool.indexOf("gw_") === 0 ? tool.slice(3) : tool;
+  }
+
+  function answer(server, tool) {
     var L = window.__LANES;
+    var backup = server === BACKUP_SERVER;
+    var mode = backup ? (L.backupMode || "ok") : L.mode;
     L.attempts[tool] = (L.attempts[tool] || 0) + 1;
-    L.calls.push({ tool: tool, at: Date.now(), n: L.attempts[tool], mode: L.mode });
+    L.calls.push({ server: server, tool: tool, at: Date.now(), n: L.attempts[tool], mode: mode });
 
-    if (L.mode === "down") return Promise.reject(UNAVAILABLE);
-    if (L.mode === "failTwice" && L.attempts[tool] <= 2) return Promise.reject(UNAVAILABLE);
+    // A connector the viewer never added is not a connector that is down.
+    if (backup && L.backup === "absent") return Promise.reject(NOT_CONNECTED);
+    // One named lane, shut on both doors, neither answering nor refusing.
+    if ((L.hangTools || []).indexOf(unprefixed(tool)) !== -1) return new Promise(function () {});
+    if (mode === "denied") return Promise.reject(DENIED);
+    if (mode === "down") return Promise.reject(UNAVAILABLE);
+    if (mode === "failTwice" && L.attempts[tool] <= 2) return Promise.reject(UNAVAILABLE);
+    // NEVER SETTLES. Not an error and not an answer: the shape a sweep with no
+    // wall clock of its own hangs on forever.
+    if (mode === "hang") return new Promise(function () {});
 
-    var body = LIVE[tool];
-    var wait = L.mode === "slow" ? (L.latencyMs || 3000) : 0;
+    // The backup's own health tool carries no Salesforce data.
+    if (tool === "gw_health") {
+      return sleep(0).then(function () {
+        return { payload: { ok: true, orgReachable: true, orgError: null, checkedAt: new Date().toISOString() } };
+      });
+    }
+
+    var body = LIVE[unprefixed(tool)];
+    var wait = mode === "slow" ? (L.latencyMs || 3000) : 0;
     return sleep(wait).then(function () {
       return body ? envelope(body) : { payload: {} };
     });
   }
 
   var mcp = {
-    callTool: function (_server, tool) {
-      return answer(tool);
+    callTool: function (server, tool) {
+      return answer(server, tool);
     },
     watchTool: function (server, tool, input, handler) {
       var stopped = false;
-      answer(tool).then(
+      answer(server, tool).then(
         function (r) { if (!stopped) handler({ type: "data", result: r }); },
         function (e) { if (!stopped) handler({ type: "error", error: e }); },
       );
       return function () { stopped = true; };
     },
     listTools: function () {
-      return Promise.resolve({
-        servers: [
-          { server: "Customer 360", authStatus: "connected", tools: [] },
-          { server: "IDB Gateway", authStatus: "connected", tools: [] },
-        ],
-      });
+      var servers = [
+        { server: "Customer 360", authStatus: "connected", tools: [] },
+        { server: "IDB Gateway", authStatus: "connected", tools: [] },
+      ];
+      if (window.__LANES.backup !== "absent") {
+        servers.splice(1, 0, { server: BACKUP_SERVER, authStatus: "connected", tools: [] });
+      }
+      return Promise.resolve({ servers: servers });
     },
     invalidate: function () { return Promise.resolve(); },
   };
@@ -108,6 +152,18 @@
   var docs = {};
   window.__LANES.seed = function (path, body) { docs[path] = body; };
   window.__LANES.dump = function () { return JSON.parse(JSON.stringify(docs)); };
+
+  /* EVERY BODY THE PAGE ACTUALLY SENT. The drive's firewall check reads this:
+     what reaches here is what would have gone to claude.ai over the wire, so a
+     document carrying an XSS signature here is a request the founder's own web
+     application firewall could block him for (2026-09-06). Writes the door
+     refuses never arrive, which is the point of scanning the arrivals. */
+  window.__LANES.writes = [];
+  function record(path, data) {
+    var json;
+    try { json = JSON.stringify(data); } catch (e) { json = "[unserialisable]"; }
+    window.__LANES.writes.push({ path: path, json: json });
+  }
 
   function segments(p) { return p.split("/").filter(Boolean); }
 
@@ -126,8 +182,8 @@
       id: segments(path).slice(-1)[0],
       path: path,
       get: function () { return Promise.resolve(snapOf(path)); },
-      set: function (data) { docs[path] = JSON.parse(JSON.stringify(data)); return Promise.resolve(); },
-      update: function (data) { docs[path] = Object.assign({}, docs[path] || {}, data); return Promise.resolve(); },
+      set: function (data) { record(path, data); docs[path] = JSON.parse(JSON.stringify(data)); return Promise.resolve(); },
+      update: function (data) { record(path, data); docs[path] = Object.assign({}, docs[path] || {}, data); return Promise.resolve(); },
       delete: function () { delete docs[path]; return Promise.resolve(); },
     };
   }

@@ -21,7 +21,8 @@
    not, nothing extra is said.
    ============================================================================= */
 
-import { SERVERS, TOOLS, callTool, mcpAvailable, unwrapInvocableOne } from "./mcp";
+import { TOOLS, mcpAvailable, unwrapInvocableOne } from "./mcp";
+import { readThroughEitherLane } from "./gateway/lane";
 
 /** One value the org offers. `value` is what travels; for a CATALOG entry that
  *  is a record id and the two are not interchangeable. */
@@ -112,7 +113,10 @@ export async function readCatalog(): Promise<OrgCatalog | null> {
     try {
       // THE NORMAL CALL CARRIES NO INPUT. Omitting `objectNames` returns
       // everything, which is what a room caching one read per view wants.
-      const res = await callTool(SERVERS.customer360, TOOLS.catalog, { inputs: [{}] }, { read: true });
+      // EITHER DOOR, and this wrap is pure upside: the chip sets already fall
+      // back to the shell's mirror on any failure, so the backup simply gets
+      // asked before the mirror is settled for.
+      const { value: res } = await readThroughEitherLane(TOOLS.catalog, [{}]);
       const slot = unwrapInvocableOne<CatalogOutput>(res.payload);
       if (!slot.ok) return null;
       const fields = (slot.data.fields ?? [])

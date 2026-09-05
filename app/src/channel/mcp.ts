@@ -94,6 +94,13 @@ export function mcpAvailable(): boolean {
 export const SERVERS = {
   customer360: "Customer 360",
   gateway: "IDB Gateway",
+  /* THE RELAY-INDEPENDENT READ LANE (2026-09-06). A separately hosted connector
+     serving the same ten Customer 360 reads from the same org through a second
+     hop, for the two hours on 2026-09-03 when the first one was shut. READS
+     ONLY: writes stay on Customer 360, where the acting identity is the
+     banker's own and not a service credential. `gateway` above is already taken
+     by "IDB Gateway", which is a different connector entirely. */
+  readBackup: "Salesforce Read Backup",
   m365: "Microsoft 365",
   /* THE MEMO ROOM'S TWO WRITEBACK CONNECTORS (2026-09-04). The Experience
      connector owns the nCino credit-memo surface (the cm_* narrative fields,
@@ -315,6 +322,11 @@ function fixCopy(code: McpErrorCode, server: string, tool: string): string {
 
 /** Normalize an unknown rejection into the branchable failure shape. */
 export function describeFailure(err: unknown, server: string, tool: string): McpFailure {
+  // THE PAGE'S OWN CLOCK PASSES THROUGH UNTOUCHED. A LaneTimeout is already
+  // this shape, carries its own copy and, crucially, its own `timedOut` flag:
+  // re-describing it would strip the one thing that says a caller stopped
+  // waiting rather than that the connector refused.
+  if (isLaneTimeout(err)) return err;
   const e = (err ?? {}) as { code?: string; server?: string; message?: string; retryable?: boolean; retryAfterMs?: number };
   // Unknown codes are treated as upstream_error, per the contract.
   const known: McpErrorCode[] = [
@@ -353,6 +365,11 @@ export interface CallOptions {
   read?: boolean;
   cache?: false | { staleTime?: number; gcTime?: number; refresh?: boolean };
   signal?: AbortSignal;
+  /** How long ONE attempt may take before the page stops waiting. Defaults to
+   *  READ_DEADLINE_MS or WRITE_DEADLINE_MS by `read`. Zero or less waits for
+   *  ever, which is what this whole clock exists to stop; pass it only in a
+   *  test that owns the promise it is waiting on. */
+  deadlineMs?: number;
 }
 
 /* ------------------------------------------------------------ retry policy
@@ -418,6 +435,95 @@ export function isRetryableRead(failure: McpFailure): boolean {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/* ------------------------------------------------------------- the wall clock
+
+   NO AWAIT WITHOUT A DEADLINE, AT THE SEAM ITSELF.
+
+   The retry policy above answers every failure the platform REPORTS. It has
+   nothing to say about the failure the platform does not report: a connector
+   that accepts a call and never answers leaves the promise pending for the life
+   of the page. Every await upstream then waits with it, and the rooms' own
+   deadlines (components/workroom/deadline.ts) and the sweep's per-lane clock
+   only bound the callers that remembered to ask for one.
+
+   So the seam every call passes through carries its own. This is BELT AND
+   BRACES under the room budgets, deliberately: a room's deadline covers the
+   whole gesture and this covers ONE attempt, so a read that retries twice and
+   falls back to the backup is bounded four times over by the callers above and
+   once each by this.
+
+   A DEADLINE IS NOT A CLAIM THAT THE TOOL FAILED. It is the page saying it
+   stopped waiting. On a READ that costs nothing to admit. On a WRITE it is the
+   whole thing, so a write that runs out its clock is stamped `ambiguous`: the
+   tool may well have run, and nothing anywhere may auto-retry it.
+
+   THE ROOMS HAVE THEIR OWN TYPE (`DeadlineExpired`), and this is not it. That
+   one is an Error a room branches on in its own voice; this is an
+   {@link McpFailure}, because every caller of `callTool` already branches on
+   that shape and a timeout must not be the one rejection they cannot read. */
+
+/** One read attempt. Comfortably past the 4.5s the retry policy can spend
+ *  waiting, and inside the twelve seconds a banker sits through. */
+export const READ_DEADLINE_MS = 15_000;
+/** One write attempt. A package clone with an approval chain behind it is the
+ *  slowest thing this cockpit asks for, and the org has been observed at 156s
+ *  END TO END, but that run is waited out against the staging RECORD and never
+ *  against this socket. This bounds a write that has said nothing at all. */
+export const WRITE_DEADLINE_MS = 60_000;
+
+/** The page's own clock ran out. Structurally an {@link McpFailure} so every
+ *  reader downstream branches on it unchanged, plus the one flag that says this
+ *  is a deadline and not an answer the platform gave us. */
+export interface LaneTimeout extends McpFailure {
+  timedOut: true;
+}
+
+export function isLaneTimeout(e: unknown): e is LaneTimeout {
+  return (e as LaneTimeout | undefined)?.timedOut === true;
+}
+
+/** Build the typed reason. `fix` is the caller's own copy where it has better
+ *  words than a tool name; the sweep's lines do. */
+export function laneTimeout(args: {
+  server: string;
+  tool: string;
+  ms: number;
+  ambiguous: boolean;
+  fix?: string;
+}): LaneTimeout {
+  const seconds = Math.round(args.ms / 1000);
+  return {
+    code: "cancelled",
+    server: args.server,
+    message: `timeout after ${args.ms}ms`,
+    // NEVER auto-retried on this stamp: a hung hop is not a hop that answers a
+    // faster second knock, and on a write it is an unknown outcome.
+    retryable: false,
+    fix: args.fix ?? `${args.server} did not answer ${args.tool} in ${seconds}s.`,
+    retract: false,
+    noCapability: false,
+    ambiguous: args.ambiguous,
+    timedOut: true,
+  };
+}
+
+/**
+ * Reject after `ms` if `work` has not settled, and clear the timer either way.
+ *
+ * A caller that leaves its timers standing is its own kind of leak, and the
+ * sweep starts nine of these on one gesture.
+ */
+export function withDeadline<T>(work: Promise<T>, ms: number, reason: () => LaneTimeout): Promise<T> {
+  if (!Number.isFinite(ms) || ms <= 0) return work;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expiry = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(reason()), ms);
+  });
+  return Promise.race([work, expiry]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  }) as Promise<T>;
+}
+
 /* ------------------------------------------------- connector activity meter
 
    Two facts the keep-alive needs and nothing else reads: is a call happening
@@ -454,14 +560,20 @@ export async function callTool<T = unknown>(
     throw absent;
   }
 
+  /* THE ATTEMPT'S OWN WALL CLOCK. Reads get READ_DEADLINE_MS, writes the longer
+     WRITE_DEADLINE_MS, and a write that runs out is AMBIGUOUS: the tool may
+     have run and nothing may auto-retry it on this stamp. */
+  const budgetMs = options.deadlineMs ?? (options.read ? READ_DEADLINE_MS : WRITE_DEADLINE_MS);
+
   const invoke = async (): Promise<McpOk<T>> => {
     inFlightCalls += 1;
     lastCallStartedAt = Date.now();
     try {
-      const result = await api.callTool(server, tool, input, {
-        cache: options.cache,
-        signal: options.signal,
-      });
+      const result = await withDeadline(
+        api.callTool(server, tool, input, { cache: options.cache, signal: options.signal }),
+        budgetMs,
+        () => laneTimeout({ server, tool, ms: budgetMs, ambiguous: options.read !== true }),
+      );
       return { payload: result.payload as T, cache: result.cache, raw: result };
     } finally {
       inFlightCalls -= 1;
@@ -572,7 +684,14 @@ export function watchTool(
       if (stopped) return;
       void (async () => {
         try {
-          const result = await api.callTool(server, tool, input, { cache: { refresh: true } });
+          // The watch's retry is a READ, and it carries the same wall clock as
+          // any other: a hung refresh used to hold the watch in `retrying` for
+          // the life of the page, which is the stuck banner all over again.
+          const result = await withDeadline(
+            api.callTool(server, tool, input, { cache: { refresh: true } }),
+            READ_DEADLINE_MS,
+            () => laneTimeout({ server, tool, ms: READ_DEADLINE_MS, ambiguous: false }),
+          );
           retrying = false;
           attempt = 0;
           if (!stopped) deliver(result ?? {});

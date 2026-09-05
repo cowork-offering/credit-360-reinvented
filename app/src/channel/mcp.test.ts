@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   callTool,
   describeFailure,
+  isLaneTimeout,
+  isRetryableRead,
   mcpAvailable,
+  READ_DEADLINE_MS,
   SERVERS,
   TOOLS,
   unwrapInvocable,
@@ -11,7 +14,10 @@ import {
   unwrapLlm,
   unwrapMail,
   watchTool,
+  WRITE_DEADLINE_MS,
+  type McpFailure,
 } from "./mcp";
+import { __resetLaneHealthForTests, laneOf } from "./laneHealth";
 import { createChannel } from "./adapter";
 
 type W = { claude?: { mcp?: unknown } };
@@ -284,5 +290,88 @@ describe("envelope unwrapping — mailbox", () => {
     expect(unwrapMail([])).toEqual([]);
     expect(unwrapMail({})).toEqual([]);
     expect(unwrapMail(null)).toEqual([]);
+  });
+});
+
+describe("the wall clock on one attempt", () => {
+  /* NO AWAIT WITHOUT A DEADLINE. The retry policy answers every failure the
+     platform REPORTS; this is the failure it does not report. A connector that
+     accepts a call and never answers used to leave the promise pending for the
+     life of the page, and every await upstream waited with it. */
+
+  it("stops waiting on a read that never answers, and says so as a timeout", async () => {
+    vi.useFakeTimers();
+    installMcp({ callTool: vi.fn(() => new Promise(() => {})) });
+    const call = callTool(SERVERS.customer360, TOOLS.snapshot, {}, { read: true });
+    const settled = call.then(
+      () => ({ ok: true as const }),
+      (e) => ({ ok: false as const, e: e as McpFailure }),
+    );
+    await vi.advanceTimersByTimeAsync(READ_DEADLINE_MS + 10);
+    const out = await settled;
+    vi.useRealTimers();
+
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(isLaneTimeout(out.e)).toBe(true);
+    expect(out.e.code).toBe("cancelled");
+    expect(out.e.message).toContain(`timeout after ${READ_DEADLINE_MS}ms`);
+    // A read that never answered wrote nothing, and never may be auto-retried
+    // on this stamp: a hung hop does not answer a faster second knock.
+    expect(out.e.ambiguous).toBe(false);
+    expect(out.e.retryable).toBe(false);
+    expect(isRetryableRead(out.e)).toBe(false);
+  });
+
+  it("gives a WRITE the longer budget, and calls its outcome unknown", async () => {
+    // THE WHOLE POINT ON A WRITE. The tool may well have run: a rejection here
+    // is the page saying it stopped waiting, never that nothing happened.
+    vi.useFakeTimers();
+    installMcp({ callTool: vi.fn(() => new Promise(() => {})) });
+    const settled = callTool(SERVERS.customer360, TOOLS.executeNewFacility, {}).then(
+      () => null,
+      (e) => e as McpFailure,
+    );
+    await vi.advanceTimersByTimeAsync(READ_DEADLINE_MS + 10);
+    // Still waiting: a package clone with an approval chain behind it is slow.
+    expect(await Promise.race([settled, Promise.resolve("pending")])).toBe("pending");
+    await vi.advanceTimersByTimeAsync(WRITE_DEADLINE_MS - READ_DEADLINE_MS + 10);
+    const failure = await settled;
+    vi.useRealTimers();
+
+    expect(isLaneTimeout(failure)).toBe(true);
+    expect(failure!.ambiguous).toBe(true);
+  });
+
+  it("marks the lane unreachable, so the health line stops claiming it is live", async () => {
+    vi.useFakeTimers();
+    __resetLaneHealthForTests();
+    installMcp({ callTool: vi.fn(() => new Promise(() => {})) });
+    const settled = callTool(SERVERS.customer360, TOOLS.snapshot, {}, { read: true }).catch(() => {});
+    await vi.advanceTimersByTimeAsync(READ_DEADLINE_MS + 10);
+    await settled;
+    vi.useRealTimers();
+    expect(laneOf(SERVERS.customer360)?.state).toBe("unreachable");
+    __resetLaneHealthForTests();
+  });
+
+  it("leaves a call that answers in time completely alone", async () => {
+    installMcp({ callTool: vi.fn(async () => ({ payload: { fine: true } })) });
+    const ok = await callTool(SERVERS.customer360, TOOLS.snapshot, {}, { read: true });
+    expect(ok.payload).toEqual({ fine: true });
+  });
+
+  it("lets a caller set its own budget, for a call it knows is slower", async () => {
+    vi.useFakeTimers();
+    installMcp({ callTool: vi.fn(() => new Promise(() => {})) });
+    const settled = callTool(SERVERS.customer360, TOOLS.snapshot, {}, { read: true, deadlineMs: 200 }).then(
+      () => null,
+      (e) => e as McpFailure,
+    );
+    await vi.advanceTimersByTimeAsync(250);
+    const failure = await settled;
+    vi.useRealTimers();
+    expect(isLaneTimeout(failure)).toBe(true);
+    expect(failure!.message).toContain("timeout after 200ms");
   });
 });

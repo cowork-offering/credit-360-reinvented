@@ -32,10 +32,12 @@ export type LaneGrant = "granted" | "not-granted" | "unavailable";
  * What the lane is doing right now.
  *   idle         granted, nothing asked of it yet this page session
  *   live         its last call answered
+ *   backup       it did not answer, but its BACKUP LANE did, so the figures on
+ *                screen are the org's own and current
  *   stale        the page is painting a stored document for it, not a live read
  *   unreachable  its last call failed and the retries are spent
  */
-export type LaneState = "idle" | "live" | "stale" | "unreachable";
+export type LaneState = "idle" | "live" | "backup" | "stale" | "unreachable";
 
 export interface LaneHealth {
   /** The connector display name, exactly as the call addressed it. */
@@ -114,15 +116,33 @@ export function noteLaneFailure(server: string, failure: LaneFailureLike): void 
 }
 
 /**
+ * This lane did not answer, but its BACKUP did, and the figures on screen came
+ * back through that other door.
+ *
+ * Recorded against the lane the banker knows, not against the backup: the
+ * question a health line answers is whether the relationship on screen is
+ * current, and through a mirrored read it is. The backup's own row says
+ * separately that it was the one that answered.
+ *
+ * Always follows a recorded failure on this lane, because a fallback only
+ * happens after the primary has spent its retries; it is strictly more
+ * informative than the `unreachable` it replaces.
+ */
+export function noteLaneBackup(server: string, at: number = Date.now()): void {
+  patch(server, { state: "backup", lastGoodAt: at, code: undefined, message: undefined });
+}
+
+/**
  * The page is painting a STORED document for this lane.
  *
  * Recorded so the health line can say "stale since" rather than "live" over
  * figures that came out of the cache. It never overwrites a lane that has
- * already answered live this session: a real read outranks a stored one.
+ * already answered live this session, or one a backup answered for: both are
+ * reads of the org as it is now, and either outranks a stored document.
  */
 export function noteLaneStale(server: string, storedAt: number): void {
   const prev = lanes[server];
-  if (prev?.state === "live") return;
+  if (prev?.state === "live" || prev?.state === "backup") return;
   patch(server, { state: "stale", lastGoodAt: Math.max(storedAt, prev?.lastGoodAt ?? 0) });
 }
 

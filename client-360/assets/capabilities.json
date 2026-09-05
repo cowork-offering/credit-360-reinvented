@@ -35,6 +35,22 @@
         ]
       },
       {
+        "server": "Salesforce Read Backup",
+        "tools": [
+          "gw_Customer360Snapshot",
+          "gw_Customer360RelationshipGraph",
+          "gw_Customer360Exposure",
+          "gw_Customer360Covenants",
+          "gw_Customer360Opportunities",
+          "gw_Customer360StructuralSignals",
+          "gw_Customer360SearchAccounts",
+          "gw_Customer360Portfolio",
+          "gw_Customer360ActionHistory",
+          "gw_Customer360Catalog",
+          "gw_health"
+        ]
+      },
+      {
         "server": "IDB Gateway",
         "tools": [
           "boom-mcp-js___boom_get_ratios",

@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { HealthLine, laneSentence } from "./components/HealthLine";
 import {
   __resetLaneHealthForTests,
+  noteLaneBackup,
   noteLaneFailure,
   noteLaneGrant,
   noteLaneStale,
@@ -92,6 +93,12 @@ describe("what each lane state says", () => {
     ).toBe("Salesforce unreachable: server_unavailable");
   });
 
+  it("via backup, in the same tokens as live: the org answered, one hop further round", () => {
+    expect(laneSentence({ server: "S", grant: "granted", state: "backup", lastGoodAt: AT }, "Salesforce", SAME_DAY)).toBe(
+      "Salesforce via backup 22:14 UTC",
+    );
+  });
+
   it("not granted, which is a connector to add and not an outage to wait out", () => {
     expect(laneSentence({ server: "S", grant: "not-granted", state: "unreachable" }, "Inbox", NEXT_DAY)).toBe(
       "Inbox not granted",
@@ -112,10 +119,55 @@ describe("what each lane state says", () => {
 
 describe("the line itself", () => {
   it("renders nothing at all until a lane has something to say", async () => {
-    installBridge([SERVERS.customer360, SERVERS.gateway, SERVERS.m365, SERVERS.experience, SERVERS.afs]);
+    installBridge([SERVERS.customer360, SERVERS.readBackup, SERVERS.gateway, SERVERS.m365, SERVERS.experience, SERVERS.afs]);
     mount();
     await act(async () => {});
     expect(container!.querySelector(".health-line")).toBeNull();
+  });
+
+  it("says nothing about the backup while it is granted and idle", async () => {
+    // The whole point of a backup is that it is usually not needed. A lane
+    // nobody has had to call is not news, and naming it every session would
+    // spend the one quiet sentence the chrome has.
+    installBridge([SERVERS.customer360, SERVERS.readBackup]);
+    act(() => noteLaneSuccess(SERVERS.customer360, AT));
+    mount();
+    await act(async () => {});
+    expect(line()).toContain("Salesforce live");
+    expect(line()).not.toContain("Backup");
+  });
+
+  it("says the Salesforce figures came via the backup, and names the backup as the lane that answered", () => {
+    installBridge([SERVERS.customer360, SERVERS.readBackup]);
+    act(() => noteLaneFailure(SERVERS.customer360, { code: "server_unavailable", message: "request failed (502)" }));
+    act(() => noteLaneSuccess(SERVERS.readBackup, AT));
+    act(() => noteLaneBackup(SERVERS.customer360, AT));
+    mount();
+    expect(line()).toMatch(/^Salesforce via backup .+ · Backup live /);
+    // Quiet: nothing is wrong, so nothing carries colour.
+    const lane = container!.querySelector('[data-lane-state="backup"]') as HTMLElement;
+    expect(lane.style.color).toBe("var(--ink-faint)");
+  });
+
+  it("names the backup when the viewer has not added it, which is a connector to add", async () => {
+    // The one state an unused backup is worth a word in: with Customer 360 down
+    // and no second door granted, the page is on stored documents and the fix
+    // is a connector, not a wait.
+    installBridge([SERVERS.customer360, SERVERS.gateway, SERVERS.m365, SERVERS.experience, SERVERS.afs]);
+    act(() => noteLaneStale(SERVERS.customer360, AT));
+    mount();
+    await act(async () => {});
+    expect(line()).toMatch(/^Salesforce stale since .+ · Backup not granted$/);
+  });
+
+  it("lets a live read outrank a backup one, and a backup one outrank a stored document", () => {
+    installBridge([SERVERS.customer360]);
+    act(() => noteLaneBackup(SERVERS.customer360, AT));
+    act(() => noteLaneStale(SERVERS.customer360, AT - 60_000));
+    mount();
+    expect(line()).toContain("Salesforce via backup");
+    act(() => noteLaneSuccess(SERVERS.customer360, AT));
+    expect(line()).toContain("Salesforce live");
   });
 
   it("stays quiet about a granted lane nobody has called", () => {

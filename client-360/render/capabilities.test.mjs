@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import {
   CAPABILITIES_PATH,
   CapabilitiesError,
+  READ_BACKUP_TOOLS,
   SERVERS,
   buildCapabilities,
   channelToolNames,
@@ -26,6 +27,25 @@ test("the Customer 360 grant is the org manifest ENTIRE, in the org's own order"
   // The one that matters: a tool the org ships but the grant omits is refused `not_in_manifest`
   // at the moment a banker confirms a plan, which is the worst possible time to discover it.
   assert.deepEqual(serverEntry(committed(), SERVERS.customer360).tools, manifestToolNames());
+});
+
+test("the read backup mirrors the org's ten reads, and carries its own health tool", () => {
+  // Derived from the SAME manifest the Customer 360 grant is, so a read the org gains is mirrored
+  // on the next regeneration and the two lanes cannot drift apart. Eleven names: ten mirrors and
+  // `gw_health`. Nothing else, and above all no write tool: the backup holds one service
+  // credential, and a filing made through it would carry the service's identity, not the banker's.
+  const tools = serverEntry(committed(), SERVERS.readBackup).tools;
+  assert.deepEqual(tools, READ_BACKUP_TOOLS());
+  assert.equal(tools.length, 11);
+  assert.deepEqual(
+    tools.filter((t) => t !== "gw_health"),
+    manifestToolNames()
+      .filter((n) => n.startsWith("Customer360"))
+      .map((n) => `gw_${n}`)
+  );
+  for (const t of tools) {
+    assert.ok(!/^gw_(stage|execute|complete)_/.test(t), `${t} is a write tool and must never be mirrored`);
+  }
 });
 
 test("the gateway and mail grants are the tool names the page itself calls", () => {
@@ -59,10 +79,10 @@ test("the memo writeback grants are the tool names the page itself calls", () =>
   );
 });
 
-test("all five connectors are declared, by display name", () => {
+test("all six connectors are declared, by display name", () => {
   assert.deepEqual(
     committed().mcp.servers.map((s) => s.server),
-    [SERVERS.customer360, SERVERS.gateway, SERVERS.m365, SERVERS.experience, SERVERS.afs]
+    [SERVERS.customer360, SERVERS.readBackup, SERVERS.gateway, SERVERS.m365, SERVERS.experience, SERVERS.afs]
   );
 });
 

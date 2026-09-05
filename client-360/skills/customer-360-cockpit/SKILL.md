@@ -84,6 +84,12 @@ the page reports offline and every sync line fails even though this session's to
 the badge says offline or the sync reports every line unreachable, ask the viewer to check the
 connector's name under claude.ai Settings > Connectors before anything else.
 
+A SIXTH CONNECTOR IS OPTIONAL BUT RECOMMENDED: `Salesforce Read Backup`, a second hop serving the
+same ten Customer 360 READS so the cockpit still shows live figures when the artifact-to-connector
+relay drops its Salesforce session, as it did for two hours on 2026-09-03. Reads only; every write
+stays on `Customer 360` under the banker's own identity. Without it the page falls back to its
+stored last-good documents instead, and the footer's connector line reads "Backup not granted".
+
 ## STEP 0 (REBUILD path): WAIT for the Customer360 server before anything else
 
 **Not on the open path.** The fast open touches no tool at all, so there is no server to wait for

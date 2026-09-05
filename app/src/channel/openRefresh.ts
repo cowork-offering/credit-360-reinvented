@@ -2,16 +2,8 @@ import { useEffect, useRef } from "react";
 import type { BorrowerBundle } from "../data/contract";
 import { modalDepth } from "../components/modalStack";
 import { useApp } from "../state/appState";
-import {
-  callTool,
-  DETAIL_KEYS,
-  DETAIL_TOOLS,
-  mcpAvailable,
-  SERVERS,
-  unwrapInvocable,
-  type DetailKey,
-  type McpFailure,
-} from "./mcp";
+import { DETAIL_KEYS, DETAIL_TOOLS, mcpAvailable, SERVERS, unwrapInvocable, type DetailKey, type McpFailure } from "./mcp";
+import { readThroughEitherLane } from "./gateway/lane";
 import { noteLaneStale } from "./laneHealth";
 import { loadLastGood, putLastGood, type CachedRead } from "./lastGood";
 import { createPacer, LAUNCH_GAP_MS, MAX_IN_FLIGHT, slowTierWindowMs, SLOW_TIER_KEYS } from "./syncSweep";
@@ -46,6 +38,9 @@ import { createPacer, LAUNCH_GAP_MS, MAX_IN_FLIGHT, slowTierWindowMs, SLOW_TIER_
 
 /** How long a lane that gave up waits before trying again, quietly. */
 export const BACKGROUND_RETRY_MS = 60_000;
+
+/** One of the six detail tools, each of which the backup lane mirrors. */
+type DetailTool = (typeof DETAIL_TOOLS)[number];
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -107,7 +102,7 @@ export function startOpenRefresh(opts: OpenRefreshOptions): () => void {
     if (Object.keys(usable).length) opts.onCached(usable);
   })();
 
-  const schedule = (key: DetailKey, tool: string) => {
+  const schedule = (key: DetailKey, tool: DetailTool) => {
     if (stopped) return;
     const timer = setTimeout(() => {
       timers.delete(timer);
@@ -121,14 +116,16 @@ export function startOpenRefresh(opts: OpenRefreshOptions): () => void {
     timers.add(timer);
   };
 
-  async function runLane(key: DetailKey, tool: string): Promise<void> {
+  async function runLane(key: DetailKey, tool: DetailTool): Promise<void> {
     if (stopped) return;
     const slow = SLOW_TIER_KEYS.has(key);
     try {
-      const ok = await pace(() =>
-        callTool(SERVERS.customer360, tool, { inputs: [{ accountId }] }, { read: true, cache: { staleTime: 15_000 } }),
-      );
+      /* EITHER DOOR. The pacer stays OUTSIDE the fallback: a backup read rides
+         the same artifact-to-connector relay and costs the same budget, so it
+         takes a pacer slot exactly as the primary attempt did. */
+      const res = await pace(() => readThroughEitherLane(tool, [{ accountId }], { cache: { staleTime: 15_000 } }));
       if (stopped) return;
+      const ok = res.value;
       const slot = unwrapInvocable(ok.payload, 1)[0];
       if (!slot.ok) {
         // The org ran the tool and reported a per-element failure. A minute's
@@ -146,7 +143,10 @@ export function startOpenRefresh(opts: OpenRefreshOptions): () => void {
       landed.add(key);
       if (!isEmptyPayload(slot.data)) {
         opts.onSlice(key, slot.data, ok.cache?.storedAt, slow);
-        void putLastGood(accountId, key, tool, slot.data, ok.cache?.storedAt ?? now());
+        // A BACKUP ANSWER IS A GOOD ANSWER, and it is remembered like one. The
+        // stamp records which door it came through, not whether to trust it.
+        const via = res.via === "gateway" ? "gateway" : undefined;
+        void putLastGood(accountId, key, tool, slot.data, ok.cache?.storedAt ?? now(), via);
       }
     } catch (err) {
       if (stopped) return;

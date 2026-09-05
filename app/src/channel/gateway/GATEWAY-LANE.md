@@ -2,6 +2,31 @@
 
 Backlog item 9, `knowledge/projects/customer-360/COWORK-FEEDBACK-20260903.md`.
 
+> **APPLIED 2026-09-06, on `gateway-wire`.** Everything below is the plan as it was written
+> against `87c5942`, kept for the reasoning. THE LINE NUMBERS IN IT ARE DEAD: `90f9ba3` rewrote
+> the files they pointed at. Where each point actually landed:
+>
+> | Plan | Landed in |
+> | --- | --- |
+> | 1. `refreshAccountDetail`, the six detail reads | `channel/openRefresh.ts` `runLane()`. `90f9ba3` DELETED `refreshAccountDetail` (it had no caller) and the open refresh is where the six reads live now. |
+> | 2. `fetchActionHistory` | `channel/cockpitTools.ts`, unchanged in shape. `readActionState` is still unwrapped, for the reason the plan gives. |
+> | 3. the portfolio watch | `channel/useLivePortfolio.ts`, the `ev.failure` branch, as a one-shot `callGateway` gated on `shouldFallBack`. |
+> | 4. the sync sweep and the book aggregate | `channel/syncSweep.ts` (portfolio + the six details) and `book/aggregate.ts`. `pace()` stayed outside the fallback. |
+> | 5. search and catalog | `book/search.ts` and `channel/catalog.ts`. |
+> | the constant | `SERVERS.readBackup` in `channel/mcp.ts`; `GATEWAY_SERVER` now points at it. |
+>
+> TWO THINGS THE PLAN DID NOT ANTICIPATE, both from `90f9ba3`:
+>
+> - **The primary spends its WHOLE retry budget before the other door is tried.** `server_unavailable`
+>   became self-retryable on its own code, so a wrapped read makes three attempts on Customer 360
+>   and only then falls through. That is the right contract and not an accident: the common failure
+>   is an idle Salesforce MCP session that re-handshakes on the second knock, and the door the
+>   banker owns is the one to come back to. The backup reads as a service identity.
+> - **The health line needed a state, not a flag.** `LaneState` gained `backup`, so the Salesforce
+>   lane reads "Salesforce via backup 22:34 UTC" rather than "unreachable" over figures the org just
+>   returned. The `via` flag the plan wanted on `LivePortfolio` was NOT added: the health line reads
+>   the lane store, and a second copy of the same fact is a second thing to drift.
+
 On 2026-09-03, 22:15 to 00:10 local, the claude.ai artifact-to-connector relay dropped its
 upstream session to `api.salesforce.com/platform/mcp`. Every page call returned
 `server_unavailable: request failed (502)` on four builds and both contracts. Chat sessions were

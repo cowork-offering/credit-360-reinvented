@@ -27,6 +27,13 @@ import { useLaneHealth, type LaneHealth } from "../channel/laneHealth";
  *  connector the calls do not address. */
 const LANES: ReadonlyArray<{ server: string; label: string }> = [
   { server: SERVERS.customer360, label: "Salesforce" },
+  /* THE BACKUP EARNS ITS PLACE ON THE LINE OR IT IS NOT ON IT. A read lane
+     nobody has needed is not news, and naming it every session would spend the
+     one quiet sentence the chrome has on a connector that did nothing. So it
+     appears in exactly two states: it answered for Salesforce (the filter below
+     keeps any lane that has been called), or the viewer has not added it, which
+     is a connector to add and worth one word. */
+  { server: SERVERS.readBackup, label: "Backup" },
   { server: SERVERS.gateway, label: "Gateway" },
   { server: SERVERS.m365, label: "Inbox" },
   { server: SERVERS.experience, label: "nCino" },
@@ -41,6 +48,10 @@ export function laneSentence(lane: LaneHealth | undefined, label: string, now: n
   if (lane.grant === "unavailable") return `${label} unavailable`;
   if (lane.grant === "not-granted") return `${label} not granted`;
   if (lane.state === "unreachable") return `${label} unreachable: ${lane.code ?? "upstream_error"}`;
+  // The figures ARE current; they came through the other door. Same tokens and
+  // the same quietness as `live`, because that is the honest comparison: the
+  // org answered, and this says which hop carried the answer.
+  if (lane.state === "backup") return `${label} via backup ${fmtAsOf(lane.lastGoodAt, now)}`;
   if (lane.state === "stale") return `${label} stale since ${fmtAsOf(lane.lastGoodAt, now)}`;
   if (lane.state === "live") return `${label} live ${fmtAsOf(lane.lastGoodAt, now)}`;
   return `${label} ready`;

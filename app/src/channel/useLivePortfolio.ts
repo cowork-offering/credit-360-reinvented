@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { Portfolio } from "../data/contract";
 import { SERVERS, TOOLS, unwrapInvocableOne, watchTool, type McpFailure } from "./mcp";
+import { callGateway, noteServedByBackup, shouldFallBack } from "./gateway/lane";
 
 export interface LivePortfolio {
   portfolio?: Portfolio;
@@ -75,6 +76,28 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
 
   useEffect(() => {
     if (!enabled || !visible) return;
+    /* THE BACKUP LANE IS A ONE-SHOT HERE, NOT A WRAPPED CALL. `watchTool` is a
+       subscription with no fallback arm: there is no second registration to
+       make and no second stream to reconcile. So when the watch reports a hop
+       failure the band asks the backup ONCE, by hand, and feeds the answer
+       through the same unwrapper. The watch keeps running underneath and its
+       next good event replaces this, which is what recovery looks like. */
+    let dead = false;
+
+    const askBackup = async () => {
+      try {
+        const ok = await callGateway<Portfolio>(TOOLS.portfolio, [{}]);
+        if (dead) return;
+        const slot = unwrapInvocableOne<Portfolio>(ok.payload);
+        if (!slot.ok) return;
+        noteServedByBackup(ok.cache?.storedAt);
+        setLive({ portfolio: slot.data, storedAt: ok.cache?.storedAt, failure: undefined, retrying: false });
+      } catch {
+        // Both doors shut. The banner the primary failure raised stands, and it
+        // names the lane the banker can actually do something about.
+      }
+    };
+
     // Store the (synchronous) unsubscribe before anything can fire.
     const stop = watchTool(
       SERVERS.customer360,
@@ -88,6 +111,9 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
               ? { failure: ev.failure, retrying: false }
               : { ...prev, failure: ev.failure, retrying: false },
           );
+          // Only the conditions the lane already encodes: a denial is about WHO
+          // asked, and the backup asks as somebody else.
+          if (shouldFallBack(ev.failure)) void askBackup();
           return;
         }
         const slot = unwrapInvocableOne<Portfolio>(ev.data?.payload);
@@ -111,7 +137,10 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
         refetchInterval: PORTFOLIO_REFETCH_MS,
       },
     );
-    return stop;
+    return () => {
+      dead = true;
+      stop();
+    };
   }, [enabled, attempt, visible]);
 
   return { ...live, retry };

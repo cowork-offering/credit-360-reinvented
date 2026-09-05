@@ -7,7 +7,8 @@
 // intent lane never subscribes, and every governed action is refused before it reaches the org.
 // The declaration therefore has to be derived, never typed from memory.
 //
-//   Customer 360      <- the org's own McpServerDefinition, via tool-names.mjs (org order, all of them)
+//   Customer 360         <- the org's own McpServerDefinition, via tool-names.mjs (org order, all of them)
+//   Salesforce Read Backup <- the same manifest's ten reads, gw_-prefixed, plus the backup's own health tool
 //   IDB Gateway       <- app/src/channel/mcp.ts TOOLS.boomRatios / boomSpread / llm
 //   Microsoft 365     <- app/src/channel/mcp.ts TOOLS.mailSearch
 //   Experience / nCino <- app/src/channel/mcp.ts, the memo writeback and ledger tools
@@ -37,11 +38,27 @@ export const CHANNEL_PATH = join(REPO_ROOT, "app", "src", "channel", "mcp.ts");
 /** Connector DISPLAY NAMES. Viewers resolve a connector by name; an id is never valid here. */
 export const SERVERS = {
   customer360: "Customer 360",
+  readBackup: "Salesforce Read Backup",
   gateway: "IDB Gateway",
   m365: "Microsoft 365",
   experience: "Experience / nCino",
   afs: "AFS",
 };
+
+/**
+ * The relay-independent read lane: the ten Customer 360 reads with a `gw_` prefix, plus the
+ * backup's own health tool. DERIVED FROM THE CUSTOMER 360 GRANT so the two lanes cannot drift
+ * apart: a read the org gains is mirrored here on the next regeneration, and a hand-typed
+ * second list would be a second thing to keep true.
+ *
+ * A page published without this server in `capabilities` gets `not_in_manifest` on the first
+ * fallback call, which is exactly the failure the fallback exists to avoid.
+ */
+export const READ_BACKUP_TOOLS = (manifestPath) =>
+  manifestToolNames(manifestPath)
+    .filter((n) => n.startsWith("Customer360"))
+    .map((n) => `gw_${n}`)
+    .concat("gw_health");
 
 /** `TOOLS` keys in app/src/channel/mcp.ts, by the server that answers them. */
 const GATEWAY_KEYS = ["boomRatios", "boomSpread", "llm"];
@@ -111,6 +128,7 @@ export function buildCapabilities({ manifestPath = MANIFEST_PATH, channelPath = 
     mcp: {
       servers: [
         { server: SERVERS.customer360, tools: manifestToolNames(manifestPath) },
+        { server: SERVERS.readBackup, tools: READ_BACKUP_TOOLS(manifestPath) },
         { server: SERVERS.gateway, tools: channelToolNames(GATEWAY_KEYS, channelPath) },
         { server: SERVERS.m365, tools: channelToolNames(M365_KEYS, channelPath) },
         { server: SERVERS.experience, tools: channelToolNames(EXPERIENCE_KEYS, channelPath) },

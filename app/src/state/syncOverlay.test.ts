@@ -281,7 +281,9 @@ describe("slow-moving reads are served from cache inside the window", () => {
 
   it("a FAILED slow read still falls back last-good and claims no window", async () => {
     const callTool = vi.fn(async (_s: string, tool: string) => {
-      if (tool === TOOLS.graph) throw { code: "upstream_error", message: "boom" };
+      // Both doors: the graph read falls back to the backup lane's `gw_` twin,
+      // and a read that "did not come back" is one neither door answered.
+      if (tool === TOOLS.graph || tool === `gw_${TOOLS.graph}`) throw { code: "upstream_error", message: "boom" };
       if (tool === TOOLS.mailSearch) return { payload: { value: [] } };
       return envelope({ entries: [] });
     });

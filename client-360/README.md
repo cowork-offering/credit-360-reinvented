@@ -28,10 +28,15 @@ Settings > Connectors before the first render, named exactly:
 | Connector | What it is | Tools the page calls |
 |---|---|---|
 | `Customer 360` | The Salesforce-hosted Customer360 MCP server (custom connector, the org's External Client App consumer key AND secret, per viewer) | 28 |
+| `Salesforce Read Backup` | **Optional but recommended.** A second hop serving the same ten Customer 360 READS, so the cockpit still shows live figures when the artifact-to-connector relay drops its Salesforce session; reads only, every write stays on `Customer 360` | 11 |
 | `IDB Gateway` | Boom spreads and ratios | 3 |
 | `Microsoft 365` | Inbox sweep | 1 |
 | `Experience / nCino` | The credit-memo writeback and ledger: narrative sections, the nFORMS memo document, the approval submit, the notice, the decision and audit trail, and the deterministic covenant grade | 9 |
 | `AFS` | Servicing: loan summary, payment history, revolver utilisation, and the workpackage the memo room stages at the end of a publish | 4 |
+
+Only the read backup is optional: without it a Customer 360 outage leaves the page on its stored
+last-good documents, and the footer's connector line reads "Backup not granted". With it the same
+outage leaves live figures on screen and the line reads "Salesforce via backup".
 
 A connector under any other name is invisible to the page: the badge reads offline and every
 sync line fails. The plugin cannot auto-connect these, because the Customer 360 OAuth client

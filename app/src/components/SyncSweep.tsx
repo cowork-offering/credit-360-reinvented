@@ -110,8 +110,13 @@ function SweepConsole({ lines, report }: { lines: SyncLine[]; report: string | n
 function AsOfNote({ storedAt, generatedAt }: { storedAt?: number; generatedAt?: string }) {
   const lanes = useLaneHealth();
   const lane = lanes[SERVERS.customer360];
-  // Live means the org answered this session. Nothing to caveat.
-  if (lane?.state === "live") return null;
+  /* Live means the org answered this session. Nothing to caveat, and that is
+     equally true of a read the BACKUP LANE answered: same org, same envelope,
+     same instant, one hop further round. Captioning those figures "As of" would
+     date them to the baked clock they replaced, and saying "unreachable" over
+     data the org just returned would be simply false. Which door carried them
+     is the footer's sentence, not the hero's. */
+  if (lane?.state === "live" || lane?.state === "backup") return null;
 
   const baked = generatedAt ? Date.parse(generatedAt) : NaN;
   const at = storedAt ?? (Number.isNaN(baked) ? undefined : baked);

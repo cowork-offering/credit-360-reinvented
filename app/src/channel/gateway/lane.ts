@@ -24,13 +24,14 @@
    ============================================================================= */
 
 import { callTool, describeFailure, SERVERS, TOOLS, type CallOptions, type McpFailure, type McpOk } from "../mcp";
+import { noteLaneBackup } from "../laneHealth";
 
 /** The connector's DISPLAY NAME, exactly as the viewer's connector list spells
  *  it. A differently named connector is invisible to the page, so this is the
  *  name the founder must type when adding it in claude.ai, character for
  *  character. Renamed 2026-09-06 when the service moved to the founder's own
  *  box and stopped carrying a company name. */
-export const GATEWAY_SERVER = "Salesforce Read Backup";
+export const GATEWAY_SERVER = SERVERS.readBackup;
 
 /** The ten Customer 360 READS this lane mirrors. Nothing else is callable. */
 export const MIRRORED_READS = [
@@ -183,11 +184,30 @@ export async function readWithFallback<T>(
 }
 
 /**
+ * The Salesforce lane's figures came through the other door.
+ *
+ * Recorded against CUSTOMER 360 rather than against the backup, because the
+ * question the health line answers is whether the relationship on screen is
+ * current. It is: a mirrored read is the same org, the same envelope and the
+ * same instant. The backup's own row says separately that it answered.
+ */
+export function noteServedByBackup(at?: number): void {
+  noteLaneBackup(SERVERS.customer360, at);
+}
+
+/**
  * The whole fallback for one mirrored read, when the caller has nothing to add.
  *
- * `refreshAccountDetail`, the sync sweep and the book aggregate all make the
- * same call shape, so wrapping is one line at each site:
+ * The open refresh, the sync sweep and the book aggregate all make the same
+ * call shape, so wrapping is one line at each site:
  *   readThroughEitherLane(TOOLS.snapshot, [{ accountId }], { cache: ... })
+ *
+ * The PRIMARY SPENDS ITS WHOLE RETRY BUDGET FIRST (`RETRY_BUDGET_MS`, 4.5s
+ * across three attempts) because the common failure is an idle Salesforce MCP
+ * session that re-handshakes on the second knock, and the door the banker owns
+ * is the one to come back to. The backup is the last resort, not the second
+ * choice: it reads as a service identity, so every answer it gives is one the
+ * banker's own grant did not gate.
  */
 export function readThroughEitherLane<T = unknown>(
   tool: MirroredRead,
@@ -199,5 +219,8 @@ export function readThroughEitherLane<T = unknown>(
     () => callTool<T>(SERVERS.customer360, tool, { inputs }, { read: true, ...options }),
     () => callGateway<T>(tool, inputs, options),
     hooks,
-  );
+  ).then((res) => {
+    if (res.via === "gateway") noteServedByBackup(res.value.cache?.storedAt);
+    return res;
+  });
 }

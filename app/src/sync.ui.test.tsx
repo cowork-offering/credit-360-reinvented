@@ -191,7 +191,8 @@ describe("the sweep", () => {
   it("keeps the workspace when a read fails", async () => {
     vi.useFakeTimers();
     const callTool = vi.fn(async (_server: string, tool: string) => {
-      if (tool === TOOLS.exposure) throw { code: "upstream_error", message: "boom" };
+      // Both doors: a read only "fails" when the backup lane refuses it too.
+      if (tool === TOOLS.exposure || tool === `gw_${TOOLS.exposure}`) throw { code: "upstream_error", message: "boom" };
       if (tool === TOOLS.mailSearch) return { payload: { value: [] } };
       if (tool === TOOLS.actionHistory) return envelope({ rows: [] });
       return envelope({});

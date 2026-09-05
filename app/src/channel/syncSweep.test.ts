@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { reachReport, runSyncSweep } from "./syncSweep";
-import { DETAIL_TOOLS, RETRY_ATTEMPTS, RETRY_BUDGET_MS, SERVERS, TOOLS } from "./mcp";
+import { DETAIL_TOOLS, isLaneTimeout, laneTimeout, RETRY_ATTEMPTS, RETRY_BUDGET_MS, SERVERS, TOOLS, withDeadline } from "./mcp";
 import { diffBundles, deltaReport } from "../data/delta";
 import type { BorrowerBundle } from "../data/contract";
 import envelopes from "../data/observed-exposure-envelopes.json";
@@ -26,6 +26,12 @@ function installMcp(handler: (server: string, tool: string, input: unknown) => u
   w.claude = { mcp: { callTool, watchTool: vi.fn(), listTools: vi.fn(), invalidate: vi.fn() } };
   return callTool;
 }
+
+/** THE SAME READ, ON EITHER DOOR. Every mirrored Customer 360 read now falls
+ *  back to the "Salesforce Read Backup" lane, whose tool is the same name with
+ *  a `gw_` prefix. A test that means "this read did not come back" therefore
+ *  has to shut BOTH doors, or it is quietly testing the fallback instead. */
+const eitherDoor = (tool: string, name: string) => tool === name || tool === `gw_${name}`;
 
 const SWEEP = { accountId: "001X", accountName: "Sterling Fabrication Co.", generatedAt: "2026-07-02T09:15:00Z", sleep: nopause };
 
@@ -94,7 +100,7 @@ describe("every line is bound to a real call", () => {
 describe("failure keeps the last-good data", () => {
   it("marks the failed line and patches nothing for it", async () => {
     installMcp((_s, tool) => {
-      if (tool === TOOLS.covenants) throw { code: "upstream_error", message: "boom" };
+      if (eitherDoor(tool, TOOLS.covenants)) throw { code: "upstream_error", message: "boom" };
       if (tool === TOOLS.mailSearch) return { payload: { value: [] } };
       return ok({ ok: true, marker: tool });
     });
@@ -328,15 +334,18 @@ describe("reachability is its own sentence on the console", () => {
     let covenantAttempts = 0;
     installMcp((_s, tool) => {
       if (tool === TOOLS.mailSearch) return { payload: { value: [] } };
-      if (tool === TOOLS.covenants) {
-        covenantAttempts += 1;
+      if (eitherDoor(tool, TOOLS.covenants)) {
+        if (tool === TOOLS.covenants) covenantAttempts += 1;
         throw { code: "server_unavailable", message: "session expired", retryable: true };
       }
       return ok({ ok: true });
     });
 
     const run = runSyncSweep(SWEEP);
-    await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
+    // TWO budgets: the primary spends its three attempts, then the backup lane
+    // spends its own on the mirrored name before the line can report anything.
+    // Still well inside LANE_DEADLINE_MS, so this is a refusal and not a hang.
+    await vi.advanceTimersByTimeAsync(2 * RETRY_BUDGET_MS + 50);
     const result = await run;
     vi.useRealTimers();
 
@@ -362,5 +371,81 @@ describe("reachability is its own sentence on the console", () => {
     expect(result.lines.find((l) => l.id === "covenants")!.state).toBe("failed");
     expect(result.unreachable).toBe(0);
     expect(reachReport(result)).toBe("Reachable, 8 lines refreshed.");
+  });
+});
+
+describe("a lane that never answers does not take the sweep with it", () => {
+  /* CHAOS SCENARIO sync-lane-hangs. Every lane here is awaited, and nothing
+     below promises to come back: a relay that hangs rather than 502s used to
+     hold a pacer slot, the console and the Sync button for the life of the
+     page. The deadline is the wall clock that makes a hang a failure. */
+
+  it("reports the hung lane as timed out and lets the rest of the sweep finish", async () => {
+    vi.useFakeTimers();
+    installMcp((_s, tool) => {
+      if (tool === TOOLS.mailSearch) return { payload: { value: [] } };
+      // Neither door ever answers, and neither ever refuses.
+      if (eitherDoor(tool, TOOLS.graph)) return new Promise(() => {});
+      return ok({ ok: true });
+    });
+
+    const run = runSyncSweep({ ...SWEEP, deadlineMs: 15_000 });
+    await vi.advanceTimersByTimeAsync(20_000);
+    const result = await run;
+    vi.useRealTimers();
+
+    const line = result.lines.find((l) => l.id === "graph")!;
+    expect(line.state).toBe("failed");
+    // The page's own clock, in whichever voice reached the line first: the
+    // lane's fifteen seconds and one attempt's fifteen seconds are the same
+    // fifteen seconds, and both say they stopped waiting rather than that the
+    // tool failed.
+    expect(line.detail).toMatch(/did not answer/);
+    expect(line.detail).toContain("timeout after 15000ms");
+    // Nothing patched for that lane; the section keeps what it had.
+    expect(result.patch.graph).toBeUndefined();
+    expect(result.fetchedAt?.graph).toBeUndefined();
+
+    // AND EVERY OTHER LANE LANDED. This is the part that was broken: one hung
+    // call held both pacer slots' worth of throughput and stopped the rest.
+    for (const id of ["portfolio", "snapshot", "exposure", "covenants", "opportunities", "signals", "history", "mail"]) {
+      expect(result.lines.find((l) => l.id === id)!.state, id).toBe("done");
+    }
+    expect(result.patch.exposure).toBeDefined();
+  });
+
+  it("counts a hung lane as unreachable, because nothing answered at all", async () => {
+    vi.useFakeTimers();
+    installMcp((_s, tool) => {
+      if (tool === TOOLS.mailSearch) return { payload: { value: [] } };
+      if (eitherDoor(tool, TOOLS.graph)) return new Promise(() => {});
+      return ok({ ok: true });
+    });
+    const run = runSyncSweep({ ...SWEEP, deadlineMs: 15_000 });
+    await vi.advanceTimersByTimeAsync(20_000);
+    const result = await run;
+    vi.useRealTimers();
+
+    expect(result.partial).toBe(true);
+    expect(result.unreachable).toBe(1);
+    expect(reachReport(result)).toBe("1 line still unreachable after retry.");
+  });
+
+  it("names the timeout so a reader can tell it from an answer the platform gave", () => {
+    // The one flag every branch downstream reads. A deadline is the page's own
+    // verdict, not the connector's, and must never be mistaken for one.
+    expect(isLaneTimeout({ code: "cancelled", timedOut: true })).toBe(true);
+    expect(isLaneTimeout({ code: "cancelled" })).toBe(false);
+    expect(isLaneTimeout(undefined)).toBe(false);
+  });
+
+  it("clears its timer when the call answers in time, and leaves the answer untouched", async () => {
+    vi.useFakeTimers();
+    const reason = () => laneTimeout({ server: SERVERS.customer360, tool: "t", ms: 15_000, ambiguous: false });
+    const out = await withDeadline(Promise.resolve("answered"), 15_000, reason);
+    expect(out).toBe("answered");
+    // Nothing is left standing: a sweep that leaves nine timers is its own leak.
+    expect(vi.getTimerCount()).toBe(0);
+    vi.useRealTimers();
   });
 });
