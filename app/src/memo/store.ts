@@ -17,13 +17,17 @@
    hierarchy the plan asked for is unchanged: one package, its memos, newest
    readable without reading any other package's.
 
-   THE SIZE QUESTION, ANSWERED AT RUNTIME AND NOT FROM MEMORY. `db.d.ts` states
-   no document size limit, and a rendered memo is on the order of 200 KB. So the
-   first write ATTEMPTS the full HTML, and a store that refuses it is not an
-   error: the draft is written again without the HTML and with `htmlStored:
-   false`, and a read of that draft re-renders from the dossier and the stored
-   narratives. Both paths are live; which one a given store took is on the
-   document, so nobody has to guess later.
+   THE HTML IS NEVER STORED (2026-09-06). This file used to attempt the full
+   rendered memo first and fall back to a lean document when the store refused
+   it. On 2026-09-06 the founder's browser was blocked by claude.ai's web
+   application firewall while the cockpit was open, and the one thing this page
+   sends to claude.ai that looks like an attack is exactly that write: a JSON
+   body carrying a complete HTML document with an inline review-shell script,
+   which is what an XSS signature matches. So the draft is always written lean:
+   plan, sections, narratives, and `htmlStored: false`. A read re-renders from
+   the dossier and the stored narratives, which is what the room does anyway
+   (`renderMemo(liveDossier)`), and nothing stored is ever executed. The `html`
+   field stays on the type for the in-memory draft the room holds.
    ============================================================================= */
 
 import { db } from "../channel/dbDoor";
@@ -93,33 +97,25 @@ export const fullyAttested = (sections: readonly MemoSectionRecord[]): boolean =
   sections.length > 0 && sections.every(reviewed);
 
 /**
- * WRITE THE DRAFT, WITH ITS HTML IF THE STORE WILL TAKE IT.
+ * WRITE THE DRAFT, LEAN. Never the HTML (see the header).
  *
  * Returns the draft as it was actually stored, so the caller's own copy carries
  * the same `htmlStored` the document does. A page with no store resolves the
  * draft unchanged and writes nothing, which is the absence contract: the room
- * works, the memo simply does not outlive the view.
+ * works, the memo simply does not outlive the view. A store that refuses even
+ * the lean document is silent: a memo that could not be persisted is still a
+ * memo on the glass, and the room never shows a banker a store error.
  */
 export async function saveMemoDraft(draft: MemoDraft): Promise<MemoDraft> {
   const store = db();
   if (!store) return draft;
-  const ref = store.doc(memoPath(draft.packageId, draft.memoId));
+  const lean: MemoDraft = { ...draft, html: undefined, htmlStored: false };
   try {
-    await ref.set({ ...draft } as unknown as Record<string, unknown>);
-    return draft;
+    await store.doc(memoPath(draft.packageId, draft.memoId)).set({ ...lean } as unknown as Record<string, unknown>);
   } catch {
-    /* THE STORE REFUSED THE FULL DOCUMENT. Overwhelmingly that is the HTML, so
-       the second attempt drops it and keeps everything a re-render needs. A
-       second failure is silent: a memo that could not be persisted is still a
-       memo on the glass, and the room never shows a banker a store error. */
-    const lean: MemoDraft = { ...draft, html: undefined, htmlStored: false };
-    try {
-      await ref.set({ ...lean } as unknown as Record<string, unknown>);
-    } catch {
-      return { ...draft, htmlStored: false };
-    }
-    return lean;
+    return { ...draft, htmlStored: false };
   }
+  return lean;
 }
 
 /** Land one section's attestation. Last writer wins, exactly as the intent

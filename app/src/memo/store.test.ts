@@ -51,15 +51,19 @@ describe("the memo store", () => {
     });
   });
 
-  it("round-trips the draft, HTML and all, and reads it back as the latest", async () => {
+  it("round-trips the draft WITHOUT its HTML and reads it back as the latest", async () => {
     const db = createFakeDb();
     __setDbForTests(db);
     const stored = await saveMemoDraft(draft());
-    expect(stored.htmlStored).toBe(true);
+    expect(stored.htmlStored).toBe(false);
+    expect(stored.html).toBeUndefined();
 
     const back = await latestMemo(PACKAGE);
     expect(back?.memoId).toBe("memo-1");
-    expect(back?.html).toBe("<html>the whole memo</html>");
+    expect(back?.html).toBeUndefined();
+    // Nothing that reaches claude.ai carries markup: the firewall rule of 2026-09-06.
+    const raw = JSON.stringify([...db.docs.values()]);
+    expect(raw).not.toMatch(/<html|<script/i);
     expect(back?.narratives.execSummary).toContain("recommendation");
     expect(back?.sections.map((s) => s.id)).toEqual(["executive_summary", "collateral"]);
   });
@@ -75,7 +79,7 @@ describe("the memo store", () => {
     expect((await latestMemo("a5Fother"))?.memoId).toBe("memo-3");
   });
 
-  it("keeps the sections and the narratives when the store refuses the full document", async () => {
+  it("never offers the store the HTML at all, and keeps the sections and the narratives", async () => {
     const db = createFakeDb();
     let refused = 0;
     const refusing: DbNamespace = {
@@ -97,7 +101,7 @@ describe("the memo store", () => {
     __setDbForTests(refusing);
 
     const stored = await saveMemoDraft(draft());
-    expect(refused).toBe(1);
+    expect(refused).toBe(0);
     expect(stored.htmlStored).toBe(false);
     expect(stored.html).toBeUndefined();
 
@@ -123,8 +127,9 @@ describe("the memo store", () => {
     const back = await latestMemo(PACKAGE);
     expect(back?.sections[0].status).toBe("approved");
     expect(back?.sections[1].note).toBe("the Kokomo appraisal is stale");
-    // The HTML the first write stored is untouched by an attestation write.
-    expect(back?.html).toBe("<html>the whole memo</html>");
+    // The prose the first write stored is untouched by an attestation, and there is still no markup.
+    expect(back?.narratives.execSummary).toContain("recommendation");
+    expect(back?.html).toBeUndefined();
   });
 
   it("is a no-op with no store, and the room never learns there was one", async () => {
