@@ -32,7 +32,7 @@ Five skills carry the methodology:
 
 | Skill | Carries |
 |---|---|
-| `customer-360-cockpit` | the fetch sequence, the `C360_DATA` contract, the assembler, the render |
+| `customer-360-cockpit` | the OPEN (hand over `assets/cockpit.json`'s `canonicalArtifactUrl`, no fetch and no publish) and the REBUILD (the fetch sequence, the `C360_DATA` contract, the assembler, the render) |
 | `client-request-to-action` | a client ask becomes a package-anchored staged modification, then an execution |
 | `covenant-review` | the package-scoped bulk covenant assessment, one plan and one token over N covenants |
 | `collateral-valuation` | package-anchored valuation filing, capped and dated |
@@ -161,7 +161,8 @@ becomes an intent on the room and route the table above gives it.
 
 | The banker says | Do EXACTLY this | Do NOT |
 |---|---|---|
-| "open the customer 360", "pull up the cockpit", "pull up **&lt;account&gt;**", "the relationship view", "what needs my attention", "work my queue" | Run the **`customer-360-cockpit`** skill: fetch, compose `C360_DATA`, run the assembler, publish the artifact by file path. | Do NOT answer from prose alone when the banker asked for the cockpit. Do NOT hand-build a summary card, table or chart beside it. Do NOT stage any write. |
+| "open the customer 360", "pull up the cockpit", "pull up **&lt;account&gt;**", "the relationship view", "what needs my attention", "work my queue" | Run the **`customer-360-cockpit`** skill on its OPEN path: read `canonicalArtifactUrl` from `assets/cockpit.json` and hand the banker that URL. The page refreshes itself through the viewer's own connectors. | Do NOT fetch, assemble or publish to answer an open: that is the rebuild path and it costs the banker the wait. Do NOT answer from prose alone when the banker asked for the cockpit. Do NOT hand-build a summary card, table or chart beside it. Do NOT stage any write. |
+| "rebuild the cockpit", "republish the cockpit", "publish a fresh cockpit" | Run the **`customer-360-cockpit`** skill on its REBUILD path: fetch, compose `C360_DATA`, run the assembler, publish the artifact by file path with the capabilities manifest whole. | Do NOT relax a rebuild rule to make it faster. Do NOT claim the rebuild moved the canonical cockpit: `assets/cockpit.json` is hand-edited by a founder. |
 | "the client wants the line at 20M", "increase the revolver to 20", "they asked for another 5 million on the equipment line", a forwarded client email | Run the **`client-request-to-action`** skill: resolve the package and the facility, `stage_loan_modification` with `facilityIds`, present the plan verbatim, wait for the confirmation, `execute_loan_modification`. | Do NOT execute before the human confirms. Do NOT say the facility was increased, approved or booked. The clone lands at Qualification and stops. |
 | "review the covenants", "run a covenant review", "assess the covenant package", "record the covenant results" | Run the **`covenant-review`** skill: read `Customer360Covenants`, assess each covenant yourself against the evidence, then one `stage_covenant_review` over the package. | Do NOT stage one covenant per call. Do NOT set `allowNonPending` unless the banker asked for it in words. Do NOT call an Exception a breach. |
 | "value the collateral", "file the new appraisal", "the field exam came back at 1.1 million" | Run the **`collateral-valuation`** skill: package-anchored `items[]`, cap 20, `valuationDate` on every item. | Do NOT default the valuation date to today. Do NOT claim coverage improved. |

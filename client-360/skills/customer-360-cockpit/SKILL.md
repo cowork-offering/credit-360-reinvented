@@ -1,23 +1,81 @@
 ---
 name: customer-360-cockpit
-description: Open the Customer 360 relationship cockpit, a worklist-first commercial-credit control center. Fetches the book and the needs-action accounts from Salesforce (nCino + FSC) via the 10 read tools of the 28-tool Customer360 MCP server plus Boom-spread financials, composes C360_DATA, and renders a prebuilt interactive Cowork artifact (needs-action queue, activity/audit trail, exposure, covenants, relationship graph, whitespace, structural signals) with a chat FAB and a Client Actions panel. This is the read and render skill; the 18 governed write tools run through the guided skills. Trigger on "customer 360", "open the cockpit", "pull up the relationship view", "what needs my attention", "relationship overview for <account>", or any account-level portfolio question.
+description: Open the Customer 360 relationship cockpit, a worklist-first commercial-credit control center. The DEFAULT open is INSTANT: hand the banker the canonical published cockpit named in assets/cockpit.json and let the page refresh itself through the viewer's own connectors. No fetch, no assembler, no publish. The fetch-and-publish path (the 10 read tools of the 28-tool Customer360 MCP server plus Boom-spread financials, composed into C360_DATA and assembled into a prebuilt interactive Cowork artifact: needs-action queue, activity/audit trail, exposure, covenants, relationship graph, whitespace, structural signals, a chat FAB and a Client Actions panel) is the REBUILD path, taken only when a banker asks to rebuild or republish or when no canonical URL can be resolved. This is the read and render skill; the 18 governed write tools run through the guided skills. Trigger on "customer 360", "open the cockpit", "pull up the relationship view", "what needs my attention", "relationship overview for <account>", "rebuild the cockpit", "republish the cockpit", or any account-level portfolio question.
 ---
 
 # Customer 360 Cockpit (v3)
 
-Render a **worklist-first** credit cockpit as a Cowork artifact. You fetch every figure from MCP tools
-and compose `C360_DATA`; the assembler bakes that JSON into a **prebuilt React bundle**, which renders
-it and never fetches. Interactivity flows back via `window.sendPrompt(...)` → re-fetch → re-assemble →
-full artifact replace.
+**Cowork chat is the main interface, so the open has to be instant.** There are TWO paths in this
+skill and the fast one is the default:
+
+| Path | When | What it costs |
+|---|---|---|
+| **OPEN** (default) | "open the cockpit", "pull up <account>", "what needs my attention" | one file read. No connector calls, no assembler run, no publish, nothing uploaded |
+| **REBUILD** | "rebuild the cockpit", "republish", or no canonical URL can be resolved | the whole fetch sequence, the assembler, and a ~1.9 MB publish |
 
 **Demo anchor:** Piedmont Precision Components, Inc. · Account `001bb00001DLtRMAA1` · org `bankinggpt`.
 
 **You never write UI.** The artifact HTML is a compiled React app (`app/`, built to
-`<pluginRoot>/assets/customer-360-template.html`). Your only job is data + one assembler command.
+`<pluginRoot>/assets/customer-360-template.html`). On the rebuild path your only job is the data plus
+one assembler command.
 
 ---
 
-## PREREQUISITE, before STEP 0: the viewer's connectors, by exact name
+## THE OPEN: the default, and it is one file read
+
+1. **Read `<pluginRoot>/assets/cockpit.json`** and take `canonicalArtifactUrl`.
+2. **Hand the banker that URL in one line.** That is the whole open.
+
+**Do NOT fetch, do NOT compose `C360_DATA`, do NOT run the assembler, do NOT publish, and do NOT
+pass a capabilities manifest.** The pinned cockpit already carries the grant from its last publish,
+and the connector prompts the viewer answered on it are still answered. Publishing a fresh 1.9 MB
+artifact to answer "open the cockpit" is the slow open the founder feels, and it buys nothing the
+page cannot get for itself in seconds.
+
+**Why this is not a stale page.** The cockpit REFRESHES ITSELF. The moment a banker lands on a
+relationship the page reads that relationship live through the viewer's own Customer 360 connector,
+one lane per module, and each figure replaces its baked value as its own read lands. Until it does
+the page shows the last figures it holds, marked `As of <time>`; the footer's connector line says
+which lanes are live, stale or unreachable and with which error code; and a lane that cannot reach
+the org retries on its own, three times inside twelve seconds and then quietly once a minute, so
+recovery needs no click. The banker sees live figures within seconds of opening, and never sees a
+stale figure claiming to be current. Behaviour lives in `app/src/channel/openRefresh.ts`,
+`app/src/channel/lastGood.ts` and `app/src/channel/laneHealth.ts`.
+
+**A relationship the baked snapshot does not carry.** Name it in your reply and tell the banker to
+open it from the cockpit's own search (cmd-K): the page resolves it through
+`Customer360SearchAccounts` and reads it live before opening it. Do NOT rebuild the artifact to add
+one relationship.
+
+**An actionable ask is not an open.** "The client wants the line at 20M" is an INTENT written to the
+canonical cockpit, never a republish. See "Intent handoff" at the foot of this page.
+
+**Verify before you promise.** If `assets/cockpit.json` is missing, unreadable, or carries no
+`canonicalArtifactUrl`, say so and take the REBUILD path. Never type a cockpit URL from memory and
+never carry one forward from an older transcript.
+
+---
+
+## THE REBUILD: the explicit path
+
+Take this path ONLY when one of these is true:
+
+- the banker asked for it: "rebuild the cockpit", "republish", "publish a fresh cockpit", "the baked
+  snapshot is too old, rebuild it";
+- `assets/cockpit.json` carries no usable `canonicalArtifactUrl`;
+- a founder has said the canonical cockpit is to be replaced.
+
+Everything from STEP 0 to the end of the RENDER section describes THAT path, and none of its rules
+may be relaxed to make a rebuild faster: no fallback data sources, the capabilities manifest whole on
+every publish, and the read-only execute path warning whenever `meta.userId` cannot be read.
+
+**A rebuild does not move the canonical cockpit.** `assets/cockpit.json` is hand-edited, once, when a
+founder blesses a new canonical URL; until then the fast open still points at the pinned page. Say
+which one you published and whether it is the canonical one.
+
+---
+
+## PREREQUISITE, before STEP 0 (REBUILD path): the viewer's connectors, by exact name
 
 The rendered page calls the viewer's own claude.ai connectors by display name: `Customer 360`,
 `IDB Gateway`, `Microsoft 365`, and, for the memo room's writeback, `Experience / nCino` and `AFS`.
@@ -26,7 +84,10 @@ the page reports offline and every sync line fails even though this session's to
 the badge says offline or the sync reports every line unreachable, ask the viewer to check the
 connector's name under claude.ai Settings > Connectors before anything else.
 
-## STEP 0 — WAIT for the Customer360 server (before anything else)
+## STEP 0 (REBUILD path): WAIT for the Customer360 server before anything else
+
+**Not on the open path.** The fast open touches no tool at all, so there is no server to wait for
+and no reason to make the banker wait for one.
 
 MCP servers connect lazily; at session start `customer360` often shows "still connecting". You MUST:
 
@@ -99,7 +160,10 @@ tool, prefer the gateway. Never hardcode a server id.
 
 ---
 
-## FETCH SEQUENCE (worklist-first)
+## FETCH SEQUENCE (REBUILD path only, worklist-first)
+
+Everything below runs ONLY on the rebuild path. On the default open none of it runs: zero tool
+calls, zero bytes uploaded.
 
 ### (a) One `Customer360Portfolio` call
 Request (all optional): `industry`, `maxAccounts` (default 25, cap 100), `signalWindowDays` (default 90).
@@ -336,7 +400,7 @@ mirrors the registry. Do not edit by hand:
 
 ---
 
-## ASSEMBLER INVOCATION
+## ASSEMBLER INVOCATION (REBUILD path only)
 
 ```
 node <pluginRoot>/render/assemble-cockpit.mjs --data /tmp/c360-data.json --out /tmp/customer-360.html
@@ -413,11 +477,17 @@ not the compliance-row status, still drives the classification kind.
 
 ---
 
-## RENDER
+## RENDER (REBUILD path only)
 
-### FAST FIRST PAINT — two-phase render (default for live runs)
+### FIRST, THE ONE THAT IS NOT A RENDER
 
-Do not make the banker wait for the whole staging pipeline before seeing anything.
+A banker asking to open the cockpit gets the canonical URL and nothing is rendered at all. This whole
+section is the rebuild path. Do not reach for it to answer an open.
+
+### TWO-PHASE REBUILD
+
+A rebuild is slow by nature, so it is still split: do not make the banker watch the whole staging
+pipeline before anything appears.
 
 **Phase 1 (publish within the first ~15-20s):** after step (a) plus ONE batched detail call for the
 anchor account only, compose a minimal C360_DATA — `portfolio` verbatim, `borrowers` containing just
@@ -435,7 +505,12 @@ Skip phase 1 only when the user asked for a single account you can stage in one 
 Publish the assembled file with the artifact tool **BY FILE PATH** (`create_artifact`) — never paste
 HTML inline. Do NOT open a Chrome tab or call any other widget/HTML builder.
 
-### CAPABILITIES: pass the manifest on EVERY publish
+### CAPABILITIES: pass the manifest on EVERY publish (rebuild path)
+
+A publish is the ONLY thing that needs this. The fast open publishes nothing, so it passes nothing,
+and the pinned cockpit keeps the grant its own last publish gave it. Passing a manifest is not a way
+to "refresh" a grant on a page you did not publish, and there is no publish-free way to change one.
+
 
 The cockpit is a compiled page that calls the **banker's own** connectors. That only works if the
 artifact is published with a capabilities manifest, so every publish and every replace passes one:
@@ -575,6 +650,11 @@ single worst failure mode in this skill.
 
 ## STALE-INSTRUCTION GUARDS
 
+- **NEVER publish an artifact to answer "open the cockpit".** The default open is the canonical URL
+  from `assets/cockpit.json` and nothing else. Fetching the book, running the assembler and uploading
+  ~1.9 MB to answer an open is the slow open the founder named on 2026-09-05; the page refreshes
+  itself, so the work buys the banker nothing and costs them the wait.
+- **Never pass `capabilities` on the open path.** There is nothing being published to carry it.
 - **Never hand-author or model-generate the artifact HTML.** It is a compiled React bundle; emitting
   a document token-by-token is the slow path bankers feel as "the artifact takes ages to load".
 - **Never inject the JSON yourself.** The assembler owns the data slot and asserts it exactly once.

@@ -1,7 +1,8 @@
 import { useApp } from "../state/appState";
-import { fmtClock, fmtMoney, fmtPct, fmtRelative } from "../data/format";
+import { fmtAsOf, fmtMoney, fmtPct, fmtRelative } from "../data/format";
 import { useCountUp } from "../data/motion";
-import { mcpAvailable } from "../channel/mcp";
+import { mcpAvailable, SERVERS } from "../channel/mcp";
+import { useLaneHealth } from "../channel/laneHealth";
 import { useLivePortfolio } from "../channel/useLivePortfolio";
 
 /* =============================================================================
@@ -59,6 +60,14 @@ export function KpiBand() {
   // Live book totals when the capability is present; the staged snapshot
   // otherwise. A failed refresh keeps the staged figures visible.
   const live = useLivePortfolio(mcpAvailable());
+  /* THE BANNER'S "WHY" COMES OFF THE SAME STORE THE FOOTER READS. The watch's
+     own cache stamp is only present when the platform served this identity from
+     cache, so a banner raised on a lane that HAS answered recently used to say
+     nothing at all about when. The lane's last good call is the fact the banker
+     needs, and taking it from one place is what stops the hero, the banner and
+     the status line disagreeing about the same outage. */
+  const lane = useLaneHealth()[SERVERS.customer360];
+  const lastGoodAt = live.storedAt ?? lane?.lastGoodAt;
   const pf = live.portfolio ?? data.portfolio ?? { accounts: [] };
   const accts = pf.accounts ?? [];
 
@@ -132,8 +141,8 @@ export function KpiBand() {
               {/* Freshness comes off the served result's cache stamp, never a
                   clock read here: it says when the figures on screen were true,
                   which is the one thing a stale band has to be honest about. */}
-              {live.storedAt != null && (
-                <span style={{ color: "var(--ink-faint)" }}> Last good data, {fmtClock(new Date(live.storedAt).toISOString())}.</span>
+              {lastGoodAt != null && (
+                <span style={{ color: "var(--ink-faint)" }}> Last good data, {fmtAsOf(lastGoodAt)}.</span>
               )}
               {/* THE RAW CODE, QUIETLY (founder, 2026-09-03: the banner sat on
                   screen with no way to tell which layer had failed). The

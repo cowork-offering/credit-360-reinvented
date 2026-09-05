@@ -7,26 +7,9 @@
    the fix copy for the affected section.
    ============================================================================= */
 
-import type {
-  ActionChangeCounts,
-  ActionHistoryRow,
-  ActionStep,
-  BorrowerBundle,
-  C360Data,
-  Id,
-} from "../data/contract";
+import type { ActionChangeCounts, ActionHistoryRow, ActionStep, BorrowerBundle, C360Data, Id } from "../data/contract";
 import { buildGroundedPrompt } from "../data/grounding";
-import {
-  callTool,
-  DETAIL_TOOLS,
-  SERVERS,
-  TOOLS,
-  unwrapInvocable,
-  unwrapLlm,
-  unwrapMail,
-  type LlmAnswer,
-  type McpOk,
-} from "./mcp";
+import { callTool, SERVERS, TOOLS, unwrapInvocable, unwrapLlm, unwrapMail, type LlmAnswer } from "./mcp";
 
 /* ------------------------------------------------------------------ chat */
 
@@ -43,60 +26,6 @@ export async function askCopilot(args: {
   const prompt = buildGroundedPrompt(args);
   const res = await callTool(SERVERS.gateway, TOOLS.llm, { prompt }, { read: true, signal: args.signal });
   return unwrapLlm(res.payload);
-}
-
-/* ------------------------------------------------------------ live detail */
-
-export interface DetailRefresh {
-  /** Per-tool outcome, keyed by tool name; a failed tool leaves its slice out. */
-  patch: Partial<BorrowerBundle>;
-  /** Tools that reported a per-element failure, for honest partial reporting. */
-  failed: string[];
-  /** Freshness of the newest served result, when any came from cache. */
-  storedAt?: number;
-}
-
-/** Bundle keys the six detail tools map onto, in DETAIL_TOOLS order. */
-const DETAIL_KEYS = ["snapshot", "graph", "exposure", "covenants", "opportunities", "signals"] as const;
-
-/**
- * Refresh one account's staged detail from the live org.
- *
- * The six tools are called with a single-element inputs array each and the
- * SALESFORCE INVOCABLE ENVELOPE is unwrapped positionally. A tool that fails
- * is reported in `failed` and simply omitted from the patch — the rest of the
- * bundle keeps its previous values rather than being blanked.
- */
-export async function refreshAccountDetail(accountId: Id): Promise<DetailRefresh> {
-  const results = await Promise.allSettled(
-    DETAIL_TOOLS.map((tool) =>
-      callTool(SERVERS.customer360, tool, { inputs: [{ accountId }] }, { read: true, cache: { staleTime: 15_000 } }),
-    ),
-  );
-
-  const patch: Partial<BorrowerBundle> = {};
-  const failed: string[] = [];
-  let storedAt: number | undefined;
-
-  results.forEach((r, i) => {
-    const tool = DETAIL_TOOLS[i];
-    const key = DETAIL_KEYS[i];
-    if (r.status !== "fulfilled") {
-      failed.push(tool);
-      return;
-    }
-    const ok = r.value as McpOk<unknown>;
-    if (ok.cache?.storedAt && (storedAt === undefined || ok.cache.storedAt > storedAt)) storedAt = ok.cache.storedAt;
-    const slot = unwrapInvocable(ok.payload, 1)[0];
-    if (!slot.ok) {
-      failed.push(tool);
-      return;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (patch as Record<string, unknown>)[key] = slot.data as any;
-  });
-
-  return { patch, failed, storedAt };
 }
 
 /* ------------------------------------------------------------------ boom */

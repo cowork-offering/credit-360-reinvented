@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { AppProvider } from "./state/appState";
 import { KpiBand } from "./components/KpiBand";
-import { RETRY_MAX_MS } from "./channel/mcp";
+import { RETRY_BUDGET_MS } from "./channel/mcp";
 import type { C360Data } from "./data/contract";
 import sample from "../../artifact/sample-data.json";
 
@@ -77,11 +77,15 @@ describe("the unreachable banner", () => {
     expect(band()?.textContent ?? "").not.toContain("briefly unreachable");
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(RETRY_MAX_MS + 50);
+      await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
     });
     const text = band()?.textContent ?? "";
     expect(text).toContain("briefly unreachable");
-    expect(text).toContain("Last good data, 14:03 UTC");
+    /* THE DAY RIDES WITH THE CLOCK once the stamp is not today's. The
+       2026-09-03 outage ran two hours; "last good data, 14:03 UTC" on its own
+       cannot say whether that was this morning or last week, which is the one
+       thing a banker reading a stale band has to know. */
+    expect(text).toMatch(/Last good data, .*14:03 UTC/);
     expect(retryButton()).toBeTruthy();
   });
 
@@ -93,7 +97,7 @@ describe("the unreachable banner", () => {
     act(() => h.captured.handler!({ type: "data", result: { payload: BOOK, cache: { storedAt: STORED_AT, revalidating: false } } }));
     act(() => h.captured.handler!({ type: "error", error: UNAVAILABLE }));
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(RETRY_MAX_MS + 50);
+      await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
     });
     expect(band()?.textContent).toContain("briefly unreachable");
 
@@ -108,7 +112,7 @@ describe("the unreachable banner", () => {
     const h = mount(callTool);
     act(() => h.captured.handler!({ type: "error", error: UNAVAILABLE }));
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(RETRY_MAX_MS + 50);
+      await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
     });
     expect(h.watch).toHaveBeenCalledTimes(1);
 

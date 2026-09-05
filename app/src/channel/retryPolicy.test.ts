@@ -5,6 +5,8 @@ import {
   describeFailure,
   isRetryableRead,
   retryDelayMs,
+  RETRY_ATTEMPTS,
+  RETRY_BUDGET_MS,
   RETRY_MAX_MS,
   RETRY_MIN_MS,
   SERVERS,
@@ -21,7 +23,16 @@ import {
    retry and no polling, so that one failure was the LAST event it delivered and
    "Customer 360 is briefly unreachable" stood until the view remounted.
 
-   What must stay true: one retry, reads only, never a write, never a denial.
+   THE POLICY WIDENED ON 2026-09-05, and the reason is the 2026-09-03 outage:
+   the artifact-to-connector relay lost its Salesforce session for two hours and
+   answered the PAGE `server_unavailable: request failed (502)` while the same
+   tools answered normally in chat. One retry 500-1500ms later lands inside the
+   same dead window, and a `server_unavailable` arriving WITHOUT the platform's
+   `retryable` stamp was not retried at all. So: three attempts, the delay
+   doubling between them, and `server_unavailable` retryable on its own code.
+
+   What must stay true, and is asserted below: reads only, never a write, never
+   a denial, and one retry chain per user-visible refresh.
    ============================================================================= */
 
 type W = { claude?: { mcp?: unknown } };
@@ -81,9 +92,13 @@ describe("the delay is randomised inside one window", () => {
 });
 
 describe("what may be retried at all", () => {
-  it("only on the platform's stamp", () => {
-    expect(isRetryableRead(describeFailure({ code: "server_unavailable" }, "S", "T"))).toBe(false);
+  it("on the platform's stamp, and on server_unavailable with or without one", () => {
+    // The shape that stood for two hours on 2026-09-03: the relay's own 502,
+    // arriving with no retryable stamp on it.
+    expect(isRetryableRead(describeFailure({ code: "server_unavailable" }, "S", "T"))).toBe(true);
     expect(isRetryableRead(describeFailure(UNAVAILABLE, "S", "T"))).toBe(true);
+    expect(isRetryableRead(describeFailure({ code: "tool_error" }, "S", "T"))).toBe(false);
+    expect(isRetryableRead(describeFailure({ code: "bad_request" }, "S", "T"))).toBe(false);
   });
 
   it("never an authz denial, however it was stamped", () => {
@@ -97,7 +112,7 @@ describe("what may be retried at all", () => {
   });
 });
 
-describe("callTool: reads retry once, writes never", () => {
+describe("callTool: reads retry to the budget, writes never", () => {
   it("retries a read after the randomised delay and resolves on the second answer", async () => {
     const fn = vi.fn().mockRejectedValueOnce(UNAVAILABLE).mockResolvedValue({ payload: "ok" });
     installMcp({ callTool: fn });
@@ -107,14 +122,31 @@ describe("callTool: reads retry once, writes never", () => {
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
-  it("surfaces the failure when the retry fails too, exactly two attempts", async () => {
+  it("surfaces the failure only once the whole budget is spent, and no attempt more", async () => {
     const fn = vi.fn().mockRejectedValue(UNAVAILABLE);
     installMcp({ callTool: fn });
     const p = callTool(SERVERS.customer360, TOOLS.portfolio, { inputs: [{}] }, { read: true });
     const seen = p.catch((e) => e);
-    await vi.advanceTimersByTimeAsync(RETRY_MAX_MS + 50);
+    await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
     expect(await seen).toMatchObject({ code: "server_unavailable" });
-    expect(fn).toHaveBeenCalledTimes(2);
+    expect(fn).toHaveBeenCalledTimes(RETRY_ATTEMPTS);
+  });
+
+  it("keeps the whole budget inside the twelve seconds a banker will sit through", () => {
+    expect(RETRY_BUDGET_MS).toBeLessThanOrEqual(12_000);
+  });
+
+  it("recovers on the THIRD attempt without anyone touching the page", async () => {
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(UNAVAILABLE)
+      .mockRejectedValueOnce(UNAVAILABLE)
+      .mockResolvedValue({ payload: "ok" });
+    installMcp({ callTool: fn });
+    const p = callTool(SERVERS.customer360, TOOLS.portfolio, { inputs: [{}] }, { read: true });
+    await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
+    await expect(p).resolves.toMatchObject({ payload: "ok" });
+    expect(fn).toHaveBeenCalledTimes(3);
   });
 
   it("NEVER retries a write: an ambiguous rejection is not proof the tool did not run", async () => {
@@ -122,7 +154,7 @@ describe("callTool: reads retry once, writes never", () => {
     installMcp({ callTool: fn });
     for (const tool of [TOOLS.stageLoanModification, TOOLS.executeLoanModification, TOOLS.executeAnnualReview]) {
       const seen = callTool(SERVERS.customer360, tool, { inputs: [{}] }).catch((e) => e);
-      await vi.advanceTimersByTimeAsync(RETRY_MAX_MS + 50);
+      await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
       expect(await seen, tool).toMatchObject({ ambiguous: true });
     }
     expect(fn).toHaveBeenCalledTimes(3);
@@ -148,19 +180,25 @@ describe("watchTool: the banner waits for the retry", () => {
     expect(events.some((e) => e.failure)).toBe(false);
   });
 
-  it("reports the failure once the retry fails too", async () => {
+  it("reports the failure once the whole budget is spent", async () => {
     const callToolFn = vi.fn().mockRejectedValue(UNAVAILABLE);
     const { captured } = installWatch(callToolFn);
     const events: Array<Record<string, unknown>> = [];
     watchTool(SERVERS.customer360, TOOLS.portfolio, { inputs: [{}] }, (e) => events.push(e));
 
     captured.handler!({ type: "error", error: UNAVAILABLE });
+    // Still nothing at the end of the FIRST wait: the chain has more to spend.
     await vi.advanceTimersByTimeAsync(RETRY_MAX_MS + 50);
+    expect(events).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
     expect(events).toHaveLength(1);
     expect(events[0].failure).toMatchObject({ code: "server_unavailable", retract: false });
+    // The watch event itself is attempt one; the re-reads are the other two.
+    expect(callToolFn).toHaveBeenCalledTimes(RETRY_ATTEMPTS - 1);
   });
 
-  it("retries ONCE per refresh: a second error while the retry runs starts nothing", async () => {
+  it("runs ONE chain per refresh: a second error while it runs starts nothing", async () => {
     const callToolFn = vi.fn().mockResolvedValue({ payload: { x: 1 } });
     const { captured } = installWatch(callToolFn);
     watchTool(SERVERS.customer360, TOOLS.portfolio, { inputs: [{}] }, () => {});

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { PORTFOLIO_REFETCH_MS, useLivePortfolio } from "./useLivePortfolio";
-import { RETRY_MAX_MS } from "./mcp";
+import { RETRY_BUDGET_MS, RETRY_MAX_MS } from "./mcp";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -88,7 +88,7 @@ describe("useLivePortfolio", () => {
     expect(h.value.storedAt).toBe(777);
   });
 
-  it("shows the failure only after the retry fails too, keeping last-good data", async () => {
+  it("shows the failure only after every retry has failed too, keeping last-good data", async () => {
     vi.useFakeTimers();
     const callTool = vi.fn().mockRejectedValue(UNAVAILABLE);
     const h = mountHook(true, callTool);
@@ -96,7 +96,7 @@ describe("useLivePortfolio", () => {
     act(() => h.captured.handler!({ type: "data", result: { payload: BOOK, cache: { storedAt: 111, revalidating: false } } }));
     act(() => h.captured.handler!({ type: "error", error: UNAVAILABLE }));
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(RETRY_MAX_MS + 50);
+      await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
     });
 
     expect(h.value.failure?.code).toBe("server_unavailable");

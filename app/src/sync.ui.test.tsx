@@ -88,7 +88,12 @@ describe("the sync trigger lives in the account header", () => {
     expect(sync).toBeTruthy();
     expect(sync.closest(".hero")).toBeTruthy();
     expect(sync.closest(".acct-name-row")).toBeTruthy();
-    expect(sync.parentElement!.children).toHaveLength(1);
+    /* ONE CONTROL, still. The hero gained an "As of" caption beside Sync when
+       the figures on screen are baked or stored rather than live, and a caption
+       is not a control: the rule the founder set is about what a banker can
+       press here, and Sync is still the only thing. */
+    expect(sync.parentElement!.querySelectorAll("button, a, input, select")).toHaveLength(1);
+    expect(sync.parentElement!.textContent).toContain("As of");
     expect(document.getElementById("c360-client-actions-trigger")).toBeNull();
   });
 

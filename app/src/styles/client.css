@@ -618,3 +618,39 @@ a.wk-opt:hover {
 .wl-info.warn {
   color: var(--warning);
 }
+
+/* -------------------------------------------------------- the health line
+
+   THE CONNECTOR STATUS LINE, at the foot of the document. Chrome, not content:
+   it sits after both views, so it costs the landing and the client no layout,
+   no stacking context and no paint while the page is scrolling. Ten-and-a-half
+   px faint ink on the page ground, dot separators, no fill and no rim: the
+   quietest thing on the screen by design, and never louder than the live dot
+   in the header. Colour is carried by the lane that is DOWN and by nothing
+   else. */
+.health-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  padding: 10px 28px 14px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  border-top: 1px solid var(--border);
+}
+.health-line .hl-key {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+.health-line .hl-lane {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.health-line .hl-lane + .hl-lane::before {
+  content: "·";
+  margin-right: 10px;
+  color: var(--border-strong);
+}

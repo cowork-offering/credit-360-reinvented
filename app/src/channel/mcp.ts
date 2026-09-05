@@ -12,6 +12,8 @@
    the page. `describeFailure()` below is the one place that mapping lives.
    ============================================================================= */
 
+import { noteLaneFailure, noteLaneGrant, noteLaneSuccess, noteNoBridge } from "./laneHealth";
+
 /* ---------------------------------------------------------------- ambient */
 
 interface McpCallResult {
@@ -211,6 +213,13 @@ export const DETAIL_TOOLS = [
   TOOLS.structuralSignals,
 ] as const;
 
+/** The bundle keys those six tools map onto, POSITIONALLY. One definition:
+ *  three files used to carry their own copy of this list and a re-order in any
+ *  one of them would have silently filed the exposure read as the graph. */
+export const DETAIL_KEYS = ["snapshot", "graph", "exposure", "covenants", "opportunities", "signals"] as const;
+
+export type DetailKey = (typeof DETAIL_KEYS)[number];
+
 /* ---------------------------------------------------------- error doctrine */
 
 export type McpErrorCode =
@@ -350,32 +359,61 @@ export interface CallOptions {
 
    ONE policy, for READS ONLY, shared by `callTool` and by the watch wrapper
    below. The Salesforce-hosted MCP session expires on idle, so the first call
-   after a pause fails `server_unavailable` (stamped retryable) and the very
-   next one succeeds once the connector has re-handshaked. Surfacing that first
-   failure to the banker is the defect: it reads as an outage and, on a watch
-   with no polling, it stuck until the view remounted.
+   after a pause fails `server_unavailable` and the very next one succeeds once
+   the connector has re-handshaked. Surfacing that first failure to the banker
+   is the defect: it reads as an outage and, on a watch with no polling, it
+   stuck until the view remounted.
 
-   The rules are the contract's, not ours: at most ONE retry per user-visible
-   refresh, after a short randomised delay, honoring `retryAfterMs` when the
-   platform sent one, and NEVER for a write: `server_unavailable` on a write
-   is an ambiguous outcome, not proof the tool did not run. Authz denials are
-   never retried unattended either: repeating them cannot succeed on its own. */
+   THREE ATTEMPTS, NOT TWO, AND THE STAMP IS NO LONGER REQUIRED FOR 502.
+   On 2026-09-03 the artifact-to-connector relay lost its Salesforce session for
+   two hours: every call the PAGE made answered `server_unavailable: request
+   failed (502)` while the same tools answered normally in chat. One retry
+   500-1500ms later lands inside the same dead window, and a `server_unavailable`
+   that arrives WITHOUT `retryable: true` was not retried at all, which is the
+   shape that stood for two hours. So `server_unavailable` is retryable on its
+   own code, and a read gets three attempts with the delay doubling between
+   them: worst case 500+1500 to 1500+3000ms of waiting, comfortably inside the
+   twelve seconds a banker will sit through before deciding the page is broken.
+
+   WHAT DID NOT CHANGE, and must not: never for a write, because
+   `server_unavailable` on a write is an ambiguous outcome and not proof the
+   tool did not run; never for an authz denial, because repeating it cannot
+   succeed on its own; never longer than the platform's own `retryAfterMs`
+   asked for, and never past the shell's own minute-long clamp. */
 
 export const RETRY_MIN_MS = 500;
 export const RETRY_MAX_MS = 1500;
+/** Total attempts for a read: the call itself plus two retries. */
+export const RETRY_ATTEMPTS = 3;
 /** The shell clamps `retryAfterMs` at 60s; never wait longer than that. */
 const RETRY_CEILING_MS = 60_000;
 
-/** Randomised 500-1500ms, never earlier than the platform's own `retryAfterMs`. */
-export function retryDelayMs(failure: { retryAfterMs?: number }, random: () => number = Math.random): number {
-  const jittered = RETRY_MIN_MS + Math.floor(random() * (RETRY_MAX_MS - RETRY_MIN_MS + 1));
+/** Worst case time a read spends WAITING between its attempts: the whole window
+ *  the retry policy can keep a banker in the dark before something renders.
+ *  Held to a number so "inside twelve seconds" is a fact and not a hope. */
+export const RETRY_BUDGET_MS = RETRY_MAX_MS * (2 ** (RETRY_ATTEMPTS - 1) - 1);
+
+/** Randomised 500-1500ms on the first retry and doubling per attempt after it,
+ *  never earlier than the platform's own `retryAfterMs`. */
+export function retryDelayMs(
+  failure: { retryAfterMs?: number },
+  random: () => number = Math.random,
+  attempt = 0,
+): number {
+  const jittered = (RETRY_MIN_MS + Math.floor(random() * (RETRY_MAX_MS - RETRY_MIN_MS + 1))) * 2 ** attempt;
   return Math.min(Math.max(jittered, failure.retryAfterMs ?? 0), RETRY_CEILING_MS);
 }
 
-/** May this READ failure be retried once, unattended? Only on the platform's
- *  own stamp, and never for a denial that a retry could not fix. */
+/** Codes a READ may retry on the code alone, with no platform stamp. The relay
+ *  outage's own code is the whole list: it means "the door was shut", which is
+ *  the one failure that answers a second knock. */
+const SELF_RETRYABLE = new Set<McpErrorCode>(["server_unavailable"]);
+
+/** May this READ failure be retried unattended? Never for a denial a retry
+ *  could not fix, and never for a view with no bridge at all. */
 export function isRetryableRead(failure: McpFailure): boolean {
-  return failure.retryable === true && !failure.retract && !failure.noCapability;
+  if (failure.retract || failure.noCapability) return false;
+  return failure.retryable === true || SELF_RETRYABLE.has(failure.code);
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -411,7 +449,9 @@ export async function callTool<T = unknown>(
 ): Promise<McpOk<T>> {
   const api = mcp();
   if (!api) {
-    throw describeFailure({ code: "capability_disabled", message: "window.claude.mcp is not available" }, server, tool);
+    const absent = describeFailure({ code: "capability_disabled", message: "window.claude.mcp is not available" }, server, tool);
+    noteLaneFailure(server, absent);
+    throw absent;
   }
 
   const invoke = async (): Promise<McpOk<T>> => {
@@ -429,19 +469,61 @@ export async function callTool<T = unknown>(
   };
 
   try {
-    return await invoke();
+    const ok = await invoke();
+    noteLaneSuccess(server);
+    return ok;
   } catch (err) {
-    const failure = describeFailure(err, server, tool);
-    // AT MOST one retry, reads only, only when the platform stamped it.
-    if (options.read && isRetryableRead(failure)) {
-      await sleep(retryDelayMs(failure));
-      try {
-        return await invoke();
-      } catch (err2) {
-        throw describeFailure(err2, server, tool);
+    let failure = describeFailure(err, server, tool);
+    // READS ONLY, up to RETRY_ATTEMPTS in total, each after a longer randomised
+    // wait than the last. A write falls straight through: its outcome is
+    // unknown and re-issuing it is the banker's gesture, never ours.
+    if (options.read) {
+      for (let attempt = 0; attempt < RETRY_ATTEMPTS - 1 && isRetryableRead(failure); attempt += 1) {
+        await sleep(retryDelayMs(failure, Math.random, attempt));
+        try {
+          const ok = await invoke();
+          noteLaneSuccess(server);
+          return ok;
+        } catch (err2) {
+          failure = describeFailure(err2, server, tool);
+        }
       }
     }
+    noteLaneFailure(server, failure);
     throw failure;
+  }
+}
+
+/* --------------------------------------------------------------- the grants
+
+   WHAT THE VIEWER ACTUALLY GRANTED, asked once, before anything is read.
+
+   A lane that was never granted and a lane that is briefly down look identical
+   from a failed call, and the fix for them is opposite: one is a connector to
+   add in claude.ai Settings, the other is a moment to wait. `listTools()` is
+   the only thing that can tell them apart before the first read, so the health
+   line asks it once at boot and reports what it said. */
+
+/** Auth states that mean the lane is present but cannot be called as things
+ *  stand. Anything else that appears in the list counts as granted. */
+const UNUSABLE_AUTH = new Set(["not_connected", "needs_reauth", "unauthenticated", "disconnected"]);
+
+export async function probeConnectorGrants(servers: readonly string[]): Promise<void> {
+  const api = mcp();
+  if (!api || typeof api.listTools !== "function") {
+    noteNoBridge(servers);
+    return;
+  }
+  try {
+    const res = await api.listTools();
+    const seen = new Map((res?.servers ?? []).map((s) => [s.server, String(s.authStatus ?? "")]));
+    for (const server of servers) {
+      const status = seen.get(server);
+      noteLaneGrant(server, status !== undefined && !UNUSABLE_AUTH.has(status));
+    }
+  } catch {
+    // A probe that cannot answer says nothing. The lanes keep whatever the
+    // calls themselves have taught them, which is better evidence anyway.
   }
 }
 
@@ -463,16 +545,52 @@ export function watchTool(
 ): () => void {
   const api = mcp();
   if (!api) {
-    handler({ failure: describeFailure({ code: "capability_disabled" }, server, tool) });
+    const absent = describeFailure({ code: "capability_disabled" }, server, tool);
+    noteLaneFailure(server, absent);
+    handler({ failure: absent });
     return () => {};
   }
 
   let stopped = false;
   let retrying = false;
+  let attempt = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const deliver = (result: McpCallResult) =>
+  const deliver = (result: McpCallResult) => {
+    noteLaneSuccess(server);
     handler({ data: { payload: result.payload, cache: result.cache, raw: result } });
+  };
+
+  /** Re-read the SAME identity with a forced refresh, so the result also
+   *  overwrites the cache entry the watch replays from. Chains up to the shared
+   *  attempt budget: a two-hour relay outage is not survived by one knock, but
+   *  a re-handshake almost always lands inside the second or third. */
+  const scheduleRetry = (failure: McpFailure) => {
+    retrying = true;
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (stopped) return;
+      void (async () => {
+        try {
+          const result = await api.callTool(server, tool, input, { cache: { refresh: true } });
+          retrying = false;
+          attempt = 0;
+          if (!stopped) deliver(result ?? {});
+        } catch (err) {
+          const next = describeFailure(err, server, tool);
+          attempt += 1;
+          if (attempt < RETRY_ATTEMPTS - 1 && isRetryableRead(next) && !stopped) {
+            scheduleRetry(next);
+            return;
+          }
+          retrying = false;
+          attempt = 0;
+          noteLaneFailure(server, next);
+          if (!stopped) handler({ failure: next });
+        }
+      })();
+    }, retryDelayMs(failure, Math.random, attempt));
+  };
 
   const onFailure = (failure: McpFailure) => {
     if (stopped) return;
@@ -481,26 +599,12 @@ export function watchTool(
     // retry is about to settle.
     if (retrying) return;
     if (!isRetryableRead(failure)) {
+      noteLaneFailure(server, failure);
       handler({ failure });
       return;
     }
-    retrying = true;
-    timer = setTimeout(() => {
-      timer = undefined;
-      if (stopped) return;
-      // Re-read the SAME identity with a forced refresh: the result also
-      // overwrites the cache entry the watch replays from.
-      void (async () => {
-        try {
-          const result = await api.callTool(server, tool, input, { cache: { refresh: true } });
-          retrying = false;
-          if (!stopped) deliver(result ?? {});
-        } catch (err) {
-          retrying = false;
-          if (!stopped) handler({ failure: describeFailure(err, server, tool) });
-        }
-      })();
-    }, retryDelayMs(failure));
+    attempt = 0;
+    scheduleRetry(failure);
   };
 
   let stop: () => void = () => {};
@@ -514,6 +618,7 @@ export function watchTool(
         if (ev.type === "data") {
           // Live data cancels a pending retry: the refresh already landed.
           retrying = false;
+          attempt = 0;
           if (timer !== undefined) {
             clearTimeout(timer);
             timer = undefined;
@@ -530,7 +635,9 @@ export function watchTool(
       },
     );
   } catch (e) {
-    handler({ failure: describeFailure(e, server, tool) });
+    const failure = describeFailure(e, server, tool);
+    noteLaneFailure(server, failure);
+    handler({ failure });
     return () => {};
   }
 

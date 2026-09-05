@@ -49,6 +49,27 @@ export function fmtInstant(iso: string | null | undefined): string {
 }
 
 /**
+ * HOW OLD THE FIGURES ON SCREEN ARE, in the fewest words that stay true.
+ *
+ * "22:14 UTC" while it is still the same UTC day, "22:14 UTC yesterday" for the
+ * one after that, and the full instant beyond it. A banker reading a stale
+ * cockpit needs the age at a glance and the exact stamp when the age starts to
+ * matter, and the shortest honest form of each is a different sentence.
+ *
+ * Same zone doctrine as {@link fmtInstant}: a freshness claim may not read
+ * differently in London and Atlanta.
+ */
+export function fmtAsOf(at: number | null | undefined, now: number = Date.now()): string {
+  if (at == null || !Number.isFinite(at)) return "an unrecorded time";
+  const iso = new Date(at).toISOString();
+  const dayOf = (ms: number) => Math.floor(ms / 86_400_000);
+  const days = dayOf(now) - dayOf(at);
+  if (days <= 0) return fmtClock(iso);
+  if (days === 1) return `${fmtClock(iso)} yesterday`;
+  return fmtInstant(iso);
+}
+
+/**
  * Clock time of an instant, pinned to UTC: "14:03 UTC".
  *
  * For a freshness note sitting next to a failure ("last good data, 14:03 UTC"),

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { reachReport, runSyncSweep } from "./syncSweep";
-import { DETAIL_TOOLS, RETRY_MAX_MS, SERVERS, TOOLS } from "./mcp";
+import { DETAIL_TOOLS, RETRY_ATTEMPTS, RETRY_BUDGET_MS, SERVERS, TOOLS } from "./mcp";
 import { diffBundles, deltaReport } from "../data/delta";
 import type { BorrowerBundle } from "../data/contract";
 import envelopes from "../data/observed-exposure-envelopes.json";
@@ -299,7 +299,7 @@ describe("reachability is its own sentence on the console", () => {
     expect(reachReport(result)).toBe("Reachable, 9 lines refreshed.");
   });
 
-  it("retries a retryable line ONCE, and says nothing about it when the retry lands", async () => {
+  it("retries a retryable line and says nothing about it when the retry lands", async () => {
     vi.useFakeTimers();
     let covenantAttempts = 0;
     installMcp((_s, tool) => {
@@ -312,11 +312,12 @@ describe("reachability is its own sentence on the console", () => {
     });
 
     const run = runSyncSweep(SWEEP);
-    await vi.advanceTimersByTimeAsync(RETRY_MAX_MS + 50);
+    await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
     const result = await run;
     vi.useRealTimers();
 
-    expect(covenantAttempts).toBe(2); // the one retry, spent inside callTool
+    // The retry landed on the second attempt, so the budget was never spent.
+    expect(covenantAttempts).toBe(2); // the retry, spent inside callTool
     expect(result.lines.find((l) => l.id === "covenants")!.state).toBe("done");
     expect(result.unreachable).toBe(0);
     expect(reachReport(result)).toBe("Reachable, 9 lines refreshed.");
@@ -335,11 +336,12 @@ describe("reachability is its own sentence on the console", () => {
     });
 
     const run = runSyncSweep(SWEEP);
-    await vi.advanceTimersByTimeAsync(RETRY_MAX_MS + 50);
+    await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
     const result = await run;
     vi.useRealTimers();
 
-    expect(covenantAttempts).toBe(2);
+    // Three attempts since 2026-09-05: the relay outage's own 502 survived two.
+    expect(covenantAttempts).toBe(RETRY_ATTEMPTS);
     const line = result.lines.find((l) => l.id === "covenants")!;
     expect(line.state).toBe("failed");
     expect(line.detail).toContain("briefly unreachable");

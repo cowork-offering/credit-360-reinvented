@@ -17,7 +17,8 @@
 
 import type { ActionHistoryRow, ActivityEntry, BorrowerBundle, ClientRequest, Id } from "../data/contract";
 import { readMailRequest, toClientRequest } from "../actions/mailIntake";
-import { callTool, DETAIL_TOOLS, SERVERS, TOOLS, unwrapInvocable, type McpFailure, type McpOk } from "./mcp";
+import { callTool, DETAIL_KEYS, DETAIL_TOOLS, SERVERS, TOOLS, unwrapInvocable, type McpFailure, type McpOk } from "./mcp";
+import { putLastGood } from "./lastGood";
 import { fetchActionHistory, matchesAccount, searchMailbox, type MailHit } from "./cockpitTools";
 
 export type SyncLineState = "pending" | "running" | "done" | "failed";
@@ -67,7 +68,7 @@ export interface SyncResult {
  * costs two fewer calls against the platform budget, at no staleness risk a
  * banker could notice.
  */
-const SLOW_TIER_KEYS = new Set(["graph", "covenants", "snapshot"]);
+export const SLOW_TIER_KEYS: ReadonlySet<string> = new Set(["graph", "covenants", "snapshot"]);
 export const SLOW_TIER_STALE_MS = 5 * 60 * 1000;
 /** The snapshot is headline figures on deal-time scales too, but a banker
  *  refreshing after a real change (a booked modification) expects it to move
@@ -75,10 +76,7 @@ export const SLOW_TIER_STALE_MS = 5 * 60 * 1000;
  *  the budget burn the founder hit on rapid repeated syncs — without
  *  noticeable staleness. */
 export const SNAPSHOT_STALE_MS = 90 * 1000;
-const slowTierWindowMs = (key: string) => (key === "snapshot" ? SNAPSHOT_STALE_MS : SLOW_TIER_STALE_MS);
-
-/** Bundle keys the six detail tools map onto, in DETAIL_TOOLS order. */
-const DETAIL_KEYS = ["snapshot", "graph", "exposure", "covenants", "opportunities", "signals"] as const;
+export const slowTierWindowMs = (key: string) => (key === "snapshot" ? SNAPSHOT_STALE_MS : SLOW_TIER_STALE_MS);
 
 const DETAIL_LABELS = [
   "Relationship snapshot",
@@ -321,6 +319,9 @@ export async function runSyncSweep(opts: SweepOptions): Promise<SyncResult> {
       const slot = unwrapInvocable(ok.payload, 1)[0];
       if (!slot.ok) return { failed: KEPT };
       (patch as Record<string, unknown>)[key] = slot.data;
+      // REMEMBERED, so the next open of this relationship has something true to
+      // paint before the org answers. Reads only, fire and forget.
+      void putLastGood(accountId, key, DETAIL_TOOLS[i], slot.data, ok.cache?.storedAt ?? startedAt);
       if (SLOW_TIER_KEYS.has(key)) fetchedAt[key] = startedAt;
     });
   }

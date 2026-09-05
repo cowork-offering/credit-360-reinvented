@@ -15,6 +15,8 @@ import { RelationshipRoomHost } from "./relationship/RelationshipRoom";
 import { MemoRoomHost } from "./memo/MemoRoomHost";
 import { buildWorklistRows } from "../data/worklistRows";
 import { useKeepAlive } from "../channel/keepAlive";
+import { useOpenRefresh } from "../channel/openRefresh";
+import { HealthLine } from "./HealthLine";
 
 type ViewRef = React.RefObject<HTMLDivElement | null>;
 
@@ -46,6 +48,12 @@ export function AppShell() {
      every four minutes, silent, paused while the page is hidden. See
      channel/keepAlive.ts for why the Salesforce-hosted session needs it. */
   useKeepAlive();
+  /* THE RELATIONSHIP READS ITSELF ON OPEN. The cockpit is opened from chat
+     against a pinned artifact whose baked clock is weeks old, so landing on an
+     account has to be the thing that goes and gets the truth: stored last-good
+     first, then the six detail reads, each on its own lane. See
+     channel/openRefresh.ts. */
+  useOpenRefresh();
   const staged =
     state.accountId
       ? (data.borrowers ?? {})[state.accountId] ??
@@ -150,6 +158,10 @@ export function AppShell() {
           the memo session is its own store, and the doors that open it close
           whichever room they were standing in. */}
       <MemoRoomHost />
+      {/* THE CONNECTOR STATUS LINE, last in the document and last in the eye.
+          It is the source the unreachable banner quotes its "why" from, so the
+          two can never disagree about which lane went and when. */}
+      <HealthLine />
     </div>
   );
 }

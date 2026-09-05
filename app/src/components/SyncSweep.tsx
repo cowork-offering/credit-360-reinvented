@@ -1,13 +1,14 @@
 import { useRef, useState } from "react";
 import { useApp } from "../state/appState";
 import { Portal } from "./Portal";
-import { mcpAvailable } from "../channel/mcp";
+import { mcpAvailable, SERVERS } from "../channel/mcp";
+import { useLaneHealth } from "../channel/laneHealth";
 import { reachReport, runSyncSweep, type SyncLine } from "../channel/syncSweep";
 import { noteMailArrival } from "../actions/mailRow";
 import { dataVersionOf, saveOverlay } from "../state/syncOverlay";
 import { diffBundles, deltaReport, type DeltaField } from "../data/delta";
 import type { BorrowerBundle } from "../data/contract";
-import { fmtRelative } from "../data/format";
+import { fmtAsOf, fmtRelative } from "../data/format";
 
 /* =============================================================================
    SYNC (WP7)
@@ -92,6 +93,40 @@ function SweepConsole({ lines, report }: { lines: SyncLine[]; report: string | n
         </div>
       </div>
     </Portal>
+  );
+}
+
+/* =============================================================================
+   "AS OF": what the figures beside it are, while they are not live yet.
+
+   The cockpit opens on baked figures, then on whatever stored last-good the
+   artifact store had, and only then on the org's own answer. The first two
+   states are honest data and dishonest presentation unless the hero says so, so
+   it says so, in the smallest words that stay true, and STOPS saying it the
+   moment the Customer 360 lane answers live. When that lane is down the same
+   line carries why, from the health store the footer reads: one source, so the
+   hero and the status line can never disagree.
+   ============================================================================= */
+function AsOfNote({ storedAt, generatedAt }: { storedAt?: number; generatedAt?: string }) {
+  const lanes = useLaneHealth();
+  const lane = lanes[SERVERS.customer360];
+  // Live means the org answered this session. Nothing to caveat.
+  if (lane?.state === "live") return null;
+
+  const baked = generatedAt ? Date.parse(generatedAt) : NaN;
+  const at = storedAt ?? (Number.isNaN(baked) ? undefined : baked);
+  if (at === undefined) return null;
+
+  const down = lane?.state === "unreachable" && lane.grant === "granted";
+  return (
+    <span
+      className="self-center text-[11px] leading-none"
+      style={{ color: down ? "var(--warning)" : "var(--ink-faint)" }}
+      data-asof={at}
+    >
+      As of {fmtAsOf(at)}
+      {down && ` \u00b7 ${SERVERS.customer360} unreachable`}
+    </span>
   );
 }
 
@@ -216,6 +251,7 @@ export function SyncButton({ accountId, accountName, bundle }: { accountId: stri
 
   return (
     <>
+      <AsOfNote storedAt={storedAt} generatedAt={data.meta?.generatedAt} />
       <button
         type="button"
         onClick={() => void sync()}
