@@ -10,6 +10,7 @@ import { clearComposed } from "./workroom/engine";
 import { resetCatalog } from "./channel/catalog";
 import { resetSessionDoor } from "./channel/sampleDoor";
 import { MemoRoom, steerTarget, type MemoContext, type MemoDeps } from "./components/memo/MemoRoom";
+import type { MemoFiledSummary } from "./components/memo/memoSession";
 import { closeMemoRoom, openMemoRoom, useMemoRoom } from "./components/memo/memoSession";
 import { changesFromFiled, splitOfFiled } from "./components/memo/carry";
 import { memoGreeting, executedRead } from "./components/memo/memoGreeting";
@@ -169,6 +170,9 @@ function openRoom(
     deps?: Partial<MemoDeps>;
     latest?: MemoDraft | null;
     ctx?: Partial<MemoContext>;
+    /** The sheet the finale handed over, and whether its slide has finished. */
+    filed?: MemoFiledSummary | null;
+    settled?: boolean;
   } = {},
 ): Mounted {
   const executed = executedRead(args.rows ?? [], PACKAGE);
@@ -187,6 +191,7 @@ function openRoom(
     carriedSplit: args.carried ? splitOfFiled(FILED) : null,
     plan: renderPlanFor(dossier),
     hasStoredMemo: args.latest != null,
+    filed: args.filed ?? null,
   });
 
   const prompts: string[] = [];
@@ -221,6 +226,8 @@ function openRoom(
           dossier={dossier}
           changes={changes}
           greeting={greeting}
+          filed={args.filed ?? null}
+          settled={args.settled ?? true}
           latest={args.latest ?? null}
           deps={{ ...deps, ...extra }}
           onClose={() => {}}
@@ -704,5 +711,73 @@ describe("drafting and steering", () => {
     expect(steerTarget("tighten the covenant paragraph", sections)).toBe("covenant_conditions");
     expect(steerTarget("mention the Kokomo appraisal in collateral", sections)).toBe("collateral");
     expect(steerTarget("make it better", sections)).toBeNull();
+  });
+});
+
+/* =============================================================================
+   THE HAND FROM THE FILED SHEET (founder, 2026-09-06).
+
+   "This then directs you to the Credit memo workroom where it inserts all the
+   information, but all super super gentle, no hangers."
+
+   TWO CLAIMS. The sheet becomes this room's first timeline row, in the room's
+   own grammar rather than as a card imported from another room; and the draft
+   starts ITSELF, but only once the facility room's slide has finished, because
+   prose landing under a moving surface is the hanger the founder named.
+   ============================================================================= */
+
+const HANDOVER: MemoFiledSummary = {
+  title: "Filed on Hartwell, Hartwell C&I Credit Package, version a5Fbb000000J61hEAC",
+  version: "a5Fbb000000J61hEAC",
+  kind: "modify",
+  items: [
+    { id: "f1", label: "Commitment amount", target: "Line of Credit", before: "$15,000,000", after: "$18,000,000" },
+  ],
+  exposureBefore: "$46.0M",
+  exposureAfter: "$49.0M",
+  pending: true,
+};
+
+describe("the hand from the filed sheet", () => {
+  it("draws the filing as the room's first timeline row, in the timeline's own grammar", async () => {
+    const { room } = openRoom({ filed: HANDOVER, settled: false });
+    const first = room.querySelector(".mm-filed")!;
+    expect(first).toBeTruthy();
+    // The same classes the draft's own timeline uses, so the two read as one.
+    expect(first.classList.contains("mm-work")).toBe(true);
+    expect(text(first.querySelector(".mm-work-lead"))).toBe(HANDOVER.title);
+    const rows = [...first.querySelectorAll(".mm-tl-row")];
+    expect(rows.map((r) => r.getAttribute("data-kind"))).toEqual(["filed", "exposure"]);
+    // Every row is already done: this is the past tense of the timeline below it.
+    for (const r of rows) expect(r.getAttribute("data-state")).toBe("done");
+    expect(text(rows[0])).toContain("Line of Credit · Commitment amount");
+    // The exposure carries the org's outstanding confirmation, unchanged.
+    expect(text(rows[1])).toContain("$46.0M → $49.0M pending");
+  });
+
+  it("writes nothing while the facility room's sheet is still sliding off it", async () => {
+    /* THE HANGER THE FOUNDER NAMED. Prose landing under a moving surface is the
+       one thing the handover must not do, so the draft waits for the slide's own
+       end rather than for a clock of its own. */
+    const { room, prompts } = openRoom({ filed: HANDOVER, settled: false });
+    expect(prompts).toHaveLength(0);
+    expect(room.querySelector('.mm-work[data-work="draft"]')).toBeNull();
+  });
+
+  it("drafts without being asked once the glass has settled", async () => {
+    // THE BANKER ALREADY ANSWERED THE QUESTION by pressing the door on the
+    // sheet, so the room does not put it to them a second time.
+    const { prompts } = openRoom({ filed: HANDOVER, settled: true });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(prompts.length).toBeGreaterThan(0);
+  });
+
+  it("asks the greeting's question as usual when nothing was handed over", async () => {
+    const { room, prompts } = openRoom();
+    expect(room.querySelector(".mm-filed")).toBeNull();
+    expect(prompts).toHaveLength(0);
+    expect(room.querySelector('[data-chip="draft"]')).toBeTruthy();
   });
 });

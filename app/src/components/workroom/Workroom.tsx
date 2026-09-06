@@ -8,7 +8,15 @@ import { readableError, type PackageChoice, type WorkroomEngine, type WorkroomSu
 import { addEntry, addressManifest, figuresFor, removeEntry } from "../../workroom/manifest";
 import { vocabularyFor } from "../../workroom/modes";
 import { stepperState } from "../../workroom/stepper";
-import { awaitFiling, FILED_FAILED, FILING_IN_FLIGHT, LIVE_SETTLE, STILL_WRITING, type SettleDeps } from "./settleExecution";
+import {
+  awaitFiling,
+  CONFIRM_BUDGET_MS,
+  FILED_FAILED,
+  FILING_IN_FLIGHT,
+  LIVE_SETTLE,
+  STILL_WRITING,
+  type SettleDeps,
+} from "./settleExecution";
 import {
   KEEP_THE_PLAN,
   TRY_AGAIN,
@@ -211,8 +219,20 @@ import {
   type SettledRow,
 } from "./settle";
 import { useStageGate } from "./stage";
-import { FINALE_SWEEP_MS, finaleAttrs, useFinale, withFinale } from "./finale";
+import { FINALE_SWEEP_MS, finaleAttrs, finaleCardHoldMs, useFinale, withFinale } from "./finale";
 import { FILED_SECTION_MS, FiledList, filedLinesFor, type FiledLine } from "./FiledList";
+import { FiledSheet } from "./FiledSheet";
+import {
+  filedStamp,
+  filedTitle,
+  renewedTo,
+  sheetExposure,
+  sheetCoverage,
+  whoActsNext,
+  type FiledSheetModel,
+  type SheetConfirmation,
+} from "./filedSheet";
+import { CARD_ASCEND_MS, CARD_HELD_MS, useCardMorph } from "./morph";
 import { countPhrase, countSplit, derivedReasonOf, splitClause, withDerivedSplit } from "./derivedDelta";
 import { buildReadCard, planReadCard, readGap, type ReadCardModel, type ReadOptions, type ReadSource } from "./readCard";
 import { ReadCard } from "./ReadCardView";
@@ -267,6 +287,17 @@ interface ChipModel {
   refusal?: WorkroomRefusal;
   state: ChipState;
 }
+
+/**
+ * FIELDS THE SHELL ADAPTER CARRIES AT RUNTIME AND THE ENGINE'S OWN TYPE DOES NOT.
+ *
+ * `writeTools` reads both off the org's answer; `WorkroomExecution` predates them
+ * and lives behind a byte fence in this wave, so the room widens locally rather
+ * than editing a type it may not touch. Both are optional and both are absent on
+ * every scripted engine, which is exactly how the sheet omits what it does not
+ * know instead of inventing it.
+ */
+type ExecutionExtras = { outputPackageId?: string; approvalQueue?: string };
 
 /** The dossier the finale constructs, from the REAL manifest and the REAL
  *  execution result. Held as an item so it lands in the live exchange and the
@@ -456,14 +487,16 @@ const DOSSIER_CHECK_MS = 180;
 /** ~5s after the card lands, the light breathes out over 1.4s. */
 const HALO_LIFE_MS = 5600;
 
-/* ---- the finale's two sentences (founder, 2026-09-03).
+/** THE LONGEST THE HANDOVER MAY TAKE. The slide itself is 520ms; past this the
+ *  room hands over regardless of what the compositor did with the transition. */
+const HANDOFF_CEILING_MS = 700;
 
-   The line under the card is the room saying it is FINISHED rather than merely
-   stopped, and it is the only prose the finale adds. The composer's prompt is
-   the other half of the same claim: the change set is closed and the room is
-   still here, which is what makes the two doors beside it an offer rather than
-   an exit sign. */
-const AFTERGLOW_LINE = "Next, the credit memo is generated and handed into the delegated approval process.";
+/* ---- the finale's one remaining sentence (founder, 2026-09-03, and 2026-09-06).
+
+   The line that used to sit under the card said what happens NEXT, and the sheet
+   says that itself now, under "Who acts next", in the org's own words rather than
+   the room's. What is left is the composer's prompt: the change set is closed and
+   the room is still here. */
 const FILED_PROMPT = "Anything else on this relationship?";
 /** The word stagger of the agent's speech (rule 65). */
 const WORD_STAGGER_MS = 26;
@@ -936,6 +969,7 @@ export function Workroom({
   onFiled,
   onClose,
   onDraftMemo,
+  onDraftMemoLanded,
   onAnchor,
   onExecuted,
   settleDeps = LIVE_SETTLE,
@@ -1025,14 +1059,24 @@ export function Workroom({
   engine: WorkroomEngine;
   onClose: () => void;
   /**
-   * THE MEMO DOOR IN THE AFTERGLOW, and the ledger it carries.
+   * THE MEMO DOOR ON THE FILED SHEET, and the two things it carries.
    *
-   * The room hands over the SAME filed lines the card is showing, so the memo
-   * room's greeting can state the exact change set in the seconds before the
-   * org read carries it. Absent leaves the afterglow with the one door it has
-   * always had.
+   * The room hands over the SAME filed lines the sheet is showing AND the sheet
+   * itself, so the memo room can state the exact change set - and redraw the
+   * sheet as its own first timeline row - in the seconds before the org read
+   * catches up. Absent leaves the sheet with the way back and nothing hollow.
    */
-  onDraftMemo?: (filed: readonly FiledLine[]) => void;
+  onDraftMemo?: (filed: readonly FiledLine[], sheet: FiledSheetModel) => void;
+  /**
+   * THE HANDOFF GLASS HAS SETTLED.
+   *
+   * `onDraftMemo` MOUNTS the memo room under the sheet; this says the sheet has
+   * finished sliding off it, which is the moment the memo may start drafting and
+   * the moment this room may close. Two calls rather than one because the slide
+   * belongs to this room and the drafting belongs to the other, and a room that
+   * closed itself on the first call would take the slide with it.
+   */
+  onDraftMemoLanded?: () => void;
   /** The banker chose which package to work in. The room does not anchor
    *  itself: it is REOPENED on the chosen package, which rebuilds the engine and
    *  the manifest with it. */
@@ -1359,6 +1403,46 @@ export function Workroom({
      under the card instead of inside the drain. */
   const finale = useFinale(reduced);
   const { begin: beginFinale, exitOf: finaleExit, state: finaleState } = finale;
+  /* ================================================= THE CARD BECOMES THE SHEET
+
+     FOUNDER, 2026-09-06: "I liked the rainbow card morphing into this but I need
+     a clean room at the end when it's done with a clean Summary screen."
+
+     The card is the moment; the sheet is the place. `./morph.ts` grows one into
+     the other on transform and opacity alone, and holds the phase this room
+     renders off. */
+  const morph = useCardMorph(reduced);
+  const { arm: armMorph, phase: morphPhase } = morph;
+  /** What the filing itself was, kept for the sheet: the org's own clock, the
+   *  version it created, the queue it named, and the record it can be read back
+   *  from. Set once, on the commit that lands the card. */
+  const [filedMeta, setFiledMeta] = useState<{
+    at: Date;
+    version: string | null;
+    queue: string | null;
+    stagingId: string | null;
+  } | null>(null);
+  /** WHERE THE ORG STANDS ON THE FIGURES. `pending` until the staging record
+   *  goes terminal; `unconfirmed` when it did not inside the room's budget,
+   *  which is a line on the sheet and never a spinner. */
+  const [confirmation, setConfirmation] = useState<SheetConfirmation>("pending");
+  /** The sheet is sliding off to the memo room. */
+  const [leaving, setLeaving] = useState(false);
+  /** The sheet element, for the slide's own `transitionend`. */
+  const sheetEl = useRef<HTMLDivElement | null>(null);
+  const { sheetRef: bindSheet } = morph;
+  const sheetRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      sheetEl.current = el;
+      bindSheet(el);
+    },
+    [bindSheet],
+  );
+  /** The sheet is on the glass from the moment the morph starts: it IS the
+   *  morph's destination, so there is no state in which it is mounted and not
+   *  meant to be seen. */
+  const sheetOn = morphPhase === "morph" || morphPhase === "sheet";
+  const cardMorph = morphPhase === "morph" ? "ghost" : morphPhase === "sheet" ? "gone" : undefined;
   const itemsRef = useRef<ThreadItem[]>([]);
   itemsRef.current = items;
   entriesRef.current = entries;
@@ -1723,6 +1807,49 @@ export function Workroom({
     () => countPhrase(entries.length, entries.length === 1 ? vocabulary.changeWord[0] : vocabulary.changeWord[1], entries),
     [entries, vocabulary.changeWord],
   );
+
+  /* ------------------------------------------------------------- the sheet
+
+     THE CLEAN SUMMARY THE ROOM ENDS ON (founder, 2026-09-06). Built from what
+     the room ALREADY HOLDS at the instant execute answered: the manifest it
+     staged, the ledger execute verified, the baseline it opened on, and the
+     check it put in front of the banker. Nothing below reads the org, which is
+     why the sheet is whole on its first commit and can never spin. */
+  const filedSheet = useMemo<FiledSheetModel | null>(() => {
+    if (!execution || !filedLines || !filedMeta) return null;
+    return {
+      title: filedTitle({
+        mode: context.mode,
+        accountName: context.accountName,
+        packageName: brief.packageName,
+        version: filedMeta.version,
+        renewedTo: renewedTo(filedLines),
+      }),
+      stamp: filedStamp(filedMeta.at, context.approver),
+      version: filedMeta.version,
+      lines: filedLines,
+      head: filedHead,
+      exposure: sheetExposure(brief.baselineCommittedMM, figures.committedMM, confirmation),
+      coverage: sheetCoverage(itemsRef.current.flatMap((i) => (i.kind === "challenge" ? [i.challenge] : []))),
+      next: whoActsNext(filedMeta.queue, execution.handoff),
+      accountName: context.accountName,
+      unconfirmed: confirmation === "unconfirmed",
+    };
+  }, [
+    brief.baselineCommittedMM,
+    brief.packageName,
+    confirmation,
+    context.accountName,
+    context.approver,
+    context.mode,
+    entries,
+    execution,
+    figures.committedMM,
+    filedById,
+    filedHead,
+    filedLines,
+    filedMeta,
+  ]);
 
   /* ------------------------------------------------------------ the moves */
 
@@ -4456,8 +4583,96 @@ export function Workroom({
      that arrives later is kept off the glass by the still state's own rule. */
   useEffect(() => {
     if (phase !== "filed") return;
-    beginFinale(itemsRef.current.filter((i) => i.kind !== "dossier").map((i) => i.id));
-  }, [beginFinale, phase]);
+    const leaves = itemsRef.current.filter((i) => i.kind !== "dossier").map((i) => i.id);
+    beginFinale(leaves);
+    /* AND THE MORPH IS ARMED ON THE SAME COMMIT. The card ascends after the
+       drain's tail and takes {@link CARD_ASCEND_MS} doing it; it is held whole
+       for a beat after that, and then it grows. All three numbers are the
+       finale's own, so the card's landing is untouched and the sheet begins
+       exactly where the landing ends. */
+    armMorph(finaleCardHoldMs(leaves.length) + CARD_ASCEND_MS + CARD_HELD_MS);
+  }, [armMorph, beginFinale, phase]);
+
+  /* ---- AND THE ORG IS ASKED TO CONFIRM, BEHIND THE SHEET.
+
+     The exposure figure on the sheet is the room's own arithmetic over the
+     manifest: real, and pro forma until the staging record goes terminal. So the
+     room reads the record once the sheet is up, on its own short clock, and the
+     sheet NEVER waits for it: it is already whole, and what the read changes is
+     one word. A read that does not answer inside the budget adds one honest line
+     and takes nothing away.
+
+     A SCRIPTED ROOM IS NOT ASKED. There is no staging record behind it, so
+     "pending" stands as the plain truth and no deadline is ever missed. */
+  useEffect(() => {
+    const stagingId = filedMeta?.stagingId;
+    if (!stagingId) return;
+    let alive = true;
+    /* TWO CLOCKS, BECAUSE ONE OF THEM CAN BE HELD OPEN. `budgetMs` stops the
+       poll LOOP, which is the right instrument while the reads are answering.
+       A read that accepts the call and never comes back is the other case, and
+       an `await` on it would sit there for the life of the page with the sheet
+       carrying "pending" forever - the exact shape of the founder's "it gets
+       stuck". So the whole wait is raced against the same budget from the
+       outside, and the sheet always gets an answer even when the org never
+       gives one. */
+    const capped = Promise.race([
+      awaitFiling(context.accountId, stagingId, { ...settleDeps, budgetMs: CONFIRM_BUDGET_MS }),
+      settleDeps.wait(CONFIRM_BUDGET_MS).then(() => ({ kind: "unsettled" }) as const),
+    ]);
+    void capped
+      .then((verdict) => {
+        if (!alive) return;
+        setConfirmation(verdict.kind === "terminal" && verdict.status === "Completed" ? "confirmed" : "unconfirmed");
+      })
+      .catch(() => {
+        if (alive) setConfirmation("unconfirmed");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [context.accountId, filedMeta?.stagingId, settleDeps]);
+
+  /* ---- THE HAND TO THE MEMO (founder, 2026-09-06).
+
+     "This then directs you to the Credit memo workroom where it inserts all the
+     information, but all super super gentle, no hangers."
+
+     TWO MOVES, IN THIS ORDER. The memo room MOUNTS first, under the sheet, so
+     the glass it slides onto is already the memo's; then the sheet slides left
+     off it. Only when the slide is over does this room close and the memo start
+     drafting, which is what keeps the handover one motion rather than a room
+     disappearing and another appearing where it was. */
+  const handOff = useCallback(() => {
+    if (!filedSheet || !filedLines || leaving) return;
+    setLeaving(true);
+    onDraftMemo?.(filedLines, filedSheet);
+  }, [filedLines, filedSheet, leaving, onDraftMemo]);
+
+  useEffect(() => {
+    if (!leaving) return;
+    let landed = false;
+    const land = () => {
+      if (landed) return;
+      landed = true;
+      onDraftMemoLanded?.();
+      onClose();
+    };
+    const el = sheetEl.current;
+    const ended = (e: TransitionEvent) => {
+      if (e.propertyName === "transform") land();
+    };
+    el?.addEventListener("transitionend", ended);
+    /* THE CEILING IS THE POINT, NOT THE FALLBACK. A `transitionend` that never
+       fires - reduced motion, a backgrounded tab, a compositor that dropped the
+       animation - must not leave the banker looking at a room that is on its way
+       somewhere. Whichever comes first wins, and nothing here can hang. */
+    const cap = window.setTimeout(land, HANDOFF_CEILING_MS);
+    return () => {
+      el?.removeEventListener("transitionend", ended);
+      window.clearTimeout(cap);
+    };
+  }, [leaving, onClose, onDraftMemoLanded]);
 
   /* ---- and the member the signal named is the one the lane opens on. */
   useEffect(() => {
@@ -5089,14 +5304,26 @@ export function Workroom({
           /* Carried by the shell adapter (writeTools) at runtime; the engine's
              own type predates the field and is byte-fenced, hence the local
              widening rather than a type edit. */
-          (result as typeof result & { outputPackageId?: string }).outputPackageId ?? context.productPackageId ?? undefined,
+          (result as typeof result & ExecutionExtras).outputPackageId ?? context.productPackageId ?? undefined,
         ),
         handoff: result.handoff,
         handoffs: result.handoffs,
       };
       const committedDeltaMM = figures.committedMM - brief.baselineCommittedMM;
 
+      const extras = result as typeof result & ExecutionExtras;
       setExecution(result);
+      /* THE FILING'S OWN FACTS, TAKEN HERE AND NOWHERE ELSE. The clock is the
+         room's at the moment the org answered, which is when the filing
+         happened; the version and the queue are the org's own words for what it
+         made and who has it. Absent stays absent: the sheet omits a block it
+         cannot fill. */
+      setFiledMeta({
+        at: new Date(),
+        version: extras.outputPackageId ?? null,
+        queue: typeof extras.approvalQueue === "string" ? extras.approvalQueue : null,
+        stagingId: engine.scripted ? null : staging.stagingId,
+      });
       setPhase("filed");
       setFlow(null);
       setLit(true);
@@ -5536,7 +5763,10 @@ export function Workroom({
 
   return (
     <Portal>
-      <div className="wk-root">
+      {/* THE HANDOVER RIDES THE ROOT (founder, 2026-09-06). The memo room mounts
+          underneath while this is set, so the room's glass fading is what reveals
+          it; the lift keeps the sliding sheet above a room that mounted after it. */}
+      <div className="wk-root" data-handoff={leaving ? "out" : undefined}>
         <GooFilter />
         <div className="wk-scrim" onClick={onClose} role="presentation" />
         <div
@@ -5725,8 +5955,14 @@ export function Workroom({
                         return (
                           <div
                             key={item.id}
+                            ref={star ? morph.cardRef : undefined}
                             data-ex-id={item.id}
                             data-finale-card={star ? "" : undefined}
+                            /* THE CARD'S PLACE IN THE MORPH. `ghost` lifts it out
+                               of flow at the box it was already occupying and
+                               fades it under the growing sheet; `gone` is off
+                               stage, mounted, once the sheet is the room. */
+                            data-morph={star ? cardMorph : undefined}
                             data-finale-after={after ? "" : undefined}
                             {...withFinale(
                               settleAttrs(
@@ -5835,35 +6071,25 @@ export function Workroom({
                     <span>Composing…</span>
                   </div>
                 )}
-                {/* ============ THE QUIET AFTERGLOW (founder, 2026-09-03)
+                {/* ============ THE SHEET THE CARD GREW INTO (founder, 2026-09-06)
 
-                    One door and one quiet line, under the card (founder,
-                    2026-09-03, second pass). The dossier's own header keeps the
-                    org link; the afterglow adds nothing beside the close and
-                    the sentence about what happens next. */}
-                {finaleState === "still" && (
-                  <div className="wk-afterglow" data-finale="afterglow">
-                    <button type="button" className="wk-ag-close" onClick={onClose}>
-                      Close workroom
-                    </button>
-                    {/* THE SECOND DOOR, and it is second on purpose. Closing the
-                        room is what most filings end with and it keeps the first
-                        position it has always had; the memo is the move a banker
-                        makes NEXT, on the version they just filed, and it opens
-                        the memo room carrying this ledger so the greeting can
-                        state the exact changes before the org read catches up. */}
-                    {onDraftMemo && filedLines && (
-                      <button
-                        type="button"
-                        className="wk-ag-memo"
-                        data-door="memo"
-                        onClick={() => onDraftMemo(filedLines)}
-                      >
-                        Draft the credit memo
-                      </button>
-                    )}
-                    <span className="wk-ag-note">{AFTERGLOW_LINE}</span>
-                  </div>
+                    "I need a clean room at the end when it's done with a clean
+                    Summary screen."
+
+                    IT REPLACED THE AFTERGLOW, and it took the afterglow's two
+                    doors with it. A line of prose and a pair of buttons under a
+                    card said what happened NEXT and never said what the
+                    relationship now IS; the sheet says both, in the room's own
+                    tokens, and no button sits on the card at any moment. */}
+                {sheetOn && filedSheet && (
+                  <FiledSheet
+                    ref={sheetRef}
+                    sheet={filedSheet}
+                    morph={morphPhase === "morph" ? "from" : null}
+                    leaving={leaving}
+                    onDraftMemo={onDraftMemo ? handOff : undefined}
+                    onBack={onClose}
+                  />
                 )}
               </section>
 

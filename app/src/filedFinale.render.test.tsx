@@ -222,18 +222,81 @@ describe("the rail is filed too", () => {
   });
 });
 
-describe("the quiet afterglow", () => {
-  it("offers one door, closes the room on it, and names what comes next", async () => {
+/* =============================================================================
+   THE CLEAN SHEET (founder, 2026-09-06).
+
+   "I liked the rainbow card morphing into this but I need a clean room at the
+   end when it's done with a clean Summary screen."
+
+   THE AFTERGLOW IS GONE and its two doors are on the sheet, which is the surface
+   they belong to. What is under test is that the card GROWS into that sheet: the
+   card goes off stage, the sheet is the room, and every figure on it is one the
+   room already held rather than one it went and read.
+
+   jsdom is the reduced-motion path (there is no matchMedia here), so the morph
+   lands in one commit - which is exactly its contract for a reader who asked for
+   no animation, and is asserted as such rather than worked around.
+   ============================================================================= */
+
+const sheetOf = (room: HTMLElement) => room.querySelector<HTMLElement>(".wk-sheet")!;
+
+describe("the card becomes the sheet", () => {
+  it("takes the card off stage and stands the summary in its place", async () => {
     const { room } = await fileAPlan();
-    const after = room.querySelector(".wk-afterglow")!;
-    expect(after.textContent).toContain("credit memo");
-    /* ONE DOOR. The dossier's own header keeps the org link; the afterglow adds
-       nothing beside the close. */
-    expect(after.querySelector("a")).toBeNull();
-    const doors = [...after.querySelectorAll("button")];
-    expect(doors.map((b) => b.textContent)).toEqual(["Close workroom"]);
+    const sheet = sheetOf(room);
+    expect(sheet).toBeTruthy();
+    // The card is off stage and still mounted: the drain's own contract.
+    expect(room.querySelector("[data-finale-card]")!.getAttribute("data-morph")).toBe("gone");
+    // NO BUTTON EVER SITS ON THE CARD. The doors are the sheet's.
+    expect(room.querySelector(".wk-rescard")!.querySelector("button")).toBeNull();
+    expect(room.querySelector(".wk-afterglow")).toBeNull();
+    /* NO MORPH STATE UNDER REDUCED MOTION. The sheet simply is, so nothing is
+       ever measured and no growth keyframe can be left half-run. */
+    expect(sheet.getAttribute("data-morph")).toBeNull();
+  });
+
+  it("names what was filed, on which version, and when, in the mode's own words", async () => {
+    const { room } = await fileAPlan();
+    const title = sheetOf(room).querySelector(".wk-sheet-t")!.textContent!;
+    // A modification is FILED ON the relationship and the package it filed against.
+    expect(title).toMatch(/^Filed on Hartwell Precision Manufacturing LLC, Hartwell Industrial C&I Credit Package/);
+    // The stamp is a clock and the banker in the seat, and nothing else.
+    expect(sheetOf(room).querySelector(".wk-sheet-s")!.textContent).toMatch(
+      /^\d\d:\d\d, by fabian\.goetzens@accenture\.com\.bankinggpt$/,
+    );
+  });
+
+  it("states exposure before and after, and says the delta is pending until the org confirms", async () => {
+    const { room } = await fileAPlan();
+    const block = sheetOf(room).querySelector('[data-block="exposure"]')!;
+    expect(block.querySelector(".wk-sheet-was")!.textContent).toMatch(/^\$\d+\.\dM$/);
+    expect(block.querySelector(".wk-sheet-now")!.textContent).toMatch(/^\$\d+\.\dM$/);
+    /* PRO FORMA UNTIL THE ORG SAYS OTHERWISE. The figure is the room's own
+       arithmetic over the manifest, so the word rides it rather than the room
+       claiming a read it has not made. */
+    const delta = block.querySelector(".wk-sheet-d")!;
+    expect(delta.textContent).toMatch(/pending$/);
+    expect(delta.hasAttribute("data-pending")).toBe(true);
+    /* AND NO LINE ABOUT A MISSED CONFIRMATION. A scripted room has no staging
+       record to read, so no deadline was ever set and none was missed. */
+    expect(block.querySelector(".wk-sheet-note")).toBeNull();
+  });
+
+  it("offers two doors and no others, named after the relationship", async () => {
+    const { room } = await fileAPlan();
+    const doors = [...sheetOf(room).querySelectorAll(".wk-sheet-acts button")];
+    /* ONE DOOR WITHOUT A MEMO IN THE VIEW. `onDraftMemo` is the host's, and a
+       room mounted without it offers the way back and nothing hollow. */
+    expect(doors.map((b) => b.textContent)).toEqual(["Back to Hartwell Precision Manufacturing LLC"]);
     click(doors[0]);
     expect(closed).toBe(1);
+  });
+
+  it("never spins: the sheet is whole on the commit that lands it", async () => {
+    const { room } = await fileAPlan();
+    const sheet = sheetOf(room);
+    expect(sheet.querySelectorAll(".wk-loadchip, .wk-compose, .goo").length).toBe(0);
+    expect(sheet.textContent).not.toMatch(/Working|Loading|…$/);
   });
 
   it("takes the composer and the rail off the glass with everything else", async () => {
@@ -321,10 +384,14 @@ describe("the card carries what was filed", () => {
        was open the rail was carrying it and the card did not exist. */
     expect(staged.rail).toBe(2);
     expect(staged.sections).toBe(0);
-    // And after the filing it is there exactly once: on the card, inside it.
+    /* AND AFTER THE FILING IT IS ON THE GLASS EXACTLY ONCE. The card carries it
+       too - it is what the card grew FROM - and the card is off stage by the time
+       the sheet is the room, so the reader meets the ledger once. */
     const sections = [...room.querySelectorAll(".rc-fl")];
-    expect(sections).toHaveLength(1);
+    expect(sections).toHaveLength(2);
     expect(sections[0].closest(".wk-rescard")).toBeTruthy();
+    expect(sections[0].closest("[data-finale-card]")!.getAttribute("data-morph")).toBe("gone");
+    expect(sections[1].closest(".wk-sheet")).toBeTruthy();
   });
 
   it("reveals the rows after the card's own reveal, 60ms apart, inside 1.2s", async () => {

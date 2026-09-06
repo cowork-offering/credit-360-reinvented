@@ -1,0 +1,131 @@
+import { describe, expect, it } from "vitest";
+import {
+  deltaM,
+  filedStamp,
+  filedTitle,
+  moneyM,
+  renewedTo,
+  sheetExposure,
+  sheetCoverage,
+  whoActsNext,
+} from "./filedSheet";
+import type { FiledLine } from "./FiledList";
+import type { WorkroomChallenge } from "../../workroom/types";
+
+/* =============================================================================
+   THE FILED SHEET'S OWN ARITHMETIC AND ITS OWN SENTENCES.
+
+   Everything the sheet says is composed here, from what the room already holds,
+   which is the whole reason the sheet can be on the glass inside a second. What
+   is under test is that it says the right thing per mode, that it never invents
+   a fact it was not given, and that a block with nothing in it is absent rather
+   than empty.
+   ============================================================================= */
+
+const line = (over: Partial<FiledLine>): FiledLine => ({ key: "d1", icon: "commit", title: "Commitment", ...over });
+
+describe("what the sheet calls the filing", () => {
+  const where = { accountName: "Hartwell Precision Manufacturing LLC", packageName: "C&I Credit Package" };
+
+  it("files a modification, on the account, the package and the version", () => {
+    expect(filedTitle({ mode: "modify", ...where, version: "a5Fbb000000J61hEAC" })).toBe(
+      "Filed on Hartwell Precision Manufacturing LLC, C&I Credit Package, version a5Fbb000000J61hEAC",
+    );
+  });
+
+  it("says what a renewal renewed TO, because that is what a renewal is read for", () => {
+    expect(filedTitle({ mode: "renew", ...where, version: "a5F1", renewedTo: "30 Jun 2027" })).toBe(
+      "Renewed to 30 Jun 2027 on Hartwell Precision Manufacturing LLC, C&I Credit Package, version a5F1",
+    );
+  });
+
+  it("proposes a new facility rather than claiming it was booked", () => {
+    expect(filedTitle({ mode: "create", ...where, version: "a5F1" })).toMatch(/^Proposed on /);
+  });
+
+  it("omits the version where the org returned none, rather than guessing one", () => {
+    const said = filedTitle({ mode: "modify", ...where, version: null });
+    expect(said).toBe("Filed on Hartwell Precision Manufacturing LLC, C&I Credit Package");
+    expect(said).not.toMatch(/version/);
+  });
+
+  it("falls back to a plain renewal where no row moved a maturity", () => {
+    expect(filedTitle({ mode: "renew", ...where, renewedTo: null })).toMatch(/^Renewed on /);
+    expect(renewedTo([line({ title: "Commitment amount", after: "$18,000,000" })])).toBeNull();
+    expect(renewedTo([line({ title: "Maturity date", after: "30 Jun 2027" })])).toBe("30 Jun 2027");
+  });
+
+  it("stamps the clock and the banker in the seat", () => {
+    expect(filedStamp(new Date(2026, 8, 6, 9, 7), "Fabian Goetzens")).toBe("09:07, by Fabian Goetzens");
+    // No banker named is a clock and nothing else, never "by undefined".
+    expect(filedStamp(new Date(2026, 8, 6, 14, 30), null)).toBe("14:30");
+  });
+});
+
+describe("the exposure block", () => {
+  it("states before, after and the movement in the KPI band's own voice", () => {
+    const x = sheetExposure(46, 49.5, "pending");
+    expect([x.before, x.after, x.delta]).toEqual(["$46.0M", "$49.5M", "+$3.5M"]);
+  });
+
+  it("carries pending until the org has confirmed, and drops it when it has", () => {
+    expect(sheetExposure(46, 49.5, "pending").pending).toBe(true);
+    expect(sheetExposure(46, 49.5, "unconfirmed").pending).toBe(true);
+    expect(sheetExposure(46, 49.5, "confirmed").pending).toBe(false);
+  });
+
+  it("shows no movement where nothing moved, rather than a zero", () => {
+    expect(sheetExposure(46, 46, "confirmed").delta).toBeNull();
+    expect(deltaM(0)).toBe("no change");
+    expect(deltaM(-1.2)).toBe("-$1.2M");
+    expect(moneyM(46)).toBe("$46.0M");
+  });
+});
+
+describe("terms and collateral", () => {
+  const challenge = (rows: [string, string, string?][]): WorkroomChallenge =>
+    ({ id: "c", verdict: "", tone: "ok", kicker: "", line: "", rows, say: "" }) as WorkroomChallenge;
+
+  it("quotes the coverage the room already stated, rather than computing a second one", () => {
+    expect(
+      sheetCoverage([
+        challenge([
+          ["Lendable collateral", "$44,000,000"],
+          ["Coverage if fully drawn", "0.95x → 0.72x", "sum"],
+        ]),
+      ]),
+    ).toEqual({ label: "Coverage if fully drawn", value: "0.95x → 0.72x" });
+  });
+
+  it("takes the LAST check that spoke, because that is the one the banker acknowledged", () => {
+    const said = sheetCoverage([
+      challenge([["Base coverage of commitment", "0.80x", "key"]]),
+      challenge([["Base coverage of commitment", "0.67x", "key"]]),
+    ]);
+    expect(said?.value).toBe("0.67x");
+  });
+
+  it("is null where no check carried a coverage figure, so the block is omitted", () => {
+    expect(sheetCoverage([])).toBeNull();
+    expect(sheetCoverage([challenge([["Borrowing base, gross", "$13,600,000"]])])).toBeNull();
+    // A row that mentions coverage without a ratio is prose, not a figure.
+    expect(sheetCoverage([challenge([["Coverage note", "see the borrowing base"]])])).toBeNull();
+  });
+});
+
+describe("who acts next", () => {
+  it("names the org's own queue where it gave one", () => {
+    expect(whoActsNext("Loan Committee", "Booking runs through nCino.")).toBe("Loan Committee");
+  });
+
+  it("falls back to the org's own handoff sentence, which says the same thing", () => {
+    expect(whoActsNext(null, "Booking runs through nCino's own Submit for Approval.")).toBe(
+      "Booking runs through nCino's own Submit for Approval.",
+    );
+  });
+
+  it("is null where the org said neither, so the sheet omits the block", () => {
+    expect(whoActsNext(null, undefined)).toBeNull();
+    expect(whoActsNext("  ", "")).toBeNull();
+  });
+});

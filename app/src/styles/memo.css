@@ -406,17 +406,19 @@
   }
 }
 
-/* ============================================ THE DOORS INTO THIS ROOM
+/* ============================================= THE DOOR INTO THIS ROOM
 
-   TWO CONTROLS THAT LIVE IN THE FACILITY ROOM AND BELONG TO THIS ONE, so they
-   are styled here beside what they open rather than buried in the other room's
-   sheet. Both are QUIET: neither competes with the decision it sits beside.
+   A CONTROL THAT LIVES IN THE FACILITY ROOM AND BELONGS TO THIS ONE, so it is
+   styled here beside what it opens rather than buried in the other room's
+   sheet. It is QUIET: it does not compete with the decision it sits beside.
 
      .wk-memodoor  under the three route chips, while the room is still asking
                    which route this is. A memo is not a fourth route (it binds
                    no engine and stages nothing), so it is not a fourth chip.
-     .wk-ag-memo   the second door in the afterglow, beside Close workroom,
-                   which keeps the first position it has always had. */
+
+   THE FINALE'S OWN MEMO DOOR MOVED (founder, 2026-09-06). It used to sit in the
+   afterglow as `.wk-ag-memo`; the afterglow is gone and the door is on the filed
+   sheet now, styled with the sheet in workroom.css. */
 .wk-memodoor {
   display: flex;
   align-items: baseline;
@@ -444,22 +446,6 @@
   font-size: 10.6px;
   color: var(--ink-faint);
 }
-.wk-ag-memo {
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 9px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--ink-muted);
-  transition:
-    border-color 200ms var(--ease-settle),
-    color 200ms var(--ease-settle);
-}
-.wk-ag-memo:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
 
 /* DENSER GLASS FOR THE MEMO ROOM (founder, 2026-09-04: "for this workroom in
    particular it is too transparent, 15% more dense"). One flat veil on the
@@ -475,4 +461,38 @@
      memo room only; the book behind it was still confusing). */
   background: rgba(250, 251, 255, 0.4);
   pointer-events: none;
+}
+
+/* =============================================================================
+   THE SHEET, AS THE MEMO'S FIRST TIMELINE ROW (founder, 2026-09-06).
+
+   "This then directs you to the Credit memo workroom where it inserts all the
+   information."
+
+   THE FACILITY ROOM'S SUMMARY ARRIVES AS THIS ROOM'S OWN GRAMMAR, not as a card
+   pasted in from another room: `.mm-work` and `.mm-tl` are the timeline the draft
+   is about to fill, and every row of this one is already done. The banker reads
+   what they were just reading, compact, and then watches the draft's rows land
+   underneath it in the identical shape.
+
+   IT IS QUIETER THAN THE WORK ABOVE IT, because it is the past tense: one hairline
+   under it, no accent, no mark that breathes.
+   ============================================================================= */
+.mm-filed {
+  gap: 5px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--glass-hairline);
+}
+.mm-filed .mm-work-lead {
+  color: var(--ink);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.mm-filed .mm-tl-row[data-kind="exposure"] .mm-tl-s,
+.mm-filed .mm-tl-row[data-kind="filed"] .mm-tl-s {
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+.mm-filed .mm-tl-row[data-kind="exposure"] .mm-tl-s {
+  font-weight: 500;
 }

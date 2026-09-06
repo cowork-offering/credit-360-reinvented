@@ -1,7 +1,7 @@
 import type { ActionHistoryRow, ActionStep } from "../../data/contract";
 import type { MemoChange, MemoChangeFields } from "../../memo/types";
 import type { RenderPlan } from "../../memo/renderMemo";
-import type { MemoTrigger } from "./memoSession";
+import type { MemoFiledSummary, MemoTrigger } from "./memoSession";
 
 /* =============================================================================
    THE GREETING FROM THE ORG.
@@ -292,6 +292,8 @@ export interface MemoGreetingInput {
   /** The finale's own ledger, where a finale opened the room. */
   carried: readonly MemoChange[] | null;
   carriedSplit?: ChangeSplit | null;
+  /** The finale's summary: the version, the lines and the exposure it moved. */
+  filed?: MemoFiledSummary | null;
   plan: RenderPlan;
   /** True where `latestMemo()` came back with something. */
   hasStoredMemo: boolean;
@@ -321,13 +323,28 @@ const MEMO_ASK = "Draft it, or steer me first?";
 export const NO_STEP_DETAIL = "Nothing filed on this package since the last memo";
 
 export function memoGreeting(input: MemoGreetingInput): MemoGreeting {
-  const { executed, carried, packageId } = input;
+  const { executed, carried, packageId, filed } = input;
   const version = input.packageName ?? (packageId ? `version ${shortId(packageId)}` : "this package");
   const lines: string[] = [];
   let lead: string;
   let fromOrg = false;
 
-  if (executed.hasSteps && executed.row) {
+  if (filed?.items.length) {
+    /* THE HANDOVER LEADS (founder, 2026-09-06). The room was opened by a finale
+       that filed seconds ago and handed its own sheet across, so the greeting
+       names the version on the FIRST commit rather than waiting on a trail read
+       that would say the same thing a second later - or, worse, say the last
+       filing on this package instead of this one.
+
+       AND IT SAYS IT ONCE. The sheet is redrawn above this as the room's first
+       timeline row (`MemoRoom`'s `FiledRow`), which is where the filed lines and
+       the exposure are: a greeting that listed them again would be the same four
+       facts twice on one screen, in two shapes, for no reader. */
+    lead = `Drafting the memo for version ${filed.version ?? version}: ${countPhrase(
+      filed.items.length,
+      input.carriedSplit,
+    )} filed on this package a moment ago.`;
+  } else if (executed.hasSteps && executed.row) {
     fromOrg = true;
     const when = shortDate(executed.row.executedAt ?? executed.row.createdDate);
     /* THE COUNT IS THE ORG'S OWN SPLIT WHERE THE ROW CARRIES ONE, and the

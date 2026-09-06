@@ -1,5 +1,7 @@
 import type { FiledLine } from "../workroom/FiledList";
+import type { FiledSheetModel } from "../workroom/filedSheet";
 import type { MemoChange } from "../../memo/types";
+import type { MemoFiledSummary, MemoTrigger } from "./memoSession";
 
 /* =============================================================================
    THE HANDOVER, FROM THE FINALE TO THE MEMO.
@@ -53,4 +55,36 @@ export function changesFromFiled(lines: readonly FiledLine[]): MemoChange[] {
 export function splitOfFiled(lines: readonly FiledLine[]): { requested: number; derived: number } {
   const derived = lines.filter((l) => !!l.derivedReason).length;
   return { requested: lines.length - derived, derived };
+}
+
+/**
+ * THE SHEET, AS THE MEMO'S OPENING FACT.
+ *
+ * The finale's summary screen and the memo's first timeline row are the same
+ * five facts, so they are the same object: the title the sheet stated, the
+ * version it filed against, the lines it listed and the exposure it moved. The
+ * memo redraws it in its own timeline grammar rather than restating it in prose,
+ * which is why nothing here is a sentence.
+ *
+ * IT IS A HANDOVER AND NOT A READ, exactly like `changesFromFiled` above. The
+ * org's own trail remains the record; this is what lets the room greet the
+ * banker on its first commit instead of on the first answer.
+ */
+export function filedSummaryFrom(sheet: FiledSheetModel, kind: MemoTrigger): MemoFiledSummary {
+  return {
+    title: sheet.title,
+    version: sheet.version,
+    kind,
+    items: sheet.lines.map((line) => ({
+      id: line.key,
+      label: line.title,
+      target: line.target,
+      before: line.before,
+      after: line.after,
+      orgId: line.recordId,
+    })),
+    exposureBefore: sheet.exposure.before,
+    exposureAfter: sheet.exposure.after,
+    pending: sheet.exposure.pending,
+  };
 }

@@ -174,6 +174,50 @@ async function stageOneChange(page) {
   return page.evaluate(() => document.querySelectorAll(".wk-propose").length > 0);
 }
 
+/**
+ * ALL THE WAY TO THE SHEET, and the wall clock of the two beats that matter.
+ *
+ * `cardMs` is when the execute's own answer reached the glass - the dossier card
+ * is mounted on the commit that lands the result - and `sheetMs` is when the
+ * clean summary the founder asked for was readable. The claim the finale makes
+ * is about the DIFFERENCE between those two: the room's ending is the room's own
+ * choreography over facts it already holds, and it can never be a function of
+ * how long the org took.
+ */
+async function fileAndWaitForTheSheet(page, url, bound) {
+  await openFacilityRoom(page, url);
+  await stageOneChange(page);
+  await askForThePlan(page);
+  await sleep(2500);
+  await clickText(page, ".wk-approve", ".");
+  const card = await countWithin(page, ".wk-rescard", 1, bound, 60);
+  const t0 = Date.now();
+  const sheet = await countWithin(page, ".wk-sheet", 1, 8000, 60);
+  return { card, sheet, sinceCard: Date.now() - t0 };
+}
+
+/** What the sheet is showing, and whether a banker could act on it. */
+const sheetState = (page) =>
+  page.evaluate(() => {
+    const sheet = document.querySelector(".wk-sheet");
+    if (!sheet) return { on: false };
+    const doors = [...sheet.querySelectorAll(".wk-sheet-acts button")];
+    return {
+      on: true,
+      title: (sheet.querySelector(".wk-sheet-t")?.textContent || "").trim(),
+      exposure: (sheet.querySelector('[data-block="exposure"]')?.textContent || "").replace(/\s+/g, " ").trim(),
+      unconfirmed: /has not confirmed the figures yet/.test(sheet.textContent || ""),
+      pending: Boolean(sheet.querySelector(".wk-sheet-d[data-pending]")),
+      ledgerRows: sheet.querySelectorAll(".rc-fl-r").length,
+      doors: doors.map((b) => (b.textContent || "").trim()),
+      doorsLive: doors.length > 0 && doors.every((b) => !b.disabled),
+      /* NO SPINNER, EVER. The sheet renders from what the room already holds, so
+         a loader anywhere inside it is the claim failing rather than the room
+         being slow. */
+      spinners: sheet.querySelectorAll(".wk-loadchip, .wk-compose, .goo, .mm-tl-mark").length,
+    };
+  });
+
 /** The one way to the plan: the review chip in the live exchange. */
 const askForThePlan = async (page) => {
   const hit = (await jsClick(page, ".wk-propose")) || (await clickText(page, "button", "Review & execute"));
@@ -513,6 +557,99 @@ const SCENARIOS = [
         detail:
           `room mounted=${alive}, page errors=${errors.length}, said=${said.ok}, filing surfaces on glass=${claimed}` +
           (said.ok ? "" : ` | room said: ...${said.seen.slice(-260)}`),
+      };
+    },
+  },
+
+  /* ============================================ 7. THE FINALE IS NOT A NETWORK CALL
+
+     FOUNDER, 2026-09-06: "all super super gentle, no hangers, I hate when it
+     gets stuck, so we need to ensure it's all fluid."
+
+     The three below are the whole claim, measured: the sheet is a function of
+     what the room already holds and never of what the org is doing, the org's
+     silence costs one honest line and nothing else, and a desk that stops
+     answering after the handover leaves a working memo room behind it. */
+  {
+    id: "execute-slow",
+    room: "facility",
+    bound: 60_000,
+    chaos: { rules: [{ match: "^execute_", mode: "slow:8000" }] },
+    trail: "Completed",
+    expect: "Eight seconds of execute, and the clean sheet is readable within 1.5s of the answer landing.",
+    async run(page, url, bound) {
+      const { card, sheet, sinceCard } = await fileAndWaitForTheSheet(page, url, bound);
+      const state = await sheetState(page);
+      /* 1.5s IS THE WHOLE POINT, and it is measured from the CARD and not from
+         the click: the eight seconds the org spent are the org's, and everything
+         after them is the room's own choreography over facts it already has. */
+      const inTime = sheet.ok && sinceCard <= 1500;
+      return {
+        pass: card.ok && inTime && state.doorsLive && state.spinners === 0 && state.ledgerRows > 0,
+        ms: sinceCard,
+        detail: sheet.ok
+          ? `card at ${(card.ms / 1000).toFixed(1)}s after approve, sheet ${sinceCard}ms after the card, ` +
+            `${state.ledgerRows} filed row(s), doors ${state.doors.join(" / ")}, spinners ${state.spinners}`
+          : `no sheet inside 8s of the card (card ok=${card.ok})`,
+      };
+    },
+  },
+  {
+    id: "settle-hang",
+    room: "facility",
+    /* THE CONFIRMATION BUDGET IS 12s, plus the room's own ending and the drive. */
+    bound: 90_000,
+    chaos: { rules: [{ match: "ActionHistory", mode: "hang" }] },
+    expect: "The trail never answers: the sheet stands, says the org has not confirmed, and stays usable.",
+    async run(page, url, bound) {
+      const { card, sheet, sinceCard } = await fileAndWaitForTheSheet(page, url, bound);
+      // THE SHEET IS UP BEFORE THE CONFIRMATION IS EVEN ASKED FOR, which is the
+      // claim: nothing on it waits for a read.
+      const early = await sheetState(page);
+      const said = await saysWithin(page, /has not confirmed the figures yet/i, 30_000);
+      const late = await sheetState(page);
+      return {
+        pass: card.ok && sheet.ok && sinceCard <= 1500 && !early.unconfirmed && said.ok && late.doorsLive && late.pending,
+        ms: said.ms,
+        detail: said.ok
+          ? `sheet at +${sinceCard}ms with no claim either way, org line at ${(said.ms / 1000).toFixed(1)}s, ` +
+            `figures still shown pending=${late.pending}, doors live=${late.doorsLive}`
+          : `sheet at +${sinceCard}ms, but no confirmation line inside 30s`,
+      };
+    },
+  },
+  {
+    id: "desk-hang-after-draft",
+    room: "facility",
+    /* THE HANDOVER, then one section's own 40s ceiling on a dead desk. */
+    bound: 120_000,
+    chaos: { rules: [], sample: "hang-mid-stream" },
+    expect: "The sheet hands to the memo room, the timeline shows the section pending, and the composer works.",
+    async run(page, url, bound) {
+      const { sheet } = await fileAndWaitForTheSheet(page, url, bound);
+      if (!sheet.ok) return { pass: false, ms: 0, detail: "the sheet never landed, so there was no handover to make" };
+      await clickText(page, ".wk-sheet-go", "Draft the credit memo");
+      const t0 = Date.now();
+      /* THE MEMO ROOM MOUNTS UNDER THE SHEET, so the first row is on the glass
+         before the slide is even over. It carries the filing, drawn in the memo
+         room's own timeline grammar. */
+      const handed = await countWithin(page, ".mm-filed", 1, 12_000, 60);
+      const landedMs = Date.now() - t0;
+      /* AND THE DRAFT STARTS ITSELF and runs into a desk that has stopped
+         answering. What the banker must be left with is a room, not a spinner. */
+      const said = await saysWithin(page, /desk has not answered on .* in 40 seconds/i, bound - landedMs);
+      const rows = await page.evaluate(() =>
+        [...document.querySelectorAll(".mm-tl-row")].map((r) => `${r.dataset.kind}:${r.dataset.state}`),
+      );
+      const s = await stuckness(page);
+      const pending = rows.some((r) => /:missed$/.test(r));
+      return {
+        pass: handed.ok && landedMs <= 3000 && said.ok && pending && s.composerAlive,
+        ms: landedMs,
+        detail: handed.ok
+          ? `memo room carried the filing at +${landedMs}ms, deadline line at ${(said.ms / 1000).toFixed(1)}s, ` +
+            `rows ${rows.join(",") || "none"}, composer alive=${s.composerAlive}`
+          : `no handover inside 12s`,
       };
     },
   },

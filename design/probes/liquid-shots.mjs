@@ -43,6 +43,63 @@ const ROOT = path.resolve(HERE, "..", "..");
    mean, so the share of pixels off by more than 8/255 is capped too. */
 export const LOOK_GATE = { meanAbs: 1.0, pctOver8: 0.5 };
 
+
+/* -------------------------------------------------------------- the finale
+
+   THE ONE SURFACE THAT ONLY EXISTS ON THE FAR SIDE OF A WRITE. The stand-in
+   connector supplies the org (the app itself refuses to invent a plan), and the
+   room is driven the way a banker drives it: one line, whatever gates it trips
+   answered in the room's own words, the plan, the approval.
+
+   REDUCED MOTION IS ON FOR EVERY SHOT IN THIS FILE, which is what makes this
+   surface shootable at all: the morph lands in one commit, so what is captured
+   is the sheet at rest rather than a frame of its growth. */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const clickText = (page, sel, rx) =>
+  page.evaluate(([s, r]) => {
+    const el = [...document.querySelectorAll(s)].find((b) => new RegExp(r, "i").test(b.textContent || ""));
+    if (el) el.click();
+    return Boolean(el);
+  }, [sel, rx]);
+
+async function fileAModification(page, sel) {
+  await page.click(sel.rowHartwell);
+  await page.waitForTimeout(1400);
+  await page.click("#fab");
+  await page.waitForTimeout(500);
+  await page.click("#actFacility");
+  /* THE PACKAGE, WAITED FOR RATHER THAN GUESSED AT. Hartwell stages two, so the
+     room asks before anything binds, and the ask arrives when the read lands. */
+  await page.waitForSelector('.wk-pkg[data-pkg="a5Fbb000000IHFJEA4"]', { state: "attached", timeout: 20_000 });
+  await page.evaluate(() => document.querySelector('.wk-pkg[data-pkg="a5Fbb000000IHFJEA4"]')?.click());
+  await sleep(1800);
+  await page.evaluate(() => {
+    const box = document.querySelector(".wk-txt");
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    setter.call(box, "increase the revolving line of credit to 18 million");
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    document.querySelector(".wk-send")?.click();
+  });
+  await sleep(2800);
+  // WHATEVER THE ROOM RAISES, ANSWERED IN ITS OWN WORDS, until the plan is open.
+  for (let round = 0; round < 12; round++) {
+    if (await page.evaluate(() => document.querySelectorAll(".wk-propose").length > 0)) break;
+    const moved =
+      (await clickText(page, "button", "^Confirm$")) ||
+      (await clickText(page, "button", "^Acknowledge$")) ||
+      (await clickText(page, ".wk-opt", "^Leave pricing for later$")) ||
+      (await clickText(page, ".wk-opt", "^240 months$"));
+    if (!moved) await sleep(900);
+    await sleep(1500);
+  }
+  await page.evaluate(() => document.querySelector(".wk-propose")?.click());
+  await sleep(1600);
+  await clickText(page, ".wk-approve", ".");
+  await page.waitForSelector(".wk-sheet", { state: "attached", timeout: 30_000 });
+  await sleep(2400);
+}
+
 const SURFACES = [
   {
     id: "landing",
@@ -137,6 +194,30 @@ const SURFACES = [
     }
   },
   {
+    /* THE CLEAN SUMMARY THE ROOM ENDS ON (founder, 2026-09-06). New surface: the
+       sheet the rainbow card grows into, at rest, with the room empty behind it. */
+    id: "finale-sheet",
+    what: "the filed sheet, alone in a cleared room",
+    go: async (page, sel) => {
+      await fileAModification(page, sel);
+    }
+  },
+  {
+    /* AND THE ROOM IT HANDS TO. The sheet slides off a memo room that mounted
+       underneath it and becomes that room's first timeline row. */
+    id: "memo-after-handoff",
+    what: "the memo room the sheet handed to, with the filing as its first row",
+    go: async (page, sel) => {
+      await fileAModification(page, sel);
+      await clickText(page, ".wk-sheet-go", "Draft the credit memo");
+      await page.waitForSelector(".mm-filed", { state: "attached", timeout: 20_000 });
+      /* PAST THE HANDOVER AND INTO THE DRAFT. The room starts writing on its
+         own once the glass has settled, so this waits for the timeline to be
+         doing something rather than for a chip nobody is going to press. */
+      await sleep(6000);
+    }
+  },
+  {
     id: "memo-done",
     what: "the memo room with the draft finished on the glass",
     go: async (page, sel) => {
@@ -181,10 +262,16 @@ async function shoot(o) {
   const out = path.resolve(o.out);
   fs.mkdirSync(out, { recursive: true });
 
+  /* ONE SURFACE, WHERE ONLY ONE MOVED. A full pass is eleven browsers' worth of
+     driving; re-shooting the two the finale added should not cost the other nine.
+     The reference dir keeps whatever is already in it. */
+  const only = o.surfaces ? new Set(String(o.surfaces).split(",").map((x) => x.trim())) : null;
+
   const server = await serveDir(dir);
   const browser = await chromium.launch({ headless: true });
   try {
     for (const surface of SURFACES) {
+      if (only && !only.has(surface.id)) continue;
       const ctx = await browser.newContext({
         viewport: T.viewport,
         deviceScaleFactor: 2,
@@ -332,6 +419,6 @@ const o = args(process.argv);
 if (o.diff) await diff(o);
 else if (o.out) await shoot(o);
 else {
-  console.error("usage: liquid-shots.mjs --out <dir> [--template <bundle>]\n       liquid-shots.mjs --diff <dirA> --against <dirB> [--check] [--out report.json]");
+  console.error("usage: liquid-shots.mjs --out <dir> [--template <bundle>] [--surfaces id,id]\n       liquid-shots.mjs --diff <dirA> --against <dirB> [--check] [--out report.json]");
   process.exit(1);
 }

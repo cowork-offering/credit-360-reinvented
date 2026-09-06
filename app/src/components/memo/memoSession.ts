@@ -25,6 +25,37 @@ import type { MemoChange } from "../../memo/types";
 /** What opened the room. It becomes the memo's type on the cover. */
 export type MemoTrigger = "modify" | "renew" | "create" | "adhoc";
 
+/**
+ * WHAT THE FINALE JUST FILED, AS THE MEMO'S OWN FIRST FACT.
+ *
+ * FOUNDER, 2026-09-06: "this then directs you to the Credit memo workroom where
+ * it inserts all the information."
+ *
+ * The ledger already crosses as `carried`; this is the SUMMARY around it - the
+ * version the filing made, the exposure it moved, and the sentence the sheet
+ * put at the top of itself. It exists so the memo room can name the version and
+ * the filed lines in its greeting on its FIRST commit, without waiting on a read
+ * of the trail, and so the sheet can be redrawn as the room's first timeline row
+ * rather than described in prose.
+ *
+ * NOTHING HERE IS RECOMPUTED. Every field is the sheet's own, carried down the
+ * shortest path there is.
+ */
+export interface MemoFiledSummary {
+  /** The sheet's title line, verbatim. */
+  title: string;
+  /** The version the filing created, where the org returned one. */
+  version: string | null;
+  kind: MemoTrigger;
+  /** One entry per filed change, in the order the ledger listed them. */
+  items: Array<{ id: string; label: string; target?: string; before?: string; after?: string; orgId?: string }>;
+  exposureBefore: string;
+  exposureAfter: string;
+  /** True while the org has not confirmed the figures. Carried so the memo does
+   *  not restate a settled number as pending, or the reverse. */
+  pending: boolean;
+}
+
 /** Where the request came from, where it came from anywhere. The intent's own
  *  shape, carried through rather than re-derived. */
 export interface MemoRequestSource {
@@ -46,7 +77,18 @@ export interface MemoSession {
   /** How that ledger split between what the banker asked for and what the room
    *  derived. The trail carries its own split; this is the handover's. */
   carriedSplit: { requested: number; derived: number } | null;
+  /** The finale's summary, where a finale opened this. Null from the FAB. */
+  filed: MemoFiledSummary | null;
   source: MemoRequestSource | null;
+  /**
+   * A HANDOVER IS RUNNING AND THE GLASS HAS NOT SETTLED YET.
+   *
+   * The facility room's sheet is still sliding off this room when it mounts, so
+   * the memo is on the glass and must not start writing into it: a draft that
+   * began under a moving surface is the "hangers" the founder named. It flips
+   * once, from `settleMemoHandoff`, on the slide's own end or its ceiling.
+   */
+  settled: boolean;
 }
 
 let session: MemoSession | null = null;
@@ -65,7 +107,10 @@ export function openMemoRoom(args: {
   /** The filed changes, where the caller is a finale that just filed them. */
   carried?: readonly MemoChange[] | null;
   carriedSplit?: { requested: number; derived: number } | null;
+  filed?: MemoFiledSummary | null;
   source?: MemoRequestSource | null;
+  /** True where the caller is a finale whose sheet is still sliding off. */
+  handoff?: boolean;
 }): void {
   session = {
     accountId: args.accountId,
@@ -74,8 +119,22 @@ export function openMemoRoom(args: {
     trigger: args.trigger ?? "adhoc",
     carried: args.carried?.length ? [...args.carried] : null,
     carriedSplit: args.carriedSplit ?? null,
+    filed: args.filed ?? null,
     source: args.source ?? null,
+    settled: !args.handoff,
   };
+  emit();
+}
+
+/**
+ * THE HANDOVER'S GLASS HAS SETTLED. The memo may start writing.
+ *
+ * Idempotent, and safe on a session that never had a handover: a room opened
+ * from the FAB is settled from its first commit and this changes nothing.
+ */
+export function settleMemoHandoff(): void {
+  if (!session || session.settled) return;
+  session = { ...session, settled: true };
   emit();
 }
 
