@@ -46,6 +46,39 @@ export function loadUi(anchor: string): PersistedUi | null {
   }
 }
 
+/**
+ * The relationship this browser was standing on when the page was replaced.
+ *
+ * READ WITHOUT THE BOOK, and that is the whole reason it exists. `loadUi` needs
+ * the anchor id, which lives in the injected payload, and parsing that payload
+ * is the very cost the pre-mount head start is trying to overlap. So this
+ * SCANS for the one key this cockpit writes instead, through exactly the same
+ * envelope checks: a v-mismatched or expired blob is no more usable here than
+ * it is there.
+ *
+ * Null unless the blob says the banker was on a client view with an account.
+ * A worklist is not an account, and guessing one would send six reads for a
+ * relationship nobody asked for.
+ */
+export function persistedOpenAccount(): string | null {
+  try {
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const k = sessionStorage.key(i);
+      if (!k || !k.startsWith("c360:ui:")) continue;
+      const raw = sessionStorage.getItem(k);
+      if (!raw) continue;
+      const env = JSON.parse(raw) as Envelope;
+      if (!env || env.v !== SCHEMA_VERSION) continue;
+      if (typeof env.savedAt !== "number" || Date.now() - env.savedAt > MAX_AGE_MS) continue;
+      const ui = env.ui;
+      if (ui?.view === "account" && typeof ui.accountId === "string" && ui.accountId) return ui.accountId;
+    }
+  } catch {
+    /* storage unavailable, or a blob somebody else wrote, no head start */
+  }
+  return null;
+}
+
 export function saveUi(anchor: string, ui: PersistedUi): void {
   try {
     const env: Envelope = { v: SCHEMA_VERSION, savedAt: Date.now(), ui };

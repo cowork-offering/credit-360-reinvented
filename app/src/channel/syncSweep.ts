@@ -193,16 +193,40 @@ export const LAUNCH_GAP_MS = 200;
  *
  * Order is preserved: callers get their promise back immediately and the pacer
  * decides when the underlying call actually starts.
+ *
+ * THE CEILING MAY MOVE WHILE THE PACER IS RUNNING. Both `gap` and `limit` take
+ * a function as well as a number, and both are read at the moment a slot is
+ * offered rather than at construction. The open refresh needs that: it launches
+ * six at once and has to be able to drop to two the instant the platform says
+ * `rate_limited`, WITHOUT tearing down the lanes already in flight and starting
+ * the relationship again. A pacer that could only be built at one width would
+ * have made the backoff a page reload.
  */
-export function createPacer({ gap, limit, sleep }: { gap: number; limit: number; sleep: (ms: number) => Promise<void> }) {
+export function createPacer({
+  gap,
+  limit,
+  sleep,
+}: {
+  gap: number | (() => number);
+  limit: number | (() => number);
+  sleep: (ms: number) => Promise<void>;
+}) {
+  const capNow = typeof limit === "function" ? limit : () => limit;
+  const gapNow = typeof gap === "function" ? gap : () => gap;
   let inFlight = 0;
   const queue: Array<() => void> = [];
   let lastLaunch: Promise<void> = Promise.resolve();
 
+  /* DRAIN TO THE CEILING, NOT BY ONE. With a fixed cap, releasing a slot and
+     shifting one waiter are the same thing. With a moving one they are not: a
+     ceiling that just went UP owes the queue every slot it opened, and a
+     ceiling that went DOWN must admit nobody until the excess has drained. */
   const release = () => {
     inFlight -= 1;
-    const next = queue.shift();
-    if (next) next();
+    while (queue.length && inFlight < capNow()) {
+      const next = queue.shift();
+      next?.();
+    }
   };
 
   return function run<T>(fn: () => Promise<T>): Promise<T> {
@@ -211,10 +235,10 @@ export function createPacer({ gap, limit, sleep }: { gap: number; limit: number;
         inFlight += 1;
         resolve();
       };
-      if (inFlight < limit) take();
+      if (inFlight < capNow()) take();
       else queue.push(take);
     });
-    const spaced = lastLaunch.then(() => sleep(gap));
+    const spaced = lastLaunch.then(() => sleep(gapNow()));
     lastLaunch = spaced;
     return Promise.all([slot, spaced]).then(() => {
       const p = fn();

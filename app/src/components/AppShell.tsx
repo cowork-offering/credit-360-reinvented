@@ -16,6 +16,7 @@ import { MemoRoomHost } from "./memo/MemoRoomHost";
 import { buildWorklistRows } from "../data/worklistRows";
 import { useKeepAlive } from "../channel/keepAlive";
 import { useOpenRefresh } from "../channel/openRefresh";
+import { CockpitState } from "../state/cockpitState";
 import { HealthLine } from "./HealthLine";
 
 type ViewRef = React.RefObject<HTMLDivElement | null>;
@@ -158,6 +159,14 @@ export function AppShell() {
           the memo session is its own store, and the doors that open it close
           whichever room they were standing in. */}
       <MemoRoomHost />
+      {/* THE PAGE SAYS WHERE IT IS STANDING. One small document in the
+          artifact's own store, kept current, so a Cowork session asked "what am
+          I looking at" can answer from the cockpit rather than from a guess.
+          A COMPONENT, NOT A HOOK ON THE SHELL: it subscribes to lane health and
+          all three room sessions, and those must never be able to re-render the
+          account view's panes. See state/cockpitState.ts and the SKILL section
+          that reads the document. */}
+      <CockpitState />
       {/* THE CONNECTOR STATUS LINE, last in the document and last in the eye.
           It is the source the unreachable banner quotes its "why" from, so the
           two can never disagree about which lane went and when. */}

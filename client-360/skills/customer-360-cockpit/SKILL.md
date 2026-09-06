@@ -1,6 +1,6 @@
 ---
 name: customer-360-cockpit
-description: Open the Customer 360 relationship cockpit, a worklist-first commercial-credit control center. The DEFAULT open is INSTANT: hand the banker the canonical published cockpit named in assets/cockpit.json and let the page refresh itself through the viewer's own connectors. No fetch, no assembler, no publish. The fetch-and-publish path (the 10 read tools of the 28-tool Customer360 MCP server plus Boom-spread financials, composed into C360_DATA and assembled into a prebuilt interactive Cowork artifact: needs-action queue, activity/audit trail, exposure, covenants, relationship graph, whitespace, structural signals, a chat FAB and a Client Actions panel) is the REBUILD path, taken only when a banker asks to rebuild or republish or when no canonical URL can be resolved. This is the read and render skill; the 18 governed write tools run through the guided skills. Trigger on "customer 360", "open the cockpit", "pull up the relationship view", "what needs my attention", "relationship overview for <account>", "rebuild the cockpit", "republish the cockpit", or any account-level portfolio question.
+description: Open the Customer 360 relationship cockpit, a worklist-first commercial-credit control center. The DEFAULT open is INSTANT: hand the banker the canonical published cockpit named in assets/cockpit.json and let the page refresh itself through the viewer's own connectors. No fetch, no assembler, no publish. The fetch-and-publish path (the 10 read tools of the 28-tool Customer360 MCP server plus Boom-spread financials, composed into C360_DATA and assembled into a prebuilt interactive Cowork artifact: needs-action queue, activity/audit trail, exposure, covenants, relationship graph, whitespace, structural signals, a chat FAB and a Client Actions panel) is the REBUILD path, taken only when a banker asks to rebuild or republish or when no canonical URL can be resolved. This is the read and render skill; the 18 governed write tools run through the guided skills. The page also keeps a COCKPIT STATE document current in the artifact store (open relationship, open room, staged plan, last filed, per-lane health with round-trip durations), and this skill's "READ THE COCKPIT STATE FIRST" section is how a session answers "what am I looking at" from the banker's actual screen rather than from a guess. Trigger on "customer 360", "open the cockpit", "pull up the relationship view", "what needs my attention", "relationship overview for <account>", "what am I looking at", "what's open", "what did I stage", "rebuild the cockpit", "republish the cockpit", or any account-level portfolio question.
 ---
 
 # Customer 360 Cockpit (v3)
@@ -53,6 +53,76 @@ canonical cockpit, never a republish. See "Intent handoff" at the foot of this p
 **Verify before you promise.** If `assets/cockpit.json` is missing, unreadable, or carries no
 `canonicalArtifactUrl`, say so and take the REBUILD path. Never type a cockpit URL from memory and
 never carry one forward from an older transcript.
+
+---
+
+## READ THE COCKPIT STATE FIRST
+
+**Before you answer anything about "this", "here", "what am I looking at", the open
+relationship, the open room, a staged plan or what was last filed, read the cockpit state
+document.** The page keeps it current. You are not guessing at the banker's screen and you are
+not asking them to describe it.
+
+**How to read it**, with the Artifact tool:
+
+```
+action:     read_db
+url:        the canonicalArtifactUrl from <pluginRoot>/assets/cockpit.json
+            (or the URL this session published, if it published one)
+db_op:      get
+collection: state
+doc_id:     cockpit
+```
+
+**What comes back:**
+
+```json
+{
+  "openAccount": { "id": "001…", "name": "Hartwell Precision Manufacturing LLC" },
+  "openTab": "covenants",
+  "openRoom": { "kind": "facility", "route": "modify", "packageId": "a5F…", "since": "…T20:11:03Z" },
+  "stagedPlan": { "packageId": "a5F…", "route": "modify", "lines": 3, "stagedAt": "…T20:14:41Z" },
+  "lastFiled": { "kind": "ACTION_EXECUTED", "title": "…", "at": "…T19:58:12Z",
+                 "packageId": "a5F…", "recordName": "MOD-0042" },
+  "health": { "Salesforce": { "state": "live", "lastGoodAt": "…", "lastMs": 431 },
+              "Backup": { "state": "not-granted" } },
+  "glass": "liquid",
+  "build": "0174e7b",
+  "updatedAt": "…T20:15:02Z"
+}
+```
+
+`openAccount` null means the banker is on the worklist, not on a relationship. `openRoom` null
+means no room is up. `stagedPlan` is a MIRROR and carries no decision token, no plan hash and no
+staging id, you can say what is staged, and you cannot execute it from this document. `lastMs`
+is the last connector round trip in milliseconds, which is the honest answer to "is it slow
+today".
+
+**What the answer sounds like.** One or two lines, in the banker's own vocabulary, no field
+names, no JSON:
+
+> You have Hartwell open on Covenants, a modification staged at 20:14 with three lines on the
+> C&I package, last filed version 12 at 19:58; all lanes live.
+
+> You are on the worklist, nothing open. Salesforce answered 0.4s ago; the backup is not added.
+
+**When the document cannot be read**, no such document, a store that refuses, an older published
+cockpit that predates this file, **say so in half a sentence and fall back to the systems of
+record.** Never invent a position and never present a stale document as current:
+
+- the relationship and its figures: the Customer 360 reads (`Customer360Snapshot`,
+  `Customer360Exposure`, `Customer360Covenants`, and the rest);
+- what was decided and filed: `recall_decisions`, and `Customer360ActionHistory` for the org's
+  own durable trail;
+- filed memo versions: the `memos/<packageId>/versions` collection in the same store.
+
+**`updatedAt` is the freshness stamp and it is the page's own clock.** A document more than a few
+minutes old means the cockpit is not open in front of them right now; say when it was last true
+rather than reporting it as the present tense.
+
+**Do not write to this document.** The page owns it and overwrites it in place. A session that
+wants to hand work to the cockpit writes an INTENT (see "Intent handoff" at the foot of this
+page), which is a different collection and a different contract.
 
 ---
 

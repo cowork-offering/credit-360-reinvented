@@ -565,9 +565,17 @@ export async function callTool<T = unknown>(
      have run and nothing may auto-retry it on this stamp. */
   const budgetMs = options.deadlineMs ?? (options.read ? READ_DEADLINE_MS : WRITE_DEADLINE_MS);
 
+  /* THE ROUND TRIP'S OWN CLOCK, recorded per ATTEMPT and handed to the lane
+     store so the health line can say what the relay actually cost. It is the
+     only place in the cockpit that can measure the artifact-to-connector hop:
+     no instrument outside the page sees it. `watchTool` is deliberately not
+     timed, its deliveries are pushes, and a push has no round trip to clock. */
+  let attemptMs = 0;
+
   const invoke = async (): Promise<McpOk<T>> => {
     inFlightCalls += 1;
     lastCallStartedAt = Date.now();
+    const startedAt = lastCallStartedAt;
     try {
       const result = await withDeadline(
         api.callTool(server, tool, input, { cache: options.cache, signal: options.signal }),
@@ -577,12 +585,13 @@ export async function callTool<T = unknown>(
       return { payload: result.payload as T, cache: result.cache, raw: result };
     } finally {
       inFlightCalls -= 1;
+      attemptMs = Date.now() - startedAt;
     }
   };
 
   try {
     const ok = await invoke();
-    noteLaneSuccess(server);
+    noteLaneSuccess(server, Date.now(), { tool, ms: attemptMs });
     return ok;
   } catch (err) {
     let failure = describeFailure(err, server, tool);
@@ -594,14 +603,14 @@ export async function callTool<T = unknown>(
         await sleep(retryDelayMs(failure, Math.random, attempt));
         try {
           const ok = await invoke();
-          noteLaneSuccess(server);
+          noteLaneSuccess(server, Date.now(), { tool, ms: attemptMs });
           return ok;
         } catch (err2) {
           failure = describeFailure(err2, server, tool);
         }
       }
     }
-    noteLaneFailure(server, failure);
+    noteLaneFailure(server, failure, { tool, ms: attemptMs });
     throw failure;
   }
 }

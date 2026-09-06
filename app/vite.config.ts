@@ -1,11 +1,31 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { viteSingleFile } from "vite-plugin-singlefile";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
+
+/* WHICH BUILD IS ON THE FOUNDER'S SCREEN.
+ *
+ * The cockpit is handed over as a pinned artifact and republished from more
+ * than one worktree, so "is he looking at the build we just shipped" is a real
+ * question with no way to answer it from the glass. The commit is the answer,
+ * and it goes into the cockpit state document the session reads.
+ *
+ * THE COMMIT AND NOTHING ELSE. No timestamp, no branch, no user: a build stamp
+ * that changes on every run would make two builds of the same commit different
+ * bundles for no gain, and the repo rule is that nothing identifying goes into
+ * the artifact. Unknown outside a checkout, which is a state and not an error. */
+function buildStamp(): string {
+  try {
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
 
 // Dev-only: serve the repo sample data at /sample-data.json so the app can load
 // it in dev mode. In a production build the loader is behind import.meta.env.DEV
@@ -31,6 +51,7 @@ function sampleDataDevServer(): Plugin {
 
 export default defineConfig({
   plugins: [react(), sampleDataDevServer(), viteSingleFile()],
+  define: { __C360_BUILD__: JSON.stringify(buildStamp()) },
   build: {
     target: "es2022",
     cssCodeSplit: false,

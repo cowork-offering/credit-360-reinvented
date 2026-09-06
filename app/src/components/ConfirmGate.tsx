@@ -46,6 +46,31 @@ import { resolveBundle } from "../actions/registry";
        BEFORE confirming, not after.
    ============================================================================= */
 
+/**
+ * HOW LONG THE GATE WAITS BEFORE IT SAYS SO.
+ *
+ * `callTool` bounds a write at WRITE_DEADLINE_MS (60s) and stamps the result
+ * AMBIGUOUS, which is correct at the transport but arrives too late and in the
+ * wrong clothes: the gate rendered it as "This did not go through", in critical
+ * ink, over a write that may well have landed. Filing it a second time is the
+ * one mistake this cockpit cannot undo from here.
+ *
+ * So the gate keeps its own, shorter clock. At 45 seconds it stops making the
+ * banker watch a spinner and says what is actually true, the org has not
+ * answered, and nobody knows yet. IT DOES NOT CANCEL THE CALL: the execute is
+ * still running, and if it answers a moment later the gate takes that answer
+ * and replaces the notice with it. A page clock is a limit on WAITING, never a
+ * verdict on the write.
+ */
+export const EXECUTE_CLOCK_MS = 45_000;
+
+/** What the banker is told while nobody knows. Never the word failed. */
+export const UNSETTLED_TITLE = "The org has not answered yet";
+export const UNSETTLED_BODY =
+  `This has been running for ${Math.round(EXECUTE_CLOCK_MS / 1000)}s and the org has not come back. ` +
+  "It may still land: nothing has said it failed. Check the record in Salesforce before staging this " +
+  "again, filing it twice is the one thing that cannot be undone from here.";
+
 /** The fixed closing line. Not a variant, not a template. */
 export const CLOSING_LINE = "Real approval happens in Salesforce's credit-risk process.";
 
@@ -141,6 +166,8 @@ export function ConfirmGate({
   const [error, setError] = useState<string | null>(null);
   const [executing, setExecuting] = useState(false);
   const [toolError, setToolError] = useState<ToolError | null>(null);
+  /** True once the gate's own clock has run out on a call still in flight. */
+  const [unsettled, setUnsettled] = useState(false);
 
   const bundle = resolveBundle(data, state.accountId);
 
@@ -184,6 +211,7 @@ export function ConfirmGate({
   async function confirm() {
     setError(null);
     setToolError(null);
+    setUnsettled(false);
 
     // A33.2.7 — MANDATORY recompute. A plan is never executed against figures
     // the banker did not see. A moved FIGURE stops here; a newer timestamp over
@@ -242,23 +270,31 @@ export function ConfirmGate({
     }
 
     setExecuting(true);
-    try {
-      const outcome = await executeAction(actionId, {
-        // Exactly the five fields Execute*.cls reads, each taken from the
-        // staging result verbatim. The idempotency key is the STAGE key: that
-        // pairing is what the proven Apex round trip used.
-        idempotencyKey: idempotencyKey ?? plan.stagingId,
-        stagingId: plan.stagingId,
-        planHash: plan.planHash,
-        decisionToken: serverToken,
-        approverUserId,
-      });
+
+    const work = executeAction(actionId, {
+      // Exactly the five fields Execute*.cls reads, each taken from the
+      // staging result verbatim. The idempotency key is the STAGE key: that
+      // pairing is what the proven Apex round trip used.
+      idempotencyKey: idempotencyKey ?? plan.stagingId,
+      stagingId: plan.stagingId,
+      planHash: plan.planHash,
+      decisionToken: serverToken,
+      approverUserId,
+    });
+
+    /** The org's answer, whenever it comes, and whichever way it goes. Named
+     *  because the clock below hands the SAME function to a late answer. */
+    const settle = (outcome: Awaited<typeof work>) => {
+      setUnsettled(false);
       if (!outcome.ok) {
         setToolError(outcome.error);
         return;
       }
       onConfirmed(record, outcome.result);
-    } catch (e) {
+    };
+
+    const fail = (e: unknown) => {
+      setUnsettled(false);
       // The org's own words first. The platform's generic "ran the tool but
       // reported a failure" hid a precondition refusal for a whole live test
       // session, so the raw message and code lead and the fix copy follows.
@@ -268,7 +304,34 @@ export function ConfirmGate({
         message: f.message ?? f.fix ?? String(e),
         orgError: f.message && f.fix && f.message !== f.fix ? f.fix : undefined,
       });
+    };
+
+    let expired = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const clock = new Promise<"clock">((resolve) => {
+      timer = setTimeout(() => {
+        expired = true;
+        resolve("clock");
+      }, EXECUTE_CLOCK_MS);
+    });
+
+    try {
+      const first = await Promise.race([work, clock]);
+      if (first === "clock") {
+        /* THE WAIT ENDS, THE CALL DOES NOT. The banker is told the truth, the
+           org has not answered, and the execute keeps running behind it. When
+           it lands, this replaces the notice with the real outcome. */
+        setUnsettled(true);
+        work.then(settle, fail);
+        return;
+      }
+      settle(first);
+    } catch (e) {
+      // A rejection that beat the clock. One that loses to it is handled by the
+      // continuation above, so nothing is reported twice.
+      if (!expired) fail(e);
     } finally {
+      if (timer !== undefined) clearTimeout(timer);
       setExecuting(false);
     }
   }
@@ -504,6 +567,24 @@ export function ConfirmGate({
       {drift && (
         <div className="border-b border-divider px-5 py-4">
           <DriftNotice drift={drift} onRestage={onRestage} />
+        </div>
+      )}
+
+      {/* NOBODY KNOWS YET, AND THAT IS ITS OWN STATE. Warning ink, not critical:
+          critical is what the cockpit uses when the org has said no, and the
+          org has said nothing at all. A banker who reads "did not go through"
+          over a write that landed files it again, and a duplicated facility is
+          not something this page can take back. */}
+      {unsettled && (
+        <div className="border-b border-divider px-5 py-4" data-unsettled="1">
+          <div className="rounded-[10px] px-3.5 py-3" style={{ background: "var(--warning-bg)" }}>
+            <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--warning)" }}>
+              {UNSETTLED_TITLE}
+            </div>
+            <div className="mt-1 text-[12px] leading-relaxed" style={{ color: "var(--warning-prose)" }}>
+              {UNSETTLED_BODY}
+            </div>
+          </div>
         </div>
       )}
 

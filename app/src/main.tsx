@@ -4,10 +4,12 @@ import "./styles/tokens.css";
 import "./styles/tailwind.css";
 import { App } from "./App";
 import { acquireMcp } from "./channel/mcp";
+import { prefetchOpen } from "./channel/openPrefetch";
 import { acquireSample } from "./channel/sampleDoor";
 import { acquireDb } from "./channel/dbDoor";
 import { installSampleGateReadout } from "./channel/sampleMetrics";
 import { installIntentReadout, startIntentWatch } from "./intent/store";
+import { persistedOpenAccount } from "./state/persist";
 import { bootGlass, enterCalm, setGlass, watchGlassPreference, type GlassPreference } from "./glassMode";
 import { startCalmSensor } from "./perf/calmSensor";
 import { startHiddenPause } from "./perf/motionGate";
@@ -117,6 +119,25 @@ if (root) {
       </StrictMode>,
     );
   };
+
+  /* THE SIX READS LEAVE BEFORE REACT DOES, where this browser already knows
+     which relationship it is going to land on.
+
+     A reload and an artifact replace both come back to the client view the
+     banker was standing on, and the open refresh cannot ask for it until React
+     has parsed the whole baked book and mounted the cockpit. The relay round
+     trip and that mount are independent work; running them one after the other
+     is the founder's "fast loading" complaint in miniature. So the reads go out
+     the instant the connector door has settled, and the refresh adopts them
+     when it starts. See channel/openPrefetch.ts.
+
+     SILENT WHEN THERE IS NOTHING TO KNOW. A cold open from Cowork has no
+     stored view, so nothing is prefetched and nothing is called twice: the
+     worklist open is served by the refresh going six-wide instead. */
+  const headStart = () => {
+    const accountId = persistedOpenAccount();
+    if (accountId) prefetchOpen(accountId);
+  };
   const doors = () => Promise.all([acquireMcp(), acquireSample(), acquireDb()]);
   if (typeof window !== "undefined" && (window as unknown as { claude?: unknown }).claude === undefined) {
     mount();
@@ -124,8 +145,17 @@ if (root) {
        branch cannot rule out: a runtime that injects itself after the document
        has parsed. `startIntentWatch` returns its existing unsubscribe when it
        already holds one, so the second call is free. */
-    void doors().finally(() => startIntentWatch());
+    void doors().finally(() => {
+      startIntentWatch();
+      headStart();
+    });
   } else {
-    void doors().finally(mount);
+    void doors().finally(() => {
+      /* BEFORE THE MOUNT, WHICH IS THE POINT. `prefetchOpen` issues its calls
+         synchronously and returns; the mount is the very next statement, so the
+         six round trips run underneath the parse and the first paint. */
+      headStart();
+      mount();
+    });
   }
 }

@@ -654,3 +654,55 @@ a.wk-opt:hover {
   margin-right: 10px;
   color: var(--border-strong);
 }
+
+/* THE SENTENCE IS THE CONTROL. A button that has to look like nothing: no
+   background, no border, no padding, the parent's own type, and it inherits
+   the lane ink the component sets per state. */
+.health-line .hl-lane-btn {
+  all: unset;
+  cursor: pointer;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.health-line .hl-lane-btn:focus-visible {
+  outline: 1px solid var(--focus, var(--accent));
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* THE LAST TEN CALLS. It takes the whole width of the line and pushes the lanes
+   below it apart rather than floating over anything: a status line owes nobody
+   an overlay, and a panel that covers the cockpit to report on its own health
+   is the opposite of quiet. NO backdrop filter and no shadow anywhere in here ,
+   this opens over the footer while a room may be up, and a second full-width
+   filtered surface is exactly the frame cost perf.mjs exists to keep out. */
+.health-line .hl-hist,
+.health-line .hl-hist-empty {
+  flex-basis: 100%;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-faint);
+}
+
+.health-line .hl-hist li {
+  display: flex;
+  gap: 10px;
+  padding: 1px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.health-line .hl-hist li[data-ok="0"] {
+  color: var(--warning);
+}
+
+.health-line .hl-hist-tool {
+  min-width: 22ch;
+}
+
+.health-line .hl-hist-ms {
+  min-width: 7ch;
+  text-align: right;
+  color: var(--ink-label);
+}

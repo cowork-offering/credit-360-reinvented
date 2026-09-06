@@ -1,4 +1,5 @@
 import type { BrainMail } from "../channel/brainLane";
+import { prefetchOpen } from "../channel/openPrefetch";
 import { bindRelRoute, openRelationshipRoom } from "../components/relationship/relSession";
 import { bindFacilityRoute, openFacilityRoom } from "../components/workroom/roomSession";
 import { flyName } from "../components/nameFlight";
@@ -73,6 +74,13 @@ export function openIntent(args: {
   const { intent, navigate } = args;
   consumeIntent(intent);
   void markOpened(intent, args.openedBy);
+
+  /* THE READS GO OUT ON THE GESTURE, NOT AFTER THE ANIMATION. An intent NAMES
+     its relationship, and taking one then spends 520ms flying the name across
+     the screen and a mount raising the room before the open refresh may ask for
+     anything. That is half a relay round trip of dead wire. The six reads ride
+     the flight instead; the refresh adopts them when it starts. */
+  prefetchOpen(intent.accountId);
 
   if (args.ensureBook) {
     void args.ensureBook(intent.accountId, intent.accountName).then((ok) => {

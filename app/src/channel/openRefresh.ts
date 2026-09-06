@@ -2,10 +2,22 @@ import { useEffect, useRef } from "react";
 import type { BorrowerBundle } from "../data/contract";
 import { modalDepth } from "../components/modalStack";
 import { useApp } from "../state/appState";
-import { DETAIL_KEYS, DETAIL_TOOLS, mcpAvailable, SERVERS, unwrapInvocable, type DetailKey, type McpFailure } from "./mcp";
+import {
+  DETAIL_KEYS,
+  DETAIL_TOOLS,
+  laneTimeout,
+  mcpAvailable,
+  READ_DEADLINE_MS,
+  SERVERS,
+  unwrapInvocable,
+  withDeadline,
+  type DetailKey,
+  type McpFailure,
+} from "./mcp";
 import { readThroughEitherLane } from "./gateway/lane";
 import { noteLaneStale } from "./laneHealth";
 import { loadLastGood, putLastGood, type CachedRead } from "./lastGood";
+import { claimPrefetch, type PrefetchedLane } from "./openPrefetch";
 import { createPacer, LAUNCH_GAP_MS, MAX_IN_FLIGHT, slowTierWindowMs, SLOW_TIER_KEYS } from "./syncSweep";
 
 /* =============================================================================
@@ -21,8 +33,25 @@ import { createPacer, LAUNCH_GAP_MS, MAX_IN_FLIGHT, slowTierWindowMs, SLOW_TIER_
 
    THE ORDER IS THE POINT.
      1. The stored last-good documents paint, marked with their age.
-     2. The six detail reads go out, PACED, each on its own lane.
+     2. The six detail reads go out AT ONCE, each on its own lane.
      3. Each lane lands over the figure it replaces as it returns, on its own.
+
+   ALL SIX AT ONCE, AND THAT IS MEASURED. Until 2026-09-06 the open reads were
+   paced two in flight, 200ms apart, which is the SWEEP's pacing borrowed for a
+   path it does not fit: the sweep is nine calls on a deliberate gesture, the
+   open is six calls the banker did not ask for and is waiting on. Two at a time
+   makes the open three round trips deep instead of one, and against a 500ms
+   relay that is the difference between the sixth slice landing at 1.96s and at
+   0.7s. Measured against the real backup connector on 2026-09-06: six reads
+   issued serially cost 243-542ms each; the same six issued together answered in
+   534ms of wall clock TOTAL. The org and the transport serve six concurrently
+   for very close to the price of one, so paying for three waves bought nothing.
+
+   AND IT BACKS OFF THE MOMENT IT IS TOLD TO. One `rate_limited` from any lane
+   drops this page session to the sweep's own two-in-flight, 200ms apart, for
+   every open after it. The ceiling is read per slot rather than fixed at
+   construction (see `createPacer`), so the lanes already in flight are not torn
+   down to change it.
 
    ONE LANE'S TROUBLE IS ONE LANE'S TROUBLE. Every read is independent: it
    carries its own retry budget inside `callTool`, its own background recovery
@@ -38,6 +67,46 @@ import { createPacer, LAUNCH_GAP_MS, MAX_IN_FLIGHT, slowTierWindowMs, SLOW_TIER_
 
 /** How long a lane that gave up waits before trying again, quietly. */
 export const BACKGROUND_RETRY_MS = 60_000;
+
+/** All six at once. The open is one round trip deep, not three. */
+export const OPEN_MAX_IN_FLIGHT = 6;
+/** No spacing between them either: a burst of six is what the measurement says
+ *  the transport is happy to answer, and a 200ms ladder in front of it only
+ *  delays the last read by a second for nothing. */
+export const OPEN_LAUNCH_GAP_MS = 0;
+
+/**
+ * ONE LANE'S WALL CLOCK on the open.
+ *
+ * `callTool` already bounds each ATTEMPT at READ_DEADLINE_MS, but a lane is not
+ * an attempt: three retries and then the backup's own three is a minute and a
+ * half of a slice that reads "still loading" and a pacer slot nobody else can
+ * have. Fifteen seconds is the same number the sweep's lanes get, and a lane
+ * that spends it is marked failed against its last good time exactly as a
+ * refusal is, never blanked, never left spinning.
+ */
+export const OPEN_LANE_DEADLINE_MS = READ_DEADLINE_MS;
+
+/* THE PLATFORM'S OWN WORD IS THE ONLY THING THAT NARROWS THIS. Not a guess, not
+   a heuristic on latency: `rate_limited` is a code the runtime sends, and until
+   it does, six is what the measurement supports. Page-session scoped, because
+   a relay that is rationing calls at 22:34 is still rationing them at 22:35. */
+let burstAllowed = true;
+
+/** Calls in flight the next open may use. */
+export const openInFlightLimit = (): number => (burstAllowed ? OPEN_MAX_IN_FLIGHT : MAX_IN_FLIGHT);
+/** Spacing the next open may use. */
+const openLaunchGapMs = (): number => (burstAllowed ? OPEN_LAUNCH_GAP_MS : LAUNCH_GAP_MS);
+
+/** The platform said there were too many. Every open after this one is paced. */
+export function noteOpenRateLimited(): void {
+  burstAllowed = false;
+}
+
+/** Test seam: put the burst policy back the way a fresh page finds it. */
+export function __resetOpenBurstForTests(): void {
+  burstAllowed = true;
+}
 
 /** One of the six detail tools, each of which the backup lane mirrors. */
 type DetailTool = (typeof DETAIL_TOOLS)[number];
@@ -86,7 +155,15 @@ export function startOpenRefresh(opts: OpenRefreshOptions): () => void {
   const startedAt = now();
   const fetchedBefore = opts.fetchedAt ?? {};
 
-  const pace = createPacer({ gap: LAUNCH_GAP_MS, limit: MAX_IN_FLIGHT, sleep });
+  /* READ PER SLOT, NOT AT CONSTRUCTION. A `rate_limited` that lands while these
+     six are in flight narrows the ones still queued behind it. */
+  const pace = createPacer({ gap: openLaunchGapMs, limit: openInFlightLimit, sleep });
+
+  /* THE HEAD START, WHERE SOMEBODY HAD ONE. main.tsx and the intent lane both
+     know the relationship before React does and send the six reads then; this
+     adopts those calls rather than issuing them a second time. Claimed once and
+     drained per lane, so a lane that fails still knocks again for itself. */
+  const prefetched = claimPrefetch(accountId);
 
   /* THE STORED DOCUMENTS FIRST, and they are a local read: they land long
      before any connector answers, which is the whole point of keeping them. */
@@ -119,11 +196,37 @@ export function startOpenRefresh(opts: OpenRefreshOptions): () => void {
   async function runLane(key: DetailKey, tool: DetailTool): Promise<void> {
     if (stopped) return;
     const slow = SLOW_TIER_KEYS.has(key);
+    /* THE HEAD START IS SPENT ONCE. Taken here rather than at the top of the
+       function body's try, so a lane that goes on to fail and knock again a
+       minute later issues a fresh call instead of awaiting the same dead
+       promise for the life of the page. */
+    const started: PrefetchedLane | undefined = prefetched?.get(key);
+    prefetched?.delete(key);
     try {
       /* EITHER DOOR. The pacer stays OUTSIDE the fallback: a backup read rides
          the same artifact-to-connector relay and costs the same budget, so it
-         takes a pacer slot exactly as the primary attempt did. */
-      const res = await pace(() => readThroughEitherLane(tool, [{ accountId }], { cache: { staleTime: 15_000 } }));
+         takes a pacer slot exactly as the primary attempt did.
+
+         AND THE WHOLE LANE IS BOUNDED, not just each attempt. Three retries
+         through the front door and three more through the backup is a minute
+         and a half; `OPEN_LANE_DEADLINE_MS` is where this page stops waiting
+         and says so. A call that was already in flight before the refresh
+         started keeps its own clock and is not re-bounded here: it has been
+         running for a mount's worth of time already and restarting the count
+         would give it longer than a lane that waited its turn. */
+      const res = started
+        ? await started
+        : await withDeadline(
+            pace(() => readThroughEitherLane(tool, [{ accountId }], { cache: { staleTime: 15_000 } })),
+            OPEN_LANE_DEADLINE_MS,
+            () =>
+              laneTimeout({
+                server: SERVERS.customer360,
+                tool,
+                ms: OPEN_LANE_DEADLINE_MS,
+                ambiguous: false,
+              }),
+          );
       if (stopped) return;
       const ok = res.value;
       const slot = unwrapInvocable(ok.payload, 1)[0];
@@ -151,9 +254,16 @@ export function startOpenRefresh(opts: OpenRefreshOptions): () => void {
     } catch (err) {
       if (stopped) return;
       const failure = err as McpFailure;
+      /* THE PLATFORM RATIONED THE CALLS. Narrow every open after this one, and
+         narrow the lanes still queued behind this one, before anything else:
+         the next thing this function does is schedule a retry, and a retry that
+         went out at the same width would earn the same refusal. */
+      if (failure?.code === "rate_limited") noteOpenRateLimited();
       opts.onFailure?.(key, failure);
       // A denial and a view with no bridge are not going to heal on a timer.
-      // Everything else gets another quiet knock in a minute.
+      // Everything else gets another quiet knock in a minute, a lane that ran
+      // out its own wall clock included, which is exactly the transient this
+      // background knock was written for.
       if (!failure?.retract && !failure?.noCapability) schedule(key, tool);
     }
   }

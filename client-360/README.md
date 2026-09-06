@@ -15,6 +15,25 @@ cannot reach the org retries three times inside twelve seconds and then quietly 
 the footer's connector line names every lane's grant, its last good call and whether it is live,
 stale or unreachable with which error code.
 
+All six detail reads leave AT ONCE rather than two at a time, so a slow relay is paid once instead
+of three times: measured against a 500ms relay, the sixth slice lands at 0.6s instead of 2.0s. One
+`rate_limited` from the platform narrows that page session back to two in flight.
+
+## What the page says about itself
+
+**The connector line carries the clock.** Each lane's last round trip is on the footer in the same
+faint ink, `Salesforce live 22:34 UTC · 420 ms`, and clicking a lane opens its last ten calls
+with the tool each one asked for. The artifact-to-connector relay is invisible to every instrument
+except the page, so this is the only place a founder can check "is it slow today" with a number.
+
+**The page keeps a cockpit state document current** at `state/cockpit` in the artifact's own store:
+the open relationship and tab, the open room, a read-only mirror of the staged plan (a count and a
+stamp, never a token), the last thing filed this session, per-lane health with durations, the glass
+mode and the build. A Cowork session reads it before answering anything about "this" or "here", so
+"what am I looking at?" gets a real answer instead of a request to describe the screen. Written
+debounced, under 8 KB, through the same guarded door every other store write passes. See the
+"READ THE COCKPIT STATE FIRST" section of the cockpit skill.
+
 **Fetching, assembling and publishing is the REBUILD path**, taken only when a banker asks for it or
 when no canonical URL can be resolved. A rebuild does not move the canonical cockpit:
 `assets/cockpit.json` is hand-edited once, when a founder blesses a new URL.

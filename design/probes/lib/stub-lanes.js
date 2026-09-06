@@ -28,7 +28,19 @@
      hangTools   UNPREFIXED tool names that never settle on EITHER door, so the
                  drive can hang exactly one lane and watch the rest finish
      latencyMs   how long every answer takes in "slow"
+     relayMs     THE RELAY BUDGET. What ONE artifact-to-connector round trip
+                 costs, paid by every answer this stub gives, success or
+                 refusal alike. The real hop (claude.ai artifact to connector to
+                 org) was measured at 236-560ms per call on 2026-09-06 against
+                 the read backup; `relayMs` is how the latency probe replays a
+                 300 / 500 / 800ms relay against the real bundle. Default 0, so
+                 every drive written before this knob existed is unchanged.
      attempts    per-tool attempt counter, so the drive can count retries
+     settled     one row per ANSWER, `{ server, tool, at, ok }`, so a probe can
+                 time the sixth slice landing without reading the glass
+     livePatch    per-tool fields merged over the LIVE body, so a drive that
+                 needs one more field (a package id, for a room that will not
+                 open without one) does not have to fork this table
 
    NOTHING HERE SHIPS. The artifact's own build fails closed on simulation
    markers and this file is never bundled; the app itself still refuses to
@@ -38,7 +50,7 @@
 
   var BACKUP_SERVER = "Salesforce Read Backup";
 
-  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, attempts: {}, calls: [] };
+  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, relayMs: 0, attempts: {}, calls: [], settled: [], livePatch: {} };
   window.__DRIVE_OUT = { errors: [] };
   window.addEventListener("error", function (e) {
     window.__DRIVE_OUT.errors.push(String((e && e.message) || e));
@@ -90,45 +102,85 @@
     return tool.indexOf("gw_") === 0 ? tool.slice(3) : tool;
   }
 
-  function answer(server, tool) {
+  /* EVERY ANSWER PAYS THE RELAY, AND SO DOES EVERY REFUSAL. A 502 comes back
+     over the same hop a figure does, so a stub that refused instantly would
+     make the retry ladder look free and flatter every fallback measurement. */
+  function relay() { return sleep(window.__LANES.relayMs || 0); }
+
+  function settle(server, tool, ok) {
+    window.__LANES.settled.push({ server: server, tool: tool, at: Date.now(), ok: ok });
+  }
+
+  function answer(server, tool, input) {
     var L = window.__LANES;
     var backup = server === BACKUP_SERVER;
     var mode = backup ? (L.backupMode || "ok") : L.mode;
     L.attempts[tool] = (L.attempts[tool] || 0) + 1;
     L.calls.push({ server: server, tool: tool, at: Date.now(), n: L.attempts[tool], mode: mode });
 
-    // A connector the viewer never added is not a connector that is down.
-    if (backup && L.backup === "absent") return Promise.reject(NOT_CONNECTED);
+    var refuse = function (err) {
+      return relay().then(function () { settle(server, tool, false); return Promise.reject(err); });
+    };
+    var give = function (body) {
+      return relay().then(function () { settle(server, tool, true); return body; });
+    };
+
+    // A connector the viewer never added is not a connector that is down. No
+    // relay is paid: the runtime refuses this one without leaving the page.
+    if (backup && L.backup === "absent") { settle(server, tool, false); return Promise.reject(NOT_CONNECTED); }
     // One named lane, shut on both doors, neither answering nor refusing.
     if ((L.hangTools || []).indexOf(unprefixed(tool)) !== -1) return new Promise(function () {});
-    if (mode === "denied") return Promise.reject(DENIED);
-    if (mode === "down") return Promise.reject(UNAVAILABLE);
-    if (mode === "failTwice" && L.attempts[tool] <= 2) return Promise.reject(UNAVAILABLE);
+    if (mode === "denied") return refuse(DENIED);
+    if (mode === "down") return refuse(UNAVAILABLE);
+    if (mode === "failTwice" && L.attempts[tool] <= 2) return refuse(UNAVAILABLE);
     // NEVER SETTLES. Not an error and not an answer: the shape a sweep with no
     // wall clock of its own hangs on forever.
     if (mode === "hang") return new Promise(function () {});
 
     // The backup's own health tool carries no Salesforce data.
     if (tool === "gw_health") {
-      return sleep(0).then(function () {
-        return { payload: { ok: true, orgReachable: true, orgError: null, checkedAt: new Date().toISOString() } };
-      });
+      return give({ payload: { ok: true, orgReachable: true, orgError: null, checkedAt: new Date().toISOString() } });
+    }
+
+    /* THE STAGED PLAN, so a probe can time the room's one write-path round
+       trip. The shape is the one lib/stub-connector.js already answers with;
+       nothing here executes and nothing here is a figure the room may print. */
+    if (/^stage_/.test(tool)) {
+      var one = (((input || {}).inputs || [])[0]) || {};
+      return give(envelope({
+        ok: true,
+        result: {
+          stagingId: "a5Sbb0000001PROBE",
+          planHash: "9c41e08bf27a4d10",
+          decisionToken: "4f8ac21e-probe-token",
+          summary: "Probe plan.",
+          steps: [{ id: "w1", type: "write", label: "Apply the commitment", objectName: "LLC_BI__Loan__c" },
+                  { id: "v1", type: "verification", label: "Re-query the clone", dependsOn: ["w1"] }],
+          warnings: [],
+          accountId: one.accountId,
+          productPackageId: one.productPackageId,
+          facilities: (one.facilities || []).map(function (f, i) {
+            return { facilityId: f.facilityId || ("a4Zbb000002" + i), loanId: f.loanId || ("a4Zbb000002" + i), requestedAmount: f.requestedAmount };
+          }),
+          facilityCount: (one.facilities || []).length,
+        },
+      }));
     }
 
     var body = LIVE[unprefixed(tool)];
+    var extra = (L.livePatch || {})[unprefixed(tool)];
+    if (body && extra) body = Object.assign({}, body, extra);
     var wait = mode === "slow" ? (L.latencyMs || 3000) : 0;
-    return sleep(wait).then(function () {
-      return body ? envelope(body) : { payload: {} };
-    });
+    return sleep(wait).then(function () { return give(body ? envelope(body) : { payload: {} }); });
   }
 
   var mcp = {
-    callTool: function (server, tool) {
-      return answer(server, tool);
+    callTool: function (server, tool, input) {
+      return answer(server, tool, input);
     },
     watchTool: function (server, tool, input, handler) {
       var stopped = false;
-      answer(server, tool).then(
+      answer(server, tool, input).then(
         function (r) { if (!stopped) handler({ type: "data", result: r }); },
         function (e) { if (!stopped) handler({ type: "error", error: e }); },
       );
