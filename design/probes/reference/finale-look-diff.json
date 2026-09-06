@@ -82,25 +82,25 @@
       "id": "finale-sheet",
       "width": 2720,
       "height": 1800,
-      "meanAbs": 5.343,
+      "meanAbs": 4.974,
       "maxAbs": 229,
-      "pctOver2": 32.371,
-      "pctOver8": 6.815,
+      "pctOver2": 31.223,
+      "pctOver8": 6.419,
       "box": {
         "x": 652,
-        "y": 491,
+        "y": 549,
         "w": 1416,
-        "h": 1078
+        "h": 1038
       }
     },
     {
       "id": "memo-after-handoff",
       "width": 2720,
       "height": 1800,
-      "meanAbs": 17.445,
+      "meanAbs": 17.111,
       "maxAbs": 251,
-      "pctOver2": 64.54,
-      "pctOver8": 14.137,
+      "pctOver2": 64.185,
+      "pctOver8": 13.925,
       "box": {
         "x": 0,
         "y": 12,

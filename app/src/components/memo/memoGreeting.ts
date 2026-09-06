@@ -1,6 +1,7 @@
 import type { ActionHistoryRow, ActionStep } from "../../data/contract";
 import type { MemoChange, MemoChangeFields } from "../../memo/types";
 import type { RenderPlan } from "../../memo/renderMemo";
+import { shortPackageName } from "../workroom/filedSheet";
 import type { MemoFiledSummary, MemoTrigger } from "./memoSession";
 
 /* =============================================================================
@@ -287,6 +288,9 @@ export interface MemoGreetingInput {
   packageId: string | null;
   /** The org's own name for the package. The greeting says this, never an id. */
   packageName?: string | null;
+  /** The relationship, so the package name can drop it where nCino put it there
+   *  (`shortPackageName`). Absent leaves the org's label exactly as it is. */
+  accountName?: string | null;
   trigger: MemoTrigger;
   executed: ExecutedRead;
   /** The finale's own ledger, where a finale opened the room. */
@@ -324,7 +328,10 @@ export const NO_STEP_DETAIL = "Nothing filed on this package since the last memo
 
 export function memoGreeting(input: MemoGreetingInput): MemoGreeting {
   const { executed, carried, packageId, filed } = input;
-  const version = input.packageName ?? (packageId ? `version ${shortId(packageId)}` : "this package");
+  /** The package as this room names it: the org's label with the relationship's
+   *  own name off the front of it, where nCino put it there. */
+  const packageName = input.packageName ? shortPackageName(input.accountName, input.packageName) : null;
+  const version = packageName ?? (packageId ? `version ${shortId(packageId)}` : "this package");
   const lines: string[] = [];
   let lead: string;
   let fromOrg = false;
@@ -340,7 +347,16 @@ export function memoGreeting(input: MemoGreetingInput): MemoGreeting {
        timeline row (`MemoRoom`'s `FiledRow`), which is where the filed lines and
        the exposure are: a greeting that listed them again would be the same four
        facts twice on one screen, in two shapes, for no reader. */
-    lead = `Drafting the memo for version ${filed.version ?? version}: ${countPhrase(
+    /* THE VERSION IS THE PACKAGE'S NAME WHERE THE ROOM KNOWS IT (the memo pass's
+       own rule). A raw org id is not something a banker reads, and the id is on
+       the sheet above this anyway; only where there is no name at all does the
+       greeting fall back to naming the version by its short id. */
+    const anchor = packageName
+      ? `the ${packageName}`
+      : filed.version
+        ? `version ${shortId(filed.version)}`
+        : version;
+    lead = `Drafting the memo for ${anchor}: ${countPhrase(
       filed.items.length,
       input.carriedSplit,
     )} filed on this package a moment ago.`;

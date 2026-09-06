@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   deltaM,
+  shortPackageName,
   filedStamp,
   filedTitle,
   moneyM,
@@ -53,6 +54,18 @@ describe("what the sheet calls the filing", () => {
     expect(filedTitle({ mode: "renew", ...where, renewedTo: null })).toMatch(/^Renewed on /);
     expect(renewedTo([line({ title: "Commitment amount", after: "$18,000,000" })])).toBeNull();
     expect(renewedTo([line({ title: "Maturity date", after: "30 Jun 2027" })])).toBe("30 Jun 2027");
+  });
+
+  it("does not say the relationship's name twice in one line", () => {
+    /* nCino NAMES A PACKAGE AFTER THE BORROWER, so the org's own label repeats
+       the account four words after the heading already said it. */
+    const said = filedTitle({
+      mode: "modify",
+      accountName: "Hartwell Precision Manufacturing LLC",
+      packageName: "Hartwell Precision Manufacturing LLC credit package",
+      version: "a5F1",
+    });
+    expect(said).toBe("Filed on Hartwell Precision Manufacturing LLC, credit package, version a5F1");
   });
 
   it("stamps the clock and the banker in the seat", () => {
@@ -127,5 +140,32 @@ describe("who acts next", () => {
   it("is null where the org said neither, so the sheet omits the block", () => {
     expect(whoActsNext(null, undefined)).toBeNull();
     expect(whoActsNext("  ", "")).toBeNull();
+  });
+});
+
+describe("the package, as a heading names it", () => {
+  const ACCOUNT = "Hartwell Precision Manufacturing LLC";
+
+  it("drops the relationship's own name off the front, and the separator with it", () => {
+    expect(shortPackageName(ACCOUNT, `${ACCOUNT} credit package`)).toBe("credit package");
+    expect(shortPackageName(ACCOUNT, `${ACCOUNT} · credit package`)).toBe("credit package");
+    expect(shortPackageName(ACCOUNT, `${ACCOUNT}, credit package`)).toBe("credit package");
+  });
+
+  it("leaves a package that is not named after the relationship exactly as the org wrote it", () => {
+    expect(shortPackageName(ACCOUNT, "C&I Core Package")).toBe("C&I Core Package");
+    expect(shortPackageName(null, "C&I Core Package")).toBe("C&I Core Package");
+  });
+
+  it("trims the middle where it still runs long, on word boundaries and never at the end", () => {
+    const said = shortPackageName(ACCOUNT, `${ACCOUNT} credit package · Non-Real Estate and Real Estate`);
+    expect(said).toBe("credit package…and Real Estate");
+    // The tail is what tells two packages on one relationship apart; it stays.
+    expect(said.endsWith("Real Estate")).toBe(true);
+    expect(said.length).toBeLessThanOrEqual(40);
+  });
+
+  it("never returns nothing: a package named exactly after the account keeps its label", () => {
+    expect(shortPackageName(ACCOUNT, ACCOUNT)).toBe(ACCOUNT);
   });
 });

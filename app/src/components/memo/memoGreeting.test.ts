@@ -226,23 +226,35 @@ describe("the greeting", () => {
 
   it("leads on the version the finale filed, over the trail's own account of it", () => {
     const g = memoGreeting({ ...base, executed: executedRead([row()], PACKAGE), filed: FILED });
-    expect(g.lead).toBe(
-      "Drafting the memo for version a5Fbb000000J61hEAC: 2 changes filed on this package a moment ago.",
-    );
+    /* NEVER A RAW ORG ID. With no package name in this input the greeting names
+       the version by its short id, which is the memo pass's own rule. */
+    expect(g.lead).toBe("Drafting the memo for version a5Fbb000…: 2 changes filed on this package a moment ago.");
     /* AND IT SAYS IT ONCE. The filed lines and the exposure are drawn above this
        as the room's first timeline row; a greeting that listed them again would
        be the same facts twice on one screen. */
     expect(g.lines).toHaveLength(0);
   });
 
-  it("falls back to the package's own name where the org returned no version", () => {
+  it("names the package rather than a version, and drops the relationship out of it", () => {
     const g = memoGreeting({
       ...base,
-      packageName: "Hartwell C&I Credit Package",
+      accountName: "Hartwell Precision Manufacturing LLC",
+      packageName: "Hartwell Precision Manufacturing LLC credit package",
+      executed: executedRead([], PACKAGE),
+      filed: FILED,
+    });
+    expect(g.lead).toBe("Drafting the memo for the credit package: 2 changes filed on this package a moment ago.");
+  });
+
+  it("says the package without the word version where the org returned no version id", () => {
+    const g = memoGreeting({
+      ...base,
+      packageName: "C&I credit package",
       executed: executedRead([], PACKAGE),
       filed: { ...FILED, version: null },
     });
-    expect(g.lead).toContain("for version Hartwell C&I Credit Package");
+    expect(g.lead).toContain("for the C&I credit package");
+    expect(g.lead).not.toContain("version");
   });
 
   it("reads the org when no finale handed anything over, which is every other door", () => {

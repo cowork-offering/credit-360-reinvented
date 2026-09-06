@@ -154,6 +154,7 @@ export function MemoRoomHost() {
     return memoGreeting({
       packageId,
       packageName,
+      accountName: session?.accountName ?? null,
       trigger: session?.trigger ?? "adhoc",
       executed,
       carried: session?.carried ?? null,
@@ -162,7 +163,18 @@ export function MemoRoomHost() {
       plan: renderPlanFor(dossier),
       hasStoredMemo: latest !== null,
     });
-  }, [dossier, packageId, session?.trigger, session?.carried, session?.carriedSplit, session?.filed, executed, latest]);
+  }, [
+    dossier,
+    packageId,
+    packageName,
+    session?.accountName,
+    session?.trigger,
+    session?.carried,
+    session?.carriedSplit,
+    session?.filed,
+    executed,
+    latest,
+  ]);
 
   const deps = useMemo<MemoDeps>(
     () => ({

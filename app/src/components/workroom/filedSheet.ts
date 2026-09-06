@@ -49,6 +49,44 @@ export function deltaM(mm: number): string {
 
 /* ------------------------------------------------------------- the heading */
 
+/** Past this the package part of a heading is trimmed in the middle. Long enough
+ *  for every package name this book carries once the relationship's own name is
+ *  off the front of it. */
+export const PACKAGE_NAME_CAP = 40;
+
+/**
+ * THE PACKAGE, WITHOUT THE RELATIONSHIP'S NAME IN IT TWICE.
+ *
+ * nCino names a package after the borrower, so the org's own label is
+ * "Hartwell Precision Manufacturing LLC credit package - Non-Real Estate and
+ * Real Estate" and a heading that already says "Filed on Hartwell Precision
+ * Manufacturing LLC" then says it again, in the same line, four words later.
+ * The account is the subject of the sentence; the package is what it was filed
+ * against, and only the part that distinguishes it is news.
+ *
+ * TRIMMED IN THE MIDDLE, NEVER AT THE END, where the label still runs long. What
+ * distinguishes two packages on one relationship is as often the tail ("Real
+ * Estate") as the head, so a trailing ellipsis would cut off the half that
+ * identifies it. The cut lands on word boundaries so neither end is a fragment.
+ *
+ * IT NEVER RETURNS NOTHING. A package named exactly after the account keeps the
+ * org's own label rather than becoming an empty string.
+ */
+export function shortPackageName(accountName: string | null | undefined, packageName: string): string {
+  const full = (packageName ?? "").trim();
+  const account = (accountName ?? "").trim();
+  let name = full;
+  if (account && full.toLowerCase().startsWith(account.toLowerCase())) {
+    name = full.slice(account.length).replace(/^[\s,:·\-]+/, "").trim() || full;
+  }
+  if (name.length <= PACKAGE_NAME_CAP) return name;
+  // A head that ends on the separator it was cut before ("credit package ·…")
+  // is a dangling mark; the ellipsis is the mark.
+  const head = name.slice(0, 20).replace(/\s+\S*$/, "").replace(/[\s,:·\-]+$/, "");
+  const tail = name.slice(-19).replace(/^\S*\s+/, "").trimStart();
+  return `${head}…${tail}`;
+}
+
 /** What the room did, in the word the mode uses for it. A renewal names the date
  *  it renewed TO, because that is the fact a banker reads a renewal for. */
 export function filedTitle(args: {
@@ -61,7 +99,7 @@ export function filedTitle(args: {
   /** The maturity the renewal filed, where the manifest carried one. */
   renewedTo?: string | null;
 }): string {
-  const where = [args.accountName, args.packageName].filter(Boolean).join(", ");
+  const where = [args.accountName, shortPackageName(args.accountName, args.packageName)].filter(Boolean).join(", ");
   const tail = args.version ? `${where}, version ${args.version}` : where;
   if (args.mode === "renew") return args.renewedTo ? `Renewed to ${args.renewedTo} on ${tail}` : `Renewed on ${tail}`;
   if (args.mode === "create") return `Proposed on ${tail}`;

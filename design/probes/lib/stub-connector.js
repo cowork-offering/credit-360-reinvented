@@ -117,7 +117,11 @@
           bookingHandoff: "Booking runs through nCino's own Submit for Approval; this does not book the facility.",
           approvalChainStarted: true,
           facilities: (((input || {}).inputs || [])[0].facilities || []).map(function (f, i) {
-            return { facilityId: f.facilityId || ("a4Zbb000002" + i), loanId: "a4Zbb0000027NpMEAU", cloneLoanId: "a4Zbb0000027NpMEAU", status: "Qualification" };
+            /* ONE CLONE PER FACILITY, with an id of its own. The stand-in used to hand
+               the SAME clone id back for every facility, which put one record id on
+               every row of the filed ledger and read like a mapping defect in the
+               room. The room was right; the org was repeating itself. */
+            return { facilityId: f.facilityId || ("a4Zbb000002" + i), loanId: "a4Zbb0000027NpM" + i + "AU", cloneLoanId: "a4Zbb0000027NpM" + i + "AU", status: "Qualification" };
           }),
           facilityCount: 1
           })); }, 1800);

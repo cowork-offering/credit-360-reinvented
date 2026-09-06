@@ -3141,12 +3141,31 @@ body.wk-open #root {
 .wk-room[data-finale="still"] .wk-thread {
   align-items: center;
 }
-.wk-room[data-finale="still"] .wk-thread > .wk-ex[data-finale-card] {
+/* THE CARD IS NOT A DIRECT CHILD OF THE THREAD (2026-09-06). It is inside its
+   step, and the rule below hid every direct child that was not the card - which
+   is every step, INCLUDING the one holding it. The finale has been laying itself
+   out over an empty room on any conversation with more than one step since the
+   day it shipped; the sheet is what made it visible, because a shared-element
+   morph cannot measure a box that is `display: none`.
+
+   The step carrying the star says so (`data-star`, Workroom.tsx) and keeps its
+   layout; inside it, everything the drain took is already off stage by the
+   drain's own contract, so the card is alone either way. */
+.wk-room[data-finale="still"] .wk-thread > [data-star] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+.wk-room[data-finale="still"] .wk-ex[data-finale-card] {
   width: 100%;
   max-width: 640px;
 }
-/* Whatever arrives after the card (a late footnote) stays off the glass. */
-.wk-room[data-finale="still"] .wk-thread > :not([data-finale-card]):not(.wk-afterglow):not(.wk-sheet) {
+/* Whatever arrives after the card (a late footnote) stays off the glass, at both
+   altitudes: a step that is not the star's, and anything inside the star's step
+   that is not the card. */
+.wk-room[data-finale="still"] .wk-thread > :not([data-finale-card]):not(.wk-afterglow):not(.wk-sheet):not([data-star]),
+.wk-room[data-finale="still"] .wk-thread > [data-star] > :not([data-finale-card]) {
   display: none;
 }
 .wk-composer[hidden],
@@ -3690,7 +3709,11 @@ body.wk-open #root {
   width: var(--wk-ghost-w, auto);
   pointer-events: none;
   z-index: 1;
-  animation: wk-ghost-out 300ms var(--ease-settle) both;
+  /* A BEAT BEHIND THE SHEET, so the two are a hand-over and not a gap. The sheet
+     is released on the frame after it mounts and takes its opacity up over the
+     first 330ms; the card holds its own for that frame and then goes, so at every
+     instant of the growth there is exactly one card-shaped thing on the glass. */
+  animation: wk-ghost-out 300ms var(--ease-settle) 60ms both;
 }
 @keyframes wk-ghost-out {
   from {

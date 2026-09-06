@@ -126,10 +126,10 @@ export function useCardMorph(reduced: boolean): Morph {
     [later, reduced],
   );
 
-  /* THE INVERSE, THEN THE RELEASE. The sheet is in flow at its own size the
+  /* THE INVERSE, AND THEN THE GROWTH. The sheet is in flow at its own size the
      instant this runs, so the transform that puts it over the card is the only
-     thing between the reader and a jump. It is applied before paint (layout
-     effect), and released on the next frame. */
+     thing between the reader and a jump. It is computed before paint (layout
+     effect) and handed to an animation with a clock of its own. */
   useLayoutEffect(() => {
     if (phase !== "morph") return;
     const el = sheet.current;
@@ -159,26 +159,53 @@ export function useCardMorph(reduced: boolean): Morph {
       ghost.style.setProperty("--wk-ghost-w", `${start.width}px`);
     }
 
-    el.style.transition = "none";
-    el.style.transformOrigin = "center center";
-    el.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${scale})`;
-    el.style.opacity = "0";
-    // One forced read, so the browser cannot batch the start state away.
-    void el.offsetWidth;
-    el.style.transition = `transform ${MORPH_MS}ms var(--ease-settle), opacity ${Math.round(MORPH_MS * 0.6)}ms var(--ease-settle)`;
-    el.style.transform = "none";
-    el.style.opacity = "1";
+    /* THE GROWTH IS AN ANIMATION, NOT A PAIR OF STYLE WRITES.
 
-    later(() => {
+       The textbook FLIP sets the from-state, forces a reflow and sets the
+       to-state, and a CSS transition picks the difference up. It does transition
+       - but its clock starts at the browser's next style recalculation, and this
+       runs inside React's commit with the drain's own animations still to come.
+       Measured on the strip harness: the sheet held the card's box for 340ms and
+       then covered 90% of the distance in one frame, which is a jump wearing a
+       transition's clothes.
+
+       `Element.animate` has a clock of its own. It starts on the next frame
+       whatever the main thread is doing, it interpolates on that clock rather
+       than on repaints, and it ends by resolving a promise rather than by a
+       timer somebody has to keep in step with the stylesheet. The keyframes are
+       transform and opacity only, exactly as before.
+
+       THE EASING IS THE ROOM'S OWN, READ OFF THE ROOM. `--ease-settle` is the
+       rooms' settle curve and it is defined once, in tokens.css; taking its
+       literal from the element keeps this from becoming a second place that
+       claims to know what the room's easing is. */
+    const settle = getComputedStyle(el).getPropertyValue("--ease-settle").trim() || "cubic-bezier(0.19, 1, 0.3, 1)";
+    const growth = el.animate(
+      [
+        { transform: `translate3d(${dx}px, ${dy}px, 0) scale(${scale})`, opacity: 0 },
+        /* THE SHEET IS WHOLE BEFORE IT HAS FINISHED ARRIVING. The card is fading
+           underneath it on its own 300ms, so the two overlap rather than trading
+           places, and there is never a frame with nothing card-shaped on it. */
+        { opacity: 1, offset: 0.55 },
+        { transform: "none", opacity: 1 },
+      ],
+      { duration: MORPH_MS, easing: settle, fill: "both" },
+    );
+
+    const land = () => {
+      growth.cancel();
       const done = sheet.current;
       if (done) {
-        done.style.transition = "";
-        done.style.transform = "";
-        done.style.opacity = "";
         done.style.transformOrigin = "";
       }
       setPhase("sheet");
-    }, MORPH_MS + 40);
+    };
+    /* WHICHEVER COMES FIRST, AND ONE OF THEM ALWAYS DOES. A promise that never
+       resolves - a cancelled animation, a backgrounded tab - must not leave the
+       room mid-growth, and a timer that fires early must not cut the travel off,
+       so the ceiling sits a beat past the animation's own length. */
+    growth.finished.then(land).catch(() => {});
+    later(land, MORPH_MS + 120);
   }, [phase, later]);
 
   const cardRef = useCallback((el: HTMLElement | null) => {

@@ -255,6 +255,21 @@ describe("the card becomes the sheet", () => {
     expect(sheet.getAttribute("data-morph")).toBeNull();
   });
 
+  it("keeps the card's own step on the glass, which is what the morph measures", async () => {
+    const { room } = await fileAPlan();
+    /* THE CARD IS NOT A DIRECT CHILD OF THE THREAD. It sits inside its step, and
+       the finale's "still" rule hides every direct child that is not the card -
+       so it was hiding the step holding it, and the room's ending was laying
+       itself out over nothing on any conversation with two steps. A FLIP cannot
+       measure a `display: none` box, which is how it was finally caught. */
+    const star = room.querySelector("[data-finale-card]")!;
+    const step = star.parentElement!;
+    expect(step.classList.contains("wk-step")).toBe(true);
+    expect(step.hasAttribute("data-star")).toBe(true);
+    // And no other step claims it.
+    expect(room.querySelectorAll("[data-star]")).toHaveLength(1);
+  });
+
   it("names what was filed, on which version, and when, in the mode's own words", async () => {
     const { room } = await fileAPlan();
     const title = sheetOf(room).querySelector(".wk-sheet-t")!.textContent!;

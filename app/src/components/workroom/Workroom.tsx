@@ -5852,6 +5852,17 @@ export function Workroom({
                 {grouped.map((group) => (
                   <div
                     className={`wk-step ${shows(group) || histOpen ? "" : "wk-gone"}`}
+                    /* THE STEP THE CARD IS IN SURVIVES THE FINALE (2026-09-06).
+                       The finale's "still" state hides every direct child of the
+                       thread that is not the card - and the card is not a direct
+                       child, it is inside its step, so the rule was hiding the
+                       card with everything else. It has been laying the finale
+                       out over an empty room since the day it shipped, on any
+                       conversation long enough to have two steps; the sheet only
+                       made it visible because a FLIP cannot measure a box that
+                       is `display: none`. The step says it carries the star and
+                       the stylesheet spares that one. */
+                    data-star={group.items.some((i) => i.kind === "dossier") ? "" : undefined}
                     key={`step-${group.step}-${group.items[0].id}`}
                   >
                     {/* THE SUMMON (the entry choreography). Earlier tiers are
