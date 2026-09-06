@@ -206,6 +206,51 @@ describe("the greeting", () => {
     expect(g.lead).toContain("Drafting the memo for that version");
   });
 
+  /* THE HANDOVER LEADS WHERE THERE IS ONE (founder, 2026-09-06). A room opened by
+     a finale is standing on a filing that happened seconds ago, and the trail read
+     that would confirm it has not come back yet - or comes back carrying the
+     PREVIOUS filing on this package. The greeting names the version and the lines
+     on its first commit, from what the sheet handed over. */
+  const FILED = {
+    title: "Filed on Hartwell Precision Manufacturing LLC, C&I Credit Package, version a5Fbb000000J61hEAC",
+    version: "a5Fbb000000J61hEAC",
+    kind: "modify" as const,
+    items: [
+      { id: "c1", label: "Commitment amount", target: "Line of Credit", before: "$15,000,000", after: "$18,000,000" },
+      { id: "c2", label: "Maturity date", target: "Line of Credit", before: "30 Jun 2026", after: "30 Jun 2027" },
+    ],
+    exposureBefore: "$46.0M",
+    exposureAfter: "$49.0M",
+    pending: true,
+  };
+
+  it("leads on the version the finale filed, over the trail's own account of it", () => {
+    const g = memoGreeting({ ...base, executed: executedRead([row()], PACKAGE), filed: FILED });
+    expect(g.lead).toBe(
+      "Drafting the memo for version a5Fbb000000J61hEAC: 2 changes filed on this package a moment ago.",
+    );
+    /* AND IT SAYS IT ONCE. The filed lines and the exposure are drawn above this
+       as the room's first timeline row; a greeting that listed them again would
+       be the same facts twice on one screen. */
+    expect(g.lines).toHaveLength(0);
+  });
+
+  it("falls back to the package's own name where the org returned no version", () => {
+    const g = memoGreeting({
+      ...base,
+      packageName: "Hartwell C&I Credit Package",
+      executed: executedRead([], PACKAGE),
+      filed: { ...FILED, version: null },
+    });
+    expect(g.lead).toContain("for version Hartwell C&I Credit Package");
+  });
+
+  it("reads the org when no finale handed anything over, which is every other door", () => {
+    const g = memoGreeting({ ...base, executed: executedRead([row()], PACKAGE), filed: null });
+    expect(g.fromOrg).toBe(true);
+    expect(g.lead).toContain("Since the last memo");
+  });
+
   it("says the honest line and works from the handover when the trail carries no steps", () => {
     const executed = executedRead([row({ steps: undefined, stepCount: undefined, changeCounts: undefined })], PACKAGE);
     const g = memoGreeting({

@@ -121,10 +121,22 @@ export function MemoRoomHost() {
   const rows = orgRows ?? (accountId ? state.actionHistory[accountId] : undefined);
   const executed = useMemo(() => executedRead(rows, packageId), [rows, packageId]);
 
-  /* THE CHANGES THIS MEMO IS ABOUT. The org's own step detail is the source of
-     truth (requirements, non-negotiable 1); the finale's handover is the
-     fallback, and the greeting says which of the two the room is standing on. */
-  const changes = executed.hasSteps ? executed.changes : (session?.carried ?? []);
+  /* THE CHANGES THIS MEMO IS ABOUT.
+
+     THE HANDOVER LEADS WHERE THERE IS ONE (founder, 2026-09-06: "it inserts all
+     the information, but all super super gentle, no hangers"). A room opened by
+     a finale is standing on a filing that happened seconds ago, in this session,
+     and the trail read that would confirm it has not come back yet - and may
+     come back carrying the PREVIOUS filing on this package, which would put the
+     wrong change list under the banker's own. So the just-filed ledger is the
+     first source and the org's step detail is the second.
+
+     NON-NEGOTIABLE 1 IS UNTOUCHED FOR EVERY OTHER DOOR. A memo opened from the
+     FAB, or by anyone at any later moment, carries no handover and reads the
+     org, which is the case the requirement is about: the same memo for a viewer
+     who never saw the filing. The greeting still says which of the two it is
+     standing on, so a banker is never guessing. */
+  const changes = session?.carried?.length ? session.carried : executed.changes;
 
   const dossier = useMemo(() => {
     if (!bundle) return null;
@@ -146,10 +158,11 @@ export function MemoRoomHost() {
       executed,
       carried: session?.carried ?? null,
       carriedSplit: session?.carriedSplit ?? null,
+      filed: session?.filed ?? null,
       plan: renderPlanFor(dossier),
       hasStoredMemo: latest !== null,
     });
-  }, [dossier, packageId, session?.trigger, session?.carried, session?.carriedSplit, executed, latest]);
+  }, [dossier, packageId, session?.trigger, session?.carried, session?.carriedSplit, session?.filed, executed, latest]);
 
   const deps = useMemo<MemoDeps>(
     () => ({
@@ -192,6 +205,10 @@ export function MemoRoomHost() {
         dossier={dossier}
         changes={changes}
         greeting={greeting}
+        /* THE SHEET, REDRAWN AS THE ROOM'S FIRST TIMELINE ROW, and the flag that
+           says the sheet has finished sliding off it. */
+        filed={session.filed}
+        settled={session.settled}
         latest={latest}
         deps={deps}
         onClose={closeMemoRoom}

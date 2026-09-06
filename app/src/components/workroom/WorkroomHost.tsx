@@ -16,9 +16,10 @@ import { stageAction } from "../../channel/writeTools";
 import { armStage } from "./orgArms";
 import type { WorkroomContext, WorkroomExecution, WorkroomMode } from "../../workroom/types";
 import { anchorFacilityRoom, bindFacilityRoute, closeFacilityRoom, useFacilityRoom } from "./roomSession";
-import { openMemoRoom } from "../memo/memoSession";
-import { changesFromFiled, splitOfFiled } from "../memo/carry";
+import { openMemoRoom, settleMemoHandoff } from "../memo/memoSession";
+import { changesFromFiled, filedSummaryFrom, splitOfFiled } from "../memo/carry";
 import type { FiledLine } from "./FiledList";
+import type { FiledSheetModel } from "./filedSheet";
 import { Workroom, neutralAsk, smartAsk, type WorkroomRouter } from "./Workroom";
 import { RoomBoundary } from "./RoomBoundary";
 import type { ReadSource } from "./readCard";
@@ -224,7 +225,7 @@ export function WorkroomHost() {
      it), so the memo opens on the anchor this room is standing on and never has
      to ask again. The facility room closes: one room at a time on the glass. */
   const openMemo = useCallback(
-    (filed?: readonly FiledLine[]) => {
+    (filed?: readonly FiledLine[], sheet?: FiledSheetModel) => {
       if (!context) return;
       openMemoRoom({
         accountId: context.accountId,
@@ -236,17 +237,37 @@ export function WorkroomHost() {
         trigger: filed ? context.mode : "adhoc",
         carried: filed ? changesFromFiled(filed) : null,
         carriedSplit: filed ? splitOfFiled(filed) : null,
+        /* THE SHEET, AS THE MEMO'S FIRST TIMELINE ROW. The same five facts the
+           banker was just reading, redrawn in the memo's own grammar, so the
+           handover is one surface continuing rather than two rooms swapping. */
+        filed: sheet ? filedSummaryFrom(sheet, context.mode) : null,
+        /* AND THE GLASS IS STILL MOVING. The sheet is sliding off this room as
+           it mounts; `onDraftMemoLanded` below is what says it has stopped. */
+        handoff: Boolean(sheet),
         /* WHERE THE REQUEST CAME FROM, where an intent opened this session and
            named it. Read off the intent the banker actually took, and only when
            it is about this relationship: a stale consumed intent from another
            account would put someone else's email on this memo. */
         source: sourceOfConsumedIntent(context.accountId),
       });
-      closeFacilityRoom();
-      closeWorkroom();
+      /* THE FACILITY ROOM DOES NOT CLOSE HERE ANY MORE (founder, 2026-09-06).
+         The memo room mounts UNDER the sheet and the sheet slides off it; a room
+         that closed on this call would take the slide with it and the handover
+         would be a cut. `handedOff` below is the other half. */
+      if (!sheet) {
+        closeFacilityRoom();
+        closeWorkroom();
+      }
     },
     [context],
   );
+
+  /** The sheet has finished sliding: the memo may write, and this room may go. */
+  const handedOff = useCallback(() => {
+    settleMemoHandoff();
+    closeFacilityRoom();
+    closeWorkroom();
+  }, []);
 
   const router = useMemo<WorkroomRouter | undefined>(() => {
     if (!session) return undefined;
@@ -298,6 +319,7 @@ export function WorkroomHost() {
         /* THE SECOND DOOR IN THE AFTERGLOW. The room hands over the ledger its
            card is showing and this opens the memo room on it. */
         onDraftMemo={openMemo}
+        onDraftMemoLanded={handedOff}
         onAnchor={(choice) =>
           session
             ? anchorFacilityRoom(choice.id)

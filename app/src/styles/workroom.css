@@ -3087,11 +3087,6 @@ body.wk-open #root {
     transform: none;
   }
 }
-.wk-afterglow .wk-ag-acts {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 /* The doors wear the room's own quiet control. A finale is not the place for a
    second button weight. */
 .wk-afterglow a.wk-dt {
@@ -3151,7 +3146,7 @@ body.wk-open #root {
   max-width: 640px;
 }
 /* Whatever arrives after the card (a late footnote) stays off the glass. */
-.wk-room[data-finale="still"] .wk-thread > :not([data-finale-card]):not(.wk-afterglow) {
+.wk-room[data-finale="still"] .wk-thread > :not([data-finale-card]):not(.wk-afterglow):not(.wk-sheet) {
   display: none;
 }
 .wk-composer[hidden],
@@ -3208,14 +3203,14 @@ body.wk-open #root {
   max-width: none;
   width: 100%;
 }
-.wk-rescard .rc-fl {
+:is(.wk-rescard, .wk-sheet) .rc-fl {
   display: flex;
   flex-direction: column;
   gap: 2px;
   margin-top: 2px;
 }
-.wk-rescard .rc-fl-h,
-.wk-rescard .rc-fl-r {
+:is(.wk-rescard, .wk-sheet) .rc-fl-h,
+:is(.wk-rescard, .wk-sheet) .rc-fl-r {
   opacity: 0;
   animation: wk-fl-rise var(--wk-fl-ms, 320ms) var(--ease-settle) forwards;
 }
@@ -3229,27 +3224,27 @@ body.wk-open #root {
     transform: none;
   }
 }
-.wk-rescard .rc-fl-h {
+:is(.wk-rescard, .wk-sheet) .rc-fl-h {
   display: flex;
   align-items: baseline;
   gap: 8px;
   margin-bottom: 4px;
   padding-top: 2px;
 }
-.wk-rescard .rc-fl-t {
+:is(.wk-rescard, .wk-sheet) .rc-fl-t {
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-label);
 }
-.wk-rescard .rc-fl-n {
+:is(.wk-rescard, .wk-sheet) .rc-fl-n {
   font-size: 10.5px;
   color: var(--ink-faint);
   margin-left: auto;
   font-variant-numeric: tabular-nums;
 }
-.wk-rescard .rc-fl-r {
+:is(.wk-rescard, .wk-sheet) .rc-fl-r {
   display: grid;
   grid-template-columns: 18px minmax(0, 1.4fr) minmax(0, 1fr) auto auto;
   align-items: center;
@@ -3257,30 +3252,30 @@ body.wk-open #root {
   padding: 5px 0;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
-.wk-rescard .rc-fl-r .tico {
+:is(.wk-rescard, .wk-sheet) .rc-fl-r .tico {
   grid-column: 1;
   width: 18px;
   height: 18px;
   border-radius: 6px;
 }
-.wk-rescard .rc-fl-r .tico svg {
+:is(.wk-rescard, .wk-sheet) .rc-fl-r .tico svg {
   width: 11px;
   height: 11px;
 }
-.wk-rescard .rc-fl-l {
+:is(.wk-rescard, .wk-sheet) .rc-fl-l {
   grid-column: 2;
   min-width: 0;
   display: flex;
   align-items: center;
   color: var(--ink);
 }
-.wk-rescard .rc-fl-l b {
+:is(.wk-rescard, .wk-sheet) .rc-fl-l b {
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.wk-rescard .rc-fl-tg {
+:is(.wk-rescard, .wk-sheet) .rc-fl-tg {
   grid-column: 3;
   min-width: 0;
   font-size: 10.6px;
@@ -3289,7 +3284,7 @@ body.wk-open #root {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.wk-rescard .rc-fl-d {
+:is(.wk-rescard, .wk-sheet) .rc-fl-d {
   grid-column: 4;
   display: inline-flex;
   align-items: baseline;
@@ -3297,22 +3292,22 @@ body.wk-open #root {
   font-size: 11.5px;
   white-space: nowrap;
 }
-.wk-rescard .rc-fl-was {
+:is(.wk-rescard, .wk-sheet) .rc-fl-was {
   color: var(--ink-faint);
   text-decoration: line-through;
   text-decoration-color: var(--ink-faint);
 }
-.wk-rescard .rc-fl-arw {
+:is(.wk-rescard, .wk-sheet) .rc-fl-arw {
   color: var(--ink-faint);
 }
-.wk-rescard .rc-fl-now {
+:is(.wk-rescard, .wk-sheet) .rc-fl-now {
   color: var(--ink);
   font-weight: 600;
 }
 /* THE PROOF, QUIET. The same mono id the rail card carried, at the same weight:
    it is evidence a banker pastes into a search, never a badge. */
-.wk-rescard .rc-fl-id,
-.wk-rescard .rc-fl-off {
+:is(.wk-rescard, .wk-sheet) .rc-fl-id,
+:is(.wk-rescard, .wk-sheet) .rc-fl-off {
   grid-column: 5;
   justify-self: end;
   font-family: var(--font-mono);
@@ -3322,25 +3317,25 @@ body.wk-open #root {
 }
 /* NOTHING WAS WRITTEN, SAID IN THE ID'S OWN PLACE. A blank column would read as
    a filed row whose id did not fit; the word is the honest cell. */
-.wk-rescard .rc-fl-off {
+:is(.wk-rescard, .wk-sheet) .rc-fl-off {
   font-family: inherit;
   font-style: italic;
 }
 /* NARROW GLASS: the target folds under the title and the ledger keeps its two
    figures on the right, which is the pair a banker scans. */
 @media (max-width: 700px) {
-  .wk-rescard .rc-fl-r {
+  :is(.wk-rescard, .wk-sheet) .rc-fl-r {
     grid-template-columns: 18px minmax(0, 1fr) auto;
   }
-  .wk-rescard .rc-fl-tg {
+  :is(.wk-rescard, .wk-sheet) .rc-fl-tg {
     grid-column: 2;
     grid-row: 2;
   }
-  .wk-rescard .rc-fl-d {
+  :is(.wk-rescard, .wk-sheet) .rc-fl-d {
     grid-column: 3;
   }
-  .wk-rescard .rc-fl-id,
-  .wk-rescard .rc-fl-off {
+  :is(.wk-rescard, .wk-sheet) .rc-fl-id,
+  :is(.wk-rescard, .wk-sheet) .rc-fl-off {
     grid-column: 3;
     grid-row: 2;
   }
@@ -3349,8 +3344,8 @@ body.wk-open #root {
    rest and would stay hidden, so they are restored here rather than in the
    sheet's own reduced-motion block, which this section is written after. */
 @media (prefers-reduced-motion: reduce) {
-  .wk-rescard .rc-fl-h,
-  .wk-rescard .rc-fl-r {
+  :is(.wk-rescard, .wk-sheet) .rc-fl-h,
+  :is(.wk-rescard, .wk-sheet) .rc-fl-r {
     opacity: 1;
     transform: none;
   }
@@ -3385,4 +3380,372 @@ body.wk-open #root {
   font-size: 12px;
   line-height: 1.55;
   color: var(--ink-body);
+}
+
+/* =============================================================================
+   THE SHEET THE CARD GROWS INTO (founder, 2026-09-06).
+
+   "Make the modification / renewal and loan creation at the end a little bit
+   more cinematic, I liked the rainbow card morphing into this but I need a clean
+   room at the end when it's done with a clean Summary screen. But all super
+   super gentle, no hangers, I hate when it gets stuck, so we need to ensure it's
+   all fluid."
+
+   THE MORPH IS TRANSFORM AND OPACITY AND NOTHING ELSE. Both of those are the
+   compositor's own properties: no relayout, no re-rasterisation of a blurred rim,
+   no reflow of a ledger, at any frame of the growth. Width, height, filter and
+   box-shadow are the four that would turn this into the "gets stuck" the founder
+   named, and none of them is animated here. `morph.ts` writes the two numbers
+   (the inverse transform, then the release); this sheet holds everything else.
+
+   THE CARD DOES NOT MOVE WHILE IT LEAVES. It is pinned at the box it was already
+   occupying and fades under the sheet growing over it, so the two are one
+   dissolve in one place rather than two elements changing places.
+   ============================================================================= */
+
+.wk-sheet {
+  position: relative;
+  align-self: center;
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  border-radius: 18px;
+  padding: 22px 24px 20px;
+  font-size: 12.5px;
+  color: var(--ink-body);
+  border: 1px solid var(--glass-hairline);
+  background: rgba(255, 255, 255, 0.78);
+  /* autoprefixer: ignore next */
+  -webkit-backdrop-filter: blur(var(--blur-workroom)) saturate(1.8);
+  backdrop-filter: blur(var(--blur-workroom)) saturate(1.8);
+  box-shadow: var(--glass-rim), 0 20px 54px -24px rgba(0, 0, 0, 0.28);
+  font-variant-numeric: tabular-nums;
+}
+/* THE RAINBOW, THINNED TO AN EDGE AND HELD STILL. The card's light turns because
+   the card is a moment; the sheet is a place, and a place does not pulse. A
+   static conic gradient is painted once and never again, which is also why the
+   morph can be a pure composite. */
+.wk-sheet > .aura {
+  opacity: 0.16;
+  inset: -3px;
+  filter: blur(10px);
+  animation: none;
+}
+/* ---- WHAT THE GROWTH COSTS, AND WHY THE GLASS STANDS DOWN FOR IT.
+
+   MEASURED, 2026-09-06, perf.mjs at 4x: the morph ran at 4.9fps with ZERO long
+   tasks. Nothing was blocking the main thread; the compositor was re-rasterising
+   a `backdrop-filter` on a moving element every single frame, which is the one
+   thing a backdrop filter cannot survive. A transform is free; a transform over
+   a lens is a full re-read of everything behind it, sixty times a second.
+
+   SO THE LENS STANDS DOWN FOR THE 600ms IT IS MOVING, and comes back the instant
+   it stops. It is not animated - it is switched, once, at each end of the beat -
+   and what stands in for it is the tint the lens was producing anyway. The sheet
+   at rest is unchanged, which is what every look shot in this repo photographs.
+
+   THE AURA'S BLUR GOES WITH IT, for the same reason: a 10px filter on a child of
+   a transforming element is re-rasterised at every scale it passes through. The
+   rainbow is still there while it travels, at a slightly harder edge nobody can
+   read at 600ms, and it softens into its hairline when the sheet lands. */
+.wk-sheet[data-morph="from"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.93);
+  will-change: transform, opacity;
+}
+.wk-sheet[data-morph="from"] > .aura {
+  opacity: 0.34;
+  filter: none;
+  transition: opacity 620ms var(--ease-settle);
+}
+
+.wk-sheet-h {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wk-sheet-t {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.wk-sheet-s {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.wk-sheet-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+.wk-sheet-k {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+/* THE LEDGER'S OWN HEAD IS THE SECTION'S HEAD. `FiledList` already prints "What
+   was filed" and the count; a second label above it would be the same words
+   twice. */
+.wk-sheet-sec[data-block="filed"] .rc-fl-h {
+  padding-top: 0;
+}
+
+/* ---- exposure, in the KPI band's voice: two figures and the movement. */
+.wk-sheet-x {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-top: 2px;
+}
+.wk-sheet-was {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+.wk-sheet-arw {
+  color: var(--ink-faint);
+}
+.wk-sheet-now {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.wk-sheet-d {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--wash-2);
+}
+/* PRO FORMA UNTIL THE ORG SAYS OTHERWISE. Quieter than the figure it qualifies,
+   because it is a caveat and not a second number. */
+.wk-sheet-d[data-pending] {
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+.wk-sheet-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  max-width: 52ch;
+}
+
+/* ---- terms and collateral: what the ledger's changes did to cover. One line,
+        the room's own check quoted, reading down to its figure on the right. */
+.wk-sheet-r {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 0;
+}
+.wk-sheet-rl {
+  min-width: 0;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wk-sheet-rd {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.wk-sheet-r .wk-sheet-now {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.wk-sheet-next {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-body);
+  max-width: 60ch;
+}
+
+/* ---- two doors, and never a third. */
+.wk-sheet-acts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+.wk-sheet-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  /* THE SAME SOFT GLOW THE ROOM USES ON ITS OWN PRIMARY, and no brighter: a
+     finale is not the place to invent a second button weight. */
+  box-shadow: 0 10px 26px -12px rgba(161, 0, 255, 0.55), var(--glass-rim);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.wk-sheet-go:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 32px -12px rgba(161, 0, 255, 0.68), var(--glass-rim);
+}
+.wk-sheet-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-hairline);
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.wk-sheet-back:hover {
+  color: var(--ink);
+  border-color: var(--ink-faint);
+}
+
+/* ---- WHAT ARRIVES AFTER THE GROWTH, and what was already there.
+
+   The heading and the ledger are the card's own content carried across by the
+   dissolve, so they are at rest from the first frame: animating them would be
+   the same words arriving twice. Everything the sheet ADDS lands as the growth
+   settles, one beat apart, which is the card's own construction continuing. */
+.wk-sheet[data-morph="from"] .wk-sheet-sec:not([data-block="filed"]),
+.wk-sheet[data-morph="from"] .wk-sheet-acts {
+  animation: wk-sheet-in 420ms var(--ease-settle) both;
+}
+.wk-sheet[data-morph="from"] .wk-sheet-sec[data-block="exposure"] {
+  animation-delay: 330ms;
+}
+.wk-sheet[data-morph="from"] .wk-sheet-sec[data-block="terms"] {
+  animation-delay: 440ms;
+}
+.wk-sheet[data-morph="from"] .wk-sheet-sec[data-block="next"] {
+  animation-delay: 550ms;
+}
+.wk-sheet[data-morph="from"] .wk-sheet-acts {
+  animation-delay: 660ms;
+}
+@keyframes wk-sheet-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- the card, while the sheet takes its place.
+
+   OUT OF FLOW AT THE BOX IT ALREADY HELD (`morph.ts` writes the three numbers),
+   so nothing on the glass moves at the instant it is lifted, and fading rather
+   than shrinking, because the sheet growing over it is the motion and two
+   motions in one place is a stutter. */
+/* THE CARD FADES WITHOUT ITS LENS EITHER. An opacity animation over a backdrop
+   filter is the same per-frame re-read as a transform over one, and the card is
+   under the sheet growing over it for the whole 300ms. */
+.wk-ex[data-finale-card][data-morph="ghost"] .wk-rescard {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.9);
+}
+/* AND ITS LIGHT STOPS TURNING THE MOMENT THE SHEET TAKES OVER.
+
+   `--aang` is a registered angle, so every frame of `aurarot` is a fresh conic
+   gradient painted and then blurred; `wk-fin-breathe` keeps that going for the
+   life of the room. That is the card's own light and it is right while the card
+   IS the room - but once the sheet is the room, it is a blurred rainbow being
+   repainted forever behind a display:none element. It stops here, at the exact
+   moment the sheet's own still aura takes its place. */
+.wk-ex[data-finale-card][data-morph="ghost"] .wk-rescard > .aura,
+.wk-room[data-finale="still"] .wk-ex[data-finale-card][data-morph="ghost"] .wk-rescard > .aura,
+.wk-ex[data-finale-card][data-morph="gone"] .wk-rescard > .aura,
+.wk-room[data-finale="still"] .wk-ex[data-finale-card][data-morph="gone"] .wk-rescard > .aura {
+  animation: none;
+  filter: none;
+}
+.wk-ex[data-finale-card][data-morph="ghost"] {
+  position: absolute;
+  top: var(--wk-ghost-top, 0);
+  left: var(--wk-ghost-left, 0);
+  width: var(--wk-ghost-w, auto);
+  pointer-events: none;
+  z-index: 1;
+  animation: wk-ghost-out 300ms var(--ease-settle) both;
+}
+@keyframes wk-ghost-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+/* AND THEN IT IS OFF STAGE, MOUNTED. The same contract the drain uses for
+   everything else it took: laid out nowhere, readable by nobody. */
+.wk-ex[data-finale-card][data-morph="gone"] {
+  display: none;
+}
+
+/* ---- the hand to the memo (founder, 2026-09-06).
+
+   The sheet slides LEFT off a memo room that is already mounted underneath it,
+   so the handover is one surface leaving rather than two rooms swapping. The
+   room's own glass goes with it: what is behind the sheet at that moment is the
+   memo's first timeline row, which is this sheet, compact. */
+.wk-sheet[data-handoff="out"] {
+  transition:
+    transform 520ms var(--ease-settle),
+    opacity 380ms var(--ease-out);
+  transform: translate3d(-56px, 0, 0);
+  opacity: 0;
+  pointer-events: none;
+}
+/* THE WORKROOM'S OWN GLASS GOES WITH IT. The memo room is mounted underneath by
+   the time this runs, so what the fade reveals is the memo, already there, with
+   this sheet as its first timeline row. The lift is what keeps the sliding sheet
+   on top of a room that mounted after it. */
+.wk-root[data-handoff="out"] .wk-scrim,
+.wk-root[data-handoff="out"] .wk-room {
+  transition: opacity 420ms var(--ease-out) 120ms;
+  opacity: 0;
+}
+.wk-root[data-handoff="out"] .wk-room {
+  z-index: 120;
+}
+.wk-root[data-handoff="out"] .wk-scrim {
+  z-index: 119;
+}
+
+/* NOTHING IS NEEDED FOR REDUCED MOTION, for the same reason the finale needs
+   nothing: `morph.ts` lands straight on the sheet in one commit, the ghost is
+   `display: none` from the first frame, and no keyframe above ever starts. The
+   `data-morph="from"` state simply never exists. */
+
+@media (max-width: 700px) {
+  .wk-sheet {
+    padding: 18px 16px 16px;
+  }
+  .wk-sheet-acts {
+    flex-wrap: wrap;
+  }
 }

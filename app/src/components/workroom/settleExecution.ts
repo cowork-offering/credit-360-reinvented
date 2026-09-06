@@ -38,6 +38,18 @@ import type { ActionHistoryRow } from "../../data/contract";
 export const POLL_EVERY_MS = 3_000;
 export const POLL_BUDGET_MS = 90_000;
 
+/**
+ * THE OTHER BUDGET: CONFIRMING A FILING THAT ALREADY ANSWERED.
+ *
+ * `POLL_BUDGET_MS` is the room waiting for an outcome it does not have, and
+ * ninety seconds of that is right because there is nothing else to do. This one
+ * is the sheet asking the org to CONFIRM figures it is already showing, behind a
+ * surface the banker is already reading. Nothing waits on it, so the honest
+ * budget is short: four polls, and then the sheet says the org has not answered
+ * rather than carrying "pending" for a minute and a half.
+ */
+export const CONFIRM_BUDGET_MS = 12_000;
+
 /** The one line the room says while it waits. Quiet, present tense, no alarm:
  *  the filing is happening, and nothing is being asked of the banker. */
 export const FILING_IN_FLIGHT = "Filing in progress, nCino is still writing.";
@@ -66,6 +78,9 @@ export interface SettleDeps {
   wait: (ms: number) => Promise<void>;
   /** Injected so the budget is measured rather than counted in ticks. */
   now: () => number;
+  /** How long to wait before giving up. {@link POLL_BUDGET_MS} where the caller
+   *  says nothing, which is the room waiting out a lost answer. */
+  budgetMs?: number;
 }
 
 /** The live wait: the org's own trail, and the wall clock. */
@@ -106,7 +121,7 @@ const STAGED_BEFORE_BELIEVED = 2;
  * filing, and the org remains the authority on what it did.
  */
 export async function awaitFiling(accountId: string, stagingId: string, deps: SettleDeps): Promise<Settlement> {
-  const deadline = deps.now() + POLL_BUDGET_MS;
+  const deadline = deps.now() + (deps.budgetMs ?? POLL_BUDGET_MS);
   let staged = 0;
 
   while (deps.now() < deadline) {

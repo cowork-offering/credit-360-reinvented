@@ -1,0 +1,122 @@
+{
+  "gate": {
+    "meanAbs": 1,
+    "pctOver8": 0.5
+  },
+  "rows": [
+    {
+      "id": "landing",
+      "width": 2720,
+      "height": 1800,
+      "meanAbs": 0,
+      "maxAbs": 0,
+      "pctOver2": 0,
+      "pctOver8": 0,
+      "box": null
+    },
+    {
+      "id": "landing-bar",
+      "width": 2720,
+      "height": 106,
+      "meanAbs": 0,
+      "maxAbs": 0,
+      "pctOver2": 0,
+      "pctOver8": 0,
+      "box": null
+    },
+    {
+      "id": "client",
+      "width": 2720,
+      "height": 1800,
+      "meanAbs": 0,
+      "maxAbs": 0,
+      "pctOver2": 0,
+      "pctOver8": 0,
+      "box": null
+    },
+    {
+      "id": "client-arc",
+      "width": 2720,
+      "height": 1800,
+      "meanAbs": 0,
+      "maxAbs": 0,
+      "pctOver2": 0,
+      "pctOver8": 0,
+      "box": null
+    },
+    {
+      "id": "room",
+      "width": 2720,
+      "height": 1800,
+      "meanAbs": 0,
+      "maxAbs": 0,
+      "pctOver2": 0,
+      "pctOver8": 0,
+      "box": null
+    },
+    {
+      "id": "room-rail",
+      "note": "missing on one side"
+    },
+    {
+      "id": "relationship-room",
+      "width": 2720,
+      "height": 1800,
+      "meanAbs": 0,
+      "maxAbs": 0,
+      "pctOver2": 0,
+      "pctOver8": 0,
+      "box": null
+    },
+    {
+      "id": "memo-draft",
+      "width": 2720,
+      "height": 1800,
+      "meanAbs": 0,
+      "maxAbs": 0,
+      "pctOver2": 0,
+      "pctOver8": 0,
+      "box": null
+    },
+    {
+      "id": "finale-sheet",
+      "width": 2720,
+      "height": 1800,
+      "meanAbs": 5.343,
+      "maxAbs": 229,
+      "pctOver2": 32.371,
+      "pctOver8": 6.815,
+      "box": {
+        "x": 652,
+        "y": 491,
+        "w": 1416,
+        "h": 1078
+      }
+    },
+    {
+      "id": "memo-after-handoff",
+      "width": 2720,
+      "height": 1800,
+      "meanAbs": 17.445,
+      "maxAbs": 251,
+      "pctOver2": 64.54,
+      "pctOver8": 14.137,
+      "box": {
+        "x": 0,
+        "y": 12,
+        "w": 2720,
+        "h": 1788
+      }
+    },
+    {
+      "id": "memo-done",
+      "width": 2720,
+      "height": 1800,
+      "meanAbs": 0,
+      "maxAbs": 0,
+      "pctOver2": 0,
+      "pctOver8": 0,
+      "box": null
+    }
+  ]
+}

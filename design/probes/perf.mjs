@@ -359,6 +359,95 @@ const SCENES = [
     }), sel)
   },
   {
+    /* THE FINALE (founder, 2026-09-06). Confirm, watch the rainbow card grow
+       into the sheet, press the memo door, land in the memo room.
+
+       THE MORPH IS MEASURED ON ITS OWN, INSIDE THE SCENE. The scene's own p95
+       covers the org's eight-second wait and the room's whole ending, and an
+       idle second of that would flatter any number taken over it. So the page
+       marks its own tape the moment the card starts ascending and reads it back
+       once the sheet has landed: `witness.morph` is the growth and nothing
+       else, and it is the row the gate is about. */
+    id: "finale",
+    what: "a filing confirmed, the card growing into the sheet, and the hand to the memo",
+    pre: async (page, sel) => {
+      await page.click(sel.rowHartwell);
+      await page.waitForTimeout(1200);
+      await page.click("#fab");
+      await page.waitForTimeout(500);
+      await page.click("#actFacility");
+      await page.waitForTimeout(2600);
+      await page.evaluate(async () => {
+        const P = window.__P;
+        const pkg = await P.until(() => document.querySelector('.wk-pkg[data-pkg="a5Fbb000000IHFJEA4"]'), 8000, 60);
+        if (pkg) pkg.click();
+        await P.sleep(1800);
+      });
+      // The line, and whatever the room raises on the way to a plan.
+      await page.evaluate(async (S) => {
+        const P = window.__P;
+        const box = P.el(S.workroomInput);
+        if (!box) return;
+        P.type(box, "increase the revolving line of credit to 18 million");
+        P.el(S.workroomSend)?.click();
+        await P.sleep(2800);
+        const hit = (rx, sel) => {
+          const el = [...document.querySelectorAll(sel)].find((b) => rx.test((b.textContent || "").trim()));
+          if (el) el.click();
+          return Boolean(el);
+        };
+        for (let i = 0; i < 12 && !document.querySelector(".wk-propose"); i++) {
+          hit(/^Confirm$/, "button") ||
+            hit(/^Acknowledge$/, "button") ||
+            hit(/^Leave pricing for later$/, ".wk-opt") ||
+            hit(/^240 months$/, ".wk-opt");
+          await P.sleep(1500);
+        }
+        document.querySelector(".wk-propose")?.click();
+        await P.sleep(1600);
+      }, sel);
+    },
+    run: async (page) => {
+      await page.evaluate(async () => {
+        const P = window.__P;
+        const approve = await P.until(() => document.querySelector(".wk-approve"), 8000, 60);
+        if (!approve) return;
+        approve.click();
+        /* TWO TAPES, BECAUSE THEY ANSWER DIFFERENT QUESTIONS.
+
+           THE ENDING is everything from the drain onward, and most of it is the
+           finale's own pre-existing choreography: a wave of items animating
+           `filter: blur()` and a collapsing grid track, which is a relayout and
+           a re-rasterisation per item per frame by construction.
+
+           THE MORPH is the beat this wave added, and it starts exactly when the
+           sheet appears. It is the one that has to be compositor-only, and
+           measuring it inside the drain's window would be reporting somebody
+           else's bill as this one's. */
+        await P.until(() => document.querySelector(".wk-thread[data-finale]"), 40000, 40);
+        const ending = window.__PERF.mark();
+        await P.until(() => document.querySelector(".wk-sheet"), 10000, 20);
+        const token = window.__PERF.mark();
+        await P.sleep(700);
+        window.__MORPH = window.__PERF.since(token);
+        await P.sleep(300);
+        window.__ENDING = window.__PERF.since(ending);
+        document.querySelector(".wk-sheet-go")?.click();
+        await P.sleep(2600);
+      });
+    },
+    witness: (page) =>
+      page.evaluate(() => ({
+        sheet: !!document.querySelector(".wk-sheet"),
+        memoRoom: !!document.querySelector(".mm-room"),
+        handedOff: !!document.querySelector(".mm-filed"),
+        /* THE MORPH'S OWN NUMBERS. p95 under 24ms at 4x and no long task over
+           100ms inside it is the claim; anything else in the scene is context. */
+        morph: window.__MORPH ?? null,
+        ending: window.__ENDING ?? null
+      }))
+  },
+  {
     /* THE THIRD ROOM. It was missing from this list and it is the one the
        census finds heaviest: it is the talkiest of the three, and every
        sentence it speaks leaves its words behind. */

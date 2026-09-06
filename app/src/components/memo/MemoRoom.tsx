@@ -25,6 +25,7 @@ import type { RoomPublication as MemoPublication } from "../../memo/publishAdapt
 import type { MemoAttestation, MemoChange, MemoDossier, MemoNarratives } from "../../memo/types";
 import { fmtMoney } from "../../data/format";
 import { markWriting } from "../../memo/writingMark";
+import { narrativeBlocks, patchNarratives } from "../../memo/liveSection";
 import {
   beginWork,
   endWork,
@@ -41,6 +42,7 @@ import {
   type MemoWork,
 } from "./progress";
 import { createPaneBuffers, type BufferPane, type PaneBuffers, type PaneRole } from "./paneBuffer";
+import type { MemoFiledSummary } from "./memoSession";
 import type { MemoGreeting } from "./memoGreeting";
 import type { MemoRequestSource, MemoTrigger } from "./memoSession";
 import { DEADLINES, byDeadline, isDeadline, narrateDeadlineLine, steerDeadlineLine, withDeadline } from "../workroom/deadline";
@@ -140,6 +142,23 @@ export interface MemoRoomProps {
   /** The executed changes this memo is about. May be empty. */
   changes: readonly MemoChange[];
   greeting: MemoGreeting;
+  /**
+   * WHAT THE FACILITY ROOM JUST FILED, where a finale opened this room.
+   *
+   * It is drawn as the room's FIRST TIMELINE ROW rather than said in prose: the
+   * banker was reading exactly these lines on the sheet a second ago, and the
+   * memo continuing them in its own timeline grammar is the handover reading as
+   * one surface instead of two rooms swapping.
+   */
+  filed?: MemoFiledSummary | null;
+  /**
+   * THE HANDOVER'S GLASS HAS STOPPED MOVING.
+   *
+   * False only while a finale's sheet is still sliding off this room. The draft
+   * waits for it: prose landing under a moving surface is the "hangers" the
+   * founder named. True from the first commit for every other door.
+   */
+  settled?: boolean;
   /** The stored memo, where one exists, for "Open latest memo". */
   latest?: MemoDraft | null;
   deps?: MemoDeps;
@@ -166,6 +185,7 @@ type Speaker = "agent" | "banker";
 type ThreadItem =
   | { id: string; ex: string; kind: "say"; who: Speaker; text: string }
   | { id: string; ex: string; kind: "work"; work: MemoWork }
+  | { id: string; ex: string; kind: "filed"; filed: MemoFiledSummary }
   | { id: string; ex: string; kind: "settled"; row: SettledRow };
 
 let seq = 0;
@@ -232,18 +252,11 @@ export function steerTarget(text: string, sections: readonly MemoSection[]): str
    THE ROOM
    ----------------------------------------------------------------------------- */
 
-/** THE FLOOR on how often the pane re-renders while prose is streaming into it.
- *  The whole memo is rebuilt on every re-render, so a per-token rebuild would
- *  spend the room's frame budget on a document nobody is reading yet.
- *
- *  IT IS A FLOOR AND NOT THE WHOLE RULE (founder, 2026-09-04: the room "gets
- *  delayed" while it drafts). A fixed 400ms is a promise the machine may not be
- *  able to keep: on a laptop under a screen share one rebuild is a full memo
- *  render, a review shell, and a browser parsing an entire document, which can
- *  take longer than the interval. The room then generated a second document
- *  before the first had landed, threw away a parse that was half done, and did
- *  it again, on the same thread the composer types into. So the pane's own
- *  readiness is the second half of the rule: see `busy` below. */
+/** THE FLOOR on how often the words in the pane are refreshed while a section is
+ *  streaming. One refresh is a memo render and a patch of one element - no
+ *  shell, no frame write, no parse (see `streamInto`) - so it is cheap enough to
+ *  be a floor rather than a negotiation with the pane's own readiness, which is
+ *  what it had to be while every chunk reloaded a document. */
 const STREAM_FRAME_MS = 400;
 
 /** How many sections may run out of clock back to back before the draft stops
@@ -258,7 +271,7 @@ type SectionOutcome = "ok" | "declined" | "no-desk" | { kind: "timeout"; error: 
 const wroteOk = (o: SectionOutcome): boolean => o === "ok";
 const lateFrom = (o: SectionOutcome): unknown => (typeof o === "object" && o.kind === "timeout" ? o.error : null);
 
-export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClose }: MemoRoomProps) {
+export function MemoRoom({ ctx, dossier, changes, greeting, filed, settled = true, latest, deps, onClose }: MemoRoomProps) {
   const narrate = deps?.narrate;
   const publish = deps?.publish ?? ((d) => Promise.resolve({ ...notWired(d.memoId, d.packageId), reason: NOT_WIRED_LINE }));
 
@@ -266,8 +279,6 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
 
   /** The prose that has landed, keyed as the renderer reads it. */
   const [narratives, setNarratives] = useState<MemoNarratives>(() => ({}));
-  /** Prose still arriving, for the module currently streaming. */
-  const [streaming, setStreaming] = useState<MemoNarratives>(() => ({}));
   /** Per-section sign-off, lifted out of the memo's own review shell. */
   const [sectionState, setSectionState] = useState<Record<string, MemoSectionRecord>>({});
   /** Reading a stored memo rather than this session's draft. */
@@ -309,10 +320,16 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
    *  landed folded into it, and the sign-offs so far. Never mutated; the
    *  renderer sees a new object. */
   const liveDossier = useMemo<MemoDossier>(() => {
-    const prose = { ...(dossier.canon.narratives ?? {}), ...narratives, ...streaming };
+    /* SETTLED PROSE ONLY (2026-09-06). Words still arriving are patched into the
+       live document by `./liveSection.ts` and never re-render this: a section
+       being written changes one element in a document that is already on the
+       glass, and rebuilding the whole memo for it was the room's most expensive
+       habit. What this renders is what gets STORED, published and attested, and
+       that is only ever a section the desk has finished. */
+    const prose = { ...(dossier.canon.narratives ?? {}), ...narratives };
     // The map is read here, not depended on: see the refs above.
     return { ...dossier, canon: { ...dossier.canon, narratives: prose }, attestation: attestation.current };
-  }, [dossier, narratives, streaming]);
+  }, [dossier, narratives]);
 
   const rendered = useMemo(() => renderMemo(liveDossier), [liveDossier]);
   const html = useMemo(() => applyMemoOverrides(rendered.html, overrides), [rendered.html, overrides]);
@@ -347,6 +364,9 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
   const { settle: settleItems } = settle;
 
   const [items, setItems] = useState<ThreadItem[]>(() => [
+    /* THE SHEET, FIRST AND COMPACT. It is what the banker was reading when they
+       pressed the door, so it stands above the greeting that talks about it. */
+    ...(filed ? [{ id: nextId(), ex: GREETING_EX, kind: "filed", filed } as ThreadItem] : []),
     { id: nextId(), ex: GREETING_EX, kind: "say", who: "agent", text: greeting.lead },
     ...greeting.lines.map(
       (line): ThreadItem => ({ id: nextId(), ex: GREETING_EX, kind: "say", who: "agent", text: line }),
@@ -455,9 +475,34 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
   /** Ask for one module's prose and stream it into the pane. TRUE where the
    *  desk answered; false leaves the memo's own pending placeholder where it
    *  sits, which is the honest render of a section nobody wrote. */
-  /** Whether the reading pane is mid-parse. Filled by `usePaneBuffers` further
-   *  down the body; a ref because the streaming callback is created before it. */
-  const paneBusy = useRef<() => boolean>(() => false);
+  /** THE DOCUMENT ON THE GLASS. Filled further down the body, where the frames
+   *  and the test seam are; a ref because the streaming callback below is
+   *  created before either of them exists. */
+  const liveDoc = useRef<() => Document | null>(() => null);
+
+  /**
+   * ONE SECTION'S WORDS, INTO THE DOCUMENT THE BANKER IS LOOKING AT.
+   *
+   * The renderer stays the only author of the memo: this renders the SAME memo
+   * it always did and then lifts one section's narrative blocks out of it, so
+   * what appears mid-stream is byte-identical to what the full rebuild will put
+   * there at the section's end. What it skips is the shell, the frame write and
+   * the parse, which is the whole cost.
+   */
+  const streamInto = useCallback(
+    (spec: NarrativeSpec, text: string) => {
+      const doc = liveDoc.current();
+      if (!doc) return;
+      const prose = { ...(dossier.canon.narratives ?? {}), ...written.current, ...narrativesFromReply(spec, text) };
+      const html = applyMemoOverrides(
+        renderMemo({ ...dossier, canon: { ...dossier.canon, narratives: prose } }).html,
+        overrides,
+      );
+      const section = sectionsFrom(html).find((s) => s.id === spec.module);
+      if (section) patchNarratives(doc, spec.module, narrativeBlocks(section.html));
+    },
+    [dossier, overrides],
+  );
 
   const writeSection = useCallback(
     async (spec: NarrativeSpec, title: string, steer?: string | null): Promise<SectionOutcome> => {
@@ -484,15 +529,13 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
             onText: (text) => {
               const now = Date.now();
               if (now - last < STREAM_FRAME_MS) return;
-              /* THE PANE SETS THE PACE IT CAN ACTUALLY KEEP. While a document
-                 is still being parsed, another rebuild would replace it before
-                 it landed: the reader sees nothing sooner and the main thread
-                 does the work twice. The text is not lost: it is still in
-                 `reply`, and the section lands in full below whatever happened
-                 here. */
-              if (paneBusy.current()) return;
               last = now;
-              setStreaming(narrativesFromReply(spec, text));
+              /* INTO THE LIVE DOCUMENT, NOT THROUGH A REBUILD. No React state
+                 changes here, so no memo is re-rendered, no frame is rewritten
+                 and no document is parsed: one element in the page the banker is
+                 reading gets new prose. The text is not lost either way - it is
+                 still in `reply`, and the section lands in full below. */
+              streamInto(spec, text);
             },
           });
         };
@@ -504,18 +547,20 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
         );
         const landed = narrativesFromReply(spec, reply);
         written.current = { ...written.current, ...landed };
-        setStreaming({});
+        /* AND THE SECTION'S END IS THE ONE REBUILD. The double buffer takes the
+           whole document across, at the reader's own scroll offset, with the
+           sign-offs rebound - exactly as it always did, once per section instead
+           of once per chunk. */
         setNarratives((prev) => ({ ...prev, ...landed }));
         return "ok";
       } catch (e) {
-        setStreaming({});
         /* THE SECTION IS LEFT WITH ITS PENDING MARKER EITHER WAY. What differs
            is what the room says: a desk that refused is absence, and a desk
            that ran out of clock is a fact the banker can act on. */
         return isDeadline(e) ? { kind: "timeout", error: e } : "declined";
       }
     },
-    [narrate, dossier],
+    [narrate, dossier, streamInto],
   );
 
   /* -------------------------------------------------- the working exchange
@@ -758,6 +803,24 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
     );
   }, [plan, narrate, say, settleExchange, greeting.lead, openWork, pushWork, writeSection, closeWork, save]);
 
+  /* ---- THE DRAFT STARTS ITSELF, ONCE THE GLASS HAS STOPPED MOVING.
+
+     FOUNDER, 2026-09-06: "this then directs you to the Credit memo workroom
+     where it inserts all the information, but all super super gentle, no
+     hangers, I hate when it gets stuck."
+
+     A banker who pressed "Draft the credit memo" has already answered the
+     greeting's question, so asking it again would be the room making them say
+     the same thing twice. It waits for `settled` and nothing else: the facility
+     room's own slide reports its end, and its ceiling means the wait can never
+     outlive the handover. Once per room, whatever re-renders. */
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!filed || !settled || autoStarted.current) return;
+    autoStarted.current = true;
+    void runDraft();
+  }, [filed, settled, runDraft]);
+
   /**
    * THE MEMO SAID SOMETHING; THE ROOM HEARD IT.
    *
@@ -900,7 +963,12 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
     [bindTo],
   );
 
-  usePaneBuffers({ a: paneA, b: paneB, html: paneHtml, reduced, onReady: onPaneReady, busy: paneBusy });
+  /* THE DOCUMENT THE PATCH WRITES INTO. The injected frame is the suite's seam
+     and wins where it exists; otherwise it is whichever of the two buffers is
+     currently on the glass. */
+  liveDoc.current = () => injected?.doc ?? onGlass.current?.contentDocument ?? null;
+
+  usePaneBuffers({ a: paneA, b: paneB, html: paneHtml, reduced, onReady: onPaneReady });
 
   /* WHERE THE WORDS WILL LAND, MARKED WHERE THE BANKER IS READING. */
   useEffect(() => {
@@ -978,6 +1046,8 @@ export function MemoRoom({ ctx, dossier, changes, greeting, latest, deps, onClos
                             />
                           ) : item.kind === "work" ? (
                             <WorkTimeline work={item.work} />
+                          ) : item.kind === "filed" ? (
+                            <FiledRow filed={item.filed} />
                           ) : (
                             <div className={`wk-msg wk-${item.who}`} data-who={item.who === "banker" ? "You" : "Agent"}>
                               <div className="wk-bub">
@@ -1349,6 +1419,53 @@ function WorkTimeline({ work }: { work: MemoWork }) {
 }
 
 /**
+ * WHAT THE FACILITY ROOM FILED, AS THIS ROOM'S FIRST ROW.
+ *
+ * THE SAME TIMELINE THE DRAFT WILL USE (`WorkTimeline` above), in the same
+ * classes, with every row already done: the handover is one surface continuing
+ * into another and not a second kind of card. The banker reads the sheet's own
+ * title line, the lines it listed, and what the exposure did, and then watches
+ * the draft's rows fill in underneath in the identical grammar.
+ *
+ * NOTHING IS RECOMPUTED. Every value is the sheet's, carried across.
+ */
+function FiledRow({ filed }: { filed: MemoFiledSummary }) {
+  return (
+    <div className="mm-work mm-filed" data-work="filed" role="group" aria-label="What was filed">
+      <div className="mm-work-lead">{filed.title}</div>
+      <ol className="mm-tl">
+        {filed.items.map((item) => (
+          <li key={item.id} className="mm-tl-row" data-state="done" data-kind="filed" data-row={item.id}>
+            <span className="mm-tl-mark">
+              <span className="mm-tl-dot" aria-hidden="true">
+                ✓
+              </span>
+            </span>
+            <span className="mm-tl-t">{item.target ? `${item.target} · ${item.label}` : item.label}</span>
+            <span className="mm-tl-s tnum">{item.after ?? item.before ?? ""}</span>
+          </li>
+        ))}
+        {/* THE EXPOSURE THE FILING MOVED, and the word "pending" where the org
+            has not confirmed it. The sheet said it; the memo does not restate it
+            more confidently than the sheet did. */}
+        <li className="mm-tl-row" data-state="done" data-kind="exposure" data-row="exposure">
+          <span className="mm-tl-mark">
+            <span className="mm-tl-dot" aria-hidden="true">
+              ·
+            </span>
+          </span>
+          <span className="mm-tl-t">Exposure</span>
+          <span className="mm-tl-s tnum">
+            {filed.exposureBefore} → {filed.exposureAfter}
+            {filed.pending ? " pending" : ""}
+          </span>
+        </li>
+      </ol>
+    </div>
+  );
+}
+
+/**
  * THE COMPACT ROW AN EXCHANGE BECOMES (rule 1, the rooms' own shape).
  *
  * Two facts and a control: what settled, how, and the way back to the whole
@@ -1444,8 +1561,6 @@ function usePaneBuffers(args: {
   html: string;
   reduced: boolean;
   onReady: (el: HTMLIFrameElement) => void;
-  /** Filled with "is a document still being parsed", for the stream pacing. */
-  busy?: React.MutableRefObject<() => boolean>;
 }): void {
   const { a, b, html, reduced } = args;
   const ready = useRef(args.onReady);
@@ -1467,14 +1582,10 @@ function usePaneBuffers(args: {
       },
     });
     buffers.current = built;
-    if (args.busy) args.busy.current = () => built.pending();
     return () => {
       built.dispose();
       buffers.current = null;
-      if (args.busy) args.busy.current = () => false;
     };
-    // `busy` is a ref container and is stable; depending on it would rebuild the
-    // buffers on every render and blank the pane.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [a, b, reduced]);
 
