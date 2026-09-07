@@ -11,6 +11,7 @@ import { createCreateEngine } from "../../workroom/createEngine";
 import { type WorkroomEngine } from "../../workroom/engine";
 import { createModifyEngine } from "../../workroom/modifyEngine";
 import { createRenewEngine } from "../../workroom/renewEngine";
+import { NEW_PACKAGE_CHOICE } from "../../workroom/modes";
 import { closeWorkroom, openWorkroom, useWorkroom, workroomContextFor } from "../../workroom/openWorkroom";
 import { stageAction } from "../../channel/writeTools";
 import { armStage } from "./orgArms";
@@ -78,6 +79,9 @@ export function WorkroomHost() {
   const sessionAccountId = session?.accountId ?? null;
   const sessionAccountName = session?.accountName ?? null;
   const sessionPackageId = session?.productPackageId ?? null;
+  /* THE BANKER'S OWN CHOICE, kept apart from the package they arrived in. A
+     create ignores the ambient anchor and reads only this. */
+  const sessionJoinId = session?.joinPackageId ?? null;
   const context = useMemo<WorkroomContext | null>(() => {
     if (!sessionRoute || !sessionAccountId) return named;
     return workroomContextFor({
@@ -87,8 +91,9 @@ export function WorkroomHost() {
       accountId: sessionAccountId,
       accountName: sessionAccountName ?? sessionAccountId,
       productPackageId: sessionPackageId,
+      joinPackageId: sessionJoinId,
     });
-  }, [bundle, data, named, sessionAccountId, sessionAccountName, sessionPackageId, sessionRoute]);
+  }, [bundle, data, named, sessionAccountId, sessionAccountName, sessionJoinId, sessionPackageId, sessionRoute]);
 
   /* ALL THREE MODES ARE WIRED. There is no scripted fallback left here: a room
      that reached a storyline when a mode was unrecognised would be a room that
@@ -230,7 +235,14 @@ export function WorkroomHost() {
       openMemoRoom({
         accountId: context.accountId,
         accountName: context.accountName,
-        productPackageId: context.productPackageId ?? null,
+        /* THE PACKAGE THE MEMO IS ABOUT MAY HAVE BEEN MADE A MOMENT AGO. A new
+           facility creates a new package (founder, 2026-09-06), so a create room
+           on its default path carries no package id at all, and the package the
+           memo has to anchor on is the one the filing just opened, which the
+           sheet holds as its version. The greeting then names it: the bundle's
+           read predates the package, so no label exists and the greeting says
+           the short id rather than inventing one. */
+        productPackageId: context.productPackageId ?? sheet?.version ?? null,
         /* THE MEMO'S TYPE IS THE ACTION THAT TRIGGERED IT. A room opened from
            the route question has not filed anything, so its trigger is the
            neutral one; a room opened from the finale names what was just done. */
@@ -320,18 +332,36 @@ export function WorkroomHost() {
            card is showing and this opens the memo room on it. */
         onDraftMemo={openMemo}
         onDraftMemoLanded={handedOff}
-        onAnchor={(choice) =>
-          session
-            ? anchorFacilityRoom(choice.id)
-            : openWorkroom({ ...context, productPackageId: choice.id, packageName: choice.label })
-        }
+        /* THE OFFER COMES BACK. On a create these are the joinable packages
+           plus "New package", whose sentinel id means "no package travels";
+           everywhere else they are the packages the room asked between. Either
+           way this is the ONE gesture that speaks for the banker, so it is the
+           one that sets the join. */
+        onAnchor={(choice) => {
+          const joined = choice.id === NEW_PACKAGE_CHOICE ? null : choice.id;
+          if (session) {
+            anchorFacilityRoom(joined);
+            return;
+          }
+          openWorkroom(
+            workroomContextFor({
+              mode: context.mode,
+              data,
+              bundle,
+              accountId: context.accountId,
+              accountName: context.accountName,
+              productPackageId: joined ?? context.productPackageId,
+              joinPackageId: joined,
+            }),
+          );
+        }}
         /* WRITE-BACK THROUGH THE GLASS. The room hands over the committed delta
            its own manifest carried; the cockpit's figures roll to it behind the
            blur. This host dispatches rather than the room, because the room has
            no provider above it in its render test — and because a dispatch that
            touched `livePatches` would rebuild the room's engine mid-scene. */
-        onExecuted={(committedDeltaMM) =>
-          dispatch({ type: "WRITE_BACK", accountId: context.accountId, committedDeltaMM })
+        onExecuted={(committedDeltaMM, newPackage) =>
+          dispatch({ type: "WRITE_BACK", accountId: context.accountId, committedDeltaMM, newPackage })
         }
       />
     </RoomBoundary>

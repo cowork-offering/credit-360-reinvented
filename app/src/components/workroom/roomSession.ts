@@ -45,6 +45,16 @@ export interface RoomSession {
   /** The package the banker anchored the room on, once a relationship carrying
    *  more than one has been narrowed. Null until then. */
   productPackageId: string | null;
+  /**
+   * THE PACKAGE THE BANKER CHOSE, as distinct from the one they arrived in.
+   *
+   * A create anchors on the ACCOUNT by default on every relationship (founder,
+   * 2026-09-06), so the ambient package above must not pin it. This is set only
+   * by `anchorFacilityRoom`, the banker clicking a package chip, and it is
+   * the one thing that files a new facility into an existing package instead of
+   * a new one. Null means the create room is on its default path.
+   */
+  joinPackageId: string | null;
 }
 
 /** The route the room stands on before the banker has chosen one. */
@@ -77,15 +87,21 @@ export function openFacilityRoom(args: {
     say: null,
     memberId: null,
     productPackageId: args.productPackageId ?? null,
+    // ARRIVING IN A PACKAGE IS NOT CHOOSING ONE. Only `anchorFacilityRoom` sets
+    // the join, and it is the only gesture that speaks for the banker.
+    joinPackageId: null,
   };
   emit();
 }
 
 /** The banker chose which package to work in. One session is one package is one
- *  plan is one approval, so this rebuilds the room on that anchor. */
-export function anchorFacilityRoom(productPackageId: string): void {
+ *  plan is one approval, so this rebuilds the room on that anchor.
+ *
+ *  NULL IS A CHOICE TOO: it is the create room's "New package" chip, taking the
+ *  room back to the account anchor after a join. */
+export function anchorFacilityRoom(productPackageId: string | null): void {
   if (!session) return;
-  session = { ...session, productPackageId };
+  session = { ...session, productPackageId: productPackageId ?? session.productPackageId, joinPackageId: productPackageId };
   emit();
 }
 
@@ -108,6 +124,13 @@ export function bindFacilityRoute(
     bound: route,
     say: opts?.say ?? null,
     memberId: opts?.memberId ?? null,
+    /* AND THE JOIN GOES WITH THE ROUTE. The package question runs BEFORE the
+       route is picked, the room has to stand on a package to read the
+       relationship at all, so the answer to it is not a banker saying "file
+       the new facility into this one". A create's join is a decision made
+       inside the bound create room, off that room's own offer, and nowhere
+       else (founder, 2026-09-06: a new facility creates a new package). */
+    joinPackageId: null,
   };
   emit();
 }

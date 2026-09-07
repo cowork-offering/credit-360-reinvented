@@ -300,6 +300,29 @@ export interface ExecuteResult {
   heldReason?: string;
 }
 
+/**
+ * DID THE ORG REPORT THIS RUN AS FAILED?
+ *
+ * `terminalState` is the Apex executor's own word for how the run ended, and
+ * the normaliser above defaults it to "failed" when a payload carries none, a
+ * malformed answer is not a filing. Reading it is the ONLY way an engine can
+ * tell a failed execute from a successful one, because everything else on the
+ * result (the record ids, the step list) is absent in exactly the same way on
+ * both a failure and an answer the transport mangled.
+ *
+ * `partial` is NOT a failure and must never read as one: the two-invocation new
+ * facility comes back partial by design, with the facility written.
+ */
+export function executionFailed(result: { terminalState?: string | null }): boolean {
+  return (result.terminalState ?? "").trim().toLowerCase() === "failed";
+}
+
+/** The org's own account of a failed run, for the room to say verbatim. Never
+ *  invented: where the tool said nothing, this says that it said nothing. */
+export function failureReason(result: { outcome?: string | null }): string {
+  return (result.outcome ?? "").trim() || "The org reported the run as failed and gave no reason with it.";
+}
+
 /* ------------------------------------------------------------- unwrapping */
 
 const STEP_TYPES: StepType[] = ["write", "verification", "wait", "handoff", "observed_side_effect"];

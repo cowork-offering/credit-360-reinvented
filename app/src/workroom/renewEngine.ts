@@ -626,6 +626,7 @@ export function createRenewEngine(args: {
     return {
       greeting: greetingFor(data.meta?.user, context.approver),
       packageChoices: unanchored ? choices : [],
+      packageChoiceRequired: unanchored,
       packageName: context.packageName,
       baselineCommittedMM: MM(committed),
       baselineMembers: members.length,
@@ -1041,6 +1042,12 @@ export function createRenewEngine(args: {
    * to call. The plan is staged with the org, the token stays unredeemed, and
    * the room hands into nCino's Submit for Approval in the org's own words.
    */
+  /* NO TERMINAL-STATE GUARD HERE, AND THERE IS NOTHING TO GUARD. The other two
+     engines refuse to build a filed list from a run the ORG reported failed;
+     this one never calls an execute at all, because there is no
+     `execute_renewal` on the org. Its `filed` rows name the staging record the
+     stage call already returned and claim no write, so there is no org answer to
+     be wrong about. */
   async function execute(approval: WorkroomApproval): Promise<WorkroomExecution> {
     if (!staged) throw new WorkroomRefusalError("Nothing has been staged, so there is no plan to submit.");
     if (approval.planHash !== staged.planHash || approval.stagingId !== staged.stagingId) {

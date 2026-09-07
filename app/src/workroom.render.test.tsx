@@ -47,10 +47,19 @@ afterEach(() => {
   clearComposed();
 });
 
-function contextFor(mode: WorkroomMode, packageId: string | null = "a5Fbb000000IHFJEA4"): WorkroomContext {
+/** `joined` is the create room's package door, and it is now reached ONLY by the
+ *  banker choosing a package to file into (founder, 2026-09-06: a new facility
+ *  creates a new package). It defaults true here so every test that names a
+ *  package still gets the room it was written against; the one test that is
+ *  about the DEFAULT anchor passes it false. */
+function contextFor(
+  mode: WorkroomMode,
+  packageId: string | null = "a5Fbb000000IHFJEA4",
+  joined = true,
+): WorkroomContext {
   return {
     mode,
-    door: doorFor(mode, packageId),
+    door: doorFor(mode, packageId, joined),
     accountId: "001bb00001DLtRMAA1",
     accountName: "Hartwell Precision Manufacturing LLC",
     productPackageId: packageId,
@@ -69,8 +78,8 @@ function openWith(context: WorkroomContext, engine: WorkroomEngine, settleDeps?:
   return document.querySelector<HTMLElement>(".wk-room")!;
 }
 
-function open(mode: WorkroomMode, packageId?: string | null) {
-  const context = contextFor(mode, packageId);
+function open(mode: WorkroomMode, packageId?: string | null, joined = true) {
+  const context = contextFor(mode, packageId, joined);
   // THE SHELL, ON A SHELL ENGINE. Which engine a mode gets is WorkroomHost's
   // decision; what is proved here is the ROOM, so the storyline engine is
   // handed in directly rather than resolved from an app provider.
@@ -326,11 +335,15 @@ describe("one shell, three modes", () => {
     }
   });
 
-  it("pre-pins the package on the create door that has one, and does not invent one on the door that does not", () => {
+  it("shows the package's members on the door the banker joined, and none on the default one", () => {
+    /* JOINED: the banker chose a package to file into, so its members are the
+       thing the new facility sits beside. DEFAULT: the plan opens a package of
+       its own and it is empty, so there is nothing to draw and the room does
+       not borrow another package's members to fill the space. */
     expect(open("create").querySelectorAll(".wk-mchip").length).toBeGreaterThan(0);
     act(() => root?.unmount());
     container?.remove();
-    const blank = open("create", null);
+    const blank = open("create", "a5Fbb000000IHFJEA4", false);
     expect(blank.querySelectorAll(".wk-mchip")).toHaveLength(0);
     // The at-rest figures strip is gone (founder call, 2026-09-01): an invented
     // package would now have to show up as a chip, and there is none.

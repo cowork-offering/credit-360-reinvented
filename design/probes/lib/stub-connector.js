@@ -22,6 +22,10 @@
     return { payload: { content: [{ isSuccess: true, outputValues: { ok: true, result: result } }] } };
   };
   var HASH = "9c41e08bf27a4d10";
+  /* THE PACKAGE A CREATE OPENS, and the name the org's own convention gives it
+     (`<Account> - <M/D/YYYY> - PP`). Both come back from the live tool. */
+  var NEW_PACKAGE = "a5Fbb000000NEWPKEAI";
+  var NEW_PACKAGE_NAME = "Hartwell Precision Manufacturing LLC - 9/7/2026 - PP";
   /* HAS ANYTHING BEEN FILED IN THIS PAGE? The trail below answers only after an
      execute has run, so every surface that has NOT filed sees exactly the empty
      trail it saw before this stand-in learned to answer at all. */
@@ -82,6 +86,69 @@
   window.claude.mcp = {
     callTool: function (server, tool, input) {
       var one = (((input || {}).inputs || [])[0]) || {};
+      /* A NEW FACILITY CREATES A NEW PACKAGE (founder, 2026-09-06), and the org
+         answers an ACCOUNT anchor with a plan whose first step is
+         `create_package` and no package id at all. Shapes staged live against
+         Hartwell 2026-09-07: `createsPackage: true`, `productPackageId: null`,
+         `plannedPackageName` to the org's own convention. Without these the
+         create surfaces shoot a sheet whose title is missing the package the
+         filing made, which is the fact the founder asked it to carry. */
+      if (/^stage_new_facility/.test(tool)) {
+        var creating = !one.productPackageId;
+        var nfSteps = [
+          { id: "write_loan", type: "write", label: "Create the facility at Qualification", objectName: "LLC_BI__Loan__c" },
+          { id: "write_involvement", type: "write", label: "Add the borrower to the facility's borrowing structure", objectName: "LLC_BI__Legal_Entities__c" },
+          { id: "verify_loan", type: "verification", label: "Read back the facility and report the name the org assigned", objectName: "LLC_BI__Loan__c" },
+          { id: "wait_loan_detail", type: "wait", label: "nCino creates the Loan Detail, then this action continues", objectName: "LLC_BI__Loan_Detail__c" },
+          { id: "write_loan_purpose", type: "write", label: "Set the primary loan purpose on the Loan Detail", objectName: "LLC_BI__Loan_Detail__c" },
+          { id: "hop_to_proposal", type: "write", label: "Move the facility from Qualification to Proposal", objectName: "LLC_BI__Loan__c" }
+        ];
+        if (creating) {
+          nfSteps.unshift({ id: "create_package", type: "write", label: "Create the credit package " + NEW_PACKAGE_NAME, objectName: "LLC_BI__Product_Package__c" });
+        }
+        return Promise.resolve(ok({
+          stagingId: "a5Sbb0000001PROBE",
+          planHash: HASH,
+          decisionToken: "4f8ac21e-probe-token",
+          summary: creating
+            ? "Creates a new credit package for this relationship, named " + NEW_PACKAGE_NAME + " to the org's own convention, then files one facility on it at stage Qualification."
+            : "Creates one facility on the package at stage Qualification.",
+          steps: nfSteps,
+          warnings: [],
+          accountId: one.accountId,
+          productPackageId: one.productPackageId,
+          createsPackage: creating,
+          plannedPackageName: creating ? NEW_PACKAGE_NAME : undefined
+        }));
+      }
+      if (/^execute_new_facility/.test(tool)) {
+        filed = true;
+        var made = !one.productPackageId;
+        return new Promise(function (resolve) {
+          setTimeout(function () { resolve(ok({
+            stagingId: "a5Sbb0000001PROBE",
+            terminalState: "success",
+            outcome: "Facility filed and moved to Proposal.",
+            resumable: false,
+            loanId: "a4Zbb000002NEWFACEAA",
+            loanDetailId: "a4Wbb000001NEWDETEAW",
+            involvementId: "a4Lbb000000NEWINVEAK",
+            productPackageId: made ? NEW_PACKAGE : one.productPackageId,
+            packageCreated: made,
+            stage: "Proposal",
+            approvalQueue: "Loan Committee",
+            recordName: "Hartwell Precision Manufacturing LLC - Line of Credit - $3,000,000.00",
+            steps: [
+              { id: "create_package", type: "write", label: "Create the credit package", state: "verified", detail: "Package " + NEW_PACKAGE + " created." },
+              { id: "write_loan", type: "write", label: "Create the facility", state: "verified", detail: "Facility a4Zbb000002NEWFACEAA created at Qualification." },
+              { id: "write_involvement", type: "write", label: "Add the borrower", state: "verified", detail: "Borrower added at 100.00 percent ownership." },
+              { id: "verify_loan", type: "verification", label: "Read back the facility", state: "verified", detail: "The org named this facility Hartwell Precision Manufacturing LLC - Line of Credit - $3,000,000.00." },
+              { id: "write_loan_purpose", type: "write", label: "Set the primary loan purpose", state: "verified", detail: "Primary loan purpose set to working capital." },
+              { id: "hop_to_proposal", type: "write", label: "Move to Proposal", state: "verified", detail: "Stage moved from Qualification to Proposal." }
+            ]
+          })); }, 1800);
+        });
+      }
       if (/^stage_/.test(tool)) {
         return Promise.resolve(ok({
           stagingId: "a5Sbb0000001PROBE",

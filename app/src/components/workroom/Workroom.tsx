@@ -226,6 +226,7 @@ import {
   filedStamp,
   filedTitle,
   renewedTo,
+  shortRecordId,
   sheetExposure,
   sheetCoverage,
   whoActsNext,
@@ -237,6 +238,8 @@ import { countPhrase, countSplit, derivedReasonOf, splitClause, withDerivedSplit
 import { buildReadCard, planReadCard, readGap, type ReadCardModel, type ReadOptions, type ReadSource } from "./readCard";
 import { ReadCard } from "./ReadCardView";
 import { packageDeepLink } from "../DeepLink";
+import { executionFailed } from "../../channel/writeTools";
+import { NEW_PACKAGE, NEW_PACKAGE_CHOICE } from "../../workroom/modes";
 import { mailTipFrom, overdueCovenantTip } from "./tips";
 import { useClientMail } from "./clientMail";
 import { useRoomFeed } from "../../intent/feed";
@@ -297,7 +300,11 @@ interface ChipModel {
  * every scripted engine, which is exactly how the sheet omits what it does not
  * know instead of inventing it.
  */
-type ExecutionExtras = { outputPackageId?: string; approvalQueue?: string };
+/** The one execute field the room reads that no engine declares yet: the queue
+ *  a filing lands in. `outputPackageId` and `terminalState` are on
+ *  `WorkroomExecution` proper now, so this widening is down to its last member
+ *  and goes when an engine carries the queue. */
+type ExecutionExtras = { approvalQueue?: string };
 
 /** The dossier the finale constructs, from the REAL manifest and the REAL
  *  execution result. Held as an item so it lands in the live exchange and the
@@ -1088,13 +1095,22 @@ export function Workroom({
    * cockpit's state itself: it has no provider above it in the render test, and
    * a room that dispatched would also rebuild its own engine mid-scene.
    */
-  onExecuted?: (committedDeltaMM: number) => void;
+  /** `newPackage` is true where the filing OPENED one rather than adding to a
+   *  package that already existed: the cockpit's pending chip says which. */
+  onExecuted?: (committedDeltaMM: number, newPackage: boolean) => void;
   /** THE WAIT, INJECTED, for the same reason the engine is: the room is testable
    *  against a scripted org and ships against the live action trail. */
   settleDeps?: SettleDeps;
 }) {
   const brief = useMemo(() => engine.brief(context), [engine, context]);
   const packageChoiceCount = brief.packageChoices.length;
+  /* CHIPS ARE NOT ALWAYS A QUESTION (founder, 2026-09-06). A modification on a
+     relationship staging several packages genuinely cannot compose until one is
+     picked, and that beat is untouched. A CREATE's chips are an OFFER: the plan
+     already stands on a new package, so the composer wakes, the facilities land
+     and the offer sits open beside them. The engine owns which of the two this
+     is, because the engine is what knows where the plan stands. */
+  const packageChoiceBlocks = packageChoiceCount > 0 && brief.packageChoiceRequired;
   /* ---- WHICH PACKAGE DOES THIS RUN IN (founder, 2026-09-02: "why does it know
           that we are talking about this package... what happens on multiple
           ones?").
@@ -1111,7 +1127,12 @@ export function Workroom({
           is false for the whole shipped book, so the room the founder demos is
           byte-identical through this beat. */
   const roster = useMemo(() => packageRoster(reads?.bundle ?? null, reads?.history), [reads?.bundle, reads?.history]);
-  const packagePending = mustChoosePackage(reads?.bundle ?? null, context.productPackageId);
+  /* AND A CREATE NEVER ASKS IT AT ALL. The pre-route question exists because a
+     modification has to know which package it is versioning; a new facility
+     creates a new package, so the relationship's existing ones are an offer the
+     create engine makes further down and never a gate at the door. */
+  const packagePending =
+    context.mode !== "create" && mustChoosePackage(reads?.bundle ?? null, context.productPackageId);
   /* ONE MODIFICATION IN FLIGHT PER PACKAGE (rule 2, founder 2026-09-03). The
      package this room stands in already has an unbooked modification version
      with the org, so a second one would fork the version chain. Null wherever
@@ -1211,24 +1232,28 @@ export function Workroom({
    *
    * Returns true when it refused, so every caller reads as a guard.
    */
+  const sayInFlightRefusal = useCallback(() => {
+    const mine = step + 1;
+    setStep(mine);
+    setItems((prev) => [
+      ...prev,
+      {
+        kind: "agent",
+        id: nextId("locked"),
+        step: mine,
+        text: IN_FLIGHT_REFUSAL,
+        link: lockedHref ? { href: lockedHref, label: "Open the version in Salesforce" } : undefined,
+      },
+    ]);
+  }, [lockedHref, step]);
+
   const refuseLockedRoute = useCallback(
     (route: WorkroomMode): boolean => {
       if (!lockedRoute(route)) return false;
-      const mine = step + 1;
-      setStep(mine);
-      setItems((prev) => [
-        ...prev,
-        {
-          kind: "agent",
-          id: nextId("locked"),
-          step: mine,
-          text: IN_FLIGHT_REFUSAL,
-          link: lockedHref ? { href: lockedHref, label: "Open the version in Salesforce" } : undefined,
-        },
-      ]);
+      sayInFlightRefusal();
       return true;
     },
-    [lockedHref, lockedRoute, step],
+    [lockedRoute, sayInFlightRefusal],
   );
 
   const [histOpen, setHistOpen] = useState(false);
@@ -1418,6 +1443,10 @@ export function Workroom({
    *  from. Set once, on the commit that lands the card. */
   const [filedMeta, setFiledMeta] = useState<{
     at: Date;
+    /** THE PACKAGE AS THE ORG LEFT IT, where the filing made one the room could
+     *  not name when it opened. Null everywhere else, and the sheet then names
+     *  the package the plan was composed against. */
+    packageName: string | null;
     version: string | null;
     queue: string | null;
     stagingId: string | null;
@@ -1589,7 +1618,7 @@ export function Workroom({
           lands with the members under it, and only then does the room take an
           instruction. Under reduced motion the whole ritual is simply there. */
   useEffect(() => {
-    const choosing = packageChoiceCount > 0;
+    const choosing = packageChoiceBlocks;
     const pending = packagePending;
     const opening: ThreadItem[] = [
       { kind: "opening", id: nextId("open"), step: 0 },
@@ -1679,7 +1708,7 @@ export function Workroom({
     }
     const t = window.setTimeout(land, LOOKUP_MS);
     return () => clearTimeout(t);
-  }, [context.mode, engine, packageChoiceCount, packagePending, reduced, resetTiers, tierArrived, vocabulary.changeWord]);
+  }, [context.mode, engine, packageChoiceBlocks, packagePending, reduced, resetTiers, tierArrived, vocabulary.changeWord]);
 
   /* ---- THE TWO TIERS UNDER THE QUESTION (the entry choreography, founder
           2026-09-01).
@@ -1706,7 +1735,7 @@ export function Workroom({
     if (packagePending) return;
     if (tieredRef.current) return;
     tieredRef.current = true;
-    const choosing = packageChoiceCount > 0;
+    const choosing = packageChoiceBlocks;
     // A tier lands with the entry blocks, never after the conversation: the
     // room reads question, then package, then facilities, top to bottom.
     const afterTiers = (prev: ThreadItem[], item: ThreadItem): ThreadItem[] => {
@@ -1728,7 +1757,7 @@ export function Workroom({
       return;
     }
     tierTimer.current = window.setTimeout(facilities, TIER_STAGGER_MS);
-  }, [ask, lookedUp, packageChoiceCount, packagePending, reduced, tierArrived]);
+  }, [ask, lookedUp, packageChoiceBlocks, packagePending, reduced, tierArrived]);
 
   /* ---- and the room hands the manifest back. Every landing and every removal,
           so a close at any moment loses nothing. Not once it has FILED. */
@@ -1821,7 +1850,7 @@ export function Workroom({
       title: filedTitle({
         mode: context.mode,
         accountName: context.accountName,
-        packageName: brief.packageName,
+        packageName: filedMeta.packageName ?? brief.packageName,
         version: filedMeta.version,
         renewedTo: renewedTo(filedLines),
       }),
@@ -5020,6 +5049,18 @@ export function Workroom({
   }, []);
 
   const openFlow = useCallback(async () => {
+    /* A NEW PACKAGE FORKS NOTHING; JOINING ONE DOES (rule 2, extended
+       2026-09-06). The in-flight lock does not reach a create on its default
+       path: the plan opens a package of its own and the version chain of every
+       existing package is untouched. Filing INTO a package that already carries
+       an unbooked version is the same fork a modification would make. It is
+       refused HERE rather than at the route, because the route is bound long
+       before the banker has chosen a package to join. */
+    if (context.mode === "create" && context.productPackageId && locked) {
+      setFlow(null);
+      sayInFlightRefusal();
+      return;
+    }
     /* THE INVARIANT, BEFORE ANYTHING IS STAGED. A plan that lost the change its
        pricing questions were about is refused here, by name, rather than filed
        as a version of the package nobody asked for. */
@@ -5125,7 +5166,7 @@ export function Workroom({
       }
       agent(armStageRefusal(said, entries));
     }
-  }, [agent, context, engine, entries, lostPricingCause, push, relayError]);
+  }, [agent, context, engine, entries, locked, lostPricingCause, push, relayError, sayInFlightRefusal]);
 
   openFlowRef.current = openFlow;
 
@@ -5270,7 +5311,16 @@ export function Workroom({
       if (!isReadableExecution(landed)) {
         setFlow(null);
         setSealed(true);
-        push({ kind: "agent", id: nextId("agent"), text: UNREADABLE_EXECUTION, statusChip: true });
+        /* AND THE TWO ARE DIFFERENT FACTS. The engine now carries the org's own
+           `terminalState`, so a run the org REPORTED as failed is said as that
+           rather than as an answer the room could not read. Both close the
+           approval; only one of them is a claim about what the org did. */
+        push({
+          kind: "agent",
+          id: nextId("agent"),
+          text: executionFailed(landed) ? FILED_FAILED : UNREADABLE_EXECUTION,
+          statusChip: true,
+        });
         return;
       }
       const result = landed;
@@ -5299,13 +5349,7 @@ export function Workroom({
         // bundle's own `meta.instanceUrl`; null where the view carries none,
         // and the card then states the filing without offering a link it would
         // have had to invent a host for.
-        packageHref: packageDeepLink(
-          instanceUrl,
-          /* Carried by the shell adapter (writeTools) at runtime; the engine's
-             own type predates the field and is byte-fenced, hence the local
-             widening rather than a type edit. */
-          (result as typeof result & ExecutionExtras).outputPackageId ?? context.productPackageId ?? undefined,
-        ),
+        packageHref: packageDeepLink(instanceUrl, result.outputPackageId ?? context.productPackageId ?? undefined),
         handoff: result.handoff,
         handoffs: result.handoffs,
       };
@@ -5313,6 +5357,20 @@ export function Workroom({
 
       const extras = result as typeof result & ExecutionExtras;
       setExecution(result);
+      /* THE PACKAGE THE FILING LANDED ON, NAMED AS THE ORG LEFT IT.
+
+         A create on the default path opened a package that did not exist when
+         the room opened, so `brief.packageName` still reads "New package". The
+         name to say is the ORG'S: `plannedPackageName` is computed server-side
+         by `StageNewFacility` to the org's own convention and written unchanged
+         by the execute, so it is a read rather than an invention, and it is
+         only read where the execute came back naming a package at all. Failing
+         that, the id, shortened. Never a label this room composed.
+         Every other filing keeps the package it was composed against. */
+      const opened = context.mode === "create" && !context.productPackageId ? (result.outputPackageId ?? null) : null;
+      const openedName = opened
+        ? (staging.plan.plannedPackageName ?? `${NEW_PACKAGE.toLowerCase()} ${shortRecordId(opened)}`)
+        : null;
       /* THE FILING'S OWN FACTS, TAKEN HERE AND NOWHERE ELSE. The clock is the
          room's at the moment the org answered, which is when the filing
          happened; the version and the queue are the org's own words for what it
@@ -5320,7 +5378,8 @@ export function Workroom({
          cannot fill. */
       setFiledMeta({
         at: new Date(),
-        version: extras.outputPackageId ?? null,
+        packageName: openedName,
+        version: result.outputPackageId ?? null,
         queue: typeof extras.approvalQueue === "string" ? extras.approvalQueue : null,
         stagingId: engine.scripted ? null : staging.stagingId,
       });
@@ -5423,7 +5482,7 @@ export function Workroom({
 
       // WRITE-BACK THROUGH THE GLASS: the cockpit moves BEHIND the blur, while
       // the room is still open on the confirmation.
-      if (committedDeltaMM) onExecuted?.(committedDeltaMM);
+      if (committedDeltaMM) onExecuted?.(committedDeltaMM, Boolean(opened));
     } catch (e) {
       // A REAL ENGINE REFUSES OUT LOUD. The org's precondition, a moved figure,
       // a manifest that files nothing — each comes back as a sentence with the
@@ -5545,16 +5604,32 @@ export function Workroom({
      first frame in every state, including the single-package room the demo
      runs, where the stance is "the relationship's only package". */
   const anchoredEntry = roster.find((p) => p.id === context.productPackageId) ?? null;
+  /* A CREATE ON ITS DEFAULT PATH IS FILING INTO A PACKAGE THAT DOES NOT EXIST
+     YET, and the line says so rather than reporting an absence. "No product
+     package on this relationship yet" was true of the room and false of the
+     plan: the plan has a package, it is simply one the org has not made. */
+  const openingNewPackage = context.mode === "create" && !context.productPackageId;
+  const joinOnOffer = brief.packageChoices.filter((c) => c.id !== NEW_PACKAGE_CHOICE).length;
   const packageLineLabel = packagePending
     ? `choose one of ${roster.length}`
-    : (anchoredEntry?.name ?? (context.productPackageId ? brief.packageName : PACKAGE_NONE));
+    : openingNewPackage
+      ? NEW_PACKAGE
+      : (anchoredEntry?.name ?? (context.productPackageId ? brief.packageName : PACKAGE_NONE));
   const packageStance = packagePending
     ? `${roster.length} packages on this relationship. None is chosen yet, so nothing below is scoped to one.`
-    : !context.productPackageId
-      ? PACKAGE_NONE
-      : roster.length === 1
-        ? `${PACKAGE_ONLY}. The room anchored on it and you were not asked.`
-        : `Chosen from ${roster.length} on this relationship.`;
+    : openingNewPackage
+      ? `A new facility creates a new package. The plan makes one and files the facility into it${
+          joinOnOffer
+            ? `, unless you take one of the ${joinOnOffer} on this relationship still before approval.`
+            : `; nothing on this relationship is still before approval, so nothing else could take it.`
+        }`
+      : !context.productPackageId
+        ? PACKAGE_NONE
+        : context.mode === "create"
+          ? `Chosen over a new package: it is still before approval, so it can take the facility.`
+          : roster.length === 1
+            ? `${PACKAGE_ONLY}. The room anchored on it and you were not asked.`
+            : `Chosen from ${roster.length} on this relationship.`;
 
   /** SWITCHING IS A REBUILD, NEVER A SWAP. One session is one package is one
    *  plan is one approval, so a manifest composed against one package must be
@@ -5798,7 +5873,7 @@ export function Workroom({
             <button
               type="button"
               className="wk-pkgline"
-              data-pkgline={context.productPackageId ?? (packagePending ? "pending" : "none")}
+              data-pkgline={context.productPackageId ?? (packagePending ? "pending" : openingNewPackage ? "new" : "none")}
               aria-label={`Package: ${packageLineLabel}`}
               onClick={(e) => openPackagePeek(e.currentTarget)}
             >
@@ -6699,15 +6774,21 @@ function ThreadBlock({
     // is anchored on is part of what the room read, not an assumption.
     const cards: PackageChoice[] = packages.length
       ? packages
-      : [{ id: anchored.id, label: anchored.label, figure: anchored.figure, eligible: true }];
+      : [{ id: anchored.id, label: anchored.label, figure: anchored.figure, eligible: true, selected: true }];
     const choosing = packages.length > 0;
     return (
       <div className="wk-pkgs">
         {cards.map((choice) => (
+          /* WHERE THE PLAN STANDS IS MARKED; NOTHING ELSE IS. A create's offer
+             marks "New package", because that is where the plan already is, and
+             an existing package is never pre-selected: taking one is a decision
+             the banker makes, not one the room makes for them. */
           <button
             type="button"
             key={choice.id}
-            className={`wk-pkg ${choosing ? "" : "wk-sel"}`}
+            className={`wk-pkg ${choosing ? (choice.selected ? "wk-sel" : "") : "wk-sel"}`}
+            data-pkg={choice.id}
+            aria-pressed={choosing ? Boolean(choice.selected) : undefined}
             disabled={!choice.eligible || !choosing}
             title={choice.eligible ? choice.figure : choice.reason}
             onClick={() => choosing && onAnchor?.(choice)}

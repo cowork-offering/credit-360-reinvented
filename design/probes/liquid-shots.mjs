@@ -100,6 +100,71 @@ async function fileAModification(page, sel) {
   await sleep(2400);
 }
 
+/* ------------------------------------------------- the new-package surfaces
+
+   FOUNDER, 2026-09-06: "a new package needs to be created for a new facility."
+   So the create room no longer stands in a package: it opens on the account,
+   the package line reads "New package", and the strip is empty because the
+   package it is building has no members. Both surfaces below are new, and both
+   are checked in as references, because a new surface has no baseline to diff
+   against and would otherwise never be gated at all. */
+
+/** The create room, at rest, on its default path. */
+async function openTheCreateRoom(page, sel) {
+  await page.click(sel.rowHartwell);
+  await page.waitForTimeout(1400);
+  await page.click("#fab");
+  await page.waitForTimeout(500);
+  await page.click("#actFacility");
+  /* THE PACKAGE QUESTION STILL RUNS, because the unbound room stands on the
+     modify engine to read the relationship at all. Binding "New facility"
+     rebuilds the room on the create engine, and that engine drops the package. */
+  await page.waitForSelector('.wk-pkg[data-pkg="a5Fbb000000IHFJEA4"]', { state: "attached", timeout: 20_000 });
+  await page.evaluate(() => document.querySelector('.wk-pkg[data-pkg="a5Fbb000000IHFJEA4"]')?.click());
+  await sleep(1800);
+  await clickText(page, ".wk-opt", "^New facility$");
+  await sleep(2600);
+  /* THE ROOM'S OWN READ, BACK ON THE STAGE. The entry tiers leave a beat after
+     they land, so a shot taken here catches a room that has said everything and
+     is showing none of it. The summon is the banker's own gesture for "show me
+     what you read", and it is what makes this surface a picture of the rule
+     rather than a picture of an empty pane. */
+  await page.evaluate(() => document.querySelector(".wk-summon")?.click());
+  await sleep(1400);
+}
+
+async function fileANewFacility(page, sel) {
+  await openTheCreateRoom(page, sel);
+  await page.evaluate(() => {
+    const box = document.querySelector(".wk-txt");
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    setter.call(box, "add a Line of Credit facility of $3,000,000 for working capital");
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    document.querySelector(".wk-send")?.click();
+  });
+  await sleep(2800);
+  /* ALL THREE THE TOOL REFUSES WITHOUT, before the plan is taken: the review
+     chip opens on the first confirm and the plan needs product, amount AND
+     purpose, so the chip alone is not the signal to take it. */
+  for (let round = 0; round < 14; round++) {
+    const ready = await page.evaluate(
+      () => document.querySelectorAll(".wk-propose").length > 0 && document.querySelectorAll(".wk-ent").length >= 3,
+    );
+    if (ready) break;
+    const moved =
+      (await clickText(page, "button", "^Confirm$")) ||
+      (await clickText(page, "button", "^Acknowledge$")) ||
+      (await clickText(page, ".wk-opt", "^Leave pricing for later$"));
+    if (!moved) await sleep(900);
+    await sleep(1500);
+  }
+  await page.evaluate(() => document.querySelector(".wk-propose")?.click());
+  await sleep(1600);
+  await clickText(page, ".wk-approve", ".");
+  await page.waitForSelector(".wk-sheet", { state: "attached", timeout: 30_000 });
+  await sleep(2400);
+}
+
 const SURFACES = [
   {
     id: "landing",
@@ -216,6 +281,16 @@ const SURFACES = [
          doing something rather than for a chip nobody is going to press. */
       await sleep(6000);
     }
+  },
+  {
+    id: "create-room",
+    what: "the new facility room on its default path: package line New package, empty strip",
+    go: openTheCreateRoom
+  },
+  {
+    id: "create-sheet",
+    what: "the filed sheet after a create, naming the package the org made",
+    go: fileANewFacility
   },
   {
     id: "memo-done",

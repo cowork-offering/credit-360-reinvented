@@ -120,7 +120,7 @@ document, silently, so this is the part to get right before writing anything.
 |---|---|---|
 | A facility that already exists changes: amount, rate, maturity, term, a fee, a party on the loan, a covenant on the loan, or collateral pledged to it, whether the collateral is new or already held. A pledge to a facility rightly versions the package, and that is a modification, not a mistake. | `facility` | `modify` |
 | An existing facility is renewed. | `facility` | `renew` |
-| A facility that does not exist yet is structured. It rides inside a `modify` document instead when other changes travel with it. | `facility` | `create` |
+| A facility that does not exist yet is structured, on a new package unless an unapproved package is chosen. It rides inside a `modify` document instead when other changes travel with it. | `facility` | `create` |
 | A collateral ASSET is registered with nothing pledged, a new party joins the relationship, or a covenant is written at relationship level. | `relationship` | `intake` |
 | Collateral that is already pledged is valued. | `relationship` | `valuation` |
 | Covenants are assessed against the evidence. | `relationship` | `covenant` |

@@ -79,6 +79,17 @@ export interface ViewState {
    * A page session, and no longer. Nothing from an execution persists.
    */
   writeBacks: Record<string, number>;
+  /**
+   * WHICH OF THOSE DELTAS OPENED A PACKAGE OF ITS OWN.
+   *
+   * A new facility creates a new package (founder, 2026-09-06), so the pending
+   * figure on the client page is not "more on the package you were reading" but
+   * "a package that did not exist this morning". The chip beside the booked
+   * figure says which, because the two are different facts to a banker deciding
+   * what to look at next. Sticky per relationship for the page session: a
+   * second filing onto an existing package does not un-say the first.
+   */
+  writeBackNewPackage: Record<string, boolean>;
   /** Relationships whose anchor still owes a violet wash. The wash plays once,
    *  when the glass LIFTS — while the room is open the figure has already
    *  rolled and a wash under the blur would be a light nobody saw. */
@@ -100,7 +111,7 @@ type Action =
   | { type: "RESTORE_OVERLAY"; overlays: Record<string, AccountOverlay> }
   | { type: "PULSE"; ids: string[] }
   | { type: "CLEAR_PULSE" }
-  | { type: "WRITE_BACK"; accountId: string; committedDeltaMM: number }
+  | { type: "WRITE_BACK"; accountId: string; committedDeltaMM: number; newPackage?: boolean }
   | { type: "ARM_WASH"; accountId: string }
   | { type: "CLEAR_WASH"; accountId: string }
   | { type: "SET_DRAFT"; draft: string }
@@ -122,6 +133,7 @@ const initial: ViewState = {
   slowTierFetchedAt: {},
   pulse: [],
   writeBacks: {},
+  writeBackNewPackage: {},
   washes: [],
 };
 
@@ -223,6 +235,10 @@ function reducer(state: ViewState, action: Action): ViewState {
         writeBacks: {
           ...state.writeBacks,
           [action.accountId]: (state.writeBacks[action.accountId] ?? 0) + action.committedDeltaMM,
+        },
+        writeBackNewPackage: {
+          ...state.writeBackNewPackage,
+          [action.accountId]: (state.writeBackNewPackage[action.accountId] ?? false) || action.newPackage === true,
         },
       };
     case "ARM_WASH":

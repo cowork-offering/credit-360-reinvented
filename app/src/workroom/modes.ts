@@ -92,10 +92,28 @@ export function vocabularyFor(context: Pick<WorkroomContext, "mode" | "door">): 
   return { ...base, title: "New Facility Workroom", manifestHeading: "This addition" };
 }
 
-/** The door a mode opens on, given whether a package is on the table. Modify
- *  and renew are always package-anchored: there is nothing to reshape or renew
- *  without one. */
-export function doorFor(mode: WorkroomMode, productPackageId: string | null): WorkroomDoor {
+/** WHAT A CREATE IS FILING INTO on its default path: a package that does not
+ *  exist yet. It names the KIND rather than pretending to know the record's
+ *  name, because there is no record. The org's own convention
+ *  (`<Account> - <M/D/YYYY> - PP`) arrives on the staged plan. */
+export const NEW_PACKAGE = "New package";
+
+/** The id the "New package" chip carries. Not an org id and never sent as one:
+ *  it is the sentinel that means "no package travels, the account does". */
+export const NEW_PACKAGE_CHOICE = "new-package";
+
+/**
+ * The door a mode opens on. Modify and renew are always package-anchored:
+ * there is nothing to reshape or renew without one.
+ *
+ * CREATE DEFAULTS TO THE ACCOUNT, ALWAYS (founder, 2026-09-06: "a new package
+ * needs to be created for a new facility"). A package being on the table is no
+ * longer an answer to the question, the question is not asked. Only the
+ * banker CHOOSING an unapproved package to file into opens the package door,
+ * which is what `joined` means and the only thing it means. Standing in a
+ * package when the room opens is ambient, not a choice.
+ */
+export function doorFor(mode: WorkroomMode, productPackageId: string | null, joined = false): WorkroomDoor {
   if (mode !== "create") return "package";
-  return productPackageId ? "package" : "account";
+  return joined && productPackageId ? "package" : "account";
 }

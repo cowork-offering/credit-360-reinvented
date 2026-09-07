@@ -2,6 +2,8 @@ import { newRequestId } from "../channel/adapter";
 import { mcpAvailable } from "../channel/mcp";
 import {
   executeAction,
+  executionFailed,
+  failureReason,
   resolveApproverUserId,
   stageAction,
   type ExecuteResult,
@@ -13,6 +15,7 @@ import { packageRecords } from "../actions/schemas";
 import { validatePlan } from "../actions/transitionAllowlist";
 import { facilityProduct, facilityStagesStaged } from "../data/facilityStage";
 import { fmtDate, fmtMoney } from "../data/format";
+import { packageJoinability } from "../data/packageStage";
 import { isActiveFacility } from "../data/worklist";
 import type { BorrowerBundle, C360Data, Facility } from "../data/contract";
 import {
@@ -26,7 +29,7 @@ import {
 } from "./engine";
 import { gatewayRestate, type Restate } from "./gatewayRestate";
 import { WorkroomRefusalError } from "./modifyEngine";
-import { vocabularyFor } from "./modes";
+import { NEW_PACKAGE, NEW_PACKAGE_CHOICE, vocabularyFor } from "./modes";
 import {
   createField,
   CREATE_PRODUCTS,
@@ -39,6 +42,7 @@ import {
 import { greetingFor } from "./viewer";
 import type { SourceChip, WhyRow } from "./scripts";
 import type {
+  FiledEntry,
   HaveRow,
   IntentResult,
   PackageMember,
@@ -52,16 +56,31 @@ import type {
 } from "./types";
 
 /* =============================================================================
-   THE CREATION ENGINE. ONE ROOM, TWO DOORS.
+   THE CREATION ENGINE. ONE ROOM, TWO DOORS, AND ONE OF THEM IS THE DEFAULT.
 
-     account door — the relationship has no credit package, so the plan CREATES
-                    one and files the first facility into it. The tool takes
-                    `accountId` and returns a plan opening with `create_package`,
-                    named the way nCino's own wizard names it.
-     package door — a package is already on the table, so it arrives pre-pinned
-                    and the tool takes `productPackageId`. Everything else about
-                    the room is identical: same questions, same manifest, same
-                    approval.
+   FOUNDER, 2026-09-06: "a new package needs to be created for a new facility.
+   What's true is that you can add to product packages which are NOT approved
+   (i.e. loans in pre-approval stages), of course not to the booked packages."
+
+     account door: THE DEFAULT, ON EVERY RELATIONSHIP. A new facility creates a
+                    new package, so the plan CREATES one and files the facility
+                    into it. The tool takes `accountId` and returns a plan
+                    opening with `create_package`, named the way nCino's own
+                    wizard names it. The question "which package does this join"
+                    is not asked, because it has an answer.
+     package door: THE EXCEPTION, AND ONLY BY CHOICE. A package that is still
+                    before approval and carries nothing booked may take the
+                    facility instead. The room says so once, offers the chips,
+                    and files on the account unless the banker takes one.
+                    `data/packageStage.ts` holds the rule and the stage strings.
+
+   PROVEN AGAINST THE ORG, 2026-09-07. `StageNewFacility` accepts `accountId` on
+   a relationship that already carries two packages: Hartwell came back with
+   `createsPackage: true`, `productPackageId: null`, a plan opening on
+   `create_package`, and `plannedPackageName` "Hartwell Precision Manufacturing
+   LLC - 9/6/2026 - PP". The org does not refuse the account anchor because
+   packages exist, and the Apex says why: `createPackage` is
+   `String.isBlank(req.productPackageId)` and nothing else.
 
    EXACTLY ONE ANCHOR travels. Sending both is refused by the tool, and the
    payload type makes sending both a compile error rather than a refusal the
@@ -93,28 +112,51 @@ const RESUME_SETTLE_MS = 9_000;
 
 const MM = (n: number) => n / 1_000_000;
 
-function packageMembers(bundle: BorrowerBundle | null, packageId: string | null): Facility[] {
-  const all = (bundle?.exposure?.facilities ?? []).filter(isActiveFacility);
-  if (!packageId) return all;
+/** Every live facility on the relationship, whatever package it sits on. */
+function activeFacilities(bundle: BorrowerBundle | null): Facility[] {
+  return (bundle?.exposure?.facilities ?? []).filter(isActiveFacility);
+}
+
+/** The members of ONE package. Called only where a package is pinned now: a
+ *  create without one is building a package that has no members yet. */
+function packageMembers(bundle: BorrowerBundle | null, packageId: string): Facility[] {
+  const all = activeFacilities(bundle);
   const on = all.filter((f) => f.productPackageId === packageId);
   return on.length ? on : all;
 }
 
-/** Every package on the relationship. A creation can file into ANY of them, so
- *  unlike a modification none of them is ineligible: a package with nothing
- *  booked is still a package a new facility can join. */
-function packageChoices(bundle: BorrowerBundle | null): PackageChoice[] {
-  const facilities = (bundle?.exposure?.facilities ?? []).filter(isActiveFacility);
-  return packageRecords(bundle).map((pkg) => {
-    const on = facilities.filter((f) => f.productPackageId === pkg.id);
+/** One package the rule says a new facility MAY join, with the stage that made
+ *  it joinable. Never every package on the relationship: a package this cockpit
+ *  would not offer is not on the table at all, because offering one the org
+ *  would refuse teaches the banker something untrue. */
+interface JoinableChoice extends PackageChoice {
+  /** The org's own stage word, for the sentence that offers it. */
+  stage: string | null;
+}
+
+function joinableChoices(bundle: BorrowerBundle | null): JoinableChoice[] {
+  const facilities = activeFacilities(bundle);
+  const records = packageRecords(bundle);
+  const out: JoinableChoice[] = [];
+  for (const verdict of packageJoinability(bundle)) {
+    if (!verdict.joinable) continue;
+    const record = records.find((r) => r.id === verdict.id);
+    if (!record) continue;
+    const on = facilities.filter((f) => f.productPackageId === verdict.id);
     const committed = on.reduce((sum, f) => sum + (typeof f.committed === "number" ? f.committed : 0), 0);
-    return {
-      id: pkg.id,
-      label: pkg.label,
-      figure: `${fmtMoney(committed)} committed · ${on.length} ${on.length === 1 ? "member" : "members"}`,
+    out.push({
+      id: verdict.id,
+      label: record.label,
+      stage: verdict.stage,
+      figure: [
+        verdict.stage ? `Still in ${verdict.stage}` : "Before approval",
+        `${fmtMoney(committed)} committed`,
+        `${on.length} ${on.length === 1 ? "member" : "members"}`,
+      ].join(" · "),
       eligible: true,
-    };
-  });
+    });
+  }
+  return out;
 }
 
 function memberTag(f: Facility, staged: boolean): { tag: string; proposed: boolean } {
@@ -173,19 +215,57 @@ export function createCreateEngine(args: {
   const vocabulary = vocabularyFor(context);
   const relationship = (bundle?.snapshot?.name ?? context.accountName ?? "").trim();
 
-  /* THE DOOR. `productPackageId` decides it and nothing else: a package on the
-     table is the package door, no package is the account door. A relationship
-     with SEVERAL packages and none chosen is neither, and it asks. */
-  const choices = packageChoices(bundle);
-  const unanchored = !context.productPackageId && choices.length > 1;
-  const createsPackage = !context.productPackageId && choices.length === 0;
+  /* THE DOOR. A CREATE ANCHORS ON THE ACCOUNT UNLESS THE BANKER JOINED ONE.
+     `productPackageId` reaching this engine now means one thing and one thing
+     only: the banker took a joinable package off the offer below. Standing in a
+     package when the room opened is ambient and is deliberately dropped by
+     `workroomContextFor`, so a room opened from a package tile and a room
+     opened from the relationship compose the same plan. */
+  const joining = Boolean(context.productPackageId);
+  const createsPackage = !joining;
+  const joinable = joinableChoices(bundle);
 
-  const members = unanchored ? [] : packageMembers(bundle, context.productPackageId);
+  /** THE OFFER, WHICH IS NEVER A GATE. Empty where nothing on the relationship
+   *  is still before approval, which is the ordinary case and the one where the
+   *  room says nothing about packages at all. "New package" leads it and is the
+   *  one marked: an existing package is never pre-selected. */
+  const offer: PackageChoice[] = joinable.length
+    ? [
+        {
+          id: NEW_PACKAGE_CHOICE,
+          label: NEW_PACKAGE,
+          figure: "The plan creates it, named to the org's own convention",
+          eligible: true,
+          selected: !joining,
+        },
+        ...joinable.map((c) => ({ ...c, selected: c.id === context.productPackageId })),
+      ]
+    : [];
+
+  /* THE STRIP IS THE PACKAGE'S MEMBERS, AND A NEW PACKAGE HAS NONE.
+     Showing the relationship's other facilities here was tried and taken back:
+     every count and every disambiguation in this room says "on this package",
+     so a strip of nine facilities from two other packages made the room state
+     things that were not true of the package it is building. What the
+     relationship carries is stated in the disclosure rows instead, where it can
+     be labelled as what it is. */
+  const members = context.productPackageId ? packageMembers(bundle, context.productPackageId) : [];
   const stagesStaged = facilityStagesStaged(bundle);
   const entities = (bundle?.graph?.legalEntities ?? []).filter(
     (e) => !context.productPackageId || !e.packageId || e.packageId === context.productPackageId,
   );
-  const committed = members.reduce((sum, f) => sum + (typeof f.committed === "number" ? f.committed : 0), 0);
+  /** THE PACKAGE THIS PLAN FILES INTO, as it stands today. Zero on the default
+   *  path, because the package does not exist yet. */
+  const committed = joining ? members.reduce((sum, f) => sum + (typeof f.committed === "number" ? f.committed : 0), 0) : 0;
+  /** WHAT THE BANK ALREADY HAS OUT ON THIS RELATIONSHIP, whatever package it
+   *  sits on. The coverage check reads this rather than the package total: the
+   *  collateral pool is the relationship's, and a new package opening at zero
+   *  would otherwise silence the one check a new facility ought to trip. */
+  const relationshipFacilities = activeFacilities(bundle);
+  const relationshipCommitted = relationshipFacilities.reduce(
+    (sum, f) => sum + (typeof f.committed === "number" ? f.committed : 0),
+    0,
+  );
   const request = (bundle?.requests ?? []).find((r) => (r.ask?.type ?? "").includes("facility")) ?? (bundle?.requests ?? [])[0];
 
   /** THE HOUSEHOLD. Who is already around this relationship, because an entity a
@@ -213,7 +293,9 @@ export function createCreateEngine(args: {
    *  offer, never a claim about what the client asked for. */
   function dominantProduct(): string | null {
     const counts = new Map<string, number>();
-    for (const f of members) {
+    // A NEW PACKAGE HAS NO MEMBERS TO READ, so the basis for an offer is what
+    // the RELATIONSHIP carries most of. Still a basis, still not a guess.
+    for (const f of (joining ? members : relationshipFacilities)) {
       const p = facilityProduct(f, relationship);
       if (CREATE_PRODUCTS.includes(p)) counts.set(p, (counts.get(p) ?? 0) + 1);
     }
@@ -368,7 +450,6 @@ export function createCreateEngine(args: {
   /* ------------------------------------------------------------ suggestions */
 
   function buildSuggestions(): WorkroomSuggestion[] {
-    if (unanchored) return [];
     const out: WorkroomSuggestion[] = [];
 
     /* THE PILL OFFERS A PRODUCT ONLY WHERE THE READ SUPPLIES ONE. The client's
@@ -396,13 +477,25 @@ export function createCreateEngine(args: {
   /* ------------------------------------------------------------------ brief */
 
   function haveRows(): HaveRow[] {
+    const packagesToday = packageRecords(bundle).length;
     const rows: HaveRow[] = [
       createsPackage
         ? {
             label: "Package position",
-            value: "No credit package on this relationship",
-            detail:
-              "The plan creates one before it files the facility, named the way nCino's own wizard names it. That is the account door: one extra step at the top of the same plan.",
+            value: NEW_PACKAGE,
+            detail: [
+              "A new facility creates a new package. The plan makes one before it files the facility, named the way nCino's own wizard names it, and that is one extra step at the top of the same plan.",
+              packagesToday
+                ? `${packagesToday} ${packagesToday === 1 ? "package" : "packages"} already on this relationship, ${fmtMoney(relationshipCommitted)} committed across them. This plan does not touch them.`
+                : `${relationship} carries no credit package today.`,
+              packagesToday
+                ? joinable.length
+                  ? `${joinable.length} of them ${joinable.length === 1 ? "is" : "are"} still before approval and could take the facility instead, if you say so.`
+                  : "None of them is still before approval, so none can take the facility: a booked package is not a place to file new money."
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" "),
           }
         : {
             label: "Package position",
@@ -463,10 +556,14 @@ export function createCreateEngine(args: {
   function why(): WhyRow[] {
     return [
       {
-        label: createsPackage ? "No package yet" : "The package",
+        label: createsPackage ? "A new package" : "The package you chose",
         detail: createsPackage
-          ? `${relationship} carries no credit package, so this plan creates one and files the facility into it. Exactly one anchor travels: the account, never both.`
-          : `${members.length} ${members.length === 1 ? "member" : "members"}, ${fmtMoney(committed)} committed. The facility is anchored on the package, which is what the org hangs a loan off.`,
+          ? `A new facility creates a new package, so this plan creates one and files the facility into it. Exactly one anchor travels: the account, never both. ${
+              joinable.length
+                ? `${joinable.length} ${joinable.length === 1 ? "package is" : "packages are"} still before approval and could take it instead, which is the only exception and it is yours to take.`
+                : "Nothing on this relationship is still before approval, so nothing else can take it."
+            }`
+          : `${members.length} ${members.length === 1 ? "member" : "members"}, ${fmtMoney(committed)} committed. You chose this package over a new one, and the org accepts it because it is not approved yet. The facility is anchored on it, which is what the org hangs a loan off.`,
       },
       {
         label: "What this room files",
@@ -481,20 +578,36 @@ export function createCreateEngine(args: {
     ];
   }
 
+  /** THE OFFER'S OWN SENTENCE. The default is stated FIRST and always, and the
+   *  exception follows as an alternative the banker may take or ignore. A room
+   *  that led with the exception would be asking the question again. */
+  function joinOffer(): string {
+    if (!joinable.length) return "";
+    if (joinable.length === 1) {
+      const one = joinable[0];
+      return one.stage
+        ? ` ${one.label} is still in ${one.stage} and can take the facility instead: say so, or carry on.`
+        : ` ${one.label} is still before approval and can take the facility instead: say so, or carry on.`;
+    }
+    return ` ${joinable.length} packages on this relationship are still before approval and can take the facility instead: say which, or carry on.`;
+  }
+
   function position(): string {
-    if (unanchored) {
-      return `${choices.length} packages on this relationship. Pick the one this facility joins: a facility is anchored on one package, and one package is one plan under one approval.`;
+    if (joining) {
+      const stage = joinable.find((c) => c.id === context.productPackageId)?.stage;
+      return `${context.packageName} is${stage ? ` still in ${stage} and` : ""} taking this facility instead of a new package. It holds ${members.length} ${members.length === 1 ? "member" : "members"} and ${fmtMoney(committed)} committed. Tell me the product and the amount.`;
     }
-    if (createsPackage) {
-      return `${relationship} carries no credit package, so this plan creates one and files the first facility into it. Tell me the product and the amount and I will compose it.`;
-    }
-    return `${context.packageName} holds ${members.length} ${members.length === 1 ? "member" : "members"} and ${fmtMoney(committed)} committed. A new facility joins that total. Tell me the product and the amount.`;
+    return `This plan creates a new credit package.${joinOffer() || ` ${relationship} takes the facility on a package of its own.`} Tell me the product and the amount.`;
   }
 
   function brief(): WorkroomBrief {
     return {
       greeting: greetingFor(data.meta?.user, context.approver),
-      packageChoices: unanchored ? choices : [],
+      packageChoices: offer,
+      /* NEVER A GATE (founder, 2026-09-06). The plan already stands somewhere
+         honest, on a new package, so these chips are an alternative and the
+         room works whether or not one is taken. */
+      packageChoiceRequired: false,
       packageName: context.packageName,
       baselineCommittedMM: MM(committed),
       baselineMembers: members.length,
@@ -574,15 +687,11 @@ export function createCreateEngine(args: {
     return { kind: "deltas", reply, deltas, options: optionsFor(awaiting) };
   }
 
+  /* NO PACKAGE GUARD HERE ANY MORE. A relationship carrying several packages
+     used to stop the room dead until one was chosen; a new facility creates a
+     new package, so there is nothing to choose before composing and the offer
+     above stays open the whole time. */
   async function parseIntent(text: string): Promise<IntentResult> {
-    if (unanchored) {
-      asked = true;
-      return {
-        kind: "unparsed",
-        reply: `This relationship carries ${choices.length} packages and a facility is anchored on one of them. Pick the package above and I will compose inside it.`,
-      };
-    }
-
     // AN ANSWER TO THE LAST QUESTION comes first: "Equipment" is a complete
     // reply to "which product", and reading it as a new instruction would work
     // here but would lose a purpose like "for the tooling ramp".
@@ -641,7 +750,7 @@ export function createCreateEngine(args: {
     // strip in this room is context: what the new facility will sit beside.
     return {
       kind: "unparsed",
-      reply: `${facilityProduct(facility, relationship)} is already on the package${held ? `: ${held}` : ""}. This room adds a new facility beside it. ${
+      reply: `${facilityProduct(facility, relationship)} is already ${joining ? "on the package" : "on the relationship"}${held ? `: ${held}` : ""}. This room adds a new facility ${joining ? "beside it" : "on a new package beside it"}. ${
         missing.length ? questionFor(missing[0]) : "Product, amount and purpose are set — confirm and I will file it."
       }`,
     };
@@ -655,10 +764,10 @@ export function createCreateEngine(args: {
   function packageMove(entries: WorkroomDelta[]): string {
     const addedMM = entries.reduce((sum, d) => sum + (d.committedDeltaMM ?? 0), 0);
     if (!addedMM) {
-      return createsPackage ? "The package does not exist yet; this plan creates it." : `The package total holds at ${fmtMoney(committed)}.`;
+      return createsPackage ? "The new package does not exist yet; this plan creates it." : `The package total holds at ${fmtMoney(committed)}.`;
     }
     return createsPackage
-      ? `That opens the package at ${fmtMoney(addedMM * 1_000_000)}.`
+      ? `That opens the new package at ${fmtMoney(addedMM * 1_000_000)}.`
       : `That takes the package from ${fmtMoney(committed)} to ${fmtMoney(committed + addedMM * 1_000_000)}.`;
   }
 
@@ -669,9 +778,14 @@ export function createCreateEngine(args: {
     const addedMM = entries.reduce((sum, d) => sum + (d.committedDeltaMM ?? 0), 0);
     if (!addedMM) return undefined;
     const lendable = bundle?.exposure?.totalUniqueCollateralLendableValue;
-    if (typeof lendable !== "number" || lendable <= 0 || committed <= 0) return undefined;
-    const after = committed + addedMM * 1_000_000;
-    const was = lendable / committed;
+    /* AT RELATIONSHIP ALTITUDE, because the collateral pool is. A new package
+       opens at zero and the coverage question does not: the bank's protection
+       is measured against everything it has out, not against the one package
+       this plan happens to be creating. */
+    const base = relationshipCommitted;
+    if (typeof lendable !== "number" || lendable <= 0 || base <= 0) return undefined;
+    const after = base + addedMM * 1_000_000;
+    const was = lendable / base;
     const now = lendable / after;
     return {
       id: `coverage:${after}`,
@@ -681,7 +795,7 @@ export function createCreateEngine(args: {
       line: `Committed goes to ${fmtMoney(after)} against ${fmtMoney(lendable)} of lendable collateral. This facility pledges nothing of its own: fully drawn, the existing pool covers ${now.toFixed(2)}x, from ${was.toFixed(2)}x.`,
       rows: [
         ["Lendable collateral, distinct pool", fmtMoney(lendable)],
-        ["Committed today", fmtMoney(committed)],
+        ["Committed today", fmtMoney(base)],
         ["Committed with this facility", fmtMoney(after), "key"],
         ["Coverage if fully drawn", `${was.toFixed(2)}x → ${now.toFixed(2)}x`, "sum"],
       ],
@@ -796,10 +910,6 @@ export function createCreateEngine(args: {
         "This view has no connector, so there is no org to stage against. Nothing here is simulated: the plan is the org's or there is no plan.",
       );
     }
-    if (unanchored) {
-      throw new WorkroomRefusalError("This relationship carries more than one package and none is chosen. Pick the one this facility joins and I will stage it there.");
-    }
-
     const fileable = deltas.filter((d) => d.fileable && d.wire);
     const handed = deltas.filter((d) => !d.fileable);
     if (!fileable.length) {
@@ -895,20 +1005,31 @@ export function createCreateEngine(args: {
     const stepDetail = (id: string) => result.steps?.find((s) => s.id === id)?.detail;
     const verified = (result.steps ?? []).filter((s) => s.state === "verified").length;
 
-    const filed = stagedDeltas
-      .filter((d) => d.fileable && d.wire)
-      .map((d) => {
-        const purpose = d.wire!.key === "primaryLoanPurpose";
-        return {
-          deltaId: d.id,
-          // REAL ids, from the org's own response. The purpose lands on the Loan
-          // Detail, which is a different record and says so.
-          recordId: (purpose ? result.loanDetailId : result.loanId) ?? (purpose ? "the org has not created the Loan Detail yet" : "the org did not name the facility"),
-          verification:
-            (purpose ? stepDetail("write_loan_purpose") : stepDetail("verify_loan") ?? stepDetail("write_loan")) ??
-            (purpose ? "The purpose is written on the resume, once the org has created the Loan Detail." : result.outcome),
-        };
-      });
+    /* A FILED LIST IS THE ORG'S ANSWER, NEVER THE ROOM'S OWN MANIFEST. See the
+       same guard in `modifyEngine`: building these rows from `stagedDeltas`
+       alone made a failed run indistinguishable from a filing at the room's
+       seam, because every guard the room can apply there was satisfied by rows
+       the org never wrote. */
+    const failed = executionFailed(result);
+
+    const filed: FiledEntry[] = failed
+      ? []
+      : stagedDeltas
+          .filter((d) => d.fileable && d.wire)
+          .map((d) => {
+            const purpose = d.wire!.key === "primaryLoanPurpose";
+            return {
+              deltaId: d.id,
+              // REAL ids, from the org's own response. The purpose lands on the
+              // Loan Detail, which is a different record and says so.
+              recordId:
+                (purpose ? result.loanDetailId : result.loanId) ??
+                (purpose ? "the org has not created the Loan Detail yet" : "the org did not name the facility"),
+              verification:
+                (purpose ? stepDetail("write_loan_purpose") : (stepDetail("verify_loan") ?? stepDetail("write_loan"))) ??
+                (purpose ? "The purpose is written on the resume, once the org has created the Loan Detail." : result.outcome),
+            };
+          });
 
     const handoffs = stagedDeltas
       .filter((d) => !d.fileable)
@@ -922,11 +1043,17 @@ export function createCreateEngine(args: {
 
     return {
       filed,
+      terminalState: result.terminalState,
+      /* THE PACKAGE THE FILING PRODUCED. On the default path that is the package
+         this plan CREATED, which the org returns as `productPackageId` with
+         `packageCreated` beside it; on a join it is the package the facility
+         went onto. The filed sheet names it and the dossier links to it. */
+      outputPackageId: result.productPackageId ?? context.productPackageId ?? null,
       tokenNote: `Token redeemed by ${approval.approverUserId} · single use · ${verified} of ${result.steps?.length ?? 0} plan steps verified by the tool's own re-query${
         result.replayed ? " · replayed, nothing was written twice" : ""
       }`,
       // The org's own sentence about what is left, verbatim where it gave one.
-      handoff: resumeNote ?? undefined,
+      handoff: failed ? failureReason(result) : (resumeNote ?? undefined),
       handoffs,
       reply: {
         subject: `${context.packageName}: facility filed`,

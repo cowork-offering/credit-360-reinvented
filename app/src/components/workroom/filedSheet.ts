@@ -87,6 +87,20 @@ export function shortPackageName(accountName: string | null | undefined, package
   return `${head}…${tail}`;
 }
 
+/**
+ * AN ORG ID, SHORTENED, AND NEVER DRESSED UP AS A NAME.
+ *
+ * A creation opens a package that did not exist when the room opened, and the
+ * execute returns its ID and no name, the org names a package on its own
+ * schedule and `recordName` on that result is the FACILITY's. So the sheet says
+ * the id, cut in the middle so it still reads as an id, rather than inventing a
+ * label or borrowing the planned name as though it were confirmed.
+ */
+export function shortRecordId(id: string): string {
+  const trimmed = (id ?? "").trim();
+  return trimmed.length <= 12 ? trimmed : `${trimmed.slice(0, 6)}…${trimmed.slice(-4)}`;
+}
+
 /** What the room did, in the word the mode uses for it. A renewal names the date
  *  it renewed TO, because that is the fact a banker reads a renewal for. */
 export function filedTitle(args: {
@@ -99,8 +113,13 @@ export function filedTitle(args: {
   /** The maturity the renewal filed, where the manifest carried one. */
   renewedTo?: string | null;
 }): string {
-  const where = [args.accountName, shortPackageName(args.accountName, args.packageName)].filter(Boolean).join(", ");
-  const tail = args.version ? `${where}, version ${args.version}` : where;
+  const pkg = shortPackageName(args.accountName, args.packageName);
+  const where = [args.accountName, pkg].filter(Boolean).join(", ");
+  /* THE VERSION IS NOT SAID TWICE. A creation's new package IS the version the
+     filing made, and the package clause already names it: appending "version
+     <id>" after it would print one org id in two clauses of one sentence. */
+  const named = Boolean(args.version) && (pkg.includes(args.version!) || pkg.includes(shortRecordId(args.version!)));
+  const tail = args.version && !named ? `${where}, version ${args.version}` : where;
   if (args.mode === "renew") return args.renewedTo ? `Renewed to ${args.renewedTo} on ${tail}` : `Renewed on ${tail}`;
   if (args.mode === "create") return `Proposed on ${tail}`;
   return `Filed on ${tail}`;

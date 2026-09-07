@@ -15,10 +15,19 @@ import type { WorkroomContext, WorkroomDelta, WorkroomMode } from "./types";
    a renewal hands into approval), never the prose.
    ============================================================================= */
 
-function contextFor(mode: WorkroomMode, packageId: string | null = "a5Fbb000000IHFJEA4"): WorkroomContext {
+/** `joined` is the create room's package door, and it is now reached ONLY by the
+ *  banker choosing a package to file into (founder, 2026-09-06: a new facility
+ *  creates a new package). It defaults true here so every test that names a
+ *  package still gets the room it was written against; the one test that is
+ *  about the DEFAULT anchor passes it false. */
+function contextFor(
+  mode: WorkroomMode,
+  packageId: string | null = "a5Fbb000000IHFJEA4",
+  joined = true,
+): WorkroomContext {
   return {
     mode,
-    door: doorFor(mode, packageId),
+    door: doorFor(mode, packageId, joined),
     accountId: "001bb00001DLtRMAA1",
     accountName: "Hartwell Precision Manufacturing LLC",
     productPackageId: packageId,
@@ -183,7 +192,12 @@ describe("the workroom engine, per mode", () => {
     expect(vocabularyFor(contextFor("create")).steps[3]).toBe("File");
   });
 
-  it("CREATE opens two doors: one from a package, one from an account", async () => {
+  it("CREATE opens two doors, and the ACCOUNT one is the default", async () => {
+    /* THE RULE (founder, 2026-09-06): a new facility creates a new package. A
+       package being on the table is no longer an answer, so the package door is
+       reached only by the banker CHOOSING one to file into, which is what the
+       third argument is and the only thing it is. */
+    expect(contextFor("create", "a5Fbb000000IHFJEA4", false).door).toBe("account");
     const fromPackage = contextFor("create", "a5Fbb000000IHFJEA4");
     const fromAccount = contextFor("create", null);
     expect(fromPackage.door).toBe("package");

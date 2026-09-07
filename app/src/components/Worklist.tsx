@@ -212,7 +212,7 @@ export function Worklist() {
                     <Odo value={fmtMoney(r.tce ?? 0)} />
                   </b>
                   <span>total exposure</span>
-                  <FiledChip deltaMM={state.writeBacks[r.accountId] ?? 0} />
+                  <FiledChip deltaMM={state.writeBacks[r.accountId] ?? 0} newPackage={state.writeBackNewPackage[r.accountId]} />
                 </span>
                 <span className="go">→</span>
               </div>

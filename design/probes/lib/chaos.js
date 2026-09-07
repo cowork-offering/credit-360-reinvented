@@ -37,6 +37,14 @@
 
   var HASH = "9c41e08bf27a4d10";
   var VERSION = "a5Fbb000000J61hEAC";
+  /* THE PACKAGE A CREATE OPENS. A new facility creates a new package (founder,
+     2026-09-06), so `stage_new_facility` on an ACCOUNT anchor answers with a
+     plan whose first step is `create_package` and no package id at all, and the
+     execute then names the package it made. Both shapes are the org's own:
+     staged live against Hartwell 2026-09-07 (`createsPackage: true`,
+     `productPackageId: null`, `plannedPackageName` to the org's convention). */
+  var NEW_PACKAGE = "a5Fbb000000NEWPKEAI";
+  var NEW_PACKAGE_NAME = "Hartwell Precision Manufacturing LLC - 9/7/2026 - PP";
 
   /* ---------------------------------------------------- THE BAKED BOOK
 
@@ -94,8 +102,70 @@
     return { payload: { content: [{ isSuccess: true, outputValues: { ok: true, result: result } }] } };
   };
 
-  function stagePayload(input) {
+  /** `stage_new_facility` on the ACCOUNT anchor: the plan creates the package
+   *  first, and carries no package id because there is not one yet. */
+  function newFacilityStagePayload(one) {
+    var creates = !one.productPackageId;
+    var steps = [
+      { id: "write_loan", type: "write", label: "Create the facility at Qualification", objectName: "LLC_BI__Loan__c" },
+      { id: "write_involvement", type: "write", label: "Add the borrower to the facility's borrowing structure", objectName: "LLC_BI__Legal_Entities__c" },
+      { id: "verify_loan", type: "verification", label: "Read back the facility and report the name the org assigned", objectName: "LLC_BI__Loan__c" },
+      { id: "wait_loan_detail", type: "wait", label: "nCino creates the Loan Detail, then this action continues", objectName: "LLC_BI__Loan_Detail__c" },
+      { id: "write_loan_purpose", type: "write", label: "Set the primary loan purpose on the Loan Detail", objectName: "LLC_BI__Loan_Detail__c" },
+      { id: "hop_to_proposal", type: "write", label: "Move the facility from Qualification to Proposal", objectName: "LLC_BI__Loan__c" }
+    ];
+    if (creates) {
+      steps.unshift({
+        id: "create_package",
+        type: "write",
+        label: "Create the credit package " + NEW_PACKAGE_NAME,
+        objectName: "LLC_BI__Product_Package__c"
+      });
+    }
+    return ok({
+      stagingId: "a5Sbb0000001PROBE",
+      planHash: HASH,
+      decisionToken: "4f8ac21e-probe-token",
+      summary: creates
+        ? "Creates a new credit package for this relationship, named " + NEW_PACKAGE_NAME + " to the org's own convention, then files one facility on it at stage Qualification."
+        : "Creates one facility on the package at stage Qualification.",
+      steps: steps,
+      warnings: [],
+      accountId: one.accountId,
+      productPackageId: one.productPackageId,
+      createsPackage: creates,
+      plannedPackageName: creates ? NEW_PACKAGE_NAME : undefined
+    });
+  }
+
+  function newFacilityExecutePayload(one) {
+    var creates = !one.productPackageId;
+    return ok({
+      stagingId: "a5Sbb0000001PROBE",
+      terminalState: "success",
+      outcome: "Facility filed and moved to Proposal.",
+      resumable: false,
+      loanId: "a4Zbb000002NEWFACEAA",
+      loanDetailId: "a4Wbb000001NEWDETEAW",
+      involvementId: "a4Lbb000000NEWINVEAK",
+      productPackageId: creates ? NEW_PACKAGE : one.productPackageId,
+      packageCreated: creates,
+      stage: "Proposal",
+      recordName: "Hartwell Precision Manufacturing LLC - Equipment - $3,000,000.00",
+      steps: [
+        { id: "create_package", type: "write", label: "Create the credit package", state: "verified", detail: "Package " + NEW_PACKAGE + " created." },
+        { id: "write_loan", type: "write", label: "Create the facility", state: "verified", detail: "Facility a4Zbb000002NEWFACEAA created at Qualification." },
+        { id: "write_involvement", type: "write", label: "Add the borrower", state: "verified", detail: "Borrower added at 100.00 percent ownership." },
+        { id: "verify_loan", type: "verification", label: "Read back the facility", state: "verified", detail: "The org named this facility Hartwell Precision Manufacturing LLC - Equipment - $3,000,000.00." },
+        { id: "write_loan_purpose", type: "write", label: "Set the primary loan purpose", state: "verified", detail: "Primary loan purpose set to equipment." },
+        { id: "hop_to_proposal", type: "write", label: "Move to Proposal", state: "verified", detail: "Stage moved from Qualification to Proposal." }
+      ]
+    });
+  }
+
+  function stagePayload(input, tool) {
     var one = (((input || {}).inputs || [])[0]) || {};
+    if (/new_facility/.test(tool || "")) return newFacilityStagePayload(one);
     return ok({
       stagingId: "a5Sbb0000001PROBE",
       planHash: HASH,
@@ -115,7 +185,10 @@
     });
   }
 
-  function executePayload(input) {
+  function executePayload(input, tool) {
+    var one = (((input || {}).inputs || [])[0]) || {};
+    if (/new_facility/.test(tool || "")) return newFacilityExecutePayload(one);
+    void one;
     return ok({
       stagingId: "a5Sbb0000001PROBE",
       terminalState: "completed",
@@ -177,8 +250,8 @@
   }
 
   function goodFor(tool, input) {
-    if (/^stage_/.test(tool)) return stagePayload(input);
-    if (/^execute_/.test(tool)) return executePayload(input);
+    if (/^stage_/.test(tool)) return stagePayload(input, tool);
+    if (/^execute_/.test(tool)) return executePayload(input, tool);
     if (/ActionHistory/.test(tool)) return historyPayload();
     if (/get_llm_response/.test(tool)) return llmPayload(input);
     var slice = baked(tool, input);
@@ -238,7 +311,7 @@
       if (mode === "duplicate") {
         // Both executes answer, with the SAME version id: the org replaying a
         // spent idempotency key, which is the shape a second click produces.
-        return Promise.resolve(executePayload(input));
+        return Promise.resolve(executePayload(input, tool));
       }
       if (/^slow:/.test(mode)) {
         var ms = parseInt(mode.split(":")[1], 10) || 1000;
@@ -252,7 +325,7 @@
       }
       // The ordinary org still takes a moment on a write, so the loader exists.
       if (/^execute_/.test(tool)) {
-        return new Promise(function (r) { setTimeout(function () { r(executePayload(input)); }, 900); });
+        return new Promise(function (r) { setTimeout(function () { r(executePayload(input, tool)); }, 900); });
       }
       return Promise.resolve(goodFor(tool, input));
     },

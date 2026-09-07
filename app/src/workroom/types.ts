@@ -372,6 +372,24 @@ export interface HandoffEntry {
 /** What `execute` gives back. Verified, or it does not come back. */
 export interface WorkroomExecution {
   filed: FiledEntry[];
+  /**
+   * THE ORG'S OWN WORD FOR HOW THE RUN ENDED, carried rather than dropped.
+   *
+   * `writeTools` already normalises a malformed execute to "failed"; the engine
+   * leg used to throw that away and build `filed` from the MANIFEST it sent,
+   * record ids and all, so a failed run reached the room looking exactly like a
+   * successful one. It travels now, and a run the org reported failed comes
+   * back with an EMPTY `filed` list, the room's unreadable-execution path then
+   * takes over and the sheet never lights on a write nobody can see.
+   */
+  terminalState?: string;
+  /**
+   * THE PACKAGE VERSION THE FILING PRODUCED, where the org named one: the clone
+   * a modification versions into, or the package a creation opened. The filed
+   * sheet's "version <v>" clause reads this, and the dossier's deep link points
+   * at it rather than at the package the work started on.
+   */
+  outputPackageId?: string | null;
   /** The single-use token line under the approve button. */
   tokenNote: string;
   /** RENEW: booking runs through the bank's own approval process, and the room

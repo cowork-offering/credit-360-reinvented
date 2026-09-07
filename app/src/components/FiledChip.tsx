@@ -31,12 +31,15 @@ export function filedAmount(deltaMM: number): string {
  * Renders nothing on a zero delta: a relationship with no execute behind it in
  * this session has no pending version to declare.
  */
-export function FiledChip({ deltaMM, id }: { deltaMM: number; id?: string }) {
+export function FiledChip({ deltaMM, id, newPackage }: { deltaMM: number; id?: string; newPackage?: boolean }) {
   if (!deltaMM) return null;
   return (
-    <span className="filedchip" id={id} role="note">
+    <span className="filedchip" id={id} role="note" data-newpkg={newPackage ? "1" : undefined}>
       <Odo value={filedAmount(deltaMM)} />
-      <span className="filedchip-w"> filed · booking pending</span>
+      {/* WHERE IT LANDED, where that is news. A new facility creates a new
+          package, so the pending figure is a package that did not exist rather
+          than more on the one the banker was reading. */}
+      <span className="filedchip-w">{newPackage ? " filed on a new package · booking pending" : " filed · booking pending"}</span>
     </span>
   );
 }

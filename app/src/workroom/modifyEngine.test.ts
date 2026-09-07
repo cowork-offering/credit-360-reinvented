@@ -202,6 +202,10 @@ const EXECUTE_RESULT = {
     },
   ],
   cloneLoanId: "a4Zbb000002Br6HEAS",
+  /* THE VERSION THE CREDIT ACTION ROLLED THE PACKAGE INTO. Observed live
+     2026-09-03 12:15:22 on the run recorded in `settleExecution.ts`; the sheet's
+     "version <v>" clause and the dossier's deep link both read it. */
+  outputPackageId: "a5Fbb000000J61hEAC",
   bookingHandoff: "Booking it requires nCino's Submit for Approval with real approvers. Nothing here has been approved.",
   steps: STAGE_RESULT.steps.map((s) => ({ ...s, state: "verified" })),
 };
@@ -1503,6 +1507,46 @@ describe("execute redeems the token and reports what the org read back", () => {
     expect(result.handoffs).toHaveLength(1);
     expect(result.handoffs![0].title).toMatch(/New covenant/);
     expect(result.reply!.body).toMatch(/not filed, because no tool writes/);
+  });
+
+  /* ============================ THE FAILED-EXECUTE SEAM (2026-09-06)
+
+     `writeTools` normalises a malformed execute's `terminalState` to "failed"
+     and always has. What lost that fact was THIS leg: `filed` was built from the
+     MANIFEST the room sent, record ids included, so a run the org reported as
+     failed came back looking exactly like a filing and the two guards the room
+     can apply at the seam - a non-empty list, a record id on it - were both
+     satisfied by rows nobody wrote. The room's afterglow then lit on a write
+     that never happened. (chaos.mjs `garbage-on-execute`, red until now.) */
+  it("carries the org's terminalState and the version it produced", async () => {
+    const { engine, approval } = await stageOne();
+    const result = await engine.execute(approval);
+    expect(result.terminalState).toBe("success");
+    expect(result.outputPackageId).toBe(EXECUTE_RESULT.outputPackageId);
+  });
+
+  it("REFUSES to build a filed list from a run the org reported failed", async () => {
+    const { engine, approval } = await stageOne({
+      execute: vi.fn().mockResolvedValue({
+        ok: true,
+        result: { ...EXECUTE_RESULT, terminalState: "failed", outcome: "The credit action could not be created.", facilities: undefined, cloneLoanId: undefined },
+      }),
+    });
+    const result = await engine.execute(approval);
+    // EMPTY, and the reason travels. The room reads an empty list as a result it
+    // cannot stand a filing on, and says so instead of drawing a dossier.
+    expect(result.filed).toEqual([]);
+    expect(result.terminalState).toBe("failed");
+    expect(result.handoff).toBe("The credit action could not be created.");
+  });
+
+  it("says so even when the org names no reason, rather than inventing one", async () => {
+    const { engine, approval } = await stageOne({
+      execute: vi.fn().mockResolvedValue({ ok: true, result: { ...EXECUTE_RESULT, terminalState: "failed", outcome: "" } }),
+    });
+    const result = await engine.execute(approval);
+    expect(result.filed).toEqual([]);
+    expect(result.handoff).toContain("gave no reason with it");
   });
 
   it("burns the token, and refuses a confirmation that belongs to another plan", async () => {

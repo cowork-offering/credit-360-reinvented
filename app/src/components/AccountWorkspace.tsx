@@ -70,7 +70,7 @@ function splitUnit(value: string): [string, string] {
   return m ? [m[1], m[2]] : [value, ""];
 }
 
-function AnchorCell({ a, deltaMM, washed }: { a: Anchor; deltaMM: number; washed: boolean }) {
+function AnchorCell({ a, deltaMM, newPackage, washed }: { a: Anchor; deltaMM: number; newPackage: boolean; washed: boolean }) {
   const moved = isExposureAnchor(a);
   const [figure, unit] = splitUnit(a.value);
   const arrow = a.dir === "down" ? "↓" : a.dir === "up" ? "↑" : "";
@@ -93,7 +93,7 @@ function AnchorCell({ a, deltaMM, washed }: { a: Anchor; deltaMM: number; washed
       </div>
       {/* THE FILED DELTA, ADJACENT AND LABELLED (rule 1). Never summed into the
           figure above it: an unbooked version is a separate fact. */}
-      {moved && <FiledChip deltaMM={deltaMM} id="ancExpFiled" />}
+      {moved && <FiledChip deltaMM={deltaMM} id="ancExpFiled" newPackage={newPackage} />}
       {a.sub && <div className="s">{a.sub}</div>}
     </div>
   );
@@ -232,6 +232,7 @@ export function AccountWorkspace({ bundle }: { bundle: BorrowerBundle }) {
      it as a chip, and the violet wash settles on the cell ONCE when the glass
      lifts — the wash marks the relationship as touched, not the figure as moved. */
   const deltaMM = (state.accountId && state.writeBacks[state.accountId]) || 0;
+  const deltaNewPackage = Boolean(state.accountId && state.writeBackNewPackage[state.accountId]);
   const washing = !!state.accountId && state.washes.includes(state.accountId);
   useEffect(() => {
     if (!washing || !state.accountId) return;
@@ -291,7 +292,7 @@ export function AccountWorkspace({ bundle }: { bundle: BorrowerBundle }) {
           <div className="anchors num">
             <GradeCell anchor={ratingAnchor} grade={grade} />
             {rest.map((a) => (
-              <AnchorCell key={a.label} a={a} deltaMM={deltaMM} washed={washing} />
+              <AnchorCell key={a.label} a={a} deltaMM={deltaMM} newPackage={deltaNewPackage} washed={washing} />
             ))}
           </div>
         </div>

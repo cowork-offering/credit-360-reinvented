@@ -204,6 +204,7 @@ function AccountCollateral({ assets }: { assets: CollateralAsset[] }) {
 export function ExposureTab({ bundle }: { bundle: BorrowerBundle }) {
   const { state } = useApp();
   const writeBackMM = (state.accountId && state.writeBacks[state.accountId]) || 0;
+  const writeBackNew = Boolean(state.accountId && state.writeBackNewPackage[state.accountId]);
   const exp = bundle.exposure ?? {};
   const allFacs = exp.facilities ?? [];
   // F6: closed / paid-off facilities stay visible (with a status word) but are
@@ -278,7 +279,7 @@ export function ExposureTab({ bundle }: { bundle: BorrowerBundle }) {
                     figure (rule 1). Everything on this pane is derived from
                     `committed`, so the one honest place for an unbooked
                     version is beside it. */}
-                <FiledChip deltaMM={writeBackMM} id="expCommittedFiled" />
+                <FiledChip deltaMM={writeBackMM} id="expCommittedFiled" newPackage={writeBackNew} />
               </>
             }
           />

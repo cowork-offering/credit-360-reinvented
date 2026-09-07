@@ -218,6 +218,58 @@ const sheetState = (page) =>
     };
   });
 
+/**
+ * THE CREATE ROOM, ON ITS DEFAULT PATH.
+ *
+ * The unbound room still asks which package, because it stands on the modify
+ * engine to read the relationship at all. Binding "New facility" then REBUILDS
+ * the room on the create engine, and the create engine drops that package:
+ * a new facility creates a new package (founder, 2026-09-06), so the room a
+ * banker gets from a package tile and the room they get from the relationship
+ * compose the same plan.
+ */
+async function openCreateRoom(page, url) {
+  await openFacilityRoom(page, url);
+  await clickText(page, ".wk-opt", "^New facility$");
+  await sleep(1400);
+  /* THE OPENING, READ OFF THE HEADLINE RATHER THAN THE GLASS. The entry tiers
+     leave the stage a beat after they land, so `glass()` a few seconds in no
+     longer carries the room's opening sentence, it carries the summon that
+     brings it back. The element is still in the tree either way. */
+  const opening = await page.evaluate(() => (document.querySelector(".wk-headline")?.textContent || "").replace(/\s+/g, " ").trim());
+  await sleep(2200);
+  return opening;
+}
+
+/** Compose the one facility the create tool refuses without: product, amount
+ *  and purpose, answering whatever the room still asks until the plan is open. */
+async function composeOneFacility(page) {
+  /* A LINE OF CREDIT, NOT AN EQUIPMENT FACILITY, and the reason is the room's
+     grammar rather than this rule: "equipment" is also a collateral type, so
+     the pledge arm reads the word first and asks which asset is meant. That is
+     the room behaving correctly on an ambiguous sentence and it is not what
+     this scenario is measuring. */
+  await say(page, "add a Line of Credit facility of $3,000,000 for working capital");
+  await sleep(2800);
+  for (let round = 0; round < 14; round++) {
+    /* THE PLAN IS NOT OFFERED UNTIL ALL THREE ARE ON THE RAIL. The review chip
+       opens as soon as anything is confirmed, and the tool refuses a plan
+       without product, amount AND purpose, so the chip alone is not the signal
+       to take it. */
+    const ready = await page.evaluate(
+      () => document.querySelectorAll(".wk-propose").length > 0 && document.querySelectorAll(".wk-ent").length >= 3,
+    );
+    if (ready) return true;
+    const moved =
+      (await clickText(page, "button", "^Confirm$")) ||
+      (await clickText(page, "button", "^Acknowledge$")) ||
+      (await clickText(page, ".wk-opt", "^Leave pricing for later$"));
+    if (!moved) await sleep(900);
+    await sleep(1500);
+  }
+  return false;
+}
+
 /** The one way to the plan: the review chip in the live exchange. */
 const askForThePlan = async (page) => {
   const hit = (await jsClick(page, ".wk-propose")) || (await clickText(page, "button", "Review & execute"));
@@ -519,21 +571,21 @@ const SCENARIOS = [
     chaos: { rules: [{ match: "^execute_", mode: "garbage" }] },
     trail: "Completed",
     expect: "A malformed execute never claims a filing the org did not confirm, and never crashes.",
-    /* KNOWN RED, AND NOT THIS TREE'S TO FIX (2026-09-05). `writeTools` already
-       reads a malformed execute correctly: `terminalState` normalises to
-       "failed" when the payload carries none. What loses that fact is the
-       engine leg above it, in app/src/workroom/, which builds `WorkroomExecution.filed`
-       from the MANIFEST the room sent rather than from what the org answered,
-       record ids included. So the room is handed a result that looks exactly
-       like a successful filing, and the two guards it can apply at this seam,
-       a non-empty `filed` and a record id on it, are both satisfied by rows the
-       org never confirmed. The room's afterglow then lights on a write nobody
-       can see. THE FIX IS IN THE ENGINE, which is a byte fence in this wave:
-       carry `terminalState` onto `WorkroomExecution` and refuse to build a
-       filed list from a run the org reported as failed. The guards added in
-       Workroom.tsx stay: they close the empty-result case, which is the half
-       the room CAN see. */
-    blocked: "app/src/workroom/ (byte fence) builds the filed list from the manifest, not the org's answer, so a failed execute is indistinguishable at the room's seam",
+    /* GREEN SINCE 2026-09-06, and the fix was where this note always said it
+       was. `writeTools` read a malformed execute correctly all along:
+       `terminalState` normalises to "failed" when the payload carries none.
+       What lost that fact was the ENGINE leg above it, which built
+       `WorkroomExecution.filed` from the MANIFEST the room sent rather than
+       from what the org answered, record ids included, so the room was handed
+       a result that looked exactly like a successful filing and the two guards
+       it can apply at this seam, a non-empty `filed` and a record id on it,
+       were both satisfied by rows the org never confirmed.
+
+       `terminalState` and `outputPackageId` now travel on `WorkroomExecution`,
+       and every engine refuses to build a filed list from a run the org
+       reported as failed: `filed: []` plus the org's own reason. The room's
+       unreadable-execution path then takes over, and because it can now tell
+       the two apart it says FILED_FAILED rather than "I could not read that". */
     async run(page, url, bound) {
       const errors = [];
       page.on("pageerror", (e) => errors.push(String(e.message || e)));
@@ -557,6 +609,74 @@ const SCENARIOS = [
         detail:
           `room mounted=${alive}, page errors=${errors.length}, said=${said.ok}, filing surfaces on glass=${claimed}` +
           (said.ok ? "" : ` | room said: ...${said.seen.slice(-260)}`),
+      };
+    },
+  },
+
+  /* ================================= 6b. A NEW FACILITY CREATES A NEW PACKAGE
+
+     FOUNDER, 2026-09-06: "a new package needs to be created for a new facility.
+     What's true is that you can add to product packages which are NOT approved
+     (i.e. loans in pre-approval stages), of course not to the booked packages."
+
+     Hartwell carries TWO packages and every facility on both is Booked, so
+     there is no exception to offer: the room states the default, composes on a
+     package that does not exist yet, sends the ACCOUNT anchor, and the sheet
+     names the package the org made. Staged live against the org 2026-09-07 to
+     prove the anchor is accepted with packages present. */
+  {
+    id: "create-new-package",
+    room: "facility",
+    bound: 60_000,
+    chaos: { rules: [] },
+    trail: "Completed",
+    expect: "A new facility composes on a new package, files on the account anchor, and the sheet names the package the org made.",
+    async run(page, url, bound) {
+      const errors = [];
+      page.on("pageerror", (e) => errors.push(String(e.message || e)));
+      /* THE DEFAULT, STATED BEFORE ANYTHING IS COMPOSED. Not "no package on
+         this relationship": there are two, and the plan is still making one. */
+      const opening = await openCreateRoom(page, url);
+      const line = await page.evaluate(() => {
+        const el = document.querySelector(".wk-pkgline");
+        return { text: (el?.textContent || "").trim(), pkg: el?.getAttribute("data-pkgline") ?? null };
+      });
+
+      await composeOneFacility(page);
+      await askForThePlan(page);
+      await sleep(2500);
+      await clickText(page, ".wk-approve", ".");
+      const card = await countWithin(page, ".wk-rescard", 1, bound, 60);
+      const sheet = await countWithin(page, ".wk-sheet", 1, 8000, 60);
+      const state = await sheetState(page);
+
+      /* THE ANCHOR THE ROOM ACTUALLY SENT. Exactly one travels, and on this path
+         it is the account: a package id here would file the facility onto a
+         booked package, which is the whole thing the rule forbids. */
+      const staged = await page.evaluate(() =>
+        (window.__CHAOS_LOG || []).filter((e) => /stage_new_facility/.test(e.tool)).length,
+      );
+
+      const saidDefault = /This plan creates a new credit package/.test(opening);
+      const titled = /^Proposed on Hartwell Precision Manufacturing LLC, /.test(state.title || "");
+      const named = /9\/7\/2026 - PP/.test(state.title || "");
+      return {
+        pass:
+          errors.length === 0 &&
+          saidDefault &&
+          line.pkg === "new" &&
+          /New package/.test(line.text) &&
+          card.ok &&
+          sheet.ok &&
+          titled &&
+          named &&
+          state.ledgerRows > 0 &&
+          state.spinners === 0,
+        ms: card.ms,
+        detail:
+          `default stated=${saidDefault}, package line="${line.text}" (${line.pkg}), ` +
+          `staged calls=${staged}, sheet title="${state.title}", ${state.ledgerRows} filed row(s), ` +
+          `spinners ${state.spinners}, page errors=${errors.length}`,
       };
     },
   },

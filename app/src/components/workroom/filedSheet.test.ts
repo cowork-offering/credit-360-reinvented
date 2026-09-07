@@ -5,6 +5,7 @@ import {
   filedStamp,
   filedTitle,
   moneyM,
+  shortRecordId,
   renewedTo,
   sheetExposure,
   sheetCoverage,
@@ -42,6 +43,44 @@ describe("what the sheet calls the filing", () => {
 
   it("proposes a new facility rather than claiming it was booked", () => {
     expect(filedTitle({ mode: "create", ...where, version: "a5F1" })).toMatch(/^Proposed on /);
+  });
+
+  /* ====================== A CREATE'S NEW PACKAGE (founder, 2026-09-06)
+
+     A new facility creates a new package, so the package the sheet names did not
+     exist when the room opened. The execute returns its ID and no name, the
+     org names a package on its own schedule and `recordName` on that result is
+     the FACILITY's, so the sheet says the id, cut in the middle, and never a
+     label this room made up or a planned name it never confirmed. */
+  it("shortens an org id rather than dressing it up as a name", () => {
+    expect(shortRecordId("a5Fbb000000J61hEAC")).toBe("a5Fbb0\u2026hEAC");
+    // Short enough to read whole is left whole.
+    expect(shortRecordId("a5Fbb0")).toBe("a5Fbb0");
+    expect(shortRecordId("")).toBe("");
+  });
+
+  it("names the created package once, never as both the package and the version", () => {
+    /* A CREATION'S NEW PACKAGE IS THE VERSION THE FILING MADE. Saying both would
+       print one org id in two clauses of the same sentence. */
+    const said = filedTitle({
+      mode: "create",
+      accountName: "Hartwell Precision Manufacturing LLC",
+      packageName: "new package a5Fbb0…hEAC",
+      version: "a5Fbb000000J61hEAC",
+    });
+    expect(said).toBe("Proposed on Hartwell Precision Manufacturing LLC, new package a5Fbb0…hEAC");
+    expect(said).not.toContain("version");
+  });
+
+  it("still names the version where the package is a different record", () => {
+    expect(
+      filedTitle({
+        mode: "create",
+        accountName: "Hartwell Precision Manufacturing LLC",
+        packageName: "C&I Credit Package",
+        version: "a5Fbb000000J61hEAC",
+      }),
+    ).toBe("Proposed on Hartwell Precision Manufacturing LLC, C&I Credit Package, version a5Fbb000000J61hEAC");
   });
 
   it("omits the version where the org returned none, rather than guessing one", () => {

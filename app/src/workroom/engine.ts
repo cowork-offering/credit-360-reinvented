@@ -68,6 +68,10 @@ export interface PackageChoice {
   eligible: boolean;
   /** The one line reason. Present exactly when NOT eligible. */
   reason?: string;
+  /** WHERE THE PLAN STANDS RIGHT NOW, marked rather than assumed. A create's
+   *  offer carries "New package" as the default and marks it; an existing
+   *  package is NEVER pre-selected, which is the whole point of the offer. */
+  selected?: boolean;
 }
 
 /** What "read the room" gives back: everything the entry scene renders from. */
@@ -87,6 +91,17 @@ export interface WorkroomBrief {
    *  anchored — a selection beat over a list of one is a click that decides
    *  nothing, and the single-package case must never see it. */
   packageChoices: PackageChoice[];
+  /**
+   * DOES THE ROOM HAVE TO WAIT FOR ONE OF THEM?
+   *
+   * TRUE is the question a modification asks on a relationship staging several
+   * packages: nothing below it is scoped to one, so the composer sleeps and the
+   * facilities do not land until the banker picks. FALSE is an OFFER, the plan
+   * already stands somewhere honest and the chips are an alternative, which is
+   * the only shape a create's package chips ever take (founder, 2026-09-06: a
+   * new facility creates a new package, so there is nothing to ask).
+   */
+  packageChoiceRequired: boolean;
   covenantFigure: string;
   loadSteps: string[];
   askPin: string;
@@ -332,6 +347,7 @@ export function createScriptedEngine(
         // The storyline stands on ONE package by construction, so there is
         // never a choice to offer here.
         packageChoices: [],
+        packageChoiceRequired: false,
         members: script.showsMembers ? MEMBERS : [],
         have: ["position", "revolver", "covenants", "collateral"].map((k) => HAVE[k]).filter(Boolean),
         packageName: script.packageName,

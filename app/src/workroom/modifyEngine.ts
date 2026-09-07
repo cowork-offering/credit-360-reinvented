@@ -2,6 +2,8 @@ import { newRequestId } from "../channel/adapter";
 import { mcpAvailable, SERVERS, TOOLS, callTool, unwrapLlm } from "../channel/mcp";
 import {
   executeAction,
+  executionFailed,
+  failureReason,
   resolveApproverUserId,
   stageAction,
   type ExecuteResult,
@@ -52,6 +54,7 @@ import {
 import { greetingFor } from "./viewer";
 import type { SourceChip, WhyRow } from "./scripts";
 import type {
+  FiledEntry,
   HaveRow,
   IntentResult,
   PackageMember,
@@ -1188,6 +1191,9 @@ export function createModifyEngine(args: {
       // greeting them at all.
       greeting: greetingFor(data.meta?.user, context.approver),
       packageChoices: unanchored ? choices : [],
+      // A modification cannot be composed until one package is chosen: the credit
+      // action IS anchored on one, and that anchor is the governance boundary.
+      packageChoiceRequired: unanchored,
       packageName: context.packageName,
       baselineCommittedMM: MM(committed),
       baselineMembers: members.length,
@@ -1972,22 +1978,33 @@ export function createModifyEngine(args: {
     const perFacility = new Map((result.facilities ?? []).map((f) => [f.facilityId, f]));
     const verified = (result.steps ?? []).filter((s) => s.state === "verified").length;
 
-    const filed = stagedDeltas
-      .filter((d) => d.fileable && carriesWire(d))
-      .map((d) => {
-        const row = perFacility.get(wireTarget(d)!);
-        const cloneId = row?.cloneLoanId ?? result.cloneLoanId;
-        return {
-          deltaId: d.id,
-          // REAL ids, from the org's own response. A missing clone id is a
-          // verification that did not confirm, and it says so.
-          recordId: cloneId ?? "the org did not name the clone",
-          verification:
-            [row?.appliedChanges, row?.verification, row?.junctionName ? `Chain row ${row.junctionName}` : null]
-              .filter(Boolean)
-              .join(" ") || result.outcome,
-        };
-      });
+    /* A FILED LIST IS THE ORG'S ANSWER, NEVER THE ROOM'S OWN MANIFEST.
+       This used to build every row from `stagedDeltas`, the entries the room
+       SENT, so a run the org reported failed came back carrying record ids and
+       verification sentences for writes that never happened, and the room's two
+       guards at the seam (a non-empty list, a record id on it) were both
+       satisfied by rows nobody wrote. An empty list is the honest answer, and
+       the room's unreadable-execution path takes it from there. */
+    const failed = executionFailed(result);
+
+    const filed: FiledEntry[] = failed
+      ? []
+      : stagedDeltas
+          .filter((d) => d.fileable && carriesWire(d))
+          .map((d) => {
+            const row = perFacility.get(wireTarget(d)!);
+            const cloneId = row?.cloneLoanId ?? result.cloneLoanId;
+            return {
+              deltaId: d.id,
+              // REAL ids, from the org's own response. A missing clone id is a
+              // verification that did not confirm, and it says so.
+              recordId: cloneId ?? "the org did not name the clone",
+              verification:
+                [row?.appliedChanges, row?.verification, row?.junctionName ? `Chain row ${row.junctionName}` : null]
+                  .filter(Boolean)
+                  .join(" ") || result.outcome,
+            };
+          });
 
     const handoffs = stagedDeltas
       .filter((d) => !d.fileable)
@@ -2000,10 +2017,16 @@ export function createModifyEngine(args: {
 
     return {
       filed,
+      terminalState: result.terminalState,
+      // The version the credit action rolled the package into, where the org
+      // named one. The sheet's "version <v>" clause and the dossier's link both
+      // read it from here rather than from a local widening.
+      outputPackageId: result.outputPackageId ?? null,
       tokenNote: `Token redeemed by ${approval.approverUserId} · single use · ${verified} of ${result.steps?.length ?? 0} plan steps verified by the tool's own re-query${result.replayed ? " · replayed, nothing was written twice" : ""}`,
       // The org's sentence about what booking requires, verbatim. It is the
-      // org's account of its own process, not ours to paraphrase.
-      handoff: result.bookingHandoff,
+      // org's account of its own process, not ours to paraphrase. A failed run
+      // has no booking to describe, so its own reason travels in that slot.
+      handoff: failed ? failureReason(result) : result.bookingHandoff,
       handoffs,
       reply: {
         subject: `${context.packageName}: modification staged`,

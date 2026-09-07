@@ -239,25 +239,44 @@ async function filed(over: Partial<CreateEngineDeps> = {}, context = packageDoor
 
 /* --------------------------------------------------------------------------- */
 
-describe("two doors, and the room says which one it is standing in", () => {
-  it("opens the package door on the package's own total", () => {
+describe("a new facility creates a new package, and the room stands there", () => {
+  it("opens the package door only where the banker joined one, on that package's own total", () => {
     const { engine } = engineOn();
     expect(engine.scripted).toBe(false);
     expect(engine.mode).toBe("create");
     const brief = engine.brief(packageDoor);
     expect(brief.position).toContain("2 members and $23M committed");
-    expect(brief.position).toContain("A new facility joins that total");
+    expect(brief.position).toContain("taking this facility instead of a new package");
     expect(brief.showsMembers).toBe(true);
     expect(brief.position.split(/\s+/).length).toBeLessThan(60);
   });
 
-  it("opens the account door saying the plan creates the package first", () => {
+  it("opens the account door on EVERY relationship, and states the default first", () => {
+    /* THE RULE (founder, 2026-09-06). The account door used to mean "there is no
+       package here"; it now means "a new facility creates a new package", which
+       is true of a relationship with two packages exactly as it is of one with
+       none. */
     const { engine } = engineOn({}, accountDoor, bundleWithNoPackage());
     const brief = engine.brief(accountDoor);
-    expect(brief.position).toContain("carries no credit package, so this plan creates one");
+    expect(brief.position).toContain("This plan creates a new credit package.");
     expect(brief.showsMembers).toBe(false);
     expect(brief.baselineMembers).toBe(0);
-    expect(brief.have[0].value).toBe("No credit package on this relationship");
+    expect(brief.have[0].value).toBe("New package");
+    // Nothing on this relationship, so nothing to offer and nothing to ask.
+    expect(brief.packageChoices).toEqual([]);
+    expect(brief.packageChoiceRequired).toBe(false);
+  });
+
+  it("still creates a new package where the relationship already carries booked ones", () => {
+    const ctx = { ...packageDoor, door: "account" as const, productPackageId: null, packageName: "New package" };
+    const { engine } = engineOn({}, ctx, bundleWith());
+    const brief = engine.brief(ctx);
+    expect(brief.position).toContain("This plan creates a new credit package.");
+    // Both of Hartwell's packages are booked, so there is no exception to offer
+    // and the room says why rather than going quiet about it.
+    expect(brief.packageChoices).toEqual([]);
+    expect(brief.have[0].detail).toContain("None of them is still before approval");
+    expect(brief.baselineMembers).toBe(0);
   });
 
   it("names what the org names, so the room never claims it chose the facility's name", () => {
@@ -272,13 +291,48 @@ describe("two doors, and the room says which one it is standing in", () => {
     expect(rows.find((r) => r.label === "Borrowing structure")!.detail).toContain("100 percent ownership");
   });
 
-  it("holds until a package is chosen where the relationship carries several", async () => {
+  it("does NOT hold where the relationship carries several: it composes on a new one", async () => {
+    /* THE BEAT THIS REPLACES. Two packages used to stop the room dead until one
+       was picked. A new facility creates a new package, so there is nothing to
+       pick before composing and the room takes the instruction straight away. */
     const two = bundleWith([line, { ...equipment, productPackageId: "a5Fbb000000OTHERAA" }]);
-    const ctx = { ...packageDoor, productPackageId: null };
+    const ctx = { ...packageDoor, door: "account" as const, productPackageId: null, packageName: "New package" };
     const engine = createCreateEngine({ context: ctx, data, bundle: two, deps: deps() });
-    expect(engine.brief(ctx).packageChoices.length).toBe(2);
+    expect(engine.brief(ctx).packageChoiceRequired).toBe(false);
     const out = await engine.parseIntent("add an equipment facility", ctx);
-    expect(out.reply).toContain("anchored on one of them");
+    expect(out.kind).toBe("deltas");
+  });
+
+  it("offers an unapproved package as the one exception, after stating the default", async () => {
+    /* THE EXCEPTION (founder, 2026-09-06): "you can add to product packages
+       which are NOT approved (i.e. loans in pre-approval stages), of course not
+       to the booked packages." */
+    const open = bundleWith([{ ...equipment, stage: "Proposal" }]);
+    open.snapshot = { ...open.snapshot, packageStage: "In Review" };
+    const ctx = { ...packageDoor, door: "account" as const, productPackageId: null, packageName: "New package" };
+    const engine = createCreateEngine({ context: ctx, data, bundle: open, deps: deps() });
+    const brief = engine.brief(ctx);
+    expect(brief.position).toContain("This plan creates a new credit package.");
+    expect(brief.position).toContain("is still in In Review and can take the facility instead: say so, or carry on.");
+    // The default leads the offer and is the one marked; the existing package is
+    // on the table and is NEVER pre-selected.
+    expect(brief.packageChoices.map((c) => c.label)).toEqual(["New package", "Hartwell Precision Manufacturing LLC credit package"]);
+    expect(brief.packageChoices[0].selected).toBe(true);
+    expect(brief.packageChoices[1].selected).toBe(false);
+    expect(brief.packageChoices[1].figure).toContain("Still in In Review");
+    expect(brief.packageChoiceRequired).toBe(false);
+  });
+
+  it("never offers a package that is booked, complete or past approval", () => {
+    const ctx = { ...packageDoor, door: "account" as const, productPackageId: null, packageName: "New package" };
+    // Stage before approval, but a booked member: the bank has money out on it.
+    const booked = bundleWith([{ ...equipment, stage: "Booked" }]);
+    booked.snapshot = { ...booked.snapshot, packageStage: "In Review" };
+    expect(createCreateEngine({ context: ctx, data, bundle: booked, deps: deps() }).brief(ctx).packageChoices).toEqual([]);
+    // Nothing booked, but the package's own stage is past approval.
+    const late = bundleWith([{ ...equipment, stage: "Proposal" }]);
+    late.snapshot = { ...late.snapshot, packageStage: "Complete" };
+    expect(createCreateEngine({ context: ctx, data, bundle: late, deps: deps() }).brief(ctx).packageChoices).toEqual([]);
   });
 });
 
@@ -597,7 +651,43 @@ describe("execution is two invocations, and the second is not a retry", () => {
       bundleWithNoPackage(),
     );
     expect(execution.reply!.body).toContain("Package a5Fbb000000NEWPKGAA created");
-    expect(execution.reply!.body).toContain("That opens the package at $5M.");
+    expect(execution.reply!.body).toContain("That opens the new package at $5M.");
+    // AND THE ROOM CARRIES IT OUT. The sheet's version clause, the dossier's
+    // deep link and the memo's anchor all read this one field, so a created
+    // package that reached only the reply body would still be a lost fact.
+    expect(execution.outputPackageId).toBe("a5Fbb000000NEWPKGAA");
+  });
+
+  /* ============================ THE FAILED-EXECUTE SEAM (2026-09-06)
+
+     Same defect as `modifyEngine`: `filed` was built from the MANIFEST the room
+     sent rather than from what the org answered, so a run the org reported as
+     failed reached the room carrying record ids for writes that never happened.
+     (chaos.mjs `garbage-on-execute`, red until now.) */
+  it("carries the org's terminalState and the package the filing landed on", async () => {
+    const { execution } = await filed();
+    expect(execution.terminalState).toBe("success");
+    expect(execution.outputPackageId).toBe(PACKAGE_ID);
+  });
+
+  it("REFUSES to build a filed list from a run the org reported failed", async () => {
+    const { execution } = await filed({
+      execute: vi.fn().mockResolvedValue({
+        ok: true,
+        result: { ...EXECUTE_SUCCESS, terminalState: "failed", outcome: "The facility could not be created.", loanId: undefined },
+      }),
+    });
+    expect(execution.filed).toEqual([]);
+    expect(execution.terminalState).toBe("failed");
+    expect(execution.handoff).toBe("The facility could not be created.");
+  });
+
+  it("says so even when the org names no reason, rather than inventing one", async () => {
+    const { execution } = await filed({
+      execute: vi.fn().mockResolvedValue({ ok: true, result: { ...EXECUTE_SUCCESS, terminalState: "failed", outcome: "" } }),
+    });
+    expect(execution.filed).toEqual([]);
+    expect(execution.handoff).toContain("gave no reason with it");
   });
 
   it("reads a still-waiting resume as waiting, never as a failure", async () => {

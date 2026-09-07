@@ -219,6 +219,49 @@ describe("the roster", () => {
     expect(mustChoosePackage(null, null)).toBe(false);
   });
 
+  /* ================== A CREATE IGNORES THE PACKAGE IT WAS OPENED IN
+
+     FOUNDER, 2026-09-06: "a new package needs to be created for a new facility."
+     So the room a banker gets from a package tile and the room they get from the
+     relationship compose the SAME plan, and the only thing that pins a package
+     on a create is the banker choosing one off the offer inside the room. */
+  it("anchors a create on the ACCOUNT even where the caller was standing in a package", () => {
+    const bundle = two.borrowers![ACCOUNT_ID];
+    const args = { data: two, bundle, accountId: ACCOUNT_ID, accountName: "Sterling Fabrication Co." };
+    const ambient = workroomContextFor({ ...args, mode: "create", productPackageId: PACKAGE_TWO });
+    expect(ambient.productPackageId).toBeNull();
+    expect(ambient.door).toBe("account");
+    expect(ambient.packageName).toBe("New package");
+
+    // AND A MODIFICATION DOES NOT: there is nothing to reshape without one.
+    const modify = workroomContextFor({ ...args, mode: "modify", productPackageId: PACKAGE_TWO });
+    expect(modify.productPackageId).toBe(PACKAGE_TWO);
+    expect(modify.door).toBe("package");
+  });
+
+  it("anchors a create on a package the banker CHOSE, and only then", () => {
+    const bundle = two.borrowers![ACCOUNT_ID];
+    const joined = workroomContextFor({
+      data: two,
+      bundle,
+      accountId: ACCOUNT_ID,
+      accountName: "Sterling Fabrication Co.",
+      mode: "create",
+      productPackageId: null,
+      joinPackageId: PACKAGE_TWO,
+    });
+    expect(joined.productPackageId).toBe(PACKAGE_TWO);
+    expect(joined.door).toBe("package");
+    expect(joined.packageName).not.toBe("New package");
+  });
+
+  it("does not bind a lone package on a create the way it does on a modification", () => {
+    const bundle = hartwellOnePackage.borrowers![HARTWELL];
+    const args = { data: hartwellOnePackage, bundle, accountId: HARTWELL, accountName: "Hartwell Precision Manufacturing LLC" };
+    expect(workroomContextFor({ ...args, mode: "modify" }).productPackageId).not.toBeNull();
+    expect(workroomContextFor({ ...args, mode: "create" }).productPackageId).toBeNull();
+  });
+
   it("refuses to rank a deal signal across packages nobody chose", () => {
     const bundle = two.borrowers![ACCOUNT_ID];
     expect(

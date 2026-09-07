@@ -60,8 +60,8 @@ export const ROUTING_ROWS = [
     room: "facility",
     route: "create",
     ask:
-      "A facility that does not exist yet is structured. It rides inside a `modify` document instead " +
-      "when other changes travel with it.",
+      "A facility that does not exist yet is structured, on a new package unless an unapproved package " +
+      "is chosen. It rides inside a `modify` document instead when other changes travel with it.",
   },
   {
     room: "relationship",

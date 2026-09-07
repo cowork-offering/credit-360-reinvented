@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { packageRecords } from "../actions/schemas";
 import type { BorrowerBundle, C360Data } from "../data/contract";
-import { doorFor } from "./modes";
+import { doorFor, NEW_PACKAGE } from "./modes";
 import type { WorkroomContext, WorkroomMode } from "./types";
 
 /* =============================================================================
@@ -44,6 +44,14 @@ export function workroomModeFor(actionId: string): WorkroomMode | null {
  * first. A relationship carrying several is now opened UNANCHORED and the room
  * asks; `productPackageId` names one where the caller already knows it, which is
  * both the single-package case and the banker's own choice coming back in.
+ *
+ * A CREATE IGNORES THE AMBIENT PACKAGE ENTIRELY (founder, 2026-09-06). A new
+ * facility creates a new package, so the room a banker gets from a package tile
+ * and the room they get from the relationship are the SAME room: anchored on
+ * the account, with no package pinned. The one thing that pins a package on a
+ * create is `joinPackageId`, the banker choosing, in the room, to file into an
+ * unapproved package instead. Modify and renew are untouched: there is nothing
+ * to reshape or renew without a package, so their ambient anchor still binds.
  */
 export function workroomContextFor(args: {
   mode: WorkroomMode;
@@ -53,19 +61,29 @@ export function workroomContextFor(args: {
   accountName: string;
   /** The package the caller is already standing in, where there is one. */
   productPackageId?: string | null;
+  /** THE BANKER'S OWN CHOICE, and the only thing that anchors a create. */
+  joinPackageId?: string | null;
 }): WorkroomContext {
   const packages = packageRecords(args.bundle);
-  const named = args.productPackageId ? packages.find((p) => p.id === args.productPackageId) : null;
-  const pkg = named ?? (packages.length === 1 ? packages[0] : null);
+  const creating = args.mode === "create";
+  const wanted = creating ? (args.joinPackageId ?? null) : (args.productPackageId ?? null);
+  const named = wanted ? (packages.find((p) => p.id === wanted) ?? null) : null;
+  // A single package binds silently on modify and renew, and on nothing else.
+  const pkg = named ?? (!creating && packages.length === 1 ? packages[0] : null);
   const productPackageId = pkg?.id ?? null;
   return {
     mode: args.mode,
-    door: doorFor(args.mode, productPackageId),
+    door: doorFor(args.mode, productPackageId, Boolean(named)),
     accountId: args.accountId,
     accountName: args.accountName,
     productPackageId,
     packageName:
-      pkg?.label ?? (packages.length > 1 ? `${args.accountName} · ${packages.length} packages` : `${args.accountName} · no package yet`),
+      pkg?.label ??
+      (creating
+        ? NEW_PACKAGE
+        : packages.length > 1
+          ? `${args.accountName} · ${packages.length} packages`
+          : `${args.accountName} · no package yet`),
     approver: args.data.meta?.user ?? "the signed-in banker",
   };
 }

@@ -58,11 +58,27 @@ interface Opened {
 }
 
 function open(
-  args: { brain?: (e: BrainEnvelope) => Promise<BrainReply>; router?: boolean; mode?: WorkroomMode } = {},
+  args: {
+    brain?: (e: BrainEnvelope) => Promise<BrainReply>;
+    router?: boolean;
+    mode?: WorkroomMode;
+    /** THE PACKAGE THE BANKER CHOSE TO FILE INTO. A create now anchors on the
+     *  account unless one is named (founder, 2026-09-06), so a create test that
+     *  is ABOUT an existing facility has to say which package it joined. */
+    join?: string;
+  } = {},
 ): Opened {
   const bundle = data.borrowers![accountId];
   const mode = args.mode ?? "modify";
-  const context = workroomContextFor({ mode, data, bundle, accountId, accountName: bundle.snapshot!.name!, productPackageId: "a5Fbb000000IHFJEA4" });
+  const context = workroomContextFor({
+    mode,
+    data,
+    bundle,
+    accountId,
+    accountName: bundle.snapshot!.name!,
+    productPackageId: "a5Fbb000000IHFJEA4",
+    joinPackageId: args.join ?? null,
+  });
   const bound: Opened["bound"] = [];
   const router: WorkroomRouter | undefined = args.router
     ? {
@@ -786,8 +802,12 @@ describe("a route whose own tool cannot file the create says so by name", () => 
     expect(said(room)).toContain("on the plan for the record");
   });
 
+  /* THE JOINED DOOR. Both of these are about a covenant or a pledge aimed at a
+     facility that ALREADY EXISTS, so they open the create room on the package
+     that holds it. A create on its default path opens a package of its own and
+     has no existing facility to name (founder, 2026-09-06). */
   it("gathers the same way on the new facility, then hands the covenant off on the plan", async () => {
-    const { room } = open({ mode: "create" });
+    const { room } = open({ mode: "create", join: "a5Fbb000000IHFJEA4" });
     await settle();
     await typeInto(room, "add a leverage covenant of 3.5x tested quarterly on the purchase facility");
 
@@ -803,7 +823,7 @@ describe("a route whose own tool cannot file the create says so by name", () => 
   });
 
   it("hands a pledge off on the new facility too, and names the pledge", async () => {
-    const { room } = open({ mode: "create" });
+    const { room } = open({ mode: "create", join: "a5Fbb000000IHFJEA4" });
     await settle();
     await typeInto(room, "pledge the accounts receivable to the purchase facility");
 
