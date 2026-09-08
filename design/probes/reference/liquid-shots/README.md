@@ -1,4 +1,4 @@
-# Look-gate references: the filed finale, and the new package
+# Look-gate references: the filed finale, the new package, and the live queue
 
 Four surfaces `liquid-shots.mjs` did not have until 2026-09-06, because none of
 them existed. Two came with the finale: the sheet the rainbow card grows into
@@ -6,7 +6,7 @@ when a filing lands, and the memo room it hands to. Two came with the
 new-package rule on 2026-09-07: the create room on its default path, and the
 sheet a create ends on.
 
-    node liquid-shots.mjs --out /tmp/shots-after --surfaces finale-sheet,memo-after-handoff,create-room,create-sheet
+    node liquid-shots.mjs --out /tmp/shots-after --surfaces finale-sheet,memo-after-handoff,create-room,create-sheet,landing-live
     node liquid-shots.mjs --diff design/probes/reference/liquid-shots --against /tmp/shots-after --check
 
 All four are shot the way every other surface here is: 2x, reduced motion, light
@@ -30,3 +30,21 @@ own at the moment of filing, so the two digits under the title differ run to
 run. That is roughly 0.05% of the frame on `finale-sheet` and 0.11% on
 `create-sheet`, both an order of magnitude inside the gate's 0.5% tail, and it
 is the only part of any of these images that is not deterministic.
+
+## landing-live (2026-09-08)
+
+A fifth reference, and the first one on the LANDING. Every other surface here
+shoots the baked five, because the stand-in connector's `watchTool` answers
+nobody; `landing-live` hands the Portfolio watch the org's own twelve
+(`lib/live-book.mjs`, shared with the lane drive's scenario 10) and shoots what
+the PAGE then decides.
+
+What the frame has to carry: the three SAMPLE relationships gone, the queue in
+severity order (overdue test, then test due by exposure, then maturity), the
+rule sentence under the head counting itself, and the rest of the book folded
+away under its divider rather than listed. The KPI band reads off the same
+result, so `12 relationships` and `7 on the queue` have to agree with the rows.
+
+The kicker carries the reader's own date (rule 68.6), so the first line of the
+eyebrow moves day to day. That is roughly 0.2% of the frame, inside the gate's
+0.5% tail, and it is the only part of this image that is not deterministic.

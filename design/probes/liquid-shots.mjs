@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 import { serveDir } from "./lib/serve.mjs";
+import { LIVE_PORTFOLIO } from "./lib/live-book.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
@@ -165,11 +166,41 @@ async function fileANewFacility(page, sel) {
   await sleep(2400);
 }
 
+/* THE LANDING WITH A LIVE BOOK BEHIND IT (2026-09-08).
+
+   The stand-in connector's `watchTool` answers nobody, which is why every other
+   surface here shoots the baked five. This one hands the Portfolio watch the
+   org's own twelve, so the frame is the queue the PAGE decided: the samples
+   gone, the order breach-then-overdue-then-due-then-maturity, the rule sentence
+   under the head and the rest of the book folded away under its divider. A new
+   surface has no baseline to diff against, so its reference is checked in. */
+const LIVE_WATCH = `(function () {
+  var PF = ${JSON.stringify(LIVE_PORTFOLIO)};
+  var t = setInterval(function () {
+    if (!window.claude || !window.claude.mcp) return;
+    clearInterval(t);
+    window.claude.mcp.watchTool = function (server, tool, input, handler) {
+      if (/Portfolio/.test(tool)) {
+        setTimeout(function () {
+          handler({ type: "data", result: { payload: { content: [{ isSuccess: true, outputValues: PF }] } } });
+        }, 60);
+      }
+      return function () {};
+    };
+  }, 0);
+})();`;
+
 const SURFACES = [
   {
     id: "landing",
     what: "the worklist, the weave and the bar over it",
     go: async () => {}
+  },
+  {
+    id: "landing-live",
+    what: "the queue the page decided off a live book of twelve, with the rest folded away",
+    prepare: LIVE_WATCH,
+    go: async (page) => { await page.waitForTimeout(1600); }
   },
   {
     id: "landing-bar",
@@ -360,6 +391,9 @@ async function shoot(o) {
       });
       await ctx.addInitScript({ path: path.join(HERE, "lib", "inject.js") });
       await ctx.addInitScript({ path: path.join(HERE, "lib", "stub-connector.js") });
+      // A surface that needs the stand-in to behave differently says so itself,
+      // rather than every surface inheriting one shot's special case.
+      if (surface.prepare) await ctx.addInitScript({ content: surface.prepare });
       const page = await ctx.newPage();
       await page.goto(server.url + `?refract=${o.mode ?? "3"}`, { waitUntil: "load" });
       await page.waitForFunction(() => !!window.__P);

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../state/appState";
+import { queueSentence } from "../data/queue";
 import { buildWorklistRows, type WorklistRow } from "../data/worklistRows";
 import { fmtMoney, fmtDays } from "../data/format";
 import { gradeColor } from "./RiskGrade";
@@ -10,6 +11,7 @@ import { flyName } from "./nameFlight";
 import { Odo } from "./Odometer";
 import { FiledChip } from "./FiledChip";
 import { mcpAvailable } from "../channel/mcp";
+import { announce, openAccountLive } from "../book/dynamicBook";
 import { CMDK_OPEN_EVENT } from "./CommandPalette";
 
 /* =============================================================================
@@ -88,10 +90,124 @@ function initialsOf(name: string): string {
   return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? "").toUpperCase();
 }
 
+/** One queue row. Extracted so the quiet rest of the book renders through the
+ *  SAME markup rather than a second, drifting copy of it. */
+function Row({
+  r,
+  fresh,
+  delayMs,
+  deltaMM,
+  newPackage,
+  onOpen,
+}: {
+  r: WorklistRow;
+  fresh: boolean;
+  delayMs: number;
+  deltaMM: number;
+  newPackage?: boolean;
+  onOpen: (r: WorklistRow, nameEl: HTMLElement | null) => void;
+}) {
+  const breach = r.reasons.includes("COVENANT_BREACH");
+  const sts = statusesFor(r);
+  const urgent = sts.some((s) => s.tone === "bad") ? "bad" : sts.some((s) => s.tone === "warn") ? "warn" : "";
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      data-open={r.accountId}
+      onClick={(e) => onOpen(r, e.currentTarget.querySelector(".who b"))}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(r, e.currentTarget.querySelector(".who b"));
+        }
+      }}
+      className="wlrow"
+      /* THE ARRIVAL PLAYS ONCE, PER ROW, EVER. A row that was already on screen
+         when the live read landed keeps its place and takes the new figures
+         where it stands; only a row that is genuinely new rises. Re-running the
+         entry on every refresh is the "stuck" feeling the founder named. */
+      style={fresh ? { animationDelay: `${delayMs}ms` } : { animation: "none" }}
+    >
+      <span className={`mono${breach ? " bad" : ""}`}>{initialsOf(r.name)}</span>
+      <span className="who">
+        <b>{r.name}</b>
+        <span>
+          {r.industry}
+          {r.naicsCode ? ` · NAICS ${r.naicsCode}` : ""}
+        </span>
+      </span>
+      <span className="sts">
+        {/* THE ROW STAYS CLEAN (founder, 2026-09-03, twice: the grades,
+            requests, maturities and then the breach word floating in the card
+            read as clutter). Nothing sits on the row but one quiet info dot, in
+            line before the exposure figure; every status lives in its hover
+            column, one under the other, the bad ones in red. */}
+        {(sts.length > 0 || r.riskRating != null) && (
+          <span className={`wl-info${urgent ? ` ${urgent}` : ""}`} tabIndex={0} aria-label="Details for this relationship">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M8 7.2v3.4M8 5.05v.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <span className="wl-pop" role="tooltip">
+              {r.riskRating != null && (
+                <span className="wl-pop-row">
+                  <span>Risk rating</span>
+                  <b style={{ color: gradeColor(String(r.riskRating)) ?? undefined }}>Grade {r.riskRating}</b>
+                </span>
+              )}
+              {sts.map((s) => (
+                <span key={s.text} className={`wl-pop-row ${s.tone}`}>
+                  <span>{s.text.split(" · ")[0]}</span>
+                  <b>{s.text.includes(" · ") ? s.text.split(" · ").slice(1).join(" · ") : ""}</b>
+                </span>
+              ))}
+            </span>
+          </span>
+        )}
+      </span>
+      <span className="amt num">
+        {/* THE BOOK'S OWN FIGURE, AND ONLY THAT (rule 1). It used to carry the
+            workroom's committed delta summed into it, which made the row state
+            an exposure the org had not booked. The delta is named under it
+            instead, in the same chip the hero anchor and the exposure pane
+            carry. */}
+        <b>
+          <Odo value={fmtMoney(r.tce ?? 0)} />
+        </b>
+        <span>total exposure</span>
+        <FiledChip deltaMM={deltaMM} newPackage={newPackage} />
+      </span>
+      <span className="go">→</span>
+    </div>
+  );
+}
+
 export function Worklist() {
-  const { data, worklist, state, dispatch } = useApp();
+  const { data, queue, state, dispatch } = useApp();
+  const worklist = queue.worklist;
   const rows = useMemo(() => buildWorklistRows(data, worklist), [data, worklist]);
+  /* THE REST OF THE BOOK, built through the same row builder with no reasons:
+     a quiet relationship has nothing to say about itself, and an empty reason
+     list is how the popover already renders that. */
+  const quietRows = useMemo(
+    () => buildWorklistRows(data, { accountIds: queue.quiet, reasons: {} }),
+    [data, queue.quiet],
+  );
   const [unstaged, setUnstaged] = useState<WorklistRow | null>(null);
+  /* COLLAPSED, AND IT STAYS COLLAPSED. The landing is the needs-action queue;
+     the book is one click under it, never the thing a banker has to scroll
+     past to reach their work. */
+  const [restOpen, setRestOpen] = useState(false);
+
+  /* WHICH ROWS THIS PAGE HAS ALREADY SHOWN. Written after the commit, read
+     during it, so the first paint staggers everything and no later paint
+     staggers anything that survived. */
+  const entered = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const r of rows) entered.current.add(r.accountId);
+    if (restOpen) for (const r of quietRows) entered.current.add(r.accountId);
+  });
 
   /* THE ROW IS THE ONE DOOR IN. Rule 58: nothing teleports, so opening a
      relationship flies its NAME out of this row and into the hero rather than
@@ -100,6 +216,34 @@ export function Worklist() {
      is also what keeps the unstaged branch from being bypassed. */
   function openRow(r: WorklistRow, nameEl: HTMLElement | null) {
     if (!r.staged) {
+      /* A ROW WITHOUT A BUNDLE IS NOT A DEAD ROW ANY MORE. The rest of the book
+         comes off the live Portfolio read, so the page holds the name and the
+         id and can go and read the relationship, which is exactly what the
+         palette does with an org match. Nothing is rendered from the row: the
+         reads are what open it, and an org with nothing to say leaves the
+         banker where they were and says so.
+
+         WITH NO CONNECTOR the A17 copy-prompt explainer stands, unchanged: a
+         share link cannot read anything, and an empty workspace is still the
+         one thing this must never do. */
+      if (mcpAvailable()) {
+        void openAccountLive({
+          accountId: r.accountId,
+          name: r.name,
+          // `industry` is a DISPLAY field on the row and carries the gap glyph
+          // when the book has none. A glyph is not an industry.
+          match: {
+            accountId: r.accountId,
+            name: r.name,
+            industry: r.industry === "—" ? undefined : r.industry,
+            naicsCode: r.naicsCode ?? undefined,
+          },
+        }).then((ok) => {
+          if (ok) dispatch({ type: "OPEN_ACCOUNT", accountId: r.accountId });
+          else announce(`the org had nothing to read for ${r.name}. Nothing was opened.`);
+        });
+        return;
+      }
       setUnstaged(r); // A17 — copy-prompt explainer, never an empty workspace
       return;
     }
@@ -108,6 +252,19 @@ export function Worklist() {
     else open();
   }
 
+  /** The stagger runs over the rows that are actually arriving, so one new row
+   *  landing in twelfth place enters now rather than in half a second. */
+  const stagger = (list: WorklistRow[]) => {
+    let n = 0;
+    return list.map((r) => {
+      const fresh = !entered.current.has(r.accountId);
+      return { r, fresh, delayMs: fresh ? n++ * 45 : 0 };
+    });
+  };
+
+  const queued = stagger(rows);
+  const quiet = restOpen ? stagger(quietRows) : [];
+
   return (
     <div style={{ marginTop: 36 }}>
       <div className="eyebrow">
@@ -115,11 +272,12 @@ export function Worklist() {
       </div>
       <div className="wl-head">
         Needs action
-        {/* THE QUEUE IS NOT THE BOOK. Five relationships need something today;
-            the org holds the rest, and a banker who came in to open one of them
-            should not have to learn that the search chip in the header is where
-            that lives. One line, and only where there is a connector to search
-            with: with no channel this renders nothing, exactly as before. */}
+        {/* THE QUEUE IS NOT THE BOOK. A handful of relationships need something
+            today; the org holds the rest, and a banker who came in to open one
+            of them should not have to learn that the search chip in the header
+            is where that lives. One line, and only where there is a connector
+            to search with: with no channel this renders nothing, exactly as
+            before. */}
         {mcpAvailable() && (
           <button
             type="button"
@@ -131,6 +289,13 @@ export function Worklist() {
           </button>
         )}
       </div>
+      {/* THE RULE, SAID OUT LOUD, WITH THE PAGE'S OWN NUMBERS IN IT (founder,
+          2026-09-08: "needs to be smooth and easy to understand"). A banker
+          should be able to read why these rows and not others straight off the
+          page rather than being told. */}
+      <p className="wl-rule" data-probe="queue-rule">
+        {queueSentence(queue.summary)}
+      </p>
 
       {rows.length === 0 ? (
         <div className="card wl-empty">
@@ -138,87 +303,56 @@ export function Worklist() {
         </div>
       ) : (
         <div className="wl">
-          {rows.map((r, i) => {
-            const breach = r.reasons.includes("COVENANT_BREACH");
-            return (
-              <div
-                key={r.accountId}
-                role="button"
-                tabIndex={0}
-                data-open={r.accountId}
-                onClick={(e) => openRow(r, e.currentTarget.querySelector(".who b"))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    openRow(r, e.currentTarget.querySelector(".who b"));
-                  }
-                }}
-                className="wlrow"
-                style={{ animationDelay: `${i * 45}ms` }}
-              >
-                <span className={`mono${breach ? " bad" : ""}`}>{initialsOf(r.name)}</span>
-                <span className="who">
-                  <b>{r.name}</b>
-                  <span>
-                    {r.industry}
-                    {r.naicsCode ? ` · NAICS ${r.naicsCode}` : ""}
-                  </span>
-                </span>
-                <span className="sts">
-                  {/* THE ROW STAYS CLEAN (founder, 2026-09-03, twice: the
-                      grades, requests, maturities and then the breach word
-                      floating in the card read as clutter). Nothing sits on the
-                      row but one quiet info dot, in line before the exposure
-                      figure; every status lives in its hover column, one under
-                      the other, the bad ones in red. */}
-                  {(() => {
-                    const sts = statusesFor(r);
-                    const urgent = sts.some((s) => s.tone === "bad") ? "bad" : sts.some((s) => s.tone === "warn") ? "warn" : "";
-                    return (
-                      <>
-                        {(sts.length > 0 || r.riskRating != null) && (
-                          <span className={`wl-info${urgent ? ` ${urgent}` : ""}`} tabIndex={0} aria-label="Details for this relationship">
-                            <svg viewBox="0 0 16 16" aria-hidden="true">
-                              <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" strokeWidth="1.4" />
-                              <path d="M8 7.2v3.4M8 5.05v.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                            </svg>
-                            <span className="wl-pop" role="tooltip">
-                              {r.riskRating != null && (
-                                <span className="wl-pop-row">
-                                  <span>Risk rating</span>
-                                  <b style={{ color: gradeColor(String(r.riskRating)) ?? undefined }}>Grade {r.riskRating}</b>
-                                </span>
-                              )}
-                              {sts.map((s) => (
-                                <span key={s.text} className={`wl-pop-row ${s.tone}`}>
-                                  <span>{s.text.split(" · ")[0]}</span>
-                                  <b>{s.text.includes(" · ") ? s.text.split(" · ").slice(1).join(" · ") : ""}</b>
-                                </span>
-                              ))}
-                            </span>
-                          </span>
-                        )}
-                      </>
-                    );
-                  })()}
-                </span>
-                <span className="amt num">
-                  {/* THE BOOK'S OWN FIGURE, AND ONLY THAT (rule 1). It used to
-                      carry the workroom's committed delta summed into it, which
-                      made the row state an exposure the org had not booked. The
-                      delta is named under it instead, in the same chip the hero
-                      anchor and the exposure pane carry. */}
-                  <b>
-                    <Odo value={fmtMoney(r.tce ?? 0)} />
-                  </b>
-                  <span>total exposure</span>
-                  <FiledChip deltaMM={state.writeBacks[r.accountId] ?? 0} newPackage={state.writeBackNewPackage[r.accountId]} />
-                </span>
-                <span className="go">→</span>
-              </div>
-            );
-          })}
+          {queued.map(({ r, fresh, delayMs }) => (
+            <Row
+              key={r.accountId}
+              r={r}
+              fresh={fresh}
+              delayMs={delayMs}
+              deltaMM={state.writeBacks[r.accountId] ?? 0}
+              newPackage={state.writeBackNewPackage[r.accountId]}
+              onOpen={openRow}
+            />
+          ))}
         </div>
+      )}
+
+      {queue.summary.quiet > 0 && (
+        <>
+          {/* THE QUIET DIVIDER. Not a filter and not a tab: the rest of the
+              book, named, counted, and one click from open. */}
+          <button
+            type="button"
+            className="wl-rest"
+            id="wlRest"
+            aria-expanded={restOpen}
+            onClick={() => setRestOpen((v) => !v)}
+          >
+            <span className="wl-rest-l">The rest of the book</span>
+            <span className="wl-rest-n">{queue.summary.quiet}</span>
+            <span className="wl-rest-a">{restOpen ? "Hide" : "Show"}</span>
+          </button>
+          {restOpen && (
+            <div className="wl wl-quiet">
+              {quiet.map(({ r, fresh, delayMs }) => (
+                <Row
+                  key={r.accountId}
+                  r={r}
+                  fresh={fresh}
+                  delayMs={delayMs}
+                  deltaMM={state.writeBacks[r.accountId] ?? 0}
+                  newPackage={state.writeBackNewPackage[r.accountId]}
+                  onOpen={openRow}
+                />
+              ))}
+              {quietRows.length < queue.summary.quiet && (
+                <p className="wl-rule">
+                  {queue.summary.quiet - quietRows.length} more sit in the book. Open any of them by name.
+                </p>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {unstaged && (

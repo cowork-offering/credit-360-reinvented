@@ -31,6 +31,15 @@
                          must arrive with NO gesture from anyone
      8  three minutes    down, then reachable. The figures must come back inside
                          a minute of recovery, again with no gesture
+    10  the live queue   the Portfolio read answers with TWELVE packaged accounts and
+                         mixed signals. The landing must stop painting the five the
+                         snapshot baked, drop the three SAMPLE relationships, order
+                         the queue breach-then-overdue-then-due-then-maturity, and
+                         put everything with no signal under the collapsed divider
+    11  portfolio hangs  the Portfolio read never answers on either door. The BAKED
+                         rows must still be on screen, with no spinner and no blank
+                         landing: the queue falls back to the membership the
+                         snapshot carries, which is what it painted before the read
      9  the firewall     a full open, sync and room cycle on a healthy connector,
                          and then EVERY body the page sent to the store is read
                          back. Not one may carry an XSS signature or a string
@@ -46,6 +55,8 @@
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { HARTWELL, LIVE_PORTFOLIO } from "./lib/live-book.mjs";
 
 const TARGET = process.argv[2] ?? "/tmp/c360-stable.html";
 const OUT = process.argv[3] ?? "/tmp/lane-drive";
@@ -191,6 +202,36 @@ function check(scenario, label, condition) {
   target[label] = condition === true;
   if (condition !== true) failures.push(`${scenario}: ${label}`);
 }
+
+/** Every row the landing is painting, top to bottom, with the reasons its own
+ *  popover carries. Read off the DOM, so this is what a banker would see. */
+const queueRows = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll("#view-home .wl .wlrow")].map((r) => ({
+      id: r.getAttribute("data-open"),
+      name: r.querySelector(".who b")?.textContent ?? "",
+      reasons: [...r.querySelectorAll(".wl-pop-row")].map((p) => p.querySelector("span")?.textContent ?? ""),
+    })),
+  );
+
+const queueLine = (page) =>
+  page.evaluate(() => document.querySelector('[data-probe="queue-rule"]')?.textContent ?? null);
+
+const restDivider = (page) =>
+  page.evaluate(() => {
+    const el = document.querySelector("#wlRest");
+    if (!el) return null;
+    return { count: el.querySelector(".wl-rest-n")?.textContent ?? null, expanded: el.getAttribute("aria-expanded") };
+  });
+
+/** Anything on the landing that reads as "still loading". The queue must never
+ *  be one of these: an unreachable read leaves the baked rows, not a spinner. */
+const landingSpinners = (page) =>
+  page.evaluate(
+    () =>
+      document.querySelectorAll('#view-home [aria-busy="true"], #view-home .spinner, #view-home [role="progressbar"]')
+        .length,
+  );
 
 const browser = await chromium.launch({ args: ARGS });
 try {
@@ -467,6 +508,86 @@ try {
     check("firewall", "not one stored body carries an XSS signature or an oversize string", hits.length === 0);
     check("firewall", "no page errors", (results.firewall.errors ?? []).length === 0);
     await page.screenshot({ path: `${OUT}/9-firewall.png`, fullPage: false });
+    await page.close();
+  }
+  /* ------------------------------------------------------ 10. the live queue */
+  {
+    // The Portfolio read answers with the org's real book. Everything on the
+    // landing is then a decision the PAGE made, not one the assembler baked.
+    const page = await openPage(browser, controls({ livePatch: { Customer360Portfolio: LIVE_PORTFOLIO } }));
+    const landed = await waitFor(page, async (p) => (await queueRows(p)).length > 5, 20_000, 200);
+
+    const rows = await queueRows(page);
+    const ids = rows.map((r) => r.id);
+    const line = await queueLine(page);
+    const divider = await restDivider(page);
+    const collapsedRows = rows.length;
+
+    // And the divider opens on one click, which is the only way to the rest.
+    await page.evaluate(() => document.querySelector("#wlRest")?.click());
+    await sleep(400);
+    const opened = await restDivider(page);
+    const withRest = (await queueRows(page)).length;
+
+    const rank = (id) => ids.indexOf(id);
+    results.liveQueue = {
+      msToLiveQueue: landed,
+      queue: ids,
+      names: rows.map((r) => r.name),
+      line,
+      divider,
+      collapsedRows,
+      withRest,
+      errors: await page.evaluate(() => window.__DRIVE_OUT.errors),
+    };
+
+    check("liveQueue", "the queue came off the live read, not off the baked five", landed !== null);
+    check(
+      "liveQueue",
+      "the three SAMPLE relationships are gone",
+      !ids.some((id) => (id ?? "").includes("SAMPLE")),
+    );
+    check(
+      "liveQueue",
+      "every relationship carrying a signal earned a row",
+      ["001LIVE00000003", ACCOUNT, "001LIVE00000001", "001LIVE00000002", HARTWELL, "001LIVE00000004", "001LIVE00000005"].every(
+        (id) => ids.includes(id),
+      ),
+    );
+    check("liveQueue", "an overdue test outranks a test merely due", rank("001LIVE00000003") < rank("001LIVE00000001"));
+    check("liveQueue", "a test due outranks a maturity in the window", rank("001LIVE00000001") < rank("001LIVE00000004"));
+    check("liveQueue", "nothing without a signal is on the queue", !ids.includes("001LIVE00000008"));
+    check("liveQueue", "the rule line states the queue in one sentence", /relationships need action/.test(line ?? ""));
+    check("liveQueue", "the line counts the quiet remainder too", /5 more are quiet\./.test(line ?? ""));
+    check("liveQueue", "the rest of the book sits under a divider, collapsed, counted", divider?.count === "5" && divider?.expanded === "false");
+    check("liveQueue", "one click opens it and the quiet rows arrive", opened?.expanded === "true" && withRest === collapsedRows + 5);
+    check("liveQueue", "no page errors", (results.liveQueue.errors ?? []).length === 0);
+    await page.screenshot({ path: `${OUT}/10-live-queue.png`, fullPage: false });
+    await page.close();
+  }
+
+  /* ---------------------------------------------------- 11. portfolio hangs */
+  {
+    // The one read the queue stands on never answers, on either door. The
+    // landing must be the one the snapshot baked, not an empty page and not a
+    // spinner waiting on something that is never coming.
+    const page = await openPage(browser, controls({ hangTools: ["Customer360Portfolio"] }));
+    await sleep(6_000);
+    const rows = await queueRows(page);
+    const ids = rows.map((r) => r.id);
+    results.portfolioHung = {
+      queue: ids,
+      line: await queueLine(page),
+      spinners: await landingSpinners(page),
+      health: await health(page),
+      errors: await page.evaluate(() => window.__DRIVE_OUT.errors),
+    };
+    check("portfolioHung", "the baked rows are still on screen", ids.length === 5);
+    check("portfolioHung", "including the ones only the snapshot knows about", ids.some((id) => (id ?? "").includes("SAMPLE")));
+    check("portfolioHung", "the landing is not spinning on a read that will not answer", results.portfolioHung.spinners === 0);
+    check("portfolioHung", "the rule line still says what the queue is", /need action|needs action/.test(results.portfolioHung.line ?? ""));
+    check("portfolioHung", "no page errors", (results.portfolioHung.errors ?? []).length === 0);
+    await page.screenshot({ path: `${OUT}/11-portfolio-hung.png`, fullPage: false });
     await page.close();
   }
 } finally {
