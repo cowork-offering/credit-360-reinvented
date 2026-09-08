@@ -239,19 +239,33 @@ Hartwell builds. This is the list an agent should expect to meet.
 | 5 | Same, on `LLC_BI__Fee__c.LLC_BI__Is_Paid_By_Borrower__c` | as above | dropped |
 | 6 | Same, on `LLC_BI__Annual_Review__c.LLC_BI__Final_Risk_Grade__c` | the org derives it | only `LLC_BI__Computed_Risk_Grade_Value__c` is written |
 | 7 | `INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST` on the loan purpose | 23-value restricted picklist; "real_estate_improvement_owner_occupied" is not one of them | the validator checks purpose offline against the describe |
-| 8 | `DUPLICATE_VALUE` on `LLC_BI__Pricing_Stream__c.LLC_BI__lookupKey__c` | it is a UNIQUE external id, and the bare seed tag collides on the second record | tags on unique fields carry the record key: `C360-SEED-2026-09/<key>`. Same for the two pricing components, `LLC_BI__Account_Collateral__c` and `LLC_BI__Loan_Collateral2__c` |
+| 8 | `DUPLICATE_VALUE` on a `lookupKey` derived from a record key | those fields are UNIQUE EXTERNAL IDS **org-wide**, and a record key is only promised to be unique inside its own spec. The first shape, `C360-SEED-2026-09/<key>`, held for one relationship at a time and broke the moment seven were built side by side: four specs named an asset `receivables` or `inventory`, so Meridian took `receivables-0` and Blue Ridge, Cascade, Prairie Ag and Lakeshore were each refused a row against a record they could not see | the derived value is `C360-SEED-2026-09/<slug>/<key>`, minted in ONE place (`unique_key` in seed_relationship.py) and imported by the validator so the two cannot drift. It covers `LLC_BI__Account_Collateral__c`, `LLC_BI__Loan_Collateral2__c` and the pricing stream with both its components. `validate_spec.py --all` compares the derived values ACROSS specs, which is the only place this collision is visible before it costs a run. **Records already created under the older shape are never renamed**: the seed resolves by manifest id first and only mints a key for a record it is about to create |
 | 9 | `INVALID_FIELD`: no `LLC_BI__Floor_Rate__c` on `LLC_BI__Pricing_Rate_Component__c` | it does not exist in this org | dropped; a floor belongs in the note or the covenant |
-| 10 | A package comes back named "`<account>` - `<date>` - PP" | nCino's own flow renames it on insert | the asked-for name is PATCHed back immediately after create |
+| 10 | A package comes back named "`<account>` - `<date>` - PP", and a LOAN comes back named "`<account>` - `<product>` - `<amount>`" | nCino's own flows rename both on insert, off the ACCOUNT LOOKUP. Every loan carries the ANCHOR account (fact 3 in section 7), so a subsidiary's note reads under the anchor's name: Lakeshore's distribution centre mortgage was written as "Lakeshore Logistics LLC - Purchase - $5,900,000.00" and is stored as "Lakeshore Dental Supply Distributors Inc - Purchase - $5,900,000.00". Blue Ridge and Northgate read the same way for every subsidiary facility | the PACKAGE name is PATCHed back immediately after create. **The LOAN name is left exactly as the org wrote it.** Patching it would fight the org's own naming on every re-run and on every renewal, and the real borrower is not lost: it is on the involvement row (`LLC_BI__Legal_Entities__c`, Borrower at order 1) and on the package's `LLC_BI__Primary_Entity__c`, which is where `Customer360RelationshipGraph` and the facility room read it |
 | 11 | `LLC_BI__Loan_Detail__c` query right after the loan insert returns nothing | the flow that mints it is ASYNCHRONOUS | polled with backoff, then recorded in the manifest and patched with the purpose. Recording it matters: an unrecorded detail is an orphan cleanup is not allowed to delete |
-| 12 | A second `LLC_BI__Connection__c` appears for every one created | nCino mints the RECIPROCAL edge, asynchronously | polled and recorded as derived. Skipping this drifts the org by exactly the number of household members |
+| 12 | **Zero or one** second `LLC_BI__Connection__c` appears for each one created | nCino mints the reciprocal edge asynchronously, and only for the roles that have one. `Owner`, `Co-Owner` and `Officer` mirror as `Company`; `Partner` and `Affiliated Company` mirror as themselves; **`Beneficial Owner` mirrors as nothing at all**, which is why Sunbelt's eight edges produced four mirrors and Cascade's seven produced six | polled and recorded as derived, however many turn up. The poll waits for one per edge and then settles for what the org gave, so a relationship built on `Beneficial Owner` edges costs a few seconds of waiting and records the truth. Skipping this entirely would drift the org by the number of household members |
 | 13 | `LLC_BI__Loan_Collateral_Aggregate__c` is required on the pledge describe, and a pledge inserts fine without it | a before-insert trigger mints and back-fills it | never authored; read back off the pledges and recorded as derived |
 | 14 | `ENTITY_IS_DELETED` during cleanup | master-detail cascades. Deleting an aggregate takes its pledges; deleting a connection takes its reciprocal | cleanup counts it as success, not failure |
-| 15 | A pledge above current lendable value is refused unless Authorize is checked | the org will not invent coverage the appraisal does not support | pledge at or below value x advance rate |
+| 15 | A pledge above current lendable value is refused: "You are trying to pledge more than the current lendable value of this collateral. You must check the Authorize Pledge Amount checkbox to continue." | the org will not invent coverage the appraisal does not support | pledge at or below value x advance rate, and **the validator now does that arithmetic offline** so the spec fails on the desk instead of at insert. A pledge with no `advanceRate` is measured against the org's 80 percent default. A junior lien carries its own slice as its advance rate rather than being netted against the senior one, which is what the org accepted on all seven |
 | 16 | A `LLC_BI__Collateral__c` create naming any non-Master record type is rejected | every named RT is unavailable to this profile | no RecordTypeId is sent |
 | 17 | `LLC_BI__Fee__c` refuses `RecordTypeId` | same | the object's own `LLC_BI__Record_Type__c` picklist is used |
 | 18 | A percentage fee refuses a supplied Amount | the org computes it from `LLC_BI__Basis_Source__c` and `LLC_BI__Percentage__c` | percentage and amount are mutually exclusive; the validator enforces it |
 | 19 | A first payment date before the projected close date is refused | | the validator checks it offline |
 | 20 | An org-local `PolicyExceptionCDC` trigger relays every `LLC_BI__Policy_Exception__c` create to an external AWS endpoint | sandbox EventBridge relay, probed 2026-08-31: no approval process, no email | accepted knowingly; nothing seeded is real customer data |
+| 21 | `STRING_TOO_LONG` on four fields, every one of them hit by the seven runs | a credit officer's sentence is longer than the field. The two the seed tags lose twenty more characters to ` [C360-SEED-2026-09]` | hard limits in `validate_spec.py`, listed below the table. The prose has to be cut in the spec, never at run time: a spec that says one thing and an org record that says a shorter one is a relationship nobody can reproduce |
+
+**The four fields, and what fits in them.**
+
+| Field | Holds | Budget in the spec | Why the budget is smaller |
+|---|---|---|---|
+| `LLC_BI__Policy_Exception__c.LLC_BI__Mitigation_Reason_1__c` (and `_2`, `_3`) | 100 | **100** | not tagged. One clause per reason, three reasons available |
+| `LLC_BI__Fee__c.LLC_BI__Fee_Type_Description__c` | 255 | **230** | the seed appends the tag here |
+| `LLC_BI__Collateral__c.LLC_BI__Description__c` | 255 | **235** | the seed appends the tag here |
+| `LLC_BI__Collateral_Valuation__c.LLC_BI__Valuation_Description__c` | 255 | **255** | not tagged; the tag goes on `LLC_BI__Comments__c`, a long text area |
+
+The mitigation reasons are the tightest and the most often over: 100 characters is one sentence, and the
+argument for a waiver wants three. Meridian's live records are the shape that fits, one clause each: the
+cause, the guaranty that survives it, the number that did not move.
 
 ## 7. The four field facts that decide whether the cockpit looks right
 
@@ -289,7 +303,7 @@ Every record carries `C360-SEED-2026-09` in a free-text field:
 | Fee | `LLC_BI__Fee_Type_Description__c` |
 | Policy Exception | `LLC_BI__Code__c` |
 | Opportunity, Case | `Description` |
-| Pricing Stream + both components, Account Collateral, Loan Collateral2 | `lookupKey` fields, as `C360-SEED-2026-09/<key>` because they are unique |
+| Pricing Stream + both components, Account Collateral, Loan Collateral2 | `lookupKey` fields, as `C360-SEED-2026-09/<slug>/<key>` because they are unique ORG-WIDE, not per relationship (section 6, row 8) |
 
 **The tag is a marker for a person reading the record, not a query key.** Several of the
 fields it lands in are long text areas the org refuses to filter on
@@ -310,3 +324,10 @@ them is unfindable. The manifest, not the tag, is what cleanup uses.
 | an unused commitment fee | the Fee Type picklist is residential and TRID and has no such entry. Booked as `Other`, intent in the description |
 | inbound requests in the trail | there is no inbound-request object; `Case` is the nearest and is what the recipe writes |
 | a rate floor on the pricing component | no floor field exists on `LLC_BI__Pricing_Rate_Component__c` in this org |
+| a facility named for the entity that borrows it | nCino renames every loan off its ACCOUNT LOOKUP, which is always the anchor. A subsidiary's note reads under the anchor's name; the borrower survives on the involvement row and the package's primary entity (section 6, row 10) |
+| the argument for a waiver, in full | `LLC_BI__Mitigation_Reason_1..3__c` hold 100 characters each (section 6, row 21) |
+
+
+## HARD RULE added 2026-09-08: no compliance rows
+
+Do not seed `LLC_BI__Covenant_Compliance2__c`. Every insert fires `acnpex_covenantApprovalProcess` unconditionally at a hard-coded human. The seed script skips the `evaluations` block unless `ALLOW_COMPLIANCE_ROWS=1`; leave `evaluations` in the spec only as documentation, and put the covenant's history on `lastEvaluationValue`, `lastEvaluationStatus`, `lastEvaluationDate` and `nextEvaluationDate` of the covenant itself. The covenant review room will report 'no open test period' on these relationships; that is expected and must be logged as such, not as a defect.

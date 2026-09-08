@@ -140,30 +140,13 @@
       "legalDescription": "First priority UCC-1 lien on all accounts, chattel paper, instruments, general intangibles and proceeds of Lakeshore Dental Supply Distributors Inc, filed with the Wisconsin Department of Financial Institutions. Ineligibles excluded from the base: accounts over 90 days past invoice, cross-aged accounts where more than 25 percent of the obligor balance is over 90 days, contra accounts against dental supply vendors, unapplied credits, government and dental school receivables without an assignment of claims, and any single obligor concentration above 12 percent.",
       "owners": [
         {
-          "association": "Landlord",
-          "percent": 0,
-          "pledgingAuthority": false,
-          "primary": false,
-          "startDate": "2025-11-14",
-          "account": "lakeshore-logistics",
-          "note": "Landlord of the Glendale premises and party to the landlord waiver covering all personal property at the site, including the books and records evidencing the accounts."
-        },
-        {
-          "account": "lakeshore-dental",
-          "association": "Tenant",
-          "percent": 0,
-          "pledgingAuthority": false,
-          "primary": false,
-          "startDate": "2025-11-14",
-          "note": "Occupant of the Glendale premises where the accounts are administered and the books and records are kept."
-        },
-        {
           "account": "lakeshore-dental",
           "association": "Owner",
           "percent": 100,
           "pledgingAuthority": true,
           "primary": true,
-          "startDate": "2025-11-14"
+          "startDate": "2025-11-14",
+          "key": "receivables#2"
         }
       ],
       "valuations": [
@@ -206,21 +189,13 @@
       "legalDescription": "First priority UCC-1 lien on all inventory of Lakeshore Dental Supply Distributors Inc wherever located, including the Glendale distribution centre and the four branch depots. Ineligibles excluded from the base: consumables within 120 days of expiry, consigned handpieces and imaging sensors, goods in transit not covered by a negotiable document, slow moving stock with no movement in twelve months, and packaging and shop supplies.",
       "owners": [
         {
-          "association": "Landlord",
-          "percent": 0,
-          "pledgingAuthority": false,
-          "primary": false,
-          "startDate": "2025-11-14",
-          "account": "lakeshore-logistics",
-          "note": "Landlord of the Glendale premises and party to the landlord waiver covering the inventory held at the distribution centre."
-        },
-        {
           "account": "lakeshore-dental",
           "association": "Owner",
           "percent": 100,
           "pledgingAuthority": true,
           "primary": true,
-          "startDate": "2025-11-14"
+          "startDate": "2025-11-14",
+          "key": "inventory#1"
         }
       ],
       "valuations": [

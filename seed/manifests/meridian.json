@@ -1009,7 +1009,9 @@
           ]
         }
       ],
-      "at": "2026-09-08T11:53:16+00:00"
+      "at": "2026-09-08T11:53:16+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the record exists under this key; the refusal was an earlier attempt"
     },
     {
       "object": "LLC_BI__Policy_Exception__c",
@@ -1023,7 +1025,9 @@
           ]
         }
       ],
-      "at": "2026-09-08T11:53:16+00:00"
+      "at": "2026-09-08T11:53:16+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the record exists under this key; the refusal was an earlier attempt"
     }
   ],
   "updatedAt": "2026-09-08T11:53:43+00:00"

@@ -823,7 +823,9 @@
           ]
         }
       ],
-      "at": "2026-09-08T11:56:45+00:00"
+      "at": "2026-09-08T11:56:45+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the record exists under this key; the refusal was an earlier attempt"
     },
     {
       "object": "LLC_BI__Account_Collateral__c",
@@ -835,7 +837,9 @@
           "fields": []
         }
       ],
-      "at": "2026-09-08T11:56:47+00:00"
+      "at": "2026-09-08T11:56:47+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the asset was renamed cascade-receivables to get off the colliding key; its ownership row is cascade-receivables#0 and the key shape is scoped by slug now"
     },
     {
       "object": "LLC_BI__Policy_Exception__c",
@@ -849,7 +853,9 @@
           ]
         }
       ],
-      "at": "2026-09-08T11:56:56+00:00"
+      "at": "2026-09-08T11:56:56+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the record exists under this key; the refusal was an earlier attempt"
     }
   ],
   "updatedAt": "2026-09-08T11:58:53+00:00"

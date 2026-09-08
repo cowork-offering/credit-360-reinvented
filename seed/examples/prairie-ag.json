@@ -261,15 +261,8 @@
           "percent": 100,
           "pledgingAuthority": true,
           "primary": true,
-          "startDate": "2026-02-08"
-        },
-        {
-          "account": "prairie-ag-holdings",
-          "association": "Owner",
-          "percent": 100,
-          "pledgingAuthority": true,
-          "primary": true,
-          "startDate": "2026-02-08"
+          "startDate": "2026-02-08",
+          "key": "receivables#1"
         }
       ],
       "valuations": [

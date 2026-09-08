@@ -17,10 +17,14 @@ WHAT IT GUARANTEES
   starts. A run killed halfway leaves a manifest that cleans up everything it
   made, which is the only reason a half-run is survivable.
 
-  IDEMPOTENCE BY KEY. Every record in the input carries a `key` that is unique
-  inside its object. A re-run reads the manifest, re-resolves each id against
-  the org, and creates only what is missing. Re-running a finished relationship
-  creates nothing.
+  IDEMPOTENCE BY KEY, AND FOR OWNERSHIP BY CONTENT. Every record in the input
+  carries a `key` that is unique inside its object. A re-run reads the manifest,
+  re-resolves each id against the org, and creates only what is missing. Nothing
+  already recorded is ever renamed, so a row created under an older key shape
+  stays tracked under that shape for the rest of its life. Account_Collateral
+  goes one step further and looks for its own (collateral, account, association)
+  in the org before inserting, because that is the row a changed key shape could
+  otherwise duplicate. Re-running a finished relationship creates nothing.
 
   ERRORS THAT DO NOT LIE. allOrNone is false, so one refused record does not
   discard the thirty that were fine. The org's own message is captured against
@@ -60,7 +64,8 @@ RT = {
 # createable text field at all. They are manifest-only, and they are reachable
 # from their covenant and their loan, so nothing about them is unfindable.
 # Fields marked here are UNIQUE external ids in this org, so the bare tag collides
-# on the second record that uses one. They get the tag plus the record's own key.
+# on the second record that uses one. They get the tag, the relationship's slug and
+# the record's own key.
 UNIQUE_TAG_FIELD = {
     'LLC_BI__Pricing_Stream__c', 'LLC_BI__Pricing_Rate_Component__c',
     'LLC_BI__Pricing_Payment_Component__c', 'LLC_BI__Account_Collateral__c',
@@ -91,13 +96,30 @@ TAG_FIELD = {
 }
 
 
-def tagged(obj, record, text=None, key=None):
+def unique_key(slug, key):
+    """The value written into a unique external id field.
+
+    THE SLUG IS IN THE KEY BECAUSE THESE FIELDS ARE UNIQUE ORG-WIDE, NOT PER
+    RELATIONSHIP. The first shape was `<tag>/<record key>`, and a record key is
+    only promised to be unique inside its own spec: four relationships called an
+    asset "receivables" and three of them were refused with DUPLICATE_VALUE on a
+    row nobody could see, belonging to the one that ran first. Everything derived
+    from a record key goes through here, and validate_spec.py imports this same
+    function so its cross-file collision check derives exactly what the seed writes.
+    """
+    return f'{TAG}/{slug}/{key}'
+
+
+def tagged(obj, record, text=None, key=None, slug=None):
     """Stamp the seed tag onto a record without losing the prose already there."""
     field = TAG_FIELD.get(obj)
     if not field:
         return record
     if obj in UNIQUE_TAG_FIELD:
-        record[field] = f'{TAG}/{key}'
+        if not slug:
+            raise SystemExit(f'{obj} writes a unique external id and was tagged without '
+                             f'a slug; that is the collision this scoping exists to stop')
+        record[field] = unique_key(slug, key)
         return record
     body = text if text is not None else record.get(field)
     record[field] = f'{body} [{TAG}]' if body else TAG
@@ -142,8 +164,32 @@ class Manifest:
                 have.add(i)
 
     def fail(self, obj, key, errors):
-        self.data['errors'].append({'object': obj, 'key': key, 'errors': errors,
-                                    'at': _now()})
+        """One entry per refused key. A re-run that meets the same refusal replaces
+        its entry instead of appending a second, so the block reads as the state of
+        the relationship and not as a tape of every attempt ever made."""
+        entry = {'object': obj, 'key': key, 'errors': errors, 'at': _now()}
+        for i, e in enumerate(self.data['errors']):
+            if e['object'] == obj and e['key'] == key and not e.get('resolvedAt'):
+                self.data['errors'][i] = entry
+                return
+        self.data['errors'].append(entry)
+
+    def settle_errors(self):
+        """A refusal the org has since accepted is history, not an outstanding debt.
+
+        Every unmarked error whose key now holds an id is stamped `resolvedAt`, and
+        what is left unmarked is what this relationship still owes. Without this a
+        finished relationship that was refused once on its way in could never exit 0
+        again, and the only way to make it clean would be to delete the evidence.
+        """
+        for e in self.data['errors']:
+            if e.get('resolvedAt'):
+                continue
+            if self.id_for(e['object'], e['key']):
+                e['resolvedAt'] = _now()
+                e['resolution'] = ('the record exists under this key; the refusal was '
+                                   'an earlier attempt')
+        return [e for e in self.data['errors'] if not e.get('resolvedAt')]
 
     def save(self):
         self.data['updatedAt'] = _now()
@@ -178,9 +224,10 @@ def _now():
 
 
 class Seeder:
-    def __init__(self, spec, manifest):
+    def __init__(self, spec, manifest, slug):
         self.spec = spec
         self.m = manifest
+        self.slug = slug
         self.failed = False
 
     def ref(self, obj, key):
@@ -323,6 +370,7 @@ class Seeder:
         errs = update('LLC_BI__Product_Package__c', repair)
         if errs:
             print('    package rename REFUSED:', json.dumps(errs)[:300])
+            self.failed = True
         else:
             print(f'  {"package names restored":34s} {len(repair):3d}')
 
@@ -474,7 +522,8 @@ class Seeder:
                 })
                 )
         self.build('LLC_BI__Pricing_Stream__c',
-                   [(k, tagged('LLC_BI__Pricing_Stream__c', r, key=k)) for k, r in streams],
+                   [(k, tagged('LLC_BI__Pricing_Stream__c', r, key=k, slug=self.slug))
+                    for k, r in streams],
                    'Pricing Stream')
 
         for p in self.spec['packages']:
@@ -484,7 +533,7 @@ class Seeder:
                     continue
                 sid = self.ref('LLC_BI__Pricing_Stream__c', ln['key'])
                 loan = self.ref('LLC_BI__Loan__c', ln['key'])
-                rates.append((ln['key'], tagged('LLC_BI__Pricing_Rate_Component__c', key=ln['key'], record={
+                rates.append((ln['key'], tagged('LLC_BI__Pricing_Rate_Component__c', key=ln['key'], slug=self.slug, record={
                     'Name': f"{ln['name'][:56]} - Rate",
                     'LLC_BI__Pricing_Stream__c': sid,
                     'cm_Loan__c': loan,
@@ -506,7 +555,7 @@ class Seeder:
                     'LLC_BI__Term_Length__c': pr.get('termLength', ln.get('termMonths')),
                 })))
                 amortises = bool(pr.get('amortises'))
-                payments.append((ln['key'], tagged('LLC_BI__Pricing_Payment_Component__c', key=ln['key'], record={
+                payments.append((ln['key'], tagged('LLC_BI__Pricing_Payment_Component__c', key=ln['key'], slug=self.slug, record={
                     'Name': f"{ln['name'][:53]} - Payment",
                     'LLC_BI__Pricing_Stream__c': sid,
                     'LLC_BI__Rate_Stream__c': sid,
@@ -602,7 +651,13 @@ class Seeder:
         for c in self.spec.get('collateral', []):
             col = self.ref('LLC_BI__Collateral__c', c['key'])
             for i, ow in enumerate(c.get('owners', [])):
-                owners.append((f"{c['key']}#{i}", tagged('LLC_BI__Account_Collateral__c', key=f"{c['key']}-{i}", record={
+                # THE POSITION IN THE LIST IS THE DEFAULT KEY, NEVER THE LAW. Dropping
+                # an owner row renumbers every row after it, the manifest stops matching
+                # rows that already exist in the org, and the re-run builds a second
+                # copy of each. A row that is already live pins its key with "key".
+                okey = ow.get('key') or f"{c['key']}#{i}"
+                owners.append((okey, tagged('LLC_BI__Account_Collateral__c',
+                                            key=okey.replace('#', '-'), slug=self.slug, record={
                     'LLC_BI__Account__c': self.ref('Account', ow['account']),
                     'LLC_BI__Collateral__c': col,
                     'LLC_BI__Collateral_Association__c': ow.get('association', 'Owner'),
@@ -611,6 +666,7 @@ class Seeder:
                     'LLC_BI__Primary_Owner__c': ow.get('primary', True),
                     'LLC_BI__Start_Date__c': ow.get('startDate'),
                 })))
+        self.adopt_ownership(owners)
         self.build('LLC_BI__Account_Collateral__c', owners, 'Account Collateral (ownership)')
 
         vals = []
@@ -630,13 +686,48 @@ class Seeder:
                 })))
         self.build('LLC_BI__Collateral_Valuation__c', vals, 'Collateral Valuation')
 
+    def adopt_ownership(self, rows):
+        """Ownership is idempotent BY CONTENT, not only by key.
+
+        These rows used to derive their unique lookupKey from the collateral key
+        alone, so a row refused as a duplicate of another relationship's asset would
+        now insert cleanly under the slug-scoped key and the asset would end up owned
+        twice. Before anything is created, the same (collateral, account, association)
+        triple is looked for in the org, on the collateral THIS manifest created, and
+        a row already standing there is adopted under the key the spec asks for.
+        """
+        obj = 'LLC_BI__Account_Collateral__c'
+        todo = [(k, r) for k, r in rows if self.m.id_for(obj, k) is None]
+        cols = list(self.m.data['records'].get('LLC_BI__Collateral__c', {}).values())
+        if not todo or not cols:
+            return
+        known = set(self.m.data['records'].get(obj, {}).values())
+        pool = {}
+        for r in q(f'SELECT Id, LLC_BI__Collateral__c, LLC_BI__Account__c, '
+                   f'LLC_BI__Collateral_Association__c FROM {obj} '
+                   f'WHERE LLC_BI__Collateral__c IN {soql_in(cols)}'):
+            if r['Id'] in known:
+                continue
+            pool.setdefault((r['LLC_BI__Collateral__c'], r['LLC_BI__Account__c'],
+                             r['LLC_BI__Collateral_Association__c']), []).append(r['Id'])
+        adopted = 0
+        for key, rec in todo:
+            match = pool.get((rec['LLC_BI__Collateral__c'], rec['LLC_BI__Account__c'],
+                              rec['LLC_BI__Collateral_Association__c']))
+            if match:
+                self.m.note(obj, key, match.pop(0))
+                adopted += 1
+        if adopted:
+            self.m.save()
+            print(f'  {"ownership adopted by content":34s} {adopted:3d} already in the org')
+
     def pledges(self):
         rows = []
         for p in self.spec['packages']:
             for ln in p.get('loans', []):
                 loan = self.ref('LLC_BI__Loan__c', ln['key'])
                 for pl in ln.get('pledges', []):
-                    rows.append((pl['key'], tagged('LLC_BI__Loan_Collateral2__c', key=pl['key'], record={
+                    rows.append((pl['key'], tagged('LLC_BI__Loan_Collateral2__c', key=pl['key'], slug=self.slug, record={
                         'LLC_BI__Loan__c': loan,
                         'LLC_BI__Collateral__c': self.ref('LLC_BI__Collateral__c', pl['collateral']),
                         'LLC_BI__Lien_Position__c': pl.get('lienPosition', '1st'),
@@ -749,7 +840,17 @@ class Seeder:
                         None if e.get('value') is None else str(e['value'])),
                     'LLC_BI__Reason_for_Exception__c': e.get('exceptionReason'),
                 }, e.get('comments'))))
-        self.build('LLC_BI__Covenant_Compliance2__c', evals, 'Covenant evaluation (history)')
+        # NEVER BY DEFAULT (2026-09-08). Every insert of LLC_BI__Covenant_Compliance2__c in this
+        # org fires the unmanaged approval orchestration acnpex_covenantApprovalProcess, with no
+        # entry condition, assigned to a hard-coded human (robert.mcclaren@outlook.com). The proof
+        # runs fired it 24 times before this was caught. Covenant history lives on the covenant's
+        # own LLC_BI__Last_Evaluation_* fields (the Hartwell pattern); compliance rows are written
+        # only when the operator sets ALLOW_COMPLIANCE_ROWS=1 knowingly.
+        if os.environ.get('ALLOW_COMPLIANCE_ROWS') == '1':
+            self.build('LLC_BI__Covenant_Compliance2__c', evals, 'Covenant evaluation (history)')
+        elif evals:
+            print(f'  skipped {len(evals)} compliance rows: the org fires an approval at a '
+                  f'real human on every insert (ALLOW_COMPLIANCE_ROWS=1 overrides)')
 
     # -------------------------------------------------------------- governance
     def governance(self):
@@ -917,20 +1018,31 @@ def main():
         print(f'  resuming: {len(m.data["order"])} records already recorded')
         m.prune_vanished()
 
-    seeder = Seeder(spec, m)
+    seeder = Seeder(spec, m, slug)
     try:
         seeder.run()
     finally:
         m.save()
 
+    unresolved = m.settle_errors()
+    m.save()
+
     print(f'\naccount   {m.data["account"]}')
     print(f'records   {len(m.data["order"])} created, '
           f'{sum(len(v) for v in m.data["derived"].values())} recorded as org-minted')
-    if m.data['errors']:
-        print(f'\n{len(m.data["errors"])} RECORDS REFUSED - see the manifest errors block')
-        for e in m.data['errors'][-10:]:
-            print(f'  {e["object"]}:{e["key"]}  {json.dumps(e["errors"])[:300]}')
+    if unresolved or seeder.failed:
+        if unresolved:
+            print(f'\n{len(unresolved)} RECORDS REFUSED - see the manifest errors block')
+            for e in unresolved[-10:]:
+                print(f'  {e["object"]}:{e["key"]}  {json.dumps(e["errors"])[:300]}')
+        else:
+            print('\nan UPDATE was refused; the message is above the summary')
         sys.exit(1)
+    # A RELATIONSHIP THAT WAS REFUSED ON ITS WAY IN AND IS WHOLE NOW IS CLEAN. The
+    # refusals stay in the manifest as the receipt; each carries the moment it stopped
+    # being outstanding, and a pass over a finished relationship exits 0.
+    if m.data['errors']:
+        print(f'{len(m.data["errors"])} historical refusals, all resolved, nothing outstanding')
     print('\nclean. next: python3 seed/verify_relationship.py ' + slug)
 
 

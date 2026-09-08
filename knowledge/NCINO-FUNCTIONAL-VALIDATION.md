@@ -642,7 +642,7 @@ SCHEMA-VERIFIED.md already established. `Bank_Relationship_Manager__c` is unset 
 |---|---|---|---|---|---|
 | **R1** | Fix the outstanding-balance read in `Customer360Exposure`. Read `LLC_BI__Principal_Balance__c` with `LLC_BI__AmountOutstanding__c` as fallback (or `COALESCE` semantics in Apex). Matches nCino's own booked-loan LTV formula, which uses Principal Balance. | Apex only. `Customer360Exposure.getExposure()` line ~167. No org data touched. | None in the org. Deploy + republish. Changes `outstanding`, `available`, `coverageRatio`, `coverageShortfall` for **every** relationship — re-run the per-borrower QA matrix. | **Low** | No |
 | **R2** | Fix the covenant facility-group section: add the header row and restore the missing three columns (Cushion, headroom bar, Next test) in `CovenantsTab.tsx:182–192`. | React only. | None. Add a per-borrower test covering non-empty `attachedLoans` — Hartwell is currently the only fixture that exercises it. | **Low** | No |
-| **R3** | Decide and implement the coverage denominator/numerator. Options: (a) facility coverage = `Σ Amount_Pledged` (or aggregate `Total_Collateral_Pledged__c`) ÷ facility outstanding; (b) relationship coverage = dedupe by `collateralId` then sum lendable ÷ total outstanding. Today's `Σ totalLendableValue` double-counts 3 of 4 assets. | Apex + React. No org data touched. | Changes the headline coverage number on every relationship. Must ship **with** R1, never after it. | **Medium** — a wrong number is worse than a blank | **YES.** Which figure is "collateral coverage" is a credit-policy call, not an engineering one. Recommend co-gating with Clawdy. |
+| **R3** | Decide and implement the coverage denominator/numerator. Options: (a) facility coverage = `Σ Amount_Pledged` (or aggregate `Total_Collateral_Pledged__c`) ÷ facility outstanding; (b) relationship coverage = dedupe by `collateralId` then sum lendable ÷ total outstanding. Today's `Σ totalLendableValue` double-counts 3 of 4 assets. **Half of this shipped and the dedupe picked the wrong row: §5.1 has the Northgate case, where the relationship reads 0.11x against facilities that all read above 1.0x.** | Apex + React. No org data touched. | Changes the headline coverage number on every relationship. Must ship **with** R1, never after it. | **Medium** — a wrong number is worse than a blank | **YES.** Which figure is "collateral coverage" is a credit-policy call, not an engineering one. Recommend co-gating with Clawdy. |
 | **R4** | Fix `fmtCovVal` / `fmtCovThreshold` unit handling so percent covenants (AR advance test, `80`) do not render as `"80.00×"`. Needs a unit hint — either a `covenantUnit` field added to `Customer360Covenants` (derived from `Acnpex_Category__c` / `Financial_Indicator_Operator__c`) or a client-side type map. | React, optionally 1 Apex field. | If Apex changes, re-observe the wire envelope before pinning (lesson 16aa). | **Low** | No |
 | **R5** | Link the collateral aggregate on the six Hartwell loans: set `LLC_BI__Loan__c.LLC_BI__Loan_Collateral_Aggregate__c` to the value already on that loan's pledge rows (mapping table in §2.4). This is nCino's own documented resolution (`kAHHu000000XabhOAC`). | 6 field updates on `LLC_BI__Loan__c`. No inserts. | Populates `Total_Collateral_Value__c`, `Current_Total_Lendable_Value__c`, `Current_LTV__c`, `Total_Superior_Lien_Amount__c`, `Is_Secured__c` (formulas — instant, no batch). **No email, no approval, no async flow.** Loan is at `Booked`; LV06 keys on `PRIORVALUE` of `Stage`, which is unchanged, so it cannot fire. **Watch:** article `kAHHu000000XadDOAS` — once the aggregate is set, `Renewal_Fields_To_clone` must include the aggregate field or `stage_renewal`/`execute_renewal` will throw `DUPLICATE_VALUE` on `LLC_BI__Unique_Id__c`. Probe `stage_renewal` on ZZ-PROBE data after this lands. | **Low-Medium** (the renewal interaction is the only real risk) | **YES** — it modifies six pre-existing Hartwell records, and the standing order is "never touch pre-existing without permission". Hartwell is ours, but the renewal side-effect deserves a explicit yes. |
 | **R6** | Render `facility.coverageRatio` (the org-computed per-facility number) somewhere, and add an LTV surface. Today the contract carries both and the UI shows neither. | React. | None. | **Low** | No |
@@ -654,6 +654,71 @@ SCHEMA-VERIFIED.md already established. `Bank_Relationship_Manager__c` is unset 
 | **R12** | Backfill `LLC_BI__AmountOutstanding__c` on the six Hartwell loans to match Principal Balance. | 6 field updates. | Would make Hartwell the only relationship in a 187-loan org with this field set, and would make the cockpit "work" for Hartwell while every other relationship stayed blank — masking R1 rather than fixing it. `Amount_Available__c` would start computing. | **Medium** | **YES — recommend NOT doing this.** Fix the read (R1), not the data. |
 | **R13** | Add `LLC_BI__LoanRenewal__c` history to reach Piedmont parity. | 2+ inserts. | Renewal triggers unknown; `LLC_BI__Unique_Id__c` collision risk (see R5). Probe first. | **Medium** | **YES** |
 | **R14** | Relationship LTV recalculation. | — | **Not possible.** Documented as UI-only: *"No calculation records exist until you click Recalculate."* No API path. | n/a | Out of scope unless someone clicks it in the org UI |
+
+### 5.1 R3, the case that names the number: Northgate reads 0.11x on facilities that all read above 1.0x
+
+Written 2026-09-08 off the seven seeded relationships. **This is a read-class defect, not seed
+data.** Every pledge, advance rate and valuation below is what the design intends and what the
+org accepted; the arithmetic on top of them is what is wrong. Nothing in the org was changed to
+write this section.
+
+Both halves of R3 are now in `Customer360Exposure`, and the tool says so in its own note:
+
+> "Facility coverage divides the facility's PLEDGED SHARE (`LLC_BI__Amount_Pledged__c`), never
+> the whole collateral's lendable value, which every pledge of a cross-pledged asset repeats.
+> Relationship coverage divides the lendable value of the DISTINCT collateral, deduped by
+> collateral id."
+
+The facility half is right. The relationship half dedupes to ONE pledge row per collateral id and
+keeps whichever row it lands on, and a second-position pledge carries the JUNIOR SLICE as its
+lendable value, not the asset's. Northgate Multifamily Investors LLC (`001bb00001LcuL8AAJ`) pledges
+three of its four assets twice, once to the mortgage and once to that property's capex or
+renovation line, and every one of the three keeps the junior row:
+
+| Collateral | Senior pledge | Junior pledge | Kept by the dedupe |
+|---|---|---|---|
+| Ridge property `a35bb0000019qy5AAA` ($31.4MM) | `a4Rbb0000027b9rEAA` 1st, 70 percent, lendable **$21,980,000** | `a4Rbb0000027b9sEAA` 2nd, 5 percent, lendable $1,570,000 | the junior, $1,570,000 |
+| Park Place property `a35bb0000019qy6AAA` ($23.0MM) | `a4Rbb0000027b9tEAA` 1st, 70 percent, lendable **$16,100,000** | `a4Rbb0000027b9uEAA` 2nd, 4 percent, lendable $920,000 | the junior, $920,000 |
+| Crossing property `a35bb0000019qzhAAA` ($16.8MM) | `a4Rbb0000027b9vEAA` 1st, 68 percent, lendable **$11,424,000** | `a4Rbb0000027b9wEAA` 2nd, 14 percent, lendable $2,352,000 | the junior, $2,352,000 |
+| Crossing solar `a35bb0000019qy7AAA` ($890K) | `a4Rbb0000027bCzEAI` 1st, 75 percent, lendable $667,500 | none | $667,500, correctly |
+
+`totalUniqueCollateralLendableValue` comes back as **$5,509,500**, which is those four kept rows to
+the dollar, and `uniqueCollateralCount` as 4, which is right. Against `totalOutstanding`
+$51,983,000 that is **`coverageRatio` 0.11 with `coverageShortfall` true**, on a relationship where
+every secured facility reads 1.00x to 1.54x:
+
+```
+Purchase   $22,000,000  a4Zbb000002J6a1EAC  out 21,250,000  pledged share 21,980,000  1.03
+Purchase   $16,000,000  a4Zbb000002J6a3EAC  out 15,530,000  pledged share 16,000,000  1.03
+Purchase   $11,400,000  a4Zbb000002J6a5EAC  out 11,372,000  pledged share 11,400,000  1.00
+Construct   $2,200,000  a4Zbb000002J6a6EAC  out  1,540,000  pledged share  2,200,000  1.43
+Line        $1,500,000  a4Zbb000002J6a2EAC  out    975,000  pledged share  1,500,000  1.54
+Line          $800,000  a4Zbb000002J6a4EAC  out    520,000  pledged share    800,000  1.54
+Equipment     $650,000  a4Zbb000002J6a7EAC  out    556,000  pledged share    650,000  1.17
+Line          $400,000  a4Zbb000002J6a8EAC  out    240,000  unsecured                 null
+```
+
+Two defensible relationship numbers exist and neither is 0.11. Summing the SENIOR lendable per
+distinct asset gives $50,171,500 and **0.97x**. Summing `LLC_BI__Amount_Pledged__c` across the
+seven included pledges gives $54,530,000 and **1.05x**, which is the figure the facility half
+already uses and the one that is consistent with it. The gap between 0.11 and either of them is
+the whole judgement: at 0.11 a banker reads a relationship that is barely secured, and it is a
+CRE book at roughly one times.
+
+**This is not Northgate alone.** Four of the seven read below 1.0x at relationship level for the
+same reason: Northgate 0.11, Cascade 0.26 (`001bb00001Ld14VAAR`, receivables, IP and TopCo equity
+each carried on two facilities), Lakeshore 0.42 (`001bb00001LcIAeAAN`), Meridian 0.60
+(`001bb00001Ld0ZqAAJ`). The three that read at or above 1.0 are the three the defect cannot reach:
+Blue Ridge 1.01 and Sunbelt 1.08 pledge every asset exactly once, and Prairie Ag 1.35 pledges its
+equipment schedule to two facilities at the SAME 75 percent advance rate, so whichever row the
+dedupe keeps carries the same lendable value. **What makes the number wrong is not the second
+pledge, it is the second pledge at a different advance rate**, which is how a junior lien is
+modelled and therefore how every second-position facility in the book behaves.
+
+The founder call R3 has been waiting for is therefore narrower than it was: not "which figure is
+coverage" in the abstract, but **when one asset carries a senior and a junior pledge, does the
+relationship count the asset's senior lendable value, or the sum of what is actually pledged
+against it.** The seeded portfolio can now show either answer against a real book.
 
 ### Recommended sequence
 

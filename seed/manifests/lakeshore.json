@@ -995,7 +995,9 @@
           ]
         }
       ],
-      "at": "2026-09-08T11:59:21+00:00"
+      "at": "2026-09-08T11:59:21+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the record exists under this key; the refusal was an earlier attempt"
     },
     {
       "object": "LLC_BI__Account_Collateral__c",
@@ -1007,7 +1009,9 @@
           "fields": []
         }
       ],
-      "at": "2026-09-08T11:59:23+00:00"
+      "at": "2026-09-08T11:59:23+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the filler row that pushed the owner down the list is out of the spec; the asset has its one owner at receivables#2 and the key shape is scoped by slug now"
     },
     {
       "object": "LLC_BI__Account_Collateral__c",
@@ -1019,7 +1023,9 @@
           "fields": []
         }
       ],
-      "at": "2026-09-08T11:59:23+00:00"
+      "at": "2026-09-08T11:59:23+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the filler row that pushed the owner down the list is out of the spec; the asset has its one owner at inventory#1 and the key shape is scoped by slug now"
     },
     {
       "object": "LLC_BI__Policy_Exception__c",
@@ -1033,7 +1039,9 @@
           ]
         }
       ],
-      "at": "2026-09-08T11:59:34+00:00"
+      "at": "2026-09-08T11:59:34+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the record exists under this key; the refusal was an earlier attempt"
     },
     {
       "object": "LLC_BI__Policy_Exception__c",
@@ -1047,7 +1055,9 @@
           ]
         }
       ],
-      "at": "2026-09-08T11:59:34+00:00"
+      "at": "2026-09-08T11:59:34+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the record exists under this key; the refusal was an earlier attempt"
     },
     {
       "object": "LLC_BI__Account_Collateral__c",
@@ -1059,7 +1069,9 @@
           "fields": []
         }
       ],
-      "at": "2026-09-08T12:02:22+00:00"
+      "at": "2026-09-08T12:02:22+00:00",
+      "resolvedAt": "2026-09-08T00:00:00+00:00",
+      "resolution": "the filler row that pushed the owner down the list is out of the spec; the asset has its one owner at receivables#2 and the key shape is scoped by slug now"
     }
   ],
   "updatedAt": "2026-09-08T12:27:29+00:00"

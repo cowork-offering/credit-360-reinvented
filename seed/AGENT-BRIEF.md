@@ -41,6 +41,11 @@ read TOK INST <<< "$(~/.local/bin/bankinggpt-rest)"; export TOK INST
 # 2. check it offline. No org connection needed, and it catches most mistakes.
 python3 seed/validate_spec.py seed/<slug>.json
 
+#    and, before a run that shares the org with other agents, check across every
+#    spec in the folder. This is the only check that sees a key another agent has
+#    already taken, and there are fields where the second one to run is refused.
+python3 seed/validate_spec.py --all seed/examples/*.json
+
 # 3. build it
 python3 seed/seed_relationship.py seed/<slug>.json
 
@@ -106,7 +111,9 @@ These all happened during the proof run. `seed/MODEL.md` section 6 has the full 
 | Symptom | Cause | Fix |
 |---|---|---|
 | `INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST` on the loan purpose | you invented a purpose | use one of the 23 in MODEL.md section 4. `validate_spec.py` catches this before you spend a run |
-| `DUPLICATE_VALUE` on a `lookupKey` | your loan lookupKey prefix collides with another agent's, or you reused one | give every loan a unique key under your own prefix; the validator checks for collisions inside your file, not across files, so pick your prefix carefully |
+| `DUPLICATE_VALUE` on a `lookupKey` | your loan lookupKey prefix collides with another agent's, or you reused one | give every loan a unique key under your own prefix, and run `validate_spec.py --all` before you seed: it compares loan lookupKeys and every derived unique key ACROSS the specs. The derived ones are scoped by your slug now, so a record key you share with another agent no longer collides |
+| `STRING_TOO_LONG` | a mitigation reason over 100 characters, a fee or collateral description over 230 / 235, a valuation description over 255 | shorten it IN THE SPEC, never only in the org. `validate_spec.py` refuses all four offline. MODEL.md section 6, row 21 has the budgets |
+| "You are trying to pledge more than the current lendable value" | `amountPledged` above value x advance rate | lower the pledge or raise the advance rate; the validator does the arithmetic offline now. Never check Authorize |
 | A covenant type is "ambiguous" | nine names appear twice in the 71-entry catalog | add `"typeId"` with the id you mean, from `seed/reference/hartwell-LLC_BI__Covenant_Type__c.json` |
 | The review comes back In Progress when you asked for Complete | RV02 refuses a review born at a post-approval stage | expected. Report it as a shortfall; do not try to patch the stage afterwards |
 | The snapshot reports zero exposure | you overrode `tce`/`tbe` with nulls | leave them out; the seed derives them from the loans |
@@ -138,3 +145,8 @@ When you are done, report exactly this:
 
 Do not commit. Do not clean up your relationship unless you are told to. Do not touch
 another agent's manifest.
+
+
+## HARD RULE added 2026-09-08: no compliance rows
+
+Do not seed `LLC_BI__Covenant_Compliance2__c`. Every insert fires `acnpex_covenantApprovalProcess` unconditionally at a hard-coded human. The seed script skips the `evaluations` block unless `ALLOW_COMPLIANCE_ROWS=1`; leave `evaluations` in the spec only as documentation, and put the covenant's history on `lastEvaluationValue`, `lastEvaluationStatus`, `lastEvaluationDate` and `nextEvaluationDate` of the covenant itself. The covenant review room will report 'no open test period' on these relationships; that is expected and must be logged as such, not as a defect.

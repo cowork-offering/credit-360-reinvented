@@ -15,6 +15,14 @@ manifest maps to the org id. Keys are how one record points at another (`"accoun
 already built. **Never change a key after a run**: the manifest would stop matching
 and the re-run would build a second copy.
 
+A key is unique inside ONE spec, and that is all it promises. The fields the seed
+derives from it (the `lookupKey` on Account Collateral, on pledges and on the pricing
+stream and its two components) are unique across the whole ORG, so the seed scopes
+them by the relationship's slug: `C360-SEED-2026-09/<slug>/<key>`. Four of the seven
+relationships called an asset `receivables` or `inventory` and, before the scoping,
+the ones that ran second were refused. `validate_spec.py --all *.json` is what sees
+that class of collision, because no single file can.
+
 ## Top level
 
 | field | required | meaning |
@@ -74,9 +82,23 @@ does, on top of the structural edge that states the real chain.
 | `heldBy` | `None`, `Lender`, `Other Holder`. |
 | `appraisalDate`, `nextRevaluationDate`, `valuationFrequency` | the revaluation clock. |
 | `uccFiled`, `uccState`, `city`, `state` | filing and location. |
-| `description`, `legalDescription` | prose; `description` is tagged. |
-| `owners[]` | `account` (key), `association` (`Owner`, `Lessee`, `Lienholder`, ...), `percent`, `pledgingAuthority`, `primary`, `startDate`. **At least one is mandatory**: an asset with no `LLC_BI__Account_Collateral__c` row belongs to nobody. |
-| `valuations[]` | `key`, `date`, `value`, `source`, `type`, `primary`, `active`, `original`, `description`. |
+| `description`, `legalDescription` | prose; `description` is tagged and holds **235 characters** before the tag. `legalDescription` is a long text area and is not tagged. |
+| `owners[]` | `account` (key), `association` (`Owner`, `Lessee`, `Lienholder`, ...), `percent`, `pledgingAuthority`, `primary`, `startDate`, and an optional `key`. **At least one is mandatory**: an asset with no `LLC_BI__Account_Collateral__c` row belongs to nobody. One row per (account, association) on an asset; the same account may hold two different associations on it. |
+| `valuations[]` | `key`, `date`, `value`, `source`, `type`, `primary`, `active`, `original`, `description` (255 characters). |
+
+**The owner row's key, and when to write it out.** An owner row is keyed by its
+position, `<collateral key>#<index>`, which is enough until a row is removed from the
+middle of the list: everything after it renumbers, the manifest stops matching rows
+that are already in the org, and the re-run builds a second copy of each. A row that
+is already live therefore pins its key: `"key": "receivables#2"`. Prairie Ag and
+Lakeshore both carry one, and they are the two relationships whose lists were edited
+after they were seeded. Do not invent a key for a row that has never run.
+
+The seed also matches these rows BY CONTENT before it inserts: an
+(asset, account, association) triple that already stands against collateral this
+manifest created is adopted under the key the spec asks for rather than made twice.
+That is the guard against exactly the duplicate the key-shape change could otherwise
+produce out of an old refusal.
 
 ## covenants[]
 
@@ -118,6 +140,17 @@ An unapproved package is `"stage": "Pending"`, `"creditStage": "Credit Underwrit
 `"status": "New"`, with its loan at `"stage": "Proposal"`. Never put a Proposal loan in
 a booked package.
 
+**A booked package holds 2 to 6 loans, and the validator refuses anything else.** The
+founder rule is a package a credit committee would recognise, and one facility on its
+own is a note, not a package. Where the design gives a package a single loan, give it
+a second facility that belongs to the same credit: the line that funds the working
+capital behind the term loan, the small equipment note that came with the build-out,
+the capex line beside the mortgage. Northgate's Ridge and Park Place packages are the
+worked example, each a mortgage plus its own capex line, and Lakeshore's real estate
+package is the distribution centre mortgage plus the improvement loan on the same
+building. Do not pad: a second facility has to have its own amount, its own pricing
+and its own place in the story, or the package reads as invented.
+
 ## packages[].loans[]
 
 | field | meaning |
@@ -144,7 +177,7 @@ a booked package.
 | `description` | prose; tagged. |
 | `involvements[]` | `key`, `account`, `borrowerType` (`Borrower`, `Co-Borrower`, `Guarantor`, `Limited Guarantor`, `Related Entity`, `Grantor`, `Contractor`), `entityType` (`Operating Company`, `Sole Proprietorship`, `EPC`, `Individual`), `relationshipType`, `contingentType`, `ownership`, `guarantyType` (`Unlimited`, `Amount of Note`, `Limited`), `guarantyLimit`, `order`, `notes`. |
 | `pledges[]` | `key`, `collateral` (key), `lienPosition` (`1st`, `2nd`, `3rd`, `Other`), `pledgedStatus`, `isPrimary`, `advanceRate`, `amountPledged`, `startDate`, `overrideReason`. |
-| `fees[]` | `key`, `feeType`, `recordType` (`Fees`, `Costs`, `Adjustments`), `percentage` OR `amount`, `paidBy`, `payoutFrequency`, `isIncome`, `description`. A percentage fee never carries an amount: the org computes it from the basis. |
+| `fees[]` | `key`, `feeType`, `recordType` (`Fees`, `Costs`, `Adjustments`), `percentage` OR `amount`, `paidBy`, `payoutFrequency`, `isIncome`, `description` (**230 characters**, the field is 255 and the tag takes the rest). A percentage fee never carries an amount: the org computes it from the basis. |
 | `pricing` | `rateType` (`Fixed`, `Fixed with Index`, `Floating with Index`), `index`, `spread`, `rate`, `amortises`, `effectiveDate`, `endDate`, `termLength`, `amortMonths`, `paymentAmount`. The payment is computed if not given. |
 
 ## reviews[], riskRatingReviews[], policyExceptions[], opportunities[], cases[]
@@ -153,6 +186,11 @@ a booked package.
 |---|---|
 | `reviews[]` | `key`, `type` (`Annual`, `AdHoc`, `Problem Loan`), `package`, `currentGrade` and `recommendedGrade` (`1` to `12` as strings), `narrative`, `summary`, `recommendation`, `riskComments`, `strengths`, `weaknesses`, `covenantsTested`, `covenantsPassed`, `toCommittee`. **`status` is ignored: RV02 refuses a review born at a post-approval stage**, so every seeded review is created In Progress. |
 | `riskRatingReviews[]` | `key`, `status` (`Not Approved`, `Approved`, `Declined`, `In Review`), `computedGrade`, `cashFlowCoverage`, `creditScore`, `revenueGrowth`, `managementYears`, `year1`..`year3`, `comments`. `finalGrade` is accepted in the JSON and not written: the field is read-only for the integration profile. |
-| `policyExceptions[]` | `key`, `name`, `type` (free text, `Policy` is the usual), `code`, `status` (`Waived`, `Mitigated`, `Unmitigated`), `severity` (free text, `Minor`/`Major`/`Critical`), `severityValue`, `loan`, `collateral`, `mitigation[]` (up to three reasons). |
+| `policyExceptions[]` | `key`, `name` (80), `type` (free text, `Policy` is the usual), `code` (50), `status` (`Waived`, `Mitigated`, `Unmitigated`), `severity` (free text, `Minor`/`Major`/`Critical`), `severityValue`, `loan`, `collateral`, `mitigation[]` (up to three reasons, **100 characters each**, one clause apiece: the cause, the guaranty that survives it, the number that did not move). |
 | `opportunities[]` | `key`, `name`, `stage`, `amount`, `closeDate`, `type`, `probability`, `leadSource`, `nextStep`, `description`. |
 | `cases[]` | `key`, `subject`, `status`, `priority`, `origin`, `type`, `description`. |
+
+
+## HARD RULE added 2026-09-08: no compliance rows
+
+Do not seed `LLC_BI__Covenant_Compliance2__c`. Every insert fires `acnpex_covenantApprovalProcess` unconditionally at a hard-coded human. The seed script skips the `evaluations` block unless `ALLOW_COMPLIANCE_ROWS=1`; leave `evaluations` in the spec only as documentation, and put the covenant's history on `lastEvaluationValue`, `lastEvaluationStatus`, `lastEvaluationDate` and `nextEvaluationDate` of the covenant itself. The covenant review room will report 'no open test period' on these relationships; that is expected and must be logged as such, not as a defect.

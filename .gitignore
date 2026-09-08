@@ -4,3 +4,4 @@ design/lab-round1-verdicts.json
 design/reference-board-*.json
 app/node_modules
 design/probes/node_modules
+__pycache__/

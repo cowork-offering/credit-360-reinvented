@@ -159,14 +159,17 @@ def main():
                          for c in covs), '')
     r.check('every covenant carries its next test date',
             covs and all(c.get('nextEvaluationDate') for c in covs), '')
-    evals = q(f'SELECT Id, LLC_BI__Covenant__c, LLC_BI__Status__c FROM '
-              f'LLC_BI__Covenant_Compliance2__c WHERE LLC_BI__Covenant__c IN '
-              f'{soql_in(seeded_covs)}')
-    r.check('covenant history is present, three evaluations or more',
-            len(evals) >= 3, f'{len(evals)} evaluations')
-    r.check('the history is not all one status',
-            len({e['LLC_BI__Status__c'] for e in evals}) >= 2,
-            ', '.join(sorted({e['LLC_BI__Status__c'] for e in evals})))
+    # Compliance rows are not seeded (every insert fires an approval at a real human in this
+    # org), so the history the cockpit reads is the covenant's own last evaluation.
+    hist = q(f'SELECT Id, LLC_BI__Last_Evaluation_Value__c, LLC_BI__Last_Evaluation_Status__c, '
+             f'LLC_BI__Last_Evaluation_Date__c FROM LLC_BI__Covenant2__c WHERE Id IN {soql_in(seeded_covs)}')
+    r.check('every covenant carries a last evaluation value, status and date',
+            hist and all(h.get('LLC_BI__Last_Evaluation_Value__c') is not None
+                         and h.get('LLC_BI__Last_Evaluation_Status__c') and h.get('LLC_BI__Last_Evaluation_Date__c')
+                         for h in hist), f'{len(hist)} covenants')
+    r.check('the last evaluations are not all one status',
+            len({h.get('LLC_BI__Last_Evaluation_Status__c') for h in hist}) >= 2,
+            ', '.join(sorted(str(h.get('LLC_BI__Last_Evaluation_Status__c')) for h in hist)))
     junctions = q(f'SELECT Id FROM LLC_BI__Loan_Covenant__c WHERE LLC_BI__Covenant2__c IN '
                   f'{soql_in(seeded_covs)}')
     r.check('covenants are attached at loan level too', len(junctions) >= 1,
