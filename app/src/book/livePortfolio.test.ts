@@ -93,7 +93,7 @@ describe("the book rule", () => {
   it("keeps a relationship the org has ANY of TCE, outstanding, a stage or a rating on", () => {
     expect(carriesExposure({ accountId: "a", name: "A", tce: 1 })).toBe(true);
     expect(carriesExposure({ accountId: "a", name: "A", outstanding: 1 })).toBe(true);
-    expect(carriesExposure({ accountId: "a", name: "A", stage: "Booked" })).toBe(true);
+    expect(carriesExposure({ accountId: "a", name: "A", stage: "Booked" })).toBe(false);
     expect(carriesExposure({ accountId: "a", name: "A", riskRating: "4" })).toBe(true);
   });
 

@@ -55,10 +55,9 @@ export function portfolioSignature(p: Portfolio | undefined): string {
    Summit, Quantum, BlueSky, Global, NextGen, Pinnacle, "Test Business
    account". They carry TCE 0, no outstanding and no risk rating, and ancient
    covenants whose next test fell due in 2025. ONE of them, "Bright Logistics",
-   also carries a credit stage on one of its ten empty packages, so the rule
-   below admits it: it lands quiet, at $0, under the divider, which is a
-   deliberate cost of a rule that must not drop a genuine approved-but-undrawn
-   relationship.
+   also carries a credit stage on one of its ten empty packages; the rule below
+   does not admit it, because a stage without a commitment or a grade is not
+   a credit relationship.
 
    WHAT THAT DID TO A PAGE THAT BELIEVED THE READ. `bookTotals` came back at
    354 percent utilisation, $1.09B drawn against $308M committed, because the
@@ -69,12 +68,16 @@ export function portfolioSignature(p: Portfolio | undefined): string {
    never reached the page at all. A banker would have opened the cockpit and
    found the top of their queue occupied by companies that do not exist.
 
-   THE RULE. A relationship is ON THE BOOK when the org has something booked
-   against it: committed exposure, drawn balance, a credit stage, or a risk
-   rating. Any ONE of the four is enough, so a newly approved package with
-   nothing drawn is on the book and a graded relationship between facilities
-   stays on it. Nothing else is: not on the queue, not under "the rest of the
-   book", not in the totals, and not named by a signal the page will honour.
+   THE RULE (narrowed by the founder, 2026-09-08: "accurate clients in the
+   book"). A relationship is ON THE BOOK when the bank has a credit judgement
+   or exposure against it: committed exposure, a drawn balance, or a risk
+   rating. A newly approved package with nothing drawn still carries its
+   commitment, and a graded relationship between facilities keeps its grade,
+   so both stay on the book. A package STAGE on its own is not enough: that is
+   what keeps Bright Logistics and its ten empty, unrated packages off the
+   landing. Nothing else is on the book: not on the queue, not under "the rest
+   of the book", not in the totals, and not named by a signal the page will
+   honour.
 
    IT IS NOT A NAME LIST. Filtering on "Quantum" and "Vertex" would work this
    afternoon and rot the first time somebody seeds a real Summit. The rule is
@@ -85,7 +88,6 @@ export function portfolioSignature(p: Portfolio | undefined): string {
 export function carriesExposure(a: AccountRow): boolean {
   if ((a.tce ?? 0) > 0) return true;
   if ((a.outstanding ?? 0) > 0) return true;
-  if (typeof a.stage === "string" && a.stage.trim() !== "") return true;
   if (typeof a.riskRating === "string" && a.riskRating.trim() !== "") return true;
   return false;
 }
