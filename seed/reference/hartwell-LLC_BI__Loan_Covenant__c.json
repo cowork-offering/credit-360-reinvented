@@ -1,0 +1,62 @@
+[
+  {
+    "CreatedById": "005bb00000ftouDAAQ",
+    "CreatedDate": "2026-08-25T04:18:58.000+0000",
+    "CurrencyIsoCode": "USD",
+    "Id": "a4Vbb000000qMCXEA2",
+    "IsDeleted": false,
+    "LLC_BI__Active__c": true,
+    "LLC_BI__Covenant2__c": "a3Bbb000000S0ZlEAK",
+    "LLC_BI__Loan__c": "a4Zbb000002CECXEA4",
+    "LastActivityDate": null,
+    "LastModifiedById": "005bb00000ftouDAAQ",
+    "LastModifiedDate": "2026-08-25T04:18:58.000+0000",
+    "Name": "COV-0110",
+    "SystemModstamp": "2026-08-25T04:18:58.000+0000"
+  },
+  {
+    "CreatedById": "005bb00000ftouDAAQ",
+    "CreatedDate": "2026-09-03T13:08:25.000+0000",
+    "CurrencyIsoCode": "USD",
+    "Id": "a4Vbb000000qhNREAY",
+    "IsDeleted": false,
+    "LLC_BI__Active__c": true,
+    "LLC_BI__Covenant2__c": "a3Bbb000000S0UvEAK",
+    "LLC_BI__Loan__c": "a4Zbb000002ICnxEAG",
+    "LastActivityDate": null,
+    "LastModifiedById": "005bb00000ftouDAAQ",
+    "LastModifiedDate": "2026-09-03T13:08:25.000+0000",
+    "Name": "COV-0214",
+    "SystemModstamp": "2026-09-03T13:08:25.000+0000"
+  },
+  {
+    "CreatedById": "005bb00000ftouDAAQ",
+    "CreatedDate": "2026-07-26T14:35:50.000+0000",
+    "CurrencyIsoCode": "USD",
+    "Id": "a4Vbb000000pNIjEAM",
+    "IsDeleted": false,
+    "LLC_BI__Active__c": true,
+    "LLC_BI__Covenant2__c": "a3Bbb000000S0bNEAS",
+    "LLC_BI__Loan__c": "a4Zbb0000027MaYEAU",
+    "LastActivityDate": null,
+    "LastModifiedById": "005bb00000ftouDAAQ",
+    "LastModifiedDate": "2026-07-26T14:35:50.000+0000",
+    "Name": "COV-0107",
+    "SystemModstamp": "2026-07-26T14:35:50.000+0000"
+  },
+  {
+    "CreatedById": "005bb00000ftouDAAQ",
+    "CreatedDate": "2026-07-26T14:35:55.000+0000",
+    "CurrencyIsoCode": "USD",
+    "Id": "a4Vbb000000pNKLEA2",
+    "IsDeleted": false,
+    "LLC_BI__Active__c": true,
+    "LLC_BI__Covenant2__c": "a3Bbb000000S0czEAC",
+    "LLC_BI__Loan__c": "a4Zbb0000027Mp3EAE",
+    "LastActivityDate": null,
+    "LastModifiedById": "005bb00000ftouDAAQ",
+    "LastModifiedDate": "2026-07-26T14:35:55.000+0000",
+    "Name": "COV-0108",
+    "SystemModstamp": "2026-07-26T14:35:55.000+0000"
+  }
+]

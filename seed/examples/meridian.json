@@ -1,0 +1,1647 @@
+{
+  "slug": "meridian",
+  "anchorKey": "meridian-logistics",
+  "accounts": [
+    {
+      "key": "meridian-holdings",
+      "name": "Meridian Holdings Inc",
+      "kind": "business",
+      "industry": "Transportation",
+      "naics": "551112",
+      "annualRevenue": 91000000,
+      "riskGrade": "5",
+      "riskStatus": "Low",
+      "billingCity": "Savannah",
+      "billingState": "GA",
+      "description": "Parent holding company. Owns 100 percent of Meridian Coastal Logistics LLC and 100 percent of Coastal Freight Properties LLC."
+    },
+    {
+      "key": "meridian-logistics",
+      "name": "Meridian Coastal Logistics LLC",
+      "kind": "business",
+      "industry": "Transportation",
+      "naics": "484121",
+      "annualRevenue": 88000000,
+      "riskGrade": "5",
+      "riskStatus": "Low",
+      "nextReviewDate": "2026-10-08",
+      "lastReviewDate": "2025-10-12",
+      "billingCity": "Savannah",
+      "billingState": "GA",
+      "description": "Regional truckload carrier and third party logistics provider serving the Port of Savannah. 72 tractors, 140 trailers, 310 employees, founded 2011."
+    },
+    {
+      "key": "coastal-freight-properties",
+      "name": "Coastal Freight Properties LLC",
+      "kind": "business",
+      "industry": "Transportation",
+      "naics": "531120",
+      "annualRevenue": 3100000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "Savannah",
+      "billingState": "GA",
+      "description": "Real estate holding entity under common ownership. Title holder of the Pooler warehouse and the Garden City cross-dock."
+    },
+    {
+      "key": "daniel-okafor",
+      "name": "Daniel Okafor",
+      "kind": "person",
+      "description": "Founder, President and CEO. Holds 60 percent indirectly through Meridian Holdings Inc. Guarantor."
+    },
+    {
+      "key": "priya-raman",
+      "name": "Priya Raman",
+      "kind": "person",
+      "description": "Co-founder and Chief Operating Officer. Holds 40 percent indirectly through Meridian Holdings Inc. Guarantor."
+    }
+  ],
+  "connections": [
+    {
+      "key": "holdings-owns-borrower",
+      "from": "meridian-holdings",
+      "to": "meridian-logistics",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member",
+      "description": "Meridian Holdings Inc holds 100 percent of the membership interests in Meridian Coastal Logistics LLC."
+    },
+    {
+      "key": "holdings-owns-properties",
+      "from": "meridian-holdings",
+      "to": "coastal-freight-properties",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member",
+      "description": "Meridian Holdings Inc holds 100 percent of Coastal Freight Properties LLC."
+    },
+    {
+      "key": "okafor-owns-holdings",
+      "from": "daniel-okafor",
+      "to": "meridian-holdings",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 60,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "President & Chief Executive Officer",
+      "description": "Founder and CEO. Holds 60 percent of Meridian Holdings Inc directly."
+    },
+    {
+      "key": "raman-owns-holdings",
+      "from": "priya-raman",
+      "to": "meridian-holdings",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 40,
+      "authorizedSigner": true,
+      "officialTitle": "Chief Operating Officer",
+      "description": "Co-founder and COO. Holds 40 percent of Meridian Holdings Inc directly."
+    },
+    {
+      "key": "okafor-borrower",
+      "from": "daniel-okafor",
+      "to": "meridian-logistics",
+      "roleName": "Co-Owner",
+      "indirectOwnershipPercent": 60,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "President & Chief Executive Officer",
+      "description": "Founder and CEO. Holds 60 percent of the borrower indirectly through Meridian Holdings Inc."
+    },
+    {
+      "key": "raman-borrower",
+      "from": "priya-raman",
+      "to": "meridian-logistics",
+      "roleName": "Co-Owner",
+      "indirectOwnershipPercent": 40,
+      "authorizedSigner": true,
+      "officialTitle": "Chief Operating Officer",
+      "description": "Co-founder and COO. Holds 40 percent of the borrower indirectly through Meridian Holdings Inc."
+    },
+    {
+      "key": "borrower-properties",
+      "from": "meridian-logistics",
+      "to": "coastal-freight-properties",
+      "roleName": "Affiliated Company",
+      "description": "Affiliated real estate entity under common ownership. Landlord of both operating facilities."
+    }
+  ],
+  "collateral": [
+    {
+      "key": "receivables",
+      "name": "Meridian Accounts Receivable",
+      "typeName": "UCC-Accounts",
+      "assessmentMethod": "Internal Valuation",
+      "value": 12400000,
+      "liquidationValue": 9300000,
+      "appraisalDate": "2026-07-31",
+      "nextRevaluationDate": "2026-10-31",
+      "uccState": "GA",
+      "city": "Savannah",
+      "state": "GA",
+      "description": "First blanket UCC lien on all present and future accounts receivable and proceeds.",
+      "legalDescription": "First priority UCC-1 lien on all accounts, chattel paper, instruments and proceeds of Meridian Coastal Logistics LLC, filed with the Georgia Superior Court Clerks Cooperative Authority.",
+      "owners": [
+        {
+          "account": "meridian-logistics",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-02-28"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "ar-2026-07",
+          "date": "2026-07-31",
+          "value": 12400000,
+          "source": "Receivables Aging",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "July 2026 borrowing base certificate. Eligible receivables after ineligibles for over-90 and cross-aged accounts."
+        },
+        {
+          "key": "ar-2025-12",
+          "date": "2025-12-31",
+          "value": 11150000,
+          "source": "Financial Statement",
+          "type": "Balance Sheet",
+          "original": true,
+          "description": "FY2025 audited balance sheet, gross receivables less allowance."
+        }
+      ]
+    },
+    {
+      "key": "inventory",
+      "name": "Meridian Parts and Fuel Inventory",
+      "typeName": "UCC-Inventory",
+      "assessmentMethod": "Net Book Value",
+      "value": 4100000,
+      "liquidationValue": 2050000,
+      "appraisalDate": "2026-07-31",
+      "nextRevaluationDate": "2026-10-31",
+      "uccState": "GA",
+      "city": "Savannah",
+      "state": "GA",
+      "description": "First blanket UCC lien on parts, tyres and bulk fuel inventory.",
+      "legalDescription": "First priority UCC-1 lien on all inventory, including replacement parts, tyres and bulk diesel held at the Pooler and Garden City facilities.",
+      "owners": [
+        {
+          "account": "meridian-logistics",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-02-28"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "inv-2026-07",
+          "date": "2026-07-31",
+          "value": 4100000,
+          "source": "Inventory Report",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "July 2026 perpetual inventory report at moving average cost."
+        }
+      ]
+    },
+    {
+      "key": "tractors",
+      "name": "Meridian Tractor Fleet - 72 Units",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Appraisal",
+      "value": 6800000,
+      "liquidationValue": 4760000,
+      "appraisalDate": "2026-05-14",
+      "nextRevaluationDate": "2027-05-14",
+      "uccState": "GA",
+      "city": "Savannah",
+      "state": "GA",
+      "description": "72 sleeper and day cab tractors, model years 2021 to 2026, per the equipment schedule.",
+      "legalDescription": "First priority UCC-1 lien and certificate of title liens on 72 tractors identified by VIN on Schedule A to the security agreement.",
+      "owners": [
+        {
+          "account": "meridian-logistics",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-02-28"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "trac-2026-05",
+          "date": "2026-05-14",
+          "value": 6800000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "description": "May 2026 desktop appraisal by Ritchie Bros, retail less reconditioning."
+        },
+        {
+          "key": "trac-2026-05-olv",
+          "date": "2026-05-14",
+          "value": 4760000,
+          "source": "Appraisal",
+          "type": "Orderly Liquidation Value",
+          "description": "May 2026 orderly liquidation value, 70 percent of fair market."
+        }
+      ]
+    },
+    {
+      "key": "trailers",
+      "name": "Meridian Trailer Fleet - 140 Units",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Appraisal",
+      "value": 4200000,
+      "liquidationValue": 2940000,
+      "appraisalDate": "2026-05-14",
+      "nextRevaluationDate": "2027-05-14",
+      "uccState": "GA",
+      "city": "Savannah",
+      "state": "GA",
+      "description": "140 dry van and refrigerated trailers, model years 2019 to 2026.",
+      "legalDescription": "First priority UCC-1 lien and certificate of title liens on 140 trailers identified by VIN on Schedule B to the security agreement.",
+      "owners": [
+        {
+          "account": "meridian-logistics",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-02-28"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "trail-2026-05",
+          "date": "2026-05-14",
+          "value": 4200000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "description": "May 2026 desktop appraisal by Ritchie Bros."
+        }
+      ]
+    },
+    {
+      "key": "warehouse",
+      "name": "Meridian Warehouse - 1180 Pine Barren Road, Pooler",
+      "typeName": "Real Estate-Warehouse",
+      "assessmentMethod": "Appraisal",
+      "value": 8900000,
+      "liquidationValue": 7120000,
+      "appraisalDate": "2026-01-16",
+      "nextRevaluationDate": "2027-01-16",
+      "uccState": "GA",
+      "city": "Pooler",
+      "state": "GA",
+      "description": "Owner-occupied distribution warehouse and office, 196,000 sq ft on 17.2 acres.",
+      "legalDescription": "First mortgage and assignment of rents on the warehouse, office and yard at 1180 Pine Barren Road, Pooler, Chatham County, Georgia, together with all fixtures and improvements.",
+      "owners": [
+        {
+          "account": "coastal-freight-properties",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-01-31"
+        },
+        {
+          "account": "meridian-logistics",
+          "association": "Lessee",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2026-01-31"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "wh-2026-01",
+          "date": "2026-01-16",
+          "value": 8900000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "January 2026 MAI as-is appraisal, income capitalisation and sales comparison reconciled."
+        }
+      ]
+    },
+    {
+      "key": "crossdock",
+      "name": "Meridian Cross-Dock - 405 Bourne Avenue, Garden City",
+      "typeName": "Real Estate-Warehouse",
+      "assessmentMethod": "Appraisal",
+      "value": 1700000,
+      "liquidationValue": 1360000,
+      "appraisalDate": "2026-01-16",
+      "nextRevaluationDate": "2027-01-16",
+      "uccState": "GA",
+      "city": "Garden City",
+      "state": "GA",
+      "description": "Port-adjacent cross-dock facility, 34 doors on 4.1 acres.",
+      "legalDescription": "First mortgage and assignment of rents on the cross-dock facility at 405 Bourne Avenue, Garden City, Chatham County, Georgia.",
+      "owners": [
+        {
+          "account": "coastal-freight-properties",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-01-31"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "cd-2026-01",
+          "date": "2026-01-16",
+          "value": 1700000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "January 2026 MAI as-is appraisal."
+        }
+      ]
+    }
+  ],
+  "covenants": [
+    {
+      "key": "dsc",
+      "typeName": "Debt Service Coverage of Borrower",
+      "recordType": "Financial Ratio",
+      "threshold": 1.25,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2026-02-28",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 1.31,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum Debt Service Coverage Ratio of 1.25x, tested quarterly on a trailing twelve month basis.",
+      "clause": "Section 6.02(a) of the Credit Agreement: Borrower shall maintain a Debt Service Coverage Ratio of not less than 1.25 to 1.00.",
+      "notes": "DSCR defined as (EBITDA less unfinanced capital expenditure less cash taxes less distributions) divided by total scheduled debt service including the capital lease obligations.",
+      "loans": [
+        "wc-revolver",
+        "wc-acquisition"
+      ],
+      "evaluations": [
+        {
+          "key": "dsc-q3-2025",
+          "status": "Compliant",
+          "dueDate": "2025-09-30",
+          "effectiveDate": "2025-07-01",
+          "evaluationDate": "2025-10-21",
+          "value": 1.42,
+          "comments": "Q3 2025 test at 1.42x, compliant."
+        },
+        {
+          "key": "dsc-q4-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-01-23",
+          "value": 1.36,
+          "comments": "Q4 2025 test at 1.36x, compliant."
+        },
+        {
+          "key": "dsc-q1-2026",
+          "status": "Waived",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-22",
+          "value": 1.18,
+          "exceptionReason": "Breached",
+          "comments": "Q1 2026 test at 1.18x, below the 1.25x minimum. Fuel surcharge recovery lagged the January diesel spike by one billing cycle. Waived by the credit officer on 30 April 2026; see policy exception CI-DSC-01."
+        },
+        {
+          "key": "dsc-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-20",
+          "value": 1.31,
+          "comments": "Q2 2026 test at 1.31x, back in compliance once the surcharge caught up."
+        },
+        {
+          "key": "dsc-q3-2026",
+          "status": "Pending",
+          "dueDate": "2026-09-30",
+          "effectiveDate": "2026-07-01",
+          "comments": "Q3 2026 test period open. Certificate due 30 October 2026."
+        }
+      ]
+    },
+    {
+      "key": "leverage",
+      "typeName": "Maximum Debt to Worth",
+      "recordType": "Financial Ratio",
+      "threshold": 3.5,
+      "operator": "Less Than or Equal To",
+      "acnpexOperator": "<=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2026-02-28",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 2.08,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Maximum senior funded debt to tangible net worth of 3.50x, tested quarterly.",
+      "clause": "Section 6.02(b) of the Credit Agreement: Borrower shall not permit Senior Funded Debt to Tangible Net Worth to exceed 3.50 to 1.00.",
+      "notes": "Senior funded debt excludes subordinated shareholder notes. Tangible net worth excludes goodwill arising on the 2026 competitor acquisition.",
+      "evaluations": [
+        {
+          "key": "lev-q4-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-01-23",
+          "value": 1.94,
+          "comments": "Q4 2025 test at 1.94x, compliant."
+        },
+        {
+          "key": "lev-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-22",
+          "value": 2.21,
+          "comments": "Q1 2026 test at 2.21x after the acquisition draw, compliant."
+        },
+        {
+          "key": "lev-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-20",
+          "value": 2.08,
+          "comments": "Q2 2026 test at 2.08x, compliant."
+        }
+      ]
+    },
+    {
+      "key": "borrowing-base",
+      "typeName": "Accounts Receivable",
+      "recordType": "Financial Statements",
+      "threshold": 80,
+      "operator": "Less Than or Equal To",
+      "acnpexOperator": "<=",
+      "frequency": "Monthly",
+      "effectiveDate": "2026-02-28",
+      "dueDate": "2026-07-31",
+      "lastEvaluationDate": "2026-07-31",
+      "lastEvaluationValue": 65,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-20",
+      "covenantStatus": "Compliant",
+      "graceDays": 0,
+      "complianceDaysPrior": "14",
+      "detail": "Borrowing base availability: advances under the revolving line may not exceed 80 percent of eligible receivables plus 50 percent of eligible inventory. Certificate due monthly within 20 days of month end.",
+      "clause": "Section 2.04 of the Credit Agreement and Schedule 2.04 (Borrowing Base Definition).",
+      "notes": "Eligibility excludes receivables over 90 days, cross-aged accounts where more than 25 percent of the obligor balance is over 90 days, and any single obligor concentration above 15 percent.",
+      "loans": [
+        "wc-revolver"
+      ],
+      "evaluations": [
+        {
+          "key": "bb-2026-06",
+          "status": "Compliant",
+          "dueDate": "2026-06-20",
+          "effectiveDate": "2026-05-01",
+          "evaluationDate": "2026-06-18",
+          "value": 61,
+          "comments": "May 2026 certificate. Advances at 61 percent of the base, availability $4.4MM."
+        },
+        {
+          "key": "bb-2026-07",
+          "status": "Compliant",
+          "dueDate": "2026-07-20",
+          "effectiveDate": "2026-06-01",
+          "evaluationDate": "2026-07-17",
+          "value": 64,
+          "comments": "June 2026 certificate. Advances at 64 percent of the base."
+        },
+        {
+          "key": "bb-2026-08",
+          "status": "Compliant",
+          "dueDate": "2026-08-20",
+          "effectiveDate": "2026-07-01",
+          "evaluationDate": "2026-08-19",
+          "value": 65,
+          "comments": "July 2026 certificate. Advances at 65 percent of the base, availability $4.2MM."
+        },
+        {
+          "key": "bb-2026-09",
+          "status": "Pending",
+          "dueDate": "2026-09-20",
+          "effectiveDate": "2026-08-01",
+          "comments": "August 2026 certificate outstanding, due 20 September 2026."
+        }
+      ]
+    },
+    {
+      "key": "liquidity",
+      "typeName": "Minimum Liquidity",
+      "recordType": "Financial Ratio",
+      "threshold": 2000000,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2026-02-28",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 2900000,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum unrestricted liquidity of $2,000,000, being unrestricted cash plus availability under the revolving line, tested quarterly.",
+      "clause": "Section 6.02(c) of the Credit Agreement.",
+      "notes": "Liquidity counts unrestricted operating cash and undrawn availability under the borrowing base. Restricted fuel-tax escrow is excluded.",
+      "loans": [
+        "wc-revolver",
+        "wc-acquisition"
+      ],
+      "evaluations": [
+        {
+          "key": "liq-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-22",
+          "value": 3350000,
+          "comments": "Q1 2026 liquidity of $3.35MM, compliant."
+        },
+        {
+          "key": "liq-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-20",
+          "value": 2900000,
+          "comments": "Q2 2026 liquidity of $2.90MM, compliant."
+        },
+        {
+          "key": "liq-q3-2026",
+          "status": "Pending",
+          "dueDate": "2026-09-30",
+          "effectiveDate": "2026-07-01",
+          "comments": "Q3 2026 test period open."
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "key": "working-capital",
+      "name": "Meridian Working Capital Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "meridian-logistics",
+      "description": "Booked working capital package for Meridian Coastal Logistics LLC. Four facilities totalling $19.0MM of commitments against $13.93MM outstanding: a $12.0MM borrowing-base revolver, two equipment term notes on the tractor and trailer fleets, and a $3.0MM term loan funding the 2026 acquisition of Tidewater Drayage LLC. Secured by a first blanket lien on receivables, inventory and rolling stock, guaranteed by the parent and both principals.",
+      "loans": [
+        {
+          "key": "wc-revolver",
+          "name": "Meridian Coastal Logistics LLC - Line of Credit - $12,000,000.00",
+          "lookupKey": "MER1001",
+          "product": "Line of Credit",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 12000000,
+          "outstanding": 7800000,
+          "rate": 7.85,
+          "noteRate": 7.85,
+          "index": "WSJ Prime",
+          "spread": 0.35,
+          "termMonths": 24,
+          "amortMonths": 24,
+          "applicationDate": "2025-12-15",
+          "closeDate": "2026-02-28",
+          "bookedDate": "2026-02-28",
+          "firstPaymentDate": "2026-03-31",
+          "maturityDate": "2028-02-29",
+          "paymentType": "Revolving Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "purpose": "business_credit_line",
+          "description": "Revolving line of credit governed by a monthly borrowing base of 80 percent of eligible receivables plus 50 percent of eligible inventory. Interest only, monthly, at WSJ Prime plus 0.35 percent.",
+          "involvements": [
+            {
+              "key": "wcr-borrower",
+              "account": "meridian-logistics",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "notes": "Primary borrower and operating company.",
+              "ownership": 100
+            },
+            {
+              "key": "wcr-holdings",
+              "account": "meridian-holdings",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "notes": "Corporate guarantor. Unlimited continuing guaranty from the parent.",
+              "ownership": 100,
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "wcr-okafor",
+              "account": "daniel-okafor",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 60,
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "wcr-raman",
+              "account": "priya-raman",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 40,
+              "guarantyType": "Unlimited"
+            }
+          ],
+          "pledges": [
+            {
+              "key": "wcr-ar",
+              "collateral": "receivables",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 80,
+              "amountPledged": 9920000,
+              "startDate": "2026-02-28",
+              "overrideReason": "Eligible receivables advanced at the 80 percent borrowing base rate, on the July 2026 certificate."
+            },
+            {
+              "key": "wcr-inv",
+              "collateral": "inventory",
+              "lienPosition": "1st",
+              "isPrimary": false,
+              "advanceRate": 50,
+              "amountPledged": 2050000,
+              "startDate": "2026-02-28",
+              "overrideReason": "Inventory advanced at 50 percent against the 80 percent collateral-type default, reflecting parts and bulk fuel rather than finished goods."
+            }
+          ],
+          "fees": [
+            {
+              "key": "wcr-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the committed line."
+            },
+            {
+              "key": "wcr-unused",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "payoutFrequency": "Annually",
+              "description": "Unused commitment fee, 0.25 percent per annum on the average undrawn balance. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no commitment entry."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.35,
+            "rate": 7.85,
+            "amortises": false,
+            "effectiveDate": "2026-02-28",
+            "endDate": "2028-02-29",
+            "termLength": 24
+          }
+        },
+        {
+          "key": "wc-tractors",
+          "name": "Meridian Coastal Logistics LLC - Equipment - $2,500,000.00",
+          "lookupKey": "MER1002",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 2500000,
+          "outstanding": 2180000,
+          "rate": 6.95,
+          "noteRate": 6.95,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2025-12-15",
+          "closeDate": "2026-02-28",
+          "bookedDate": "2026-02-28",
+          "firstPaymentDate": "2026-03-31",
+          "maturityDate": "2031-02-28",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "description": "Five year fully amortising term note financing 18 model-year 2026 sleeper tractors.",
+          "involvements": [
+            {
+              "key": "wct-borrower",
+              "account": "meridian-logistics",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "notes": "Primary borrower and operating company.",
+              "ownership": 100
+            },
+            {
+              "key": "wct-okafor",
+              "account": "daniel-okafor",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 60,
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "wct-raman",
+              "account": "priya-raman",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 40,
+              "guarantyType": "Unlimited"
+            }
+          ],
+          "pledges": [
+            {
+              "key": "wct-tractors",
+              "collateral": "tractors",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 40,
+              "amountPledged": 2720000,
+              "startDate": "2026-02-28",
+              "overrideReason": "Tractor fleet advanced at 40 percent of appraised fair market value, leaving room for the fleet line tranches behind it."
+            }
+          ],
+          "fees": [
+            {
+              "key": "wct-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.95,
+            "amortises": true,
+            "effectiveDate": "2026-02-28",
+            "endDate": "2031-02-28",
+            "termLength": 60
+          }
+        },
+        {
+          "key": "wc-trailers",
+          "name": "Meridian Coastal Logistics LLC - Equipment - $1,500,000.00",
+          "lookupKey": "MER1003",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 1500000,
+          "outstanding": 1305000,
+          "rate": 7.1,
+          "noteRate": 7.1,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2025-12-15",
+          "closeDate": "2026-02-28",
+          "bookedDate": "2026-02-28",
+          "firstPaymentDate": "2026-03-31",
+          "maturityDate": "2031-02-28",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "description": "Five year fully amortising term note financing 40 dry van trailers.",
+          "involvements": [
+            {
+              "key": "wcl-borrower",
+              "account": "meridian-logistics",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "notes": "Primary borrower and operating company.",
+              "ownership": 100
+            },
+            {
+              "key": "wcl-okafor",
+              "account": "daniel-okafor",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 60,
+              "guarantyType": "Unlimited"
+            }
+          ],
+          "pledges": [
+            {
+              "key": "wcl-trailers",
+              "collateral": "trailers",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 40,
+              "amountPledged": 1680000,
+              "startDate": "2026-02-28",
+              "overrideReason": "Trailer fleet advanced at 40 percent of appraised fair market value, leaving room for the fleet line tranches behind it."
+            }
+          ],
+          "fees": [
+            {
+              "key": "wcl-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.1,
+            "amortises": true,
+            "effectiveDate": "2026-02-28",
+            "endDate": "2031-02-28",
+            "termLength": 60
+          }
+        },
+        {
+          "key": "wc-acquisition",
+          "name": "Meridian Coastal Logistics LLC - Term - $3,000,000.00",
+          "lookupKey": "MER1004",
+          "product": "Term",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 3000000,
+          "outstanding": 2640000,
+          "rate": 7.35,
+          "noteRate": 7.35,
+          "index": "Fixed",
+          "termMonths": 84,
+          "amortMonths": 84,
+          "applicationDate": "2025-12-15",
+          "closeDate": "2026-02-28",
+          "bookedDate": "2026-02-28",
+          "firstPaymentDate": "2026-03-31",
+          "maturityDate": "2033-02-28",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "business_acquisition",
+          "description": "Seven year fully amortising term loan funding the February 2026 acquisition of Tidewater Drayage LLC, a 14-tractor port drayage operator. Cash-flow lent, secured by the blanket lien on a second position.",
+          "involvements": [
+            {
+              "key": "wca-borrower",
+              "account": "meridian-logistics",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "notes": "Primary borrower and operating company.",
+              "ownership": 100
+            },
+            {
+              "key": "wca-holdings",
+              "account": "meridian-holdings",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "notes": "Corporate guarantor. Unlimited continuing guaranty from the parent.",
+              "ownership": 100,
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "wca-okafor",
+              "account": "daniel-okafor",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 60,
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "wca-raman",
+              "account": "priya-raman",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 40,
+              "guarantyType": "Unlimited"
+            }
+          ],
+          "pledges": [
+            {
+              "key": "wca-ar",
+              "collateral": "receivables",
+              "lienPosition": "2nd",
+              "isPrimary": false,
+              "advanceRate": 20,
+              "amountPledged": 2480000,
+              "startDate": "2026-02-28",
+              "overrideReason": "Second position on the receivables behind the revolver, advanced at 20 percent. The acquisition loan is lent against cash flow, not against the base, and the collateral read is expected to show a shortfall."
+            }
+          ],
+          "fees": [
+            {
+              "key": "wca-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.75,
+              "description": "Origination fee, 0.75 percent of the note."
+            },
+            {
+              "key": "wca-legal",
+              "feeType": "Attorney",
+              "recordType": "Costs",
+              "amount": 34000,
+              "isIncome": false,
+              "description": "Acquisition documentation, outside counsel and the UCC search package."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.35,
+            "amortises": true,
+            "effectiveDate": "2026-02-28",
+            "endDate": "2033-02-28",
+            "termLength": 84
+          }
+        }
+      ]
+    },
+    {
+      "key": "real-estate",
+      "name": "Meridian Real Estate Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "4",
+      "primaryEntity": "coastal-freight-properties",
+      "description": "Booked owner-occupied real estate package. Borrower of record is Coastal Freight Properties LLC, with Meridian Coastal Logistics LLC as co-borrower and occupant. Two mortgages totalling $7.7MM against $7.45MM outstanding: the Pooler distribution warehouse and the Garden City cross-dock.",
+      "loans": [
+        {
+          "key": "re-warehouse",
+          "name": "Coastal Freight Properties LLC - Purchase - $6,500,000.00",
+          "lookupKey": "MER2001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "amount": 6500000,
+          "outstanding": 6290000,
+          "rate": 6.45,
+          "noteRate": 6.45,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2025-11-10",
+          "closeDate": "2026-01-31",
+          "bookedDate": "2026-01-31",
+          "firstPaymentDate": "2026-02-28",
+          "maturityDate": "2036-01-31",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "real_estate_purchase_owner_occupied",
+          "description": "Twenty year amortising mortgage with a ten year balloon on the Pooler distribution warehouse, occupied by the operating company under a triple net lease coterminous with the note.",
+          "involvements": [
+            {
+              "key": "rew-borrower",
+              "account": "coastal-freight-properties",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "order": 1,
+              "notes": "Real estate holding entity and title holder.",
+              "ownership": 100
+            },
+            {
+              "key": "rew-operating",
+              "account": "meridian-logistics",
+              "borrowerType": "Co-Borrower",
+              "entityType": "Operating Company",
+              "order": 2,
+              "notes": "Operating company as co-borrower and sole occupant under a triple net lease.",
+              "ownership": 100
+            },
+            {
+              "key": "rew-holdings",
+              "account": "meridian-holdings",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 3,
+              "notes": "Corporate guarantor. Unlimited continuing guaranty from the parent.",
+              "ownership": 100,
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "rew-okafor",
+              "account": "daniel-okafor",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 60,
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "rew-raman",
+              "account": "priya-raman",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 5,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 40,
+              "guarantyType": "Unlimited"
+            }
+          ],
+          "pledges": [
+            {
+              "key": "rew-warehouse",
+              "collateral": "warehouse",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 6675000,
+              "startDate": "2026-01-31",
+              "overrideReason": "Owner-occupied industrial advanced at 75 percent against the 80 percent collateral-type default, on the January 2026 MAI as-is appraisal."
+            }
+          ],
+          "fees": [
+            {
+              "key": "rew-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 9800,
+              "isIncome": false,
+              "description": "MAI appraisal, third party."
+            },
+            {
+              "key": "rew-title",
+              "feeType": "Title Insurance",
+              "recordType": "Costs",
+              "amount": 14300,
+              "isIncome": false,
+              "description": "ALTA lenders title policy and endorsements."
+            },
+            {
+              "key": "rew-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.45,
+            "amortises": true,
+            "effectiveDate": "2026-01-31",
+            "endDate": "2036-01-31",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "re-crossdock",
+          "name": "Coastal Freight Properties LLC - Purchase - $1,200,000.00",
+          "lookupKey": "MER2002",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "amount": 1200000,
+          "outstanding": 1162000,
+          "rate": 6.6,
+          "noteRate": 6.6,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2025-11-10",
+          "closeDate": "2026-01-31",
+          "bookedDate": "2026-01-31",
+          "firstPaymentDate": "2026-02-28",
+          "maturityDate": "2036-01-31",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "real_estate_purchase_owner_occupied",
+          "description": "Twenty year amortising mortgage with a ten year balloon on the Garden City cross-dock, 34 doors adjacent to the Port of Savannah container terminal.",
+          "involvements": [
+            {
+              "key": "rec-borrower",
+              "account": "coastal-freight-properties",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "order": 1,
+              "notes": "Real estate holding entity and title holder.",
+              "ownership": 100
+            },
+            {
+              "key": "rec-operating",
+              "account": "meridian-logistics",
+              "borrowerType": "Co-Borrower",
+              "entityType": "Operating Company",
+              "order": 2,
+              "notes": "Operating company as co-borrower and sole occupant.",
+              "ownership": 100
+            },
+            {
+              "key": "rec-okafor",
+              "account": "daniel-okafor",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 60,
+              "guarantyType": "Unlimited"
+            }
+          ],
+          "pledges": [
+            {
+              "key": "rec-crossdock",
+              "collateral": "crossdock",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 1275000,
+              "startDate": "2026-01-31",
+              "overrideReason": "Port-adjacent industrial advanced at 75 percent on the January 2026 MAI as-is appraisal."
+            }
+          ],
+          "fees": [
+            {
+              "key": "rec-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.6,
+            "amortises": true,
+            "effectiveDate": "2026-01-31",
+            "endDate": "2036-01-31",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        }
+      ]
+    },
+    {
+      "key": "fleet",
+      "name": "Meridian Fleet Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "meridian-logistics",
+      "description": "Booked fleet package. A $4.0MM master equipment line drawn in three tranches, each booked as a separate note against the same rolling stock schedule at descending lien positions. $3.70MM outstanding.",
+      "loans": [
+        {
+          "key": "fl-tranche-1",
+          "name": "Meridian Coastal Logistics LLC - Equipment - $1,800,000.00",
+          "lookupKey": "MER3001",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 1800000,
+          "outstanding": 1617000,
+          "rate": 7.05,
+          "noteRate": 7.05,
+          "index": "Fixed",
+          "termMonths": 48,
+          "amortMonths": 48,
+          "applicationDate": "2026-03-02",
+          "closeDate": "2026-04-15",
+          "bookedDate": "2026-04-15",
+          "firstPaymentDate": "2026-05-15",
+          "maturityDate": "2030-04-15",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "description": "First tranche of the master equipment line. 12 tractors delivered April 2026.",
+          "involvements": [
+            {
+              "key": "fl1-borrower",
+              "account": "meridian-logistics",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "notes": "Primary borrower and operating company.",
+              "ownership": 100
+            },
+            {
+              "key": "fl1-okafor",
+              "account": "daniel-okafor",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 60,
+              "guarantyType": "Unlimited"
+            }
+          ],
+          "pledges": [
+            {
+              "key": "fl1-tractors",
+              "collateral": "tractors",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 25,
+              "amountPledged": 1700000,
+              "startDate": "2026-04-15",
+              "overrideReason": "Second lien on the tractor schedule behind the equipment term note, advanced at 25 percent."
+            }
+          ],
+          "fees": [
+            {
+              "key": "fl1-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "description": "Tranche fee, 0.25 percent of the advance."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.05,
+            "amortises": true,
+            "effectiveDate": "2026-04-15",
+            "endDate": "2030-04-15",
+            "termLength": 48
+          }
+        },
+        {
+          "key": "fl-tranche-2",
+          "name": "Meridian Coastal Logistics LLC - Equipment - $1,400,000.00",
+          "lookupKey": "MER3002",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 1400000,
+          "outstanding": 1302000,
+          "rate": 7.2,
+          "noteRate": 7.2,
+          "index": "Fixed",
+          "termMonths": 48,
+          "amortMonths": 48,
+          "applicationDate": "2026-05-04",
+          "closeDate": "2026-06-15",
+          "bookedDate": "2026-06-15",
+          "firstPaymentDate": "2026-07-15",
+          "maturityDate": "2030-06-15",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "description": "Second tranche of the master equipment line. 44 refrigerated trailers delivered June 2026.",
+          "involvements": [
+            {
+              "key": "fl2-borrower",
+              "account": "meridian-logistics",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "notes": "Primary borrower and operating company.",
+              "ownership": 100
+            },
+            {
+              "key": "fl2-okafor",
+              "account": "daniel-okafor",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 60,
+              "guarantyType": "Unlimited"
+            }
+          ],
+          "pledges": [
+            {
+              "key": "fl2-trailers",
+              "collateral": "trailers",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 35,
+              "amountPledged": 1470000,
+              "startDate": "2026-06-15",
+              "overrideReason": "Second lien on the trailer schedule behind the equipment term note, advanced at 35 percent."
+            }
+          ],
+          "fees": [
+            {
+              "key": "fl2-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "description": "Tranche fee, 0.25 percent of the advance."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.2,
+            "amortises": true,
+            "effectiveDate": "2026-06-15",
+            "endDate": "2030-06-15",
+            "termLength": 48
+          }
+        },
+        {
+          "key": "fl-tranche-3",
+          "name": "Meridian Coastal Logistics LLC - Equipment - $800,000.00",
+          "lookupKey": "MER3003",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 800000,
+          "outstanding": 780000,
+          "rate": 7.3,
+          "noteRate": 7.3,
+          "index": "Fixed",
+          "termMonths": 48,
+          "amortMonths": 48,
+          "applicationDate": "2026-07-06",
+          "closeDate": "2026-08-17",
+          "bookedDate": "2026-08-17",
+          "firstPaymentDate": "2026-09-17",
+          "maturityDate": "2030-08-17",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "description": "Third and final tranche of the master equipment line. Yard tractors, forklifts and the Pooler fuel island.",
+          "involvements": [
+            {
+              "key": "fl3-borrower",
+              "account": "meridian-logistics",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "notes": "Primary borrower and operating company.",
+              "ownership": 100
+            },
+            {
+              "key": "fl3-holdings",
+              "account": "meridian-holdings",
+              "borrowerType": "Related Entity",
+              "entityType": "Operating Company",
+              "order": 2,
+              "notes": "Parent holding company, included in the global cash flow analysis.",
+              "ownership": 100
+            }
+          ],
+          "pledges": [
+            {
+              "key": "fl3-trailers",
+              "collateral": "trailers",
+              "lienPosition": "3rd",
+              "isPrimary": true,
+              "advanceRate": 20,
+              "amountPledged": 840000,
+              "startDate": "2026-08-17",
+              "overrideReason": "Third lien on the trailer schedule, advanced at 20 percent of appraised value."
+            }
+          ],
+          "fees": [
+            {
+              "key": "fl3-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "description": "Tranche fee, 0.25 percent of the advance."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.3,
+            "amortises": true,
+            "effectiveDate": "2026-08-17",
+            "endDate": "2030-08-17",
+            "termLength": 48
+          }
+        }
+      ]
+    },
+    {
+      "key": "distribution-centre",
+      "name": "Meridian Distribution Centre Package",
+      "stage": "Pending",
+      "creditStage": "Credit Underwriting",
+      "status": "New",
+      "approvalStatus": "Not Submitted",
+      "riskRating": "5",
+      "primaryEntity": "meridian-logistics",
+      "description": "UNAPPROVED. Pending package carrying the proposed $5.0MM term loan for a new Jacksonville distribution centre. In credit underwriting; this is the package the cockpit's pending delta reads and the only one a new facility may still join.",
+      "loans": [
+        {
+          "key": "dc-term",
+          "name": "Meridian Coastal Logistics LLC - Term - $5,000,000.00",
+          "lookupKey": "MER4001",
+          "product": "Term",
+          "productType": "Real Estate",
+          "stage": "Proposal",
+          "status": "Open",
+          "riskGrade": "5",
+          "amount": 5000000,
+          "outstanding": 0,
+          "rate": 6.9,
+          "noteRate": 6.9,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2026-08-19",
+          "closeDate": "2026-11-30",
+          "firstPaymentDate": "2026-12-31",
+          "maturityDate": "2036-11-30",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "real_estate_purchase_non_owner_occupied",
+          "isSecured": true,
+          "loanClass": "New Loan",
+          "description": "PROPOSED, not booked. Ten year mortgage on a 140,000 sq ft distribution centre in Jacksonville, Florida, to serve the Blount Island terminal. Twenty year amortisation, ten year balloon. Appraisal ordered, environmental Phase I outstanding.",
+          "involvements": [
+            {
+              "key": "dc-borrower",
+              "account": "meridian-logistics",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "notes": "Primary borrower and operating company.",
+              "ownership": 100
+            },
+            {
+              "key": "dc-holdings",
+              "account": "meridian-holdings",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "notes": "Corporate guarantor. Unlimited continuing guaranty from the parent.",
+              "ownership": 100,
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "dc-okafor",
+              "account": "daniel-okafor",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 60,
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "dc-raman",
+              "account": "priya-raman",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2016.",
+              "ownership": 40,
+              "guarantyType": "Unlimited"
+            }
+          ],
+          "pledges": [],
+          "fees": [],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.9,
+            "amortises": true,
+            "effectiveDate": "2026-11-30",
+            "endDate": "2036-11-30",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "key": "annual-2026",
+      "type": "Annual",
+      "package": "working-capital",
+      "currentGrade": "5",
+      "recommendedGrade": "5",
+      "covenantsTested": "Yes",
+      "covenantsPassed": "Yes",
+      "toCommittee": "No",
+      "narrative": "FY2025 annual credit review of the Meridian relationship, prepared ahead of the 8 October 2026 review date. Grade affirmed at 5.",
+      "summary": "Meridian group: $30.7MM committed across nine booked facilities in three packages, $25.08MM outstanding, plus a $5.0MM proposed distribution centre mortgage in credit underwriting. Secured by a first blanket lien on receivables, inventory and a 212-unit rolling stock fleet, and first mortgages on the Pooler warehouse and the Garden City cross-dock. Guaranteed by Meridian Holdings Inc and both principals, unlimited.",
+      "recommendation": "Renew the $12.0MM revolving line at WSJ Prime plus 0.35 percent for a further twenty four months. Hold the grade at 5. Approve the Jacksonville distribution centre mortgage subject to a satisfactory appraisal and a clean Phase I.",
+      "riskComments": "Risk grade affirmed at 5. Senior leverage of 2.08x and DSCR of 1.31x are both inside covenant. The single Q1 2026 DSC miss was a timing effect on fuel surcharge recovery and was waived; the ratio recovered the following quarter without structural change.",
+      "strengths": "Fifteen year operating history under the founding management team. Contracted volume with three investment grade shippers covering 61 percent of revenue. Owner-occupied real estate with $2.5MM of equity above the mortgages. Fleet age of 3.1 years against an industry median of 5.4.",
+      "weaknesses": "Customer concentration with the top five shippers at 68 percent of revenue. Diesel price exposure that is only partially recovered through surcharge, which is what caused the Q1 covenant miss. Integration risk on the Tidewater Drayage acquisition, which is still running on separate dispatch."
+    }
+  ],
+  "riskRatingReviews": [
+    {
+      "key": "rg-2026",
+      "status": "In Review",
+      "computedGrade": 5,
+      "cashFlowCoverage": 1.31,
+      "creditScore": 728,
+      "revenueGrowth": 6.4,
+      "managementYears": 15,
+      "year1": 2023,
+      "year2": 2024,
+      "year3": 2025,
+      "comments": "Annual risk rating review supporting the FY2025 annual review. Computed grade 5, no override requested."
+    }
+  ],
+  "policyExceptions": [
+    {
+      "key": "pex-dsc",
+      "name": "Debt service coverage below policy minimum, Q1 2026",
+      "type": "Policy",
+      "code": "CI-DSC-01",
+      "status": "Waived",
+      "severity": "Minor",
+      "severityValue": 1,
+      "loan": "wc-revolver",
+      "mitigation": [
+        "Fuel surcharge recovery lagged the January 2026 diesel spike by one billing cycle; the ratio recovered to 1.31x by Q2 without any change to structure.",
+        "Unlimited guaranties from Meridian Holdings Inc and both principals remain in place and unimpaired.",
+        "Borrowing base availability never fell below $3.9MM through the period, and no advance ever exceeded the base."
+      ]
+    },
+    {
+      "key": "pex-adv",
+      "name": "Second-lien advance rate on receivables above guideline",
+      "type": "Policy",
+      "code": "CI-ADV-02",
+      "status": "Mitigated",
+      "severity": "Minor",
+      "severityValue": 1,
+      "loan": "wc-acquisition",
+      "collateral": "receivables",
+      "mitigation": [
+        "The acquisition loan is underwritten to cash flow, not to the borrowing base; the second lien is taken for control rather than for coverage.",
+        "Combined first and second advances remain inside 100 percent of eligible receivables at every month end tested."
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "key": "opp-treasury",
+      "name": "Meridian - Treasury and Commercial Card Expansion",
+      "stage": "Proposal",
+      "amount": 240000,
+      "closeDate": "2026-11-20",
+      "type": "Existing Business",
+      "probability": 65,
+      "leadSource": "External Referral",
+      "nextStep": "Treasury pricing sheet with the fuel card programme, meeting booked 24 September.",
+      "description": "Lockbox, positive pay, ACH origination and a fuel-weighted commercial card programme alongside the credit relationship."
+    },
+    {
+      "key": "opp-jax",
+      "name": "Meridian - Jacksonville Distribution Centre Mortgage",
+      "stage": "Credit Underwriting",
+      "amount": 5000000,
+      "closeDate": "2026-11-30",
+      "type": "Existing Business",
+      "probability": 70,
+      "leadSource": "Word of mouth",
+      "nextStep": "Appraisal due 26 September; Phase I environmental ordered.",
+      "description": "The $5.0MM ten year mortgage on the proposed Jacksonville distribution centre, staged in the pending package."
+    }
+  ],
+  "cases": [
+    {
+      "key": "case-bbc",
+      "subject": "Borrowing base certificate: treatment of unbilled accessorials",
+      "status": "New",
+      "priority": "Medium",
+      "origin": "Email",
+      "type": "Question",
+      "description": "The controller asked whether unbilled detention and accessorial charges belong in the eligible column of the monthly borrowing base certificate, or whether they are ineligible until invoiced."
+    }
+  ]
+}

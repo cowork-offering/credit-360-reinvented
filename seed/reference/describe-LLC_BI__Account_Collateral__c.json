@@ -1,0 +1,325 @@
+{
+  "name": "LLC_BI__Account_Collateral__c",
+  "fields": [
+    {
+      "name": "Id",
+      "type": "id",
+      "label": "Record ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "IsDeleted",
+      "type": "boolean",
+      "label": "Deleted",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "Name",
+      "type": "string",
+      "label": "Account Collateral Auto Number",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 80,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CurrencyIsoCode",
+      "type": "picklist",
+      "label": "Currency ISO Code",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 3,
+      "referenceTo": [],
+      "picklistValues": [
+        "GBP",
+        "EUR",
+        "USD"
+      ]
+    },
+    {
+      "name": "CreatedDate",
+      "type": "datetime",
+      "label": "Created Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CreatedById",
+      "type": "reference",
+      "label": "Created By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedDate",
+      "type": "datetime",
+      "label": "Last Modified Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedById",
+      "type": "reference",
+      "label": "Last Modified By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "SystemModstamp",
+      "type": "datetime",
+      "label": "System Modstamp",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastActivityDate",
+      "type": "date",
+      "label": "Last Activity Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Account__c",
+      "type": "reference",
+      "label": "Relationship",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "Account"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Collateral__c",
+      "type": "reference",
+      "label": "Collateral",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Collateral__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Collateral_Association__c",
+      "type": "picklist",
+      "label": "Collateral Association",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Owner",
+        "Construction",
+        "Landlord",
+        "Lessee",
+        "Lessor",
+        "Lienholder",
+        "Tenant",
+        "Buyer",
+        "Seller",
+        "Trustee",
+        "Assignee"
+      ]
+    },
+    {
+      "name": "LLC_BI__Group_Association__c",
+      "type": "picklist",
+      "label": "Group Association",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Member"
+      ]
+    },
+    {
+      "name": "LLC_BI__End_Date__c",
+      "type": "date",
+      "label": "End Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Is_Occupant__c",
+      "type": "boolean",
+      "label": "Is Occupant",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Ownership_Percentage__c",
+      "type": "percent",
+      "label": "Ownership Percentage",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Pledging_Authority__c",
+      "type": "boolean",
+      "label": "Pledging Authority",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Primary_Owner__c",
+      "type": "boolean",
+      "label": "Primary Owner",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Start_Date__c",
+      "type": "date",
+      "label": "Start Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Relationship_Type__c",
+      "type": "string",
+      "label": "Relationship Type",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 1300,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__lookupKey__c",
+      "type": "string",
+      "label": "lookupKey",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": []
+    }
+  ],
+  "recordTypes": [
+    {
+      "name": "Master",
+      "id": "012000000000000AAA",
+      "available": true,
+      "default": true
+    }
+  ]
+}

@@ -1,0 +1,194 @@
+{
+  "name": "LLC_BI__Loan_Covenant__c",
+  "fields": [
+    {
+      "name": "Id",
+      "type": "id",
+      "label": "Record ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "IsDeleted",
+      "type": "boolean",
+      "label": "Deleted",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "Name",
+      "type": "string",
+      "label": "LoanCovenant Number",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 80,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CurrencyIsoCode",
+      "type": "picklist",
+      "label": "Currency ISO Code",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 3,
+      "referenceTo": [],
+      "picklistValues": [
+        "GBP",
+        "EUR",
+        "USD"
+      ]
+    },
+    {
+      "name": "CreatedDate",
+      "type": "datetime",
+      "label": "Created Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CreatedById",
+      "type": "reference",
+      "label": "Created By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedDate",
+      "type": "datetime",
+      "label": "Last Modified Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedById",
+      "type": "reference",
+      "label": "Last Modified By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "SystemModstamp",
+      "type": "datetime",
+      "label": "System Modstamp",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastActivityDate",
+      "type": "date",
+      "label": "Last Activity Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Covenant2__c",
+      "type": "reference",
+      "label": "Covenant2",
+      "createable": true,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Covenant2__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Loan__c",
+      "type": "reference",
+      "label": "Loan",
+      "createable": true,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Loan__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Active__c",
+      "type": "boolean",
+      "label": "Active",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": true,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    }
+  ],
+  "recordTypes": [
+    {
+      "name": "Master",
+      "id": "012000000000000AAA",
+      "available": true,
+      "default": true
+    }
+  ]
+}

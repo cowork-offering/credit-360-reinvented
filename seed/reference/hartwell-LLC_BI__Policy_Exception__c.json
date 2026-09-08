@@ -1,0 +1,28 @@
+[
+  {
+    "CreatedById": "005bb00000ftouDAAQ",
+    "CreatedDate": "2026-07-26T14:38:34.000+0000",
+    "CurrencyIsoCode": "USD",
+    "Id": "a4rbb000003NxldAAC",
+    "IsDeleted": false,
+    "LLC_BI__Automatically_Added__c": false,
+    "LLC_BI__Code__c": "CRE-AR-01",
+    "LLC_BI__Collateral_Mgmt__c": "a35bb0000013y3tAAA",
+    "LLC_BI__Covenant_Mgmt__c": null,
+    "LLC_BI__Loan__c": "a4Zbb0000027Mp3EAE",
+    "LLC_BI__Mitigation_Reason_1__c": "Unlimited corporate and personal guaranties (Holdings LLC; James Hartwell).",
+    "LLC_BI__Mitigation_Reason_2__c": "Owner-occupied; committed take-out to 20-year permanent mortgage at completion.",
+    "LLC_BI__Mitigation_Reason_3__c": "Fixed-price GC contract, 5% retainage, completion covenant due 01 Nov 2026.",
+    "LLC_BI__Relationship__c": "001bb00001I7FPNAA3",
+    "LLC_BI__Severity_Value__c": 2.0,
+    "LLC_BI__Severity__c": "Major",
+    "LLC_BI__Status__c": "Mitigated",
+    "LLC_BI__Type__c": "Policy",
+    "LastActivityDate": null,
+    "LastModifiedById": "005bb00000ftouDAAQ",
+    "LastModifiedDate": "2026-07-26T14:38:34.000+0000",
+    "Name": "Construction advance rate above guideline",
+    "OwnerId": "005bb00000ftouDAAQ",
+    "SystemModstamp": "2026-07-26T14:38:34.000+0000"
+  }
+]

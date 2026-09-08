@@ -1,0 +1,916 @@
+{
+  "name": "LLC_BI__Legal_Entities__c",
+  "fields": [
+    {
+      "name": "Id",
+      "type": "id",
+      "label": "Record ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "IsDeleted",
+      "type": "boolean",
+      "label": "Deleted",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "Name",
+      "type": "string",
+      "label": "Entity Auto Number",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 80,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CurrencyIsoCode",
+      "type": "picklist",
+      "label": "Currency ISO Code",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 3,
+      "referenceTo": [],
+      "picklistValues": [
+        "GBP",
+        "EUR",
+        "USD"
+      ]
+    },
+    {
+      "name": "RecordTypeId",
+      "type": "reference",
+      "label": "Record Type ID",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "RecordType"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "CreatedDate",
+      "type": "datetime",
+      "label": "Created Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CreatedById",
+      "type": "reference",
+      "label": "Created By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedDate",
+      "type": "datetime",
+      "label": "Last Modified Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedById",
+      "type": "reference",
+      "label": "Last Modified By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "SystemModstamp",
+      "type": "datetime",
+      "label": "System Modstamp",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Account__c",
+      "type": "reference",
+      "label": "Relationship Name",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "Account"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Borrower_Type__c",
+      "type": "picklist",
+      "label": "Borrower Type",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Borrower",
+        "Guarantor",
+        "Limited Guarantor",
+        "Co-Borrower",
+        "Related Entity",
+        "Grantor",
+        "Contractor"
+      ]
+    },
+    {
+      "name": "LLC_BI__Contingent_Type__c",
+      "type": "picklist",
+      "label": "Contingent Type",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Joint & Several",
+        "Pro Rata",
+        "Assign Specific"
+      ]
+    },
+    {
+      "name": "LLC_BI__Entity_Type__c",
+      "type": "picklist",
+      "label": "Entity Type",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Operating Company",
+        "Sole Proprietorship",
+        "EPC",
+        "Individual"
+      ]
+    },
+    {
+      "name": "LLC_BI__Guaranty_Amount__c",
+      "type": "picklist",
+      "label": "Guarantee Type",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Unlimited",
+        "Amount of Note",
+        "Limited"
+      ]
+    },
+    {
+      "name": "LLC_BI__HMDA_Applicant_Type__c",
+      "type": "picklist",
+      "label": "HMDA Applicant",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Applicant",
+        "Co-Applicant"
+      ]
+    },
+    {
+      "name": "LLC_BI__HMDA_Ethnicity__c",
+      "type": "picklist",
+      "label": "Ethnicity",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Code 1\u2014Hispanic or Latino",
+        "Code 2\u2014Not Hispanic or Latino",
+        "Code 3\u2014Information not provided by applicant in mail, internet, or telephone application",
+        "Code 4\u2014Not applicable",
+        "Code 5\u2014No co-applicant"
+      ]
+    },
+    {
+      "name": "LLC_BI__HMDA_Sex__c",
+      "type": "picklist",
+      "label": "Sex of the Applicant",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Code 1\u2014Male",
+        "Code 2\u2014Female",
+        "Code 3\u2014Information not provided by applicant in mail, internet, or telephone application",
+        "Code 4\u2014Not applicable",
+        "Code 5\u2014No co-applicant or co-borrower"
+      ]
+    },
+    {
+      "name": "LLC_BI__Relationship_Type__c",
+      "type": "picklist",
+      "label": "Ownership Type",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Primary Owner",
+        "Secondary Owner",
+        "Joint Owner",
+        "Deposit Household",
+        "Related Entity"
+      ]
+    },
+    {
+      "name": "LLC_BI__Valid_Resolution_Type__c",
+      "type": "picklist",
+      "label": "Valid Resolution Type",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "No resolution on file or updating - complete now",
+        "Resolution on file - not needed",
+        "No resolution on file or updating - print to complete later",
+        "Customer providing - not needed",
+        "Waived"
+      ]
+    },
+    {
+      "name": "LLC_BI__Address__c",
+      "type": "string",
+      "label": "Address",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 80,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Contingent_Amount__c",
+      "type": "currency",
+      "label": "Contingent Amount",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Deposit__c",
+      "type": "reference",
+      "label": "Deposit",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Deposit__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Doing_Business_As__c",
+      "type": "reference",
+      "label": "Doing Business As",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "Account"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Exclude_From_Account_Exposure__c",
+      "type": "boolean",
+      "label": "-D Exclude From Account Exposure",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Exclude_From_Product_Package_Exposure__c",
+      "type": "boolean",
+      "label": "-D Exclude From Product Package Exposure",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Guarantee_Effective_Date__c",
+      "type": "date",
+      "label": "Guarantee Effective Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Guarantee_End_Date__c",
+      "type": "date",
+      "label": "Guarantee End Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Guarantee_Limit__c",
+      "type": "currency",
+      "label": "Limited Guarantee Amount",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__HMDA_Income__c",
+      "type": "double",
+      "label": "Income of Applicant (In Thousands)",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__HMDA_Not_Provided__c",
+      "type": "boolean",
+      "label": "I do not wish to supply this information",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__HMDA_Race__c",
+      "type": "multipicklist",
+      "label": "Race - May select up to five",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 4099,
+      "referenceTo": [],
+      "picklistValues": [
+        "Code 1\u2014American Indian or Alaska Native",
+        "Code 2\u2014Asian",
+        "Code 3\u2014Black or African American",
+        "Code 4\u2014Native Hawaiian/Pacific Islander",
+        "Code 5\u2014White",
+        "Code 6\u2014Info not pro\u00advided by applicant",
+        "Code 7\u2014Not applicable",
+        "Code 8\u2014No co-applicant"
+      ]
+    },
+    {
+      "name": "LLC_BI__Is_Included_In_Global_Analysis__c",
+      "type": "boolean",
+      "label": "Is Included in Global Analysis",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Loan_Collateral__c",
+      "type": "reference",
+      "label": "Loan Collateral",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Loan_Collateral__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Loan__c",
+      "type": "reference",
+      "label": "Loan",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Loan__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Monthly_Debt_Service__c",
+      "type": "currency",
+      "label": "Monthly Debt Service",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Notes__c",
+      "type": "textarea",
+      "label": "Notes",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32000,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Order__c",
+      "type": "double",
+      "label": "Borrower Order",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Ownership__c",
+      "type": "percent",
+      "label": "Contingent Percentage",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Product_Package__c",
+      "type": "reference",
+      "label": "Product Package",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Product_Package__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Realestate__c",
+      "type": "boolean",
+      "label": "Realestate",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Route_Agreement__c",
+      "type": "reference",
+      "label": "Route Agreement",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "nFORCE__Route_Agreement__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Tax_ID__c",
+      "type": "string",
+      "label": "Tax ID or SSN -D",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 80,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Treasury_Service__c",
+      "type": "reference",
+      "label": "Treasury Service",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Treasury_Service__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__lookupKey__c",
+      "type": "string",
+      "label": "lookupKey",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Is_Borrower__c",
+      "type": "double",
+      "label": "Is Borrower",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Is_CoBorrower__c",
+      "type": "double",
+      "label": "Is CoBorrower",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Is_Grantor__c",
+      "type": "double",
+      "label": "Is Grantor",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Is_Guarantor__c",
+      "type": "double",
+      "label": "Is Guarantor",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Is_Related_Entity__c",
+      "type": "double",
+      "label": "Is Related Entity",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Limited_Guaranty_Amount__c",
+      "type": "currency",
+      "label": "-D Limited Guaranty Amount",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "nFUSE__Credit_Report__c",
+      "type": "reference",
+      "label": "Credit Report",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "nFUSE__Credit_Report__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Has_Deposit__c",
+      "type": "boolean",
+      "label": "Has Deposit",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": true,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "Integration_Source__c",
+      "type": "string",
+      "label": "Integration Source",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "Migration_ID__c",
+      "type": "string",
+      "label": "Migration ID",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Marital_Status__c",
+      "type": "picklist",
+      "label": "Marital Status",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Unmarried",
+        "Married",
+        "Legally Separated"
+      ]
+    },
+    {
+      "name": "LLC_BI__Prior_Resolution_Status__c",
+      "type": "picklist",
+      "label": "Prior Resolution Status",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Supersedes previous",
+        "Prior still effective",
+        "Initial resolution"
+      ]
+    },
+    {
+      "name": "LLC_BI__Resolution_Effective_Date__c",
+      "type": "date",
+      "label": "Resolution Effective Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Signing_Method__c",
+      "type": "picklist",
+      "label": "Signing Method",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Email",
+        "Topaz",
+        "SMS",
+        "Bank Device"
+      ]
+    },
+    {
+      "name": "LLC_BI__Debt_To_Income_Ratio__c",
+      "type": "percent",
+      "label": "Debt to Income Ratio",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Proposed_Debt_To_Income_Ratio__c",
+      "type": "percent",
+      "label": "Proposed Debt to Income Ratio",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    }
+  ],
+  "recordTypes": [
+    {
+      "name": "Deposit Involvement",
+      "id": "012bb000000NNdtAAG",
+      "available": false,
+      "default": false
+    },
+    {
+      "name": "Loan Involvement",
+      "id": "012bb000000NNduAAG",
+      "available": false,
+      "default": false
+    },
+    {
+      "name": "Master",
+      "id": "012000000000000AAA",
+      "available": true,
+      "default": true
+    }
+  ]
+}

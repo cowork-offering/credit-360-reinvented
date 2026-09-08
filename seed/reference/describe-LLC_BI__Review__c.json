@@ -1,0 +1,743 @@
+{
+  "name": "LLC_BI__Review__c",
+  "fields": [
+    {
+      "name": "Id",
+      "type": "id",
+      "label": "Record ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "OwnerId",
+      "type": "reference",
+      "label": "Owner ID",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "Group",
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "IsDeleted",
+      "type": "boolean",
+      "label": "Deleted",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "Name",
+      "type": "string",
+      "label": "Review Name",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 80,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CurrencyIsoCode",
+      "type": "picklist",
+      "label": "Currency ISO Code",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 3,
+      "referenceTo": [],
+      "picklistValues": [
+        "GBP",
+        "EUR",
+        "USD"
+      ]
+    },
+    {
+      "name": "RecordTypeId",
+      "type": "reference",
+      "label": "Record Type ID",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "RecordType"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "CreatedDate",
+      "type": "datetime",
+      "label": "Created Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CreatedById",
+      "type": "reference",
+      "label": "Created By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedDate",
+      "type": "datetime",
+      "label": "Last Modified Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedById",
+      "type": "reference",
+      "label": "Last Modified By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "SystemModstamp",
+      "type": "datetime",
+      "label": "System Modstamp",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastActivityDate",
+      "type": "date",
+      "label": "Last Activity Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Review_Type__c",
+      "type": "picklist",
+      "label": "Review Type",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Annual",
+        "AdHoc",
+        "Problem Loan"
+      ]
+    },
+    {
+      "name": "LLC_BI__Status__c",
+      "type": "picklist",
+      "label": "Status",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "In Progress",
+        "Pending Approval",
+        "Complete"
+      ]
+    },
+    {
+      "name": "LLC_BI__Account__c",
+      "type": "reference",
+      "label": "Account",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "Account"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Context_Key__c",
+      "type": "string",
+      "label": "Context Key",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 20,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Credit_Memo__c",
+      "type": "reference",
+      "label": "Credit Memo",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Credit_Memo__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Lookup_Key__c",
+      "type": "string",
+      "label": "Lookup Key",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Narrative__c",
+      "type": "textarea",
+      "label": "Narrative",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Product_Package_Data__c",
+      "type": "textarea",
+      "label": "Product Package Data",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Product_Package__c",
+      "type": "reference",
+      "label": "Product Package",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Product_Package__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Are_you_requesting_a_grade_change__c",
+      "type": "picklist",
+      "label": "Are You Requesting a Grade Change?",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "No",
+        "Yes"
+      ]
+    },
+    {
+      "name": "cm_Current_Relationship_Risk_Rating__c",
+      "type": "picklist",
+      "label": "Current Relationship Risk Rating",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12"
+      ]
+    },
+    {
+      "name": "cm_Did_the_Covenants_pass_the_test__c",
+      "type": "picklist",
+      "label": "If Yes, Did the Covenants Pass the Test?",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "No",
+        "Yes"
+      ]
+    },
+    {
+      "name": "cm_Have_the_covenants_been_tested__c",
+      "type": "picklist",
+      "label": "Have the Covenants Been Tested?",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "No",
+        "Yes"
+      ]
+    },
+    {
+      "name": "cm_New_Policy_Exception_added__c",
+      "type": "picklist",
+      "label": "New Policy Exception Added?",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "No",
+        "Yes"
+      ]
+    },
+    {
+      "name": "cm_Recommend_Relationship_Rating__c",
+      "type": "picklist",
+      "label": "Recommend Relationship Rating",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12"
+      ]
+    },
+    {
+      "name": "cm_Review_Stage__c",
+      "type": "picklist",
+      "label": "Review Stage",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Qualification",
+        "Underwriting",
+        "Final Review",
+        "Approval",
+        "Complete"
+      ]
+    },
+    {
+      "name": "cm_Send_to_Credit_Committee__c",
+      "type": "picklist",
+      "label": "Send to Credit Committee",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "No",
+        "Yes"
+      ]
+    },
+    {
+      "name": "cm_Set_Next_Review_Type__c",
+      "type": "picklist",
+      "label": "Set Next Review Type",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Annual",
+        "AdHoc",
+        "Problem Loan"
+      ]
+    },
+    {
+      "name": "cm_Approval_Narrative__c",
+      "type": "textarea",
+      "label": "Approval Narrative",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Approved_Date__c",
+      "type": "date",
+      "label": "Approved Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Collateral_Analysis_Narrative__c",
+      "type": "textarea",
+      "label": "Collateral Analysis Narrative",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Credit_Administrator__c",
+      "type": "reference",
+      "label": "Credit Administrator",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Financial_Analyst_Narrative__c",
+      "type": "textarea",
+      "label": "Financial Analyst Narrative",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Financial_Spreads_Borrower_Narrative__c",
+      "type": "textarea",
+      "label": "Financial Spreads Borrower Narrative",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Financial_Spreads_Property__c",
+      "type": "textarea",
+      "label": "Financial Spreads Property",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Further_Analysis_Stress_Test__c",
+      "type": "textarea",
+      "label": "Further Analysis Stress Test",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Guarantor_Narrative__c",
+      "type": "textarea",
+      "label": "Guarantor Narrative",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Loan_Officer__c",
+      "type": "reference",
+      "label": "Loan Officer",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Recommendation_Narrative__c",
+      "type": "textarea",
+      "label": "Recommendation Narrative",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Relationship_Summary__c",
+      "type": "textarea",
+      "label": "Relationship Summary Narrative",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Review_Completion_Date__c",
+      "type": "date",
+      "label": "Review Completion Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Risk_Rating_Comments__c",
+      "type": "textarea",
+      "label": "Risk Rating Comments",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Set_Next_Review_Date__c",
+      "type": "date",
+      "label": "Set Next Review Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Weakness_Narrative__c",
+      "type": "textarea",
+      "label": "Weakness Narrative",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Strengths_Narrative__c",
+      "type": "textarea",
+      "label": "Strengths Narrative",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Is_Agentic_Review__c",
+      "type": "boolean",
+      "label": "Agentic Review",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    }
+  ],
+  "recordTypes": [
+    {
+      "name": "Account Review Complete",
+      "id": "012bb000000NNeJAAW",
+      "available": true,
+      "default": false
+    },
+    {
+      "name": "Account Review In Progress",
+      "id": "012bb000000NNeKAAW",
+      "available": true,
+      "default": true
+    },
+    {
+      "name": "Package Review Complete",
+      "id": "012bb000000NNeLAAW",
+      "available": false,
+      "default": false
+    },
+    {
+      "name": "Package Review In Progress",
+      "id": "012bb000000NNeMAAW",
+      "available": false,
+      "default": false
+    },
+    {
+      "name": "Master",
+      "id": "012000000000000AAA",
+      "available": true,
+      "default": false
+    }
+  ]
+}

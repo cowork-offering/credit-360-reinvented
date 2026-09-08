@@ -1,0 +1,687 @@
+{
+  "slug": "zz-recipe-proof",
+  "tag": "C360-SEED-2026-09",
+  "relationship": "ZZ Proof Operating LLC",
+  "account": "001bb00001LcyxqAAB",
+  "createdAt": "2026-09-08T11:41:25+00:00",
+  "order": [
+    {
+      "object": "Account",
+      "key": "proof-holdings",
+      "id": "001bb00001LcyxpAAB"
+    },
+    {
+      "object": "Account",
+      "key": "proof-borrower",
+      "id": "001bb00001LcyxqAAB"
+    },
+    {
+      "object": "Account",
+      "key": "proof-realestate",
+      "id": "001bb00001LcyxrAAB"
+    },
+    {
+      "object": "Account",
+      "key": "proof-owner-a",
+      "id": "001bb00001LcyxsAAB"
+    },
+    {
+      "object": "Account",
+      "key": "proof-owner-b",
+      "id": "001bb00001LcyxtAAB"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "holdings-owns-borrower",
+      "id": "a38bb000001abtJAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "holdings-owns-re",
+      "id": "a38bb000001abtKAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "owner-a-holdings",
+      "id": "a38bb000001abtLAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "owner-b-holdings",
+      "id": "a38bb000001abtMAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "owner-a-borrower",
+      "id": "a38bb000001abtNAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "owner-b-borrower",
+      "id": "a38bb000001abtOAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "borrower-owns-re",
+      "id": "a38bb000001abtPAAQ"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "working-capital",
+      "id": "a5Fbb000000JBChEAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "real-estate",
+      "id": "a5Fbb000000JBCiEAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "fleet-line",
+      "id": "a5Fbb000000JBCjEAO"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "wc-revolver",
+      "id": "a4Zbb000002J6RxEAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "wc-equipment",
+      "id": "a4Zbb000002J6RyEAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "re-mortgage",
+      "id": "a4Zbb000002J6RzEAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "re-improvements",
+      "id": "a4Zbb000002J6S0EAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "fl-trailers",
+      "id": "a4Zbb000002J6S1EAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "fl-yard",
+      "id": "a4Zbb000002J6S2EAK"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wcr-borrower",
+      "id": "a4Lbb000000PVQPEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wcr-holdings",
+      "id": "a4Lbb000000PVQQEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wcr-owner-a",
+      "id": "a4Lbb000000PVQREA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wcr-owner-b",
+      "id": "a4Lbb000000PVQSEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wce-borrower",
+      "id": "a4Lbb000000PVQTEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wce-owner-a",
+      "id": "a4Lbb000000PVQUEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rem-borrower",
+      "id": "a4Lbb000000PVQVEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rem-operating",
+      "id": "a4Lbb000000PVQWEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rem-owner-a",
+      "id": "a4Lbb000000PVQXEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rei-borrower",
+      "id": "a4Lbb000000PVQYEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rei-owner-a",
+      "id": "a4Lbb000000PVQZEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "flt-borrower",
+      "id": "a4Lbb000000PVQaEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "flt-owner-b",
+      "id": "a4Lbb000000PVQbEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "fly-borrower",
+      "id": "a4Lbb000000PVQcEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "fly-holdings",
+      "id": "a4Lbb000000PVQdEAO"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "wc-revolver",
+      "id": "a50bb00000v5OqUAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "wc-equipment",
+      "id": "a50bb00000v5OqVAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "re-mortgage",
+      "id": "a50bb00000v5OqWAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "re-improvements",
+      "id": "a50bb00000v5OqXAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "fl-trailers",
+      "id": "a50bb00000v5OqYAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "fl-yard",
+      "id": "a50bb00000v5OqZAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "wc-revolver",
+      "id": "a4zbb000002Txl7AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "wc-equipment",
+      "id": "a4zbb000002Txl8AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "re-mortgage",
+      "id": "a4zbb000002Txl9AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "re-improvements",
+      "id": "a4zbb000002TxlAAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "fl-trailers",
+      "id": "a4zbb000002TxlBAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "fl-yard",
+      "id": "a4zbb000002TxlCAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "wc-revolver",
+      "id": "a4ybb000002jM4rAAE"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "wc-equipment",
+      "id": "a4ybb000002jM4sAAE"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "re-mortgage",
+      "id": "a4ybb000002jM4tAAE"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "re-improvements",
+      "id": "a4ybb000002jM4uAAE"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "fl-trailers",
+      "id": "a4ybb000002jM4vAAE"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "fl-yard",
+      "id": "a4ybb000002jM4wAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "wcr-orig",
+      "id": "a45bb000001mUw5AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "wcr-unused",
+      "id": "a45bb000001mUw6AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "wce-orig",
+      "id": "a45bb000001mUw7AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rem-appraisal",
+      "id": "a45bb000001mUw8AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rem-attorney",
+      "id": "a45bb000001mUw9AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rei-orig",
+      "id": "a45bb000001mUwAAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "flt-orig",
+      "id": "a45bb000001mUwBAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "fly-doc",
+      "id": "a45bb000001mUwCAAU"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "ar-inventory",
+      "id": "a35bb0000019qq1AAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "fleet",
+      "id": "a35bb0000019qq2AAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "warehouse",
+      "id": "a35bb0000019qq3AAA"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "ar-inventory#0",
+      "id": "a2Vbb000001c8buEAA"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "fleet#0",
+      "id": "a2Vbb000001c8bvEAA"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "warehouse#0",
+      "id": "a2Vbb000001c8bwEAA"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-val-2026-06",
+      "id": "a34bb000003IMwPAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-val-2025-12",
+      "id": "a34bb000003IMwQAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "fleet-val-2026-04",
+      "id": "a34bb000003IMwRAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "wh-val-2026-03",
+      "id": "a34bb000003IMwSAAW"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "wcr-ar",
+      "id": "a4Rbb0000027b1hEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "wce-fleet",
+      "id": "a4Rbb0000027b1iEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "rem-warehouse",
+      "id": "a4Rbb0000027b1jEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "rei-warehouse",
+      "id": "a4Rbb0000027b1kEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "flt-fleet",
+      "id": "a4Rbb0000027b1lEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "fly-fleet",
+      "id": "a4Rbb0000027b1mEAA"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "dsc",
+      "id": "a3Bbb000000TazNEAS"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "leverage",
+      "id": "a3Bbb000000TazOEAS"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "liquidity",
+      "id": "a3Bbb000000TazPEAS"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "dsc",
+      "id": "a2Wbb00000CWaeAEAT"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "leverage",
+      "id": "a2Wbb00000CWaeBEAT"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "liquidity",
+      "id": "a2Wbb00000CWaeCEAT"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dsc@wc-revolver",
+      "id": "a4Vbb000000qpKzEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dsc@wc-equipment",
+      "id": "a4Vbb000000qpL0EAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "liquidity@wc-revolver",
+      "id": "a4Vbb000000qpL1EAI"
+    },
+    {
+      "object": "LLC_BI__Covenant_Compliance2__c",
+      "key": "dsc-q4-2025",
+      "id": "a3Cbb00000ETi7HEAT"
+    },
+    {
+      "object": "LLC_BI__Covenant_Compliance2__c",
+      "key": "dsc-q1-2026",
+      "id": "a3Cbb00000ETi7IEAT"
+    },
+    {
+      "object": "LLC_BI__Covenant_Compliance2__c",
+      "key": "dsc-q2-2026",
+      "id": "a3Cbb00000ETi7JEAT"
+    },
+    {
+      "object": "LLC_BI__Covenant_Compliance2__c",
+      "key": "dsc-q3-2026",
+      "id": "a3Cbb00000ETi7KEAT"
+    },
+    {
+      "object": "LLC_BI__Covenant_Compliance2__c",
+      "key": "lev-q1-2026",
+      "id": "a3Cbb00000ETi7LEAT"
+    },
+    {
+      "object": "LLC_BI__Covenant_Compliance2__c",
+      "key": "lev-q2-2026",
+      "id": "a3Cbb00000ETi7MEAT"
+    },
+    {
+      "object": "LLC_BI__Covenant_Compliance2__c",
+      "key": "liq-2026-07",
+      "id": "a3Cbb00000ETi7NEAT"
+    },
+    {
+      "object": "LLC_BI__Covenant_Compliance2__c",
+      "key": "liq-2026-08",
+      "id": "a3Cbb00000ETi7OEAT"
+    },
+    {
+      "object": "LLC_BI__Review__c",
+      "key": "annual-2026",
+      "id": "a5nbb00000nArOoAAK"
+    },
+    {
+      "object": "LLC_BI__Annual_Review__c",
+      "key": "rg-2026",
+      "id": "a2bbb000006E7UPAA0"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-dsc",
+      "id": "a4rbb000003PEajAAG"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-treasury",
+      "id": "006bb00000yIk6oAAC"
+    },
+    {
+      "object": "Case",
+      "key": "case-bbc",
+      "id": "500bb00000v7C0TAAU"
+    }
+  ],
+  "records": {
+    "Account": {
+      "proof-holdings": "001bb00001LcyxpAAB",
+      "proof-borrower": "001bb00001LcyxqAAB",
+      "proof-realestate": "001bb00001LcyxrAAB",
+      "proof-owner-a": "001bb00001LcyxsAAB",
+      "proof-owner-b": "001bb00001LcyxtAAB"
+    },
+    "LLC_BI__Connection__c": {
+      "holdings-owns-borrower": "a38bb000001abtJAAQ",
+      "holdings-owns-re": "a38bb000001abtKAAQ",
+      "owner-a-holdings": "a38bb000001abtLAAQ",
+      "owner-b-holdings": "a38bb000001abtMAAQ",
+      "owner-a-borrower": "a38bb000001abtNAAQ",
+      "owner-b-borrower": "a38bb000001abtOAAQ",
+      "borrower-owns-re": "a38bb000001abtPAAQ"
+    },
+    "LLC_BI__Product_Package__c": {
+      "working-capital": "a5Fbb000000JBChEAO",
+      "real-estate": "a5Fbb000000JBCiEAO",
+      "fleet-line": "a5Fbb000000JBCjEAO"
+    },
+    "LLC_BI__Loan__c": {
+      "wc-revolver": "a4Zbb000002J6RxEAK",
+      "wc-equipment": "a4Zbb000002J6RyEAK",
+      "re-mortgage": "a4Zbb000002J6RzEAK",
+      "re-improvements": "a4Zbb000002J6S0EAK",
+      "fl-trailers": "a4Zbb000002J6S1EAK",
+      "fl-yard": "a4Zbb000002J6S2EAK"
+    },
+    "LLC_BI__Legal_Entities__c": {
+      "wcr-borrower": "a4Lbb000000PVQPEA4",
+      "wcr-holdings": "a4Lbb000000PVQQEA4",
+      "wcr-owner-a": "a4Lbb000000PVQREA4",
+      "wcr-owner-b": "a4Lbb000000PVQSEA4",
+      "wce-borrower": "a4Lbb000000PVQTEA4",
+      "wce-owner-a": "a4Lbb000000PVQUEA4",
+      "rem-borrower": "a4Lbb000000PVQVEA4",
+      "rem-operating": "a4Lbb000000PVQWEA4",
+      "rem-owner-a": "a4Lbb000000PVQXEA4",
+      "rei-borrower": "a4Lbb000000PVQYEA4",
+      "rei-owner-a": "a4Lbb000000PVQZEA4",
+      "flt-borrower": "a4Lbb000000PVQaEAO",
+      "flt-owner-b": "a4Lbb000000PVQbEAO",
+      "fly-borrower": "a4Lbb000000PVQcEAO",
+      "fly-holdings": "a4Lbb000000PVQdEAO"
+    },
+    "LLC_BI__Pricing_Stream__c": {
+      "wc-revolver": "a50bb00000v5OqUAAU",
+      "wc-equipment": "a50bb00000v5OqVAAU",
+      "re-mortgage": "a50bb00000v5OqWAAU",
+      "re-improvements": "a50bb00000v5OqXAAU",
+      "fl-trailers": "a50bb00000v5OqYAAU",
+      "fl-yard": "a50bb00000v5OqZAAU"
+    },
+    "LLC_BI__Pricing_Rate_Component__c": {
+      "wc-revolver": "a4zbb000002Txl7AAC",
+      "wc-equipment": "a4zbb000002Txl8AAC",
+      "re-mortgage": "a4zbb000002Txl9AAC",
+      "re-improvements": "a4zbb000002TxlAAAS",
+      "fl-trailers": "a4zbb000002TxlBAAS",
+      "fl-yard": "a4zbb000002TxlCAAS"
+    },
+    "LLC_BI__Pricing_Payment_Component__c": {
+      "wc-revolver": "a4ybb000002jM4rAAE",
+      "wc-equipment": "a4ybb000002jM4sAAE",
+      "re-mortgage": "a4ybb000002jM4tAAE",
+      "re-improvements": "a4ybb000002jM4uAAE",
+      "fl-trailers": "a4ybb000002jM4vAAE",
+      "fl-yard": "a4ybb000002jM4wAAE"
+    },
+    "LLC_BI__Fee__c": {
+      "wcr-orig": "a45bb000001mUw5AAE",
+      "wcr-unused": "a45bb000001mUw6AAE",
+      "wce-orig": "a45bb000001mUw7AAE",
+      "rem-appraisal": "a45bb000001mUw8AAE",
+      "rem-attorney": "a45bb000001mUw9AAE",
+      "rei-orig": "a45bb000001mUwAAAU",
+      "flt-orig": "a45bb000001mUwBAAU",
+      "fly-doc": "a45bb000001mUwCAAU"
+    },
+    "LLC_BI__Collateral__c": {
+      "ar-inventory": "a35bb0000019qq1AAA",
+      "fleet": "a35bb0000019qq2AAA",
+      "warehouse": "a35bb0000019qq3AAA"
+    },
+    "LLC_BI__Account_Collateral__c": {
+      "ar-inventory#0": "a2Vbb000001c8buEAA",
+      "fleet#0": "a2Vbb000001c8bvEAA",
+      "warehouse#0": "a2Vbb000001c8bwEAA"
+    },
+    "LLC_BI__Collateral_Valuation__c": {
+      "ar-val-2026-06": "a34bb000003IMwPAAW",
+      "ar-val-2025-12": "a34bb000003IMwQAAW",
+      "fleet-val-2026-04": "a34bb000003IMwRAAW",
+      "wh-val-2026-03": "a34bb000003IMwSAAW"
+    },
+    "LLC_BI__Loan_Collateral2__c": {
+      "wcr-ar": "a4Rbb0000027b1hEAA",
+      "wce-fleet": "a4Rbb0000027b1iEAA",
+      "rem-warehouse": "a4Rbb0000027b1jEAA",
+      "rei-warehouse": "a4Rbb0000027b1kEAA",
+      "flt-fleet": "a4Rbb0000027b1lEAA",
+      "fly-fleet": "a4Rbb0000027b1mEAA"
+    },
+    "LLC_BI__Covenant2__c": {
+      "dsc": "a3Bbb000000TazNEAS",
+      "leverage": "a3Bbb000000TazOEAS",
+      "liquidity": "a3Bbb000000TazPEAS"
+    },
+    "LLC_BI__Account_Covenant__c": {
+      "dsc": "a2Wbb00000CWaeAEAT",
+      "leverage": "a2Wbb00000CWaeBEAT",
+      "liquidity": "a2Wbb00000CWaeCEAT"
+    },
+    "LLC_BI__Loan_Covenant__c": {
+      "dsc@wc-revolver": "a4Vbb000000qpKzEAI",
+      "dsc@wc-equipment": "a4Vbb000000qpL0EAI",
+      "liquidity@wc-revolver": "a4Vbb000000qpL1EAI"
+    },
+    "LLC_BI__Covenant_Compliance2__c": {
+      "dsc-q4-2025": "a3Cbb00000ETi7HEAT",
+      "dsc-q1-2026": "a3Cbb00000ETi7IEAT",
+      "dsc-q2-2026": "a3Cbb00000ETi7JEAT",
+      "dsc-q3-2026": "a3Cbb00000ETi7KEAT",
+      "lev-q1-2026": "a3Cbb00000ETi7LEAT",
+      "lev-q2-2026": "a3Cbb00000ETi7MEAT",
+      "liq-2026-07": "a3Cbb00000ETi7NEAT",
+      "liq-2026-08": "a3Cbb00000ETi7OEAT"
+    },
+    "LLC_BI__Review__c": {
+      "annual-2026": "a5nbb00000nArOoAAK"
+    },
+    "LLC_BI__Annual_Review__c": {
+      "rg-2026": "a2bbb000006E7UPAA0"
+    },
+    "LLC_BI__Policy_Exception__c": {
+      "pex-dsc": "a4rbb000003PEajAAG"
+    },
+    "Opportunity": {
+      "opp-treasury": "006bb00000yIk6oAAC"
+    },
+    "Case": {
+      "case-bbc": "500bb00000v7C0TAAU"
+    }
+  },
+  "derived": {
+    "LLC_BI__Connection__c": [
+      "a38bb000001abtQAAQ",
+      "a38bb000001abtRAAQ",
+      "a38bb000001abtSAAQ",
+      "a38bb000001abtTAAQ",
+      "a38bb000001abtUAAQ",
+      "a38bb000001abtVAAQ",
+      "a38bb000001abtWAAQ"
+    ],
+    "LLC_BI__Loan_Detail__c": [
+      "a4Wbb000001MDKeEAO",
+      "a4Wbb000001MDKgEAO",
+      "a4Wbb000001MDKfEAO",
+      "a4Wbb000001MDKcEAO",
+      "a4Wbb000001MDKbEAO",
+      "a4Wbb000001MDKdEAO"
+    ],
+    "LLC_BI__Loan_Collateral_Aggregate__c": [
+      "a4Sbb00000GQlzlEAD",
+      "a4Sbb00000GQlzmEAD",
+      "a4Sbb00000GQlznEAD",
+      "a4Sbb00000GQlzoEAD",
+      "a4Sbb00000GQlzpEAD",
+      "a4Sbb00000GQlzqEAD"
+    ]
+  },
+  "errors": [],
+  "updatedAt": "2026-09-08T11:42:05+00:00",
+  "cleanedAt": "2026-09-08T11:42:55+00:00",
+  "cleanupRemoved": 119,
+  "cleanupFailures": []
+}

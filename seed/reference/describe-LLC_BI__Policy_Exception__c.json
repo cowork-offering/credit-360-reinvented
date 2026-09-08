@@ -1,0 +1,348 @@
+{
+  "name": "LLC_BI__Policy_Exception__c",
+  "fields": [
+    {
+      "name": "Id",
+      "type": "id",
+      "label": "Record ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "OwnerId",
+      "type": "reference",
+      "label": "Owner ID",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "Group",
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "IsDeleted",
+      "type": "boolean",
+      "label": "Deleted",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "Name",
+      "type": "string",
+      "label": "Policy Exception Name",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 80,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CurrencyIsoCode",
+      "type": "picklist",
+      "label": "Currency ISO Code",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 3,
+      "referenceTo": [],
+      "picklistValues": [
+        "GBP",
+        "EUR",
+        "USD"
+      ]
+    },
+    {
+      "name": "CreatedDate",
+      "type": "datetime",
+      "label": "Created Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CreatedById",
+      "type": "reference",
+      "label": "Created By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedDate",
+      "type": "datetime",
+      "label": "Last Modified Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedById",
+      "type": "reference",
+      "label": "Last Modified By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "SystemModstamp",
+      "type": "datetime",
+      "label": "System Modstamp",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastActivityDate",
+      "type": "date",
+      "label": "Last Activity Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Status__c",
+      "type": "picklist",
+      "label": "Exception status",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Waived",
+        "Mitigated",
+        "Unmitigated"
+      ]
+    },
+    {
+      "name": "LLC_BI__Automatically_Added__c",
+      "type": "boolean",
+      "label": "Generated",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Code__c",
+      "type": "string",
+      "label": "Code",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 50,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Collateral_Mgmt__c",
+      "type": "reference",
+      "label": "Collateral Mgmt",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Collateral__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Covenant_Mgmt__c",
+      "type": "reference",
+      "label": "Covenant Mgmt",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Covenant2__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Loan__c",
+      "type": "reference",
+      "label": "Loan",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Loan__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Mitigation_Reason_1__c",
+      "type": "string",
+      "label": "Mitigation Reason 1",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 100,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Mitigation_Reason_2__c",
+      "type": "string",
+      "label": "Mitigation Reason 2",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 100,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Mitigation_Reason_3__c",
+      "type": "string",
+      "label": "Mitigation Reason 3",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 100,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Relationship__c",
+      "type": "reference",
+      "label": "Account",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "Account"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Severity_Value__c",
+      "type": "double",
+      "label": "Severity Value",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Severity__c",
+      "type": "string",
+      "label": "Severity",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 50,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Type__c",
+      "type": "string",
+      "label": "Type",
+      "createable": true,
+      "updateable": true,
+      "nillable": false,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": []
+    }
+  ],
+  "recordTypes": [
+    {
+      "name": "Master",
+      "id": "012000000000000AAA",
+      "available": true,
+      "default": true
+    }
+  ]
+}

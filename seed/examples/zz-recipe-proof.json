@@ -1,0 +1,1007 @@
+{
+  "slug": "zz-recipe-proof",
+  "anchorKey": "proof-borrower",
+  "accounts": [
+    {
+      "key": "proof-holdings",
+      "name": "ZZ Proof Holdings Inc",
+      "kind": "business",
+      "industry": "Manufacturing",
+      "naics": "551112",
+      "annualRevenue": 41000000,
+      "riskGrade": "5",
+      "riskStatus": "Low",
+      "billingCity": "Savannah",
+      "billingState": "GA",
+      "description": "Throwaway parent holding company for the seed recipe proof run."
+    },
+    {
+      "key": "proof-borrower",
+      "name": "ZZ Proof Operating LLC",
+      "kind": "business",
+      "industry": "Transportation",
+      "naics": "484121",
+      "annualRevenue": 38000000,
+      "riskGrade": "5",
+      "riskStatus": "Low",
+      "nextReviewDate": "2026-10-08",
+      "lastReviewDate": "2026-02-14",
+      "billingCity": "Savannah",
+      "billingState": "GA",
+      "description": "Throwaway borrower for the seed recipe proof run."
+    },
+    {
+      "key": "proof-realestate",
+      "name": "ZZ Proof Properties LLC",
+      "kind": "business",
+      "industry": "Transportation",
+      "naics": "531120",
+      "annualRevenue": 4200000,
+      "riskGrade": "4",
+      "billingCity": "Savannah",
+      "billingState": "GA",
+      "description": "Throwaway real estate entity for the seed recipe proof run."
+    },
+    {
+      "key": "proof-owner-a",
+      "name": "Dana Okoro",
+      "kind": "person",
+      "description": "Throwaway 60 percent owner and guarantor."
+    },
+    {
+      "key": "proof-owner-b",
+      "name": "Priya Raman",
+      "kind": "person",
+      "description": "Throwaway 40 percent owner and limited guarantor."
+    }
+  ],
+  "connections": [
+    {
+      "key": "holdings-owns-borrower",
+      "from": "proof-holdings",
+      "to": "proof-borrower",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member",
+      "description": "ZZ Proof Holdings Inc holds 100 percent of the operating company."
+    },
+    {
+      "key": "holdings-owns-re",
+      "from": "proof-holdings",
+      "to": "proof-realestate",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member",
+      "description": "ZZ Proof Holdings Inc holds 100 percent of the property entity."
+    },
+    {
+      "key": "owner-a-holdings",
+      "from": "proof-owner-a",
+      "to": "proof-holdings",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 60,
+      "indirectOwnershipPercent": 60,
+      "officialTitle": "President & Chief Executive Officer",
+      "authorizedSigner": true,
+      "controlProng": true,
+      "description": "Founder and CEO. Holds 60 percent."
+    },
+    {
+      "key": "owner-b-holdings",
+      "from": "proof-owner-b",
+      "to": "proof-holdings",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 40,
+      "indirectOwnershipPercent": 40,
+      "officialTitle": "EVP & Chief Financial Officer",
+      "authorizedSigner": true,
+      "description": "Co-founder and CFO. Holds 40 percent."
+    },
+    {
+      "key": "owner-a-borrower",
+      "from": "proof-owner-a",
+      "to": "proof-borrower",
+      "roleName": "Co-Owner",
+      "indirectOwnershipPercent": 60,
+      "officialTitle": "President & Chief Executive Officer",
+      "authorizedSigner": true,
+      "controlProng": true,
+      "description": "Founder and CEO. Holds 60 percent indirectly through ZZ Proof Holdings Inc."
+    },
+    {
+      "key": "owner-b-borrower",
+      "from": "proof-owner-b",
+      "to": "proof-borrower",
+      "roleName": "Co-Owner",
+      "indirectOwnershipPercent": 40,
+      "officialTitle": "EVP & Chief Financial Officer",
+      "authorizedSigner": true,
+      "description": "Co-founder and CFO. Holds 40 percent indirectly through ZZ Proof Holdings Inc."
+    },
+    {
+      "key": "borrower-owns-re",
+      "from": "proof-borrower",
+      "to": "proof-realestate",
+      "roleName": "Affiliated Company",
+      "description": "Affiliated real estate entity under common ownership, title holder of the Savannah warehouse."
+    }
+  ],
+  "collateral": [
+    {
+      "key": "ar-inventory",
+      "name": "ZZ Proof AR and Inventory",
+      "typeName": "UCC-Accounts",
+      "assessmentMethod": "Internal Valuation",
+      "value": 9000000,
+      "liquidationValue": 5400000,
+      "appraisalDate": "2026-06-30",
+      "nextRevaluationDate": "2027-06-30",
+      "uccState": "GA",
+      "city": "Savannah",
+      "state": "GA",
+      "description": "Blanket first lien on accounts receivable and inventory.",
+      "legalDescription": "First UCC lien on all present and future accounts, inventory and proceeds.",
+      "owners": [
+        {
+          "account": "proof-borrower",
+          "association": "Owner",
+          "percent": 100,
+          "startDate": "2026-01-15"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "ar-val-2026-06",
+          "date": "2026-06-30",
+          "value": 9000000,
+          "source": "Receivables Aging",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "June 2026 borrowing base certificate, eligible AR and inventory."
+        },
+        {
+          "key": "ar-val-2025-12",
+          "date": "2025-12-31",
+          "value": 8100000,
+          "source": "Financial Statement",
+          "type": "Balance Sheet",
+          "original": true,
+          "description": "FY2025 audited balance sheet."
+        }
+      ]
+    },
+    {
+      "key": "fleet",
+      "name": "ZZ Proof Tractor and Trailer Fleet",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Appraisal",
+      "value": 4000000,
+      "liquidationValue": 2800000,
+      "appraisalDate": "2026-04-30",
+      "nextRevaluationDate": "2027-04-30",
+      "uccState": "GA",
+      "city": "Savannah",
+      "state": "GA",
+      "description": "Rolling stock: 34 tractors and 61 trailers.",
+      "legalDescription": "First UCC lien on all titled rolling stock per the equipment schedule.",
+      "owners": [
+        {
+          "account": "proof-borrower",
+          "association": "Owner",
+          "percent": 100,
+          "startDate": "2026-01-15"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "fleet-val-2026-04",
+          "date": "2026-04-30",
+          "value": 4000000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "description": "April 2026 desktop appraisal by Ritchie Bros."
+        }
+      ]
+    },
+    {
+      "key": "warehouse",
+      "name": "ZZ Proof Warehouse - 220 Port Road, Savannah",
+      "typeName": "Real Estate-Warehouse",
+      "assessmentMethod": "Appraisal",
+      "value": 8600000,
+      "liquidationValue": 6880000,
+      "appraisalDate": "2026-03-12",
+      "nextRevaluationDate": "2027-03-12",
+      "uccState": "GA",
+      "city": "Savannah",
+      "state": "GA",
+      "description": "Owner-occupied cross-dock warehouse, 118,000 sq ft on 9.4 acres.",
+      "legalDescription": "First mortgage on the warehouse and office at 220 Port Road, Savannah, Georgia, together with all fixtures and improvements.",
+      "owners": [
+        {
+          "account": "proof-realestate",
+          "association": "Owner",
+          "percent": 100,
+          "startDate": "2026-01-15"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "wh-val-2026-03",
+          "date": "2026-03-12",
+          "value": 8600000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "March 2026 MAI as-is appraisal, income and sales comparison."
+        }
+      ]
+    }
+  ],
+  "covenants": [
+    {
+      "key": "dsc",
+      "typeName": "Debt Service Coverage of Borrower",
+      "recordType": "Financial Ratio",
+      "threshold": 1.25,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2026-01-15",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 1.34,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "detail": "Minimum Debt Service Coverage Ratio of 1.25x, tested quarterly on a trailing twelve month basis.",
+      "clause": "Section 6.02(a) of the Credit Agreement.",
+      "notes": "DSCR defined as (EBITDA less unfinanced capex less cash taxes) over total debt service.",
+      "loans": [
+        "wc-revolver",
+        "wc-equipment"
+      ],
+      "evaluations": [
+        {
+          "key": "dsc-q4-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-01-20",
+          "value": 1.41,
+          "comments": "Q4 2025 test, compliant."
+        },
+        {
+          "key": "dsc-q1-2026",
+          "status": "Exception",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-18",
+          "value": 1.19,
+          "exceptionReason": "Breached",
+          "comments": "Q1 2026 miss at 1.19x on a fuel surcharge lag. Waived by the credit officer."
+        },
+        {
+          "key": "dsc-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-16",
+          "value": 1.34,
+          "comments": "Q2 2026 test, back in compliance."
+        },
+        {
+          "key": "dsc-q3-2026",
+          "status": "Pending",
+          "dueDate": "2026-09-30",
+          "effectiveDate": "2026-07-01",
+          "comments": "Q3 2026 test period open."
+        }
+      ]
+    },
+    {
+      "key": "leverage",
+      "typeName": "Maximum Debt to Worth",
+      "recordType": "Financial Ratio",
+      "threshold": 3.5,
+      "operator": "Less Than or Equal To",
+      "acnpexOperator": "<=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2026-01-15",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 2.62,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "detail": "Maximum senior debt to tangible net worth of 3.50x, tested quarterly.",
+      "clause": "Section 6.02(b) of the Credit Agreement.",
+      "notes": "Senior leverage, subordinated debt excluded from the numerator.",
+      "evaluations": [
+        {
+          "key": "lev-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-18",
+          "value": 2.81,
+          "comments": "Q1 2026 test, compliant."
+        },
+        {
+          "key": "lev-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-16",
+          "value": 2.62,
+          "comments": "Q2 2026 test, compliant."
+        }
+      ]
+    },
+    {
+      "key": "liquidity",
+      "typeName": "Minimum Liquidity",
+      "recordType": "Financial Ratio",
+      "threshold": 2000000,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Monthly",
+      "effectiveDate": "2026-01-15",
+      "dueDate": "2026-07-31",
+      "lastEvaluationDate": "2026-07-31",
+      "lastEvaluationValue": 3100000,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-08-31",
+      "covenantStatus": "Compliant",
+      "overdue": true,
+      "graceDays": 0,
+      "detail": "Minimum unrestricted liquidity of $2,000,000, tested monthly.",
+      "clause": "Section 6.03 of the Credit Agreement.",
+      "notes": "The August test is past due, which is the governance signal on this relationship.",
+      "loans": [
+        "wc-revolver"
+      ],
+      "evaluations": [
+        {
+          "key": "liq-2026-07",
+          "status": "Compliant",
+          "dueDate": "2026-07-31",
+          "effectiveDate": "2026-07-01",
+          "evaluationDate": "2026-08-06",
+          "value": 3100000,
+          "comments": "July 2026 test, compliant."
+        },
+        {
+          "key": "liq-2026-08",
+          "status": "Pending",
+          "dueDate": "2026-08-31",
+          "effectiveDate": "2026-08-01",
+          "comments": "August 2026 test overdue, certificate not received."
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "key": "working-capital",
+      "name": "ZZ Proof Working Capital Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "proof-borrower",
+      "description": "Booked working capital package: a $9.0MM borrowing-base revolver and a $2.4MM tractor term loan, secured by a blanket lien on receivables, inventory and rolling stock.",
+      "loans": [
+        {
+          "key": "wc-revolver",
+          "name": "ZZ Proof Operating LLC - Line of Credit - $9,000,000.00",
+          "lookupKey": "ZZ1001",
+          "product": "Line of Credit",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 9000000,
+          "outstanding": 5400000,
+          "rate": 7.35,
+          "noteRate": 7.35,
+          "index": "WSJ Prime",
+          "spread": 0.35,
+          "termMonths": 24,
+          "amortMonths": 24,
+          "applicationDate": "2025-12-02",
+          "closeDate": "2026-01-15",
+          "bookedDate": "2026-01-15",
+          "firstPaymentDate": "2026-02-15",
+          "maturityDate": "2028-01-15",
+          "paymentType": "Revolving Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "purpose": "business_credit_line",
+          "isSecured": true,
+          "description": "Revolving line of credit governed by a monthly borrowing base of 80 percent of eligible receivables and 50 percent of eligible inventory.",
+          "involvements": [
+            {
+              "key": "wcr-borrower",
+              "account": "proof-borrower",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "ownership": 100,
+              "order": 1,
+              "notes": "Primary borrower and operating company."
+            },
+            {
+              "key": "wcr-holdings",
+              "account": "proof-holdings",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "guarantyType": "Unlimited",
+              "ownership": 100,
+              "order": 2,
+              "notes": "Corporate guarantor, unlimited continuing guaranty."
+            },
+            {
+              "key": "wcr-owner-a",
+              "account": "proof-owner-a",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "guarantyType": "Unlimited",
+              "ownership": 60,
+              "order": 3,
+              "notes": "Personal guarantor, unlimited continuing guaranty since 2019."
+            },
+            {
+              "key": "wcr-owner-b",
+              "account": "proof-owner-b",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "guarantyType": "Limited",
+              "guarantyLimit": 3000000,
+              "ownership": 40,
+              "order": 4,
+              "notes": "Limited personal guaranty capped at $3,000,000."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "wcr-ar",
+              "collateral": "ar-inventory",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 6750000,
+              "startDate": "2026-01-15",
+              "overrideReason": "Blended borrowing base advance of 75 percent against the 80 percent collateral-type default, reflecting the inventory tranche."
+            }
+          ],
+          "fees": [
+            {
+              "key": "wcr-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the committed line."
+            },
+            {
+              "key": "wcr-unused",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "payoutFrequency": "Annually",
+              "description": "Unused commitment fee, 0.25 percent per annum on the undrawn balance."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.35,
+            "rate": 7.35,
+            "floor": 6.0,
+            "amortises": false,
+            "effectiveDate": "2026-01-15",
+            "endDate": "2028-01-15",
+            "termLength": 24
+          }
+        },
+        {
+          "key": "wc-equipment",
+          "name": "ZZ Proof Operating LLC - Equipment - $2,400,000.00",
+          "lookupKey": "ZZ1002",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 2400000,
+          "outstanding": 2085000,
+          "rate": 6.85,
+          "noteRate": 6.85,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2025-12-02",
+          "closeDate": "2026-01-15",
+          "bookedDate": "2026-01-15",
+          "firstPaymentDate": "2026-02-15",
+          "maturityDate": "2031-01-15",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "isSecured": true,
+          "description": "Five year amortising term loan financing 34 model-year 2026 tractors.",
+          "involvements": [
+            {
+              "key": "wce-borrower",
+              "account": "proof-borrower",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "ownership": 100,
+              "order": 1,
+              "notes": "Primary borrower and operating company."
+            },
+            {
+              "key": "wce-owner-a",
+              "account": "proof-owner-a",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "guarantyType": "Unlimited",
+              "ownership": 60,
+              "order": 2,
+              "notes": "Personal guarantor, unlimited continuing guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "wce-fleet",
+              "collateral": "fleet",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 80,
+              "amountPledged": 3200000,
+              "startDate": "2026-01-15",
+              "overrideReason": "Rolling stock advanced at the 80 percent collateral-type default on the April 2026 appraisal."
+            }
+          ],
+          "fees": [
+            {
+              "key": "wce-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.85,
+            "amortises": true,
+            "effectiveDate": "2026-01-15",
+            "endDate": "2031-01-15",
+            "termLength": 60
+          }
+        }
+      ]
+    },
+    {
+      "key": "real-estate",
+      "name": "ZZ Proof Real Estate Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "4",
+      "primaryEntity": "proof-realestate",
+      "description": "Booked owner-occupied real estate package: a $6.2MM warehouse mortgage and a $900K improvements term loan on 220 Port Road, Savannah.",
+      "loans": [
+        {
+          "key": "re-mortgage",
+          "name": "ZZ Proof Properties LLC - Purchase - $6,200,000.00",
+          "lookupKey": "ZZ2001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "amount": 6200000,
+          "outstanding": 5980000,
+          "rate": 6.4,
+          "noteRate": 6.4,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "applicationDate": "2025-11-04",
+          "closeDate": "2026-01-15",
+          "bookedDate": "2026-01-15",
+          "firstPaymentDate": "2026-02-15",
+          "maturityDate": "2036-01-15",
+          "paymentType": "Installment",
+          "balloon": true,
+          "interestAccrualMethod": "30_360",
+          "purpose": "real_estate_purchase_owner_occupied",
+          "isSecured": true,
+          "description": "Twenty year amortising mortgage with a ten year balloon on the owner-occupied cross-dock warehouse.",
+          "involvements": [
+            {
+              "key": "rem-borrower",
+              "account": "proof-realestate",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "ownership": 100,
+              "order": 1,
+              "notes": "Real estate holding entity and title holder."
+            },
+            {
+              "key": "rem-operating",
+              "account": "proof-borrower",
+              "borrowerType": "Co-Borrower",
+              "entityType": "Operating Company",
+              "ownership": 100,
+              "order": 2,
+              "notes": "Operating company as co-borrower and occupant."
+            },
+            {
+              "key": "rem-owner-a",
+              "account": "proof-owner-a",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "guarantyType": "Unlimited",
+              "ownership": 60,
+              "order": 3,
+              "notes": "Personal guarantor, unlimited continuing guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "rem-warehouse",
+              "collateral": "warehouse",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 6450000,
+              "startDate": "2026-01-15",
+              "overrideReason": "Owner-occupied industrial advanced at 75 percent against the 80 percent collateral-type default, on the March 2026 MAI as-is appraisal."
+            }
+          ],
+          "fees": [
+            {
+              "key": "rem-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 8500,
+              "isIncome": false,
+              "description": "MAI appraisal, third party."
+            },
+            {
+              "key": "rem-attorney",
+              "feeType": "Attorney",
+              "recordType": "Costs",
+              "amount": 22000,
+              "isIncome": false,
+              "description": "Documentation and outside counsel, mortgage and title."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.4,
+            "amortises": true,
+            "effectiveDate": "2026-01-15",
+            "endDate": "2036-01-15",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "re-improvements",
+          "name": "ZZ Proof Properties LLC - Term - $900,000.00",
+          "lookupKey": "ZZ2002",
+          "product": "Term",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "amount": 900000,
+          "outstanding": 812000,
+          "rate": 6.75,
+          "noteRate": 6.75,
+          "index": "Fixed",
+          "termMonths": 84,
+          "amortMonths": 84,
+          "applicationDate": "2025-11-04",
+          "closeDate": "2026-01-15",
+          "bookedDate": "2026-01-15",
+          "firstPaymentDate": "2026-02-15",
+          "maturityDate": "2033-01-15",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "property_improvement_owner_occupied",
+          "isSecured": true,
+          "description": "Seven year amortising term loan for dock levellers, racking and the yard resurfacing.",
+          "involvements": [
+            {
+              "key": "rei-borrower",
+              "account": "proof-realestate",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "ownership": 100,
+              "order": 1,
+              "notes": "Real estate holding entity and title holder."
+            },
+            {
+              "key": "rei-owner-a",
+              "account": "proof-owner-a",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "guarantyType": "Unlimited",
+              "ownership": 60,
+              "order": 2,
+              "notes": "Personal guarantor, unlimited continuing guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "rei-warehouse",
+              "collateral": "warehouse",
+              "lienPosition": "2nd",
+              "isPrimary": false,
+              "advanceRate": 10,
+              "amountPledged": 860000,
+              "startDate": "2026-01-15",
+              "overrideReason": "Second lien behind the mortgage, advanced at 10 percent of appraised value to reflect the remaining equity."
+            }
+          ],
+          "fees": [
+            {
+              "key": "rei-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.75,
+              "description": "Origination fee, 0.75 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.75,
+            "amortises": true,
+            "effectiveDate": "2026-01-15",
+            "endDate": "2033-01-15",
+            "termLength": 84
+          }
+        }
+      ]
+    },
+    {
+      "key": "fleet-line",
+      "name": "ZZ Proof Fleet Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "proof-borrower",
+      "description": "Booked fleet package: a $1.6MM trailer term loan and a $600K yard equipment loan, both secured by the rolling stock schedule.",
+      "loans": [
+        {
+          "key": "fl-trailers",
+          "name": "ZZ Proof Operating LLC - Equipment - $1,600,000.00",
+          "lookupKey": "ZZ3001",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 1600000,
+          "outstanding": 1348000,
+          "rate": 7.05,
+          "noteRate": 7.05,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2026-02-10",
+          "closeDate": "2026-03-20",
+          "bookedDate": "2026-03-20",
+          "firstPaymentDate": "2026-04-20",
+          "maturityDate": "2031-03-20",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "isSecured": true,
+          "description": "Five year amortising term loan financing 61 dry van trailers.",
+          "involvements": [
+            {
+              "key": "flt-borrower",
+              "account": "proof-borrower",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "ownership": 100,
+              "order": 1,
+              "notes": "Primary borrower and operating company."
+            },
+            {
+              "key": "flt-owner-b",
+              "account": "proof-owner-b",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "guarantyType": "Limited",
+              "guarantyLimit": 1600000,
+              "ownership": 40,
+              "order": 2,
+              "notes": "Limited personal guaranty capped at the note amount."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "flt-fleet",
+              "collateral": "fleet",
+              "lienPosition": "2nd",
+              "isPrimary": false,
+              "advanceRate": 45,
+              "amountPledged": 1800000,
+              "startDate": "2026-03-20",
+              "overrideReason": "Second lien on the shared equipment schedule, advanced at 45 percent to sit behind the tractor note."
+            }
+          ],
+          "fees": [
+            {
+              "key": "flt-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.05,
+            "amortises": true,
+            "effectiveDate": "2026-03-20",
+            "endDate": "2031-03-20",
+            "termLength": 60
+          }
+        },
+        {
+          "key": "fl-yard",
+          "name": "ZZ Proof Operating LLC - Equipment - $600,000.00",
+          "lookupKey": "ZZ3002",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 600000,
+          "outstanding": 505000,
+          "rate": 7.2,
+          "noteRate": 7.2,
+          "index": "Fixed",
+          "termMonths": 48,
+          "amortMonths": 48,
+          "applicationDate": "2026-02-10",
+          "closeDate": "2026-03-20",
+          "bookedDate": "2026-03-20",
+          "firstPaymentDate": "2026-04-20",
+          "maturityDate": "2030-03-20",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "isSecured": true,
+          "description": "Four year amortising term loan for yard tractors, forklifts and the fuel island.",
+          "involvements": [
+            {
+              "key": "fly-borrower",
+              "account": "proof-borrower",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "ownership": 100,
+              "order": 1,
+              "notes": "Primary borrower and operating company."
+            },
+            {
+              "key": "fly-holdings",
+              "account": "proof-holdings",
+              "borrowerType": "Related Entity",
+              "entityType": "Operating Company",
+              "ownership": 100,
+              "order": 2,
+              "notes": "Parent holding company, included in the global analysis."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "fly-fleet",
+              "collateral": "fleet",
+              "lienPosition": "3rd",
+              "isPrimary": false,
+              "advanceRate": 15,
+              "amountPledged": 600000,
+              "startDate": "2026-03-20",
+              "overrideReason": "Third lien on the equipment schedule, advanced at 15 percent of appraised value."
+            }
+          ],
+          "fees": [
+            {
+              "key": "fly-doc",
+              "feeType": "Attorney",
+              "recordType": "Costs",
+              "amount": 3500,
+              "isIncome": false,
+              "description": "Documentation fee, outside counsel."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.2,
+            "amortises": true,
+            "effectiveDate": "2026-03-20",
+            "endDate": "2030-03-20",
+            "termLength": 48
+          }
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "key": "annual-2026",
+      "type": "Annual",
+      "status": "Complete",
+      "package": "working-capital",
+      "stage": "Complete",
+      "currentGrade": "5",
+      "recommendedGrade": "5",
+      "narrative": "FY2025 annual credit review of the ZZ Proof relationship. Grade affirmed at 5.",
+      "summary": "ZZ Proof group: $20.7MM committed across six booked facilities in three packages, $16.1MM outstanding, secured by a blanket lien on receivables and inventory, the rolling stock schedule and a first mortgage on the Savannah warehouse.",
+      "recommendation": "Renew the $9.0MM revolver at Prime plus 0.35 percent for a further twelve months. No change to structure.",
+      "riskComments": "Risk grade affirmed at 5. Leverage of 2.62x and DSCR of 1.34x both inside covenant.",
+      "strengths": "Long operating history, contracted freight base, owner-occupied real estate with meaningful equity.",
+      "weaknesses": "Customer concentration in the top five shippers and exposure to diesel price swings, which caused the Q1 covenant miss."
+    }
+  ],
+  "riskRatingReviews": [
+    {
+      "key": "rg-2026",
+      "status": "In Review",
+      "finalGrade": 5,
+      "computedGrade": 5,
+      "cashFlowCoverage": 1.34,
+      "creditScore": 712,
+      "revenueGrowth": 5.8,
+      "managementYears": 19,
+      "year1": 2023,
+      "year2": 2024,
+      "year3": 2025,
+      "comments": "Annual risk rating review. Computed grade 5, no override."
+    }
+  ],
+  "policyExceptions": [
+    {
+      "key": "pex-dsc",
+      "name": "DSC below policy minimum in Q1 2026",
+      "type": "Policy",
+      "code": "CI-DSC-01",
+      "status": "Waived",
+      "severity": "Minor",
+      "severityValue": 1,
+      "loan": "wc-revolver",
+      "mitigation": [
+        "Fuel surcharge recovery lagged the diesel spike by one quarter; the ratio recovered to 1.34x by Q2.",
+        "Unlimited personal and corporate guaranties remain in place.",
+        "Borrowing base availability never fell below $2.2MM through the period."
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "key": "opp-treasury",
+      "name": "ZZ Proof - Treasury Services Expansion",
+      "stage": "Proposal",
+      "amount": 145000,
+      "closeDate": "2026-11-30",
+      "type": "Existing Business",
+      "probability": 60,
+      "leadSource": "External Referral",
+      "nextStep": "Pricing sheet with the treasury team, meeting booked for 22 September.",
+      "description": "Lockbox, positive pay and a commercial card programme alongside the credit relationship."
+    }
+  ],
+  "cases": [
+    {
+      "key": "case-bbc",
+      "subject": "Borrowing base certificate template clarification",
+      "status": "New",
+      "priority": "Medium",
+      "origin": "Email",
+      "type": "Question",
+      "description": "The controller asked whether unbilled receivables belong in the eligible column of the monthly borrowing base certificate."
+    }
+  ]
+}

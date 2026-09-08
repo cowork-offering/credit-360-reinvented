@@ -1,0 +1,505 @@
+{
+  "name": "LLC_BI__Covenant_Compliance2__c",
+  "fields": [
+    {
+      "name": "Id",
+      "type": "id",
+      "label": "Record ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "IsDeleted",
+      "type": "boolean",
+      "label": "Deleted",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "Name",
+      "type": "string",
+      "label": "Covenant Compliance Number",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 80,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CurrencyIsoCode",
+      "type": "picklist",
+      "label": "Currency ISO Code",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 3,
+      "referenceTo": [],
+      "picklistValues": [
+        "GBP",
+        "EUR",
+        "USD"
+      ]
+    },
+    {
+      "name": "CreatedDate",
+      "type": "datetime",
+      "label": "Created Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "CreatedById",
+      "type": "reference",
+      "label": "Created By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedDate",
+      "type": "datetime",
+      "label": "Last Modified Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastModifiedById",
+      "type": "reference",
+      "label": "Last Modified By ID",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "SystemModstamp",
+      "type": "datetime",
+      "label": "System Modstamp",
+      "createable": false,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LastActivityDate",
+      "type": "date",
+      "label": "Last Activity Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Covenant__c",
+      "type": "reference",
+      "label": "Covenant",
+      "createable": true,
+      "updateable": false,
+      "nillable": false,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Covenant2__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Associated_Statement_Period_Status__c",
+      "type": "picklist",
+      "label": "Associated Statement Period Status",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": true,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "None",
+        "Associated",
+        "Unassociated"
+      ]
+    },
+    {
+      "name": "LLC_BI__Automated_Testing_Status__c",
+      "type": "picklist",
+      "label": "Automated Testing Status",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Pass",
+        "Fail",
+        "Incomplete"
+      ]
+    },
+    {
+      "name": "LLC_BI__Reason_for_Exception__c",
+      "type": "picklist",
+      "label": "Reason for Exception",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Breached",
+        "Overdue"
+      ]
+    },
+    {
+      "name": "LLC_BI__Status__c",
+      "type": "picklist",
+      "label": "Status",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": [
+        "Compliant",
+        "Exception",
+        "In Progress",
+        "Pending",
+        "Waived"
+      ]
+    },
+    {
+      "name": "LLC_BI__Approval_Date__c",
+      "type": "date",
+      "label": "Approval Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Approved_By__c",
+      "type": "reference",
+      "label": "Approved By",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Associated_Spread_Statement_Period__c",
+      "type": "reference",
+      "label": "Associated Spread Statement Period",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Spread_Statement_Period__c"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Comments__c",
+      "type": "textarea",
+      "label": "Comments",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Due_Date__c",
+      "type": "date",
+      "label": "Due Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Effective_Date__c",
+      "type": "date",
+      "label": "Effective Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Evaluated_By__c",
+      "type": "reference",
+      "label": "Evaluated By",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Evaluation_Date__c",
+      "type": "date",
+      "label": "Evaluation Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Exception_Date__c",
+      "type": "date",
+      "label": "Exception Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Historic_Financial_Indicator__c",
+      "type": "double",
+      "label": "Historic Financial Indicator Value",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Original_Due_Date__c",
+      "type": "date",
+      "label": "Original Due Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Proposed_Extension_Date__c",
+      "type": "date",
+      "label": "Proposed Extension Date",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Bundle__c",
+      "type": "string",
+      "label": "Bundle",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 1300,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Earliest_Period_Association_Date__c",
+      "type": "date",
+      "label": "Earliest Spread Period Association Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Last_Period_Association_Date__c",
+      "type": "date",
+      "label": "Last Spread Period Association Date",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 0,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Period_Key__c",
+      "type": "string",
+      "label": "Period Key",
+      "createable": false,
+      "updateable": false,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": true,
+      "length": 1300,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Approver__c",
+      "type": "reference",
+      "label": "Approver",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "User"
+      ],
+      "picklistValues": []
+    },
+    {
+      "name": "cm_Covenant_Compliance_Indicator_Value__c",
+      "type": "string",
+      "label": "Covenant Compliance Indicator Value",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 255,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "Agentic_AI_Response__c",
+      "type": "textarea",
+      "label": "Agentic AI Response",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 32768,
+      "referenceTo": [],
+      "picklistValues": []
+    },
+    {
+      "name": "LLC_BI__Evaluated_Rule__c",
+      "type": "reference",
+      "label": "Evaluated Performance Rule",
+      "createable": true,
+      "updateable": true,
+      "nillable": true,
+      "defaultedOnCreate": false,
+      "calculated": false,
+      "length": 18,
+      "referenceTo": [
+        "LLC_BI__Covenant_Rule__c"
+      ],
+      "picklistValues": []
+    }
+  ],
+  "recordTypes": [
+    {
+      "name": "Master",
+      "id": "012000000000000AAA",
+      "available": true,
+      "default": true
+    }
+  ]
+}
