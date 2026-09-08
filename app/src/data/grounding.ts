@@ -30,6 +30,7 @@ import { covenantCushion } from "./finance";
 import { aggregateInvolvements, collapseConnections, isGuarantyRole } from "./graphAggregate";
 import { administrativeExceptions, classifyCovenant } from "../domain/covenantStatus";
 import { isActiveFacility } from "./worklist";
+import { bookTotalsOf } from "../book/livePortfolio";
 
 /** Hard cap on the context block alone. */
 export const CONTEXT_BUDGET = 500;
@@ -308,7 +309,11 @@ function accountProse(bundle: BorrowerBundle | null, accountName: string, tab: s
  *  the nearest maturity and the nearest covenant test, with dates. */
 function bookProse(data: C360Data): string {
   const pf = data.portfolio ?? { accounts: [] };
-  const bt = pf.bookTotals ?? {};
+  /* THE SAME ARITHMETIC THE KPI BAND DOES, over the same rows. The desk and the
+     band must not state two different books in the same afternoon, and the
+     org's own `bookTotals` is not a book: it spans every packaged account,
+     including the ones carrying no exposure at all. */
+  const bt = bookTotalsOf(pf.accounts);
 
   const count = bt.accountCount ?? pf.accounts.length;
   const lead =

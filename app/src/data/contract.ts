@@ -46,13 +46,30 @@ export interface ProvenanceEntry {
   source: string;
 }
 
+/* =============================================================================
+   THE SIGNAL WINDOW THE PAGE ASKS FOR, in one place.
+
+   `Customer360Portfolio` defaults to 90 days and the cockpit took that default
+   until 2026-09-08, when the seeded book showed what it costs: Prairie Ag's
+   seasonal revolver matures in 153 days, which is the single most actionable
+   fact on that relationship, and `maturitiesSoon` came back EMPTY because 153
+   is outside 90. A window that cannot see a maturity a banker is already
+   planning around is not a shorter window, it is a blind one.
+
+   180 days is the read the page makes AND the words it says: the queue's
+   maturity bucket, the provenance entries below and the cockpit skill all take
+   the number from here, so the sentence on screen can never claim a window the
+   read did not ask for.
+   ============================================================================= */
+export const SIGNAL_WINDOW_DAYS = 180;
+
 /** Keyed by dotted path into C360_DATA (or a `display.*` derived concept). */
 export const PROVENANCE = {
   "portfolio.accounts[]": { kind: "NCINO", source: "Customer360Portfolio — accounts[]" },
   "portfolio.accounts[].naicsCode": { kind: "NCINO", source: "Customer360Portfolio — NAICS industry code" },
   "portfolio.bookTotals": { kind: "NCINO", source: "Customer360Portfolio — package-level rollups" },
-  "portfolio.signals.covenantsDueSoon": { kind: "NCINO", source: "Customer360Portfolio — 90d window" },
-  "portfolio.signals.maturitiesSoon": { kind: "NCINO", source: "Customer360Portfolio — 90d window" },
+  "portfolio.signals.covenantsDueSoon": { kind: "NCINO", source: `Customer360Portfolio — ${SIGNAL_WINDOW_DAYS}d window, accounts carrying exposure only` },
+  "portfolio.signals.maturitiesSoon": { kind: "NCINO", source: `Customer360Portfolio — ${SIGNAL_WINDOW_DAYS}d window, accounts carrying exposure only` },
   "portfolio.signals.breachedCount": { kind: "NCINO", source: "Customer360Portfolio" },
 
   "borrower.snapshot": { kind: "NCINO", source: "Customer360Snapshot — LLC_BI__Product_Package__c" },
@@ -168,7 +185,7 @@ export const PROVENANCE = {
   "display.bookConcentration": { kind: "DERIVED", source: "Σ tce grouped by portfolio.accounts[].industry" },
   "display.covenantCushion": { kind: "DERIVED", source: "data/finance.ts — floor: actual−threshold; cap: threshold−actual" },
   "display.coverageRatio": { kind: "NCINO", source: "exposure.coverageRatio — org-computed over the distinct collateral. The cockpit no longer derives a relationship ratio of its own" },
-  "display.utilizationPct": { kind: "DERIVED", source: "bookTotals.totalOutstanding ÷ bookTotals.totalCommitted" },
+  "display.utilizationPct": { kind: "DERIVED", source: "Σ outstanding ÷ Σ tce over the accounts ON THE BOOK (book/livePortfolio.ts) — never the org's bookTotals, which spans every packaged account including the ones carrying no exposure" },
   "display.incomeStatementChange": { kind: "DERIVED", source: "(lineItem.ltm − lineItem.priorFy) ÷ |priorFy|" },
   "display.nextTestDays": { kind: "DERIVED", source: "earliest covenant nextEvaluationDate − meta.generatedAt (UTC days)" },
   "display.maturityDays": { kind: "DERIVED", source: "earliest facility maturityDate − meta.generatedAt (UTC days)" },

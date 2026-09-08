@@ -48,3 +48,17 @@ result, so `12 relationships` and `7 on the queue` have to agree with the rows.
 The kicker carries the reader's own date (rule 68.6), so the first line of the
 eyebrow moves day to day. That is roughly 0.2% of the frame, inside the gate's
 0.5% tail, and it is the only part of this image that is not deterministic.
+
+RE-SHOT 2026-09-08, for the book rule. Two things about this frame changed and
+nothing else did. The rule sentence now says "maturities inside 180 days",
+because the page asks the Portfolio read for a 180-day window rather than
+taking the tool's 90-day default: at 90 days Prairie Ag's seasonal revolver,
+153 days out, was invisible. And the KPI band's four book figures are now summed
+from the rows on the page rather than read off the org's `bookTotals`, which
+spans every packaged account including the 105 in this org that carry no
+exposure at all. On this fixture the figures are unchanged, because the stand-in
+book's totals already agreed with its rows; against the real org they are the
+difference between 57.5 percent utilisation and 354. The paired diff against the
+previous reference was mean 0.055, 0.055% of pixels past 8/255, all of it in the
+one line of the sentence. The other five surfaces re-shot beside it (client,
+room, relationship-room, memo-draft, memo-done) came back byte-identical.

@@ -158,7 +158,7 @@ describe("queueSentence", () => {
         bookSize: 12,
         byBucket: { COVENANT_BREACH: 2, COVENANT_OVERDUE: 3, MATURITY_NEAR: 2 },
       }),
-    ).toBe("7 relationships need action: 2 breaches, 3 tests overdue, 2 maturities inside 90 days. 5 more are quiet.");
+    ).toBe("7 relationships need action: 2 breaches, 3 tests overdue, 2 maturities inside 180 days. 5 more are quiet.");
   });
 
   it("reads singular where the count is one", () => {
@@ -169,7 +169,7 @@ describe("queueSentence", () => {
 
   it("says nothing about a quiet remainder that does not exist", () => {
     expect(s({ needsAction: 2, quiet: 0, bookSize: 2, byBucket: { MATURITY_NEAR: 2 } })).toBe(
-      "2 relationships need action: 2 maturities inside 90 days.",
+      "2 relationships need action: 2 maturities inside 180 days.",
     );
   });
 

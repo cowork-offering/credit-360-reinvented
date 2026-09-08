@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import type { Portfolio } from "../data/contract";
+import { SIGNAL_WINDOW_DAYS, type Portfolio } from "../data/contract";
 import { SERVERS, TOOLS, unwrapInvocableOne, watchTool, type McpFailure } from "./mcp";
 import { callGateway, noteServedByBackup, shouldFallBack } from "./gateway/lane";
 import { portfolioSignature } from "../book/livePortfolio";
@@ -45,6 +45,24 @@ export const PORTFOLIO_REFETCH_MS = 120_000;
  * unaffected either way.
  */
 export const PORTFOLIO_MAX_ACCOUNTS = 60;
+
+/**
+ * THE ONE INPUT SHAPE BOTH DOORS USE, so the watch and the backup can never ask
+ * for different books.
+ *
+ * WHY THE WINDOW IS NOT THE TOOL'S DEFAULT. `Customer360Portfolio` defaults
+ * `signalWindowDays` to 90. Measured against the seeded book on 2026-09-08,
+ * `maturitiesSoon` came back EMPTY: the one maturity a banker on that book is
+ * actually planning around, Prairie Ag's seasonal revolver, falls 153 days out.
+ * A window that cannot see it is not a tighter filter, it is a blind spot, and
+ * the page said "None in window" over a book with a maturity in it. The number
+ * lives in `data/contract.ts` so the read and every sentence the page says
+ * about it take it from one place.
+ */
+const PORTFOLIO_INPUT = {
+  maxAccounts: PORTFOLIO_MAX_ACCOUNTS,
+  signalWindowDays: SIGNAL_WINDOW_DAYS,
+} as const;
 
 /* ------------------------------------------------------- the hidden document
 
@@ -120,7 +138,7 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
 
     const askBackup = async () => {
       try {
-        const ok = await callGateway<Portfolio>(TOOLS.portfolio, [{ maxAccounts: PORTFOLIO_MAX_ACCOUNTS }]);
+        const ok = await callGateway<Portfolio>(TOOLS.portfolio, [{ ...PORTFOLIO_INPUT }]);
         if (dead) return;
         const slot = unwrapInvocableOne<Portfolio>(ok.payload);
         if (!slot.ok) return;
@@ -136,7 +154,7 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
     const stop = watchTool(
       SERVERS.customer360,
       TOOLS.portfolio,
-      { inputs: [{ maxAccounts: PORTFOLIO_MAX_ACCOUNTS }] },
+      { inputs: [{ ...PORTFOLIO_INPUT }] },
       (ev) => {
         if (ev.failure) {
           setLive((prev) =>

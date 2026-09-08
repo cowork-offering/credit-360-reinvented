@@ -40,6 +40,15 @@
                          rows must still be on screen, with no spinner and no blank
                          landing: the queue falls back to the membership the
                          snapshot carries, which is what it painted before the read
+    12  legacy out       the org answers the way it actually does: twelve relationships
+                         that are a book and twenty legacy demo rows that are not,
+                         whose twenty-five ancient overdue tests fill the signal block
+                         and whose abandoned balances put bookTotals at 354 percent.
+                         Not one of them may reach the queue, the divider, the totals
+                         or the page at all
+    13  the 153rd day    Prairie Ag's seasonal revolver matures 153 days out, which is
+                         outside the tool's 90-day default and inside the 180 the page
+                         now asks for. It must earn its row and say its own distance
      9  the firewall     a full open, sync and room cycle on a healthy connector,
                          and then EVERY body the page sent to the store is read
                          back. Not one may carry an XSS signature or a string
@@ -56,7 +65,7 @@ import { chromium } from "playwright";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { HARTWELL, LIVE_PORTFOLIO } from "./lib/live-book.mjs";
+import { HARTWELL, LIVE_PORTFOLIO, LIVE_PORTFOLIO_LEGACY } from "./lib/live-book.mjs";
 
 const TARGET = process.argv[2] ?? "/tmp/c360-stable.html";
 const OUT = process.argv[3] ?? "/tmp/lane-drive";
@@ -223,6 +232,37 @@ const restDivider = (page) =>
     if (!el) return null;
     return { count: el.querySelector(".wl-rest-n")?.textContent ?? null, expanded: el.getAttribute("aria-expanded") };
   });
+
+/** The six KPI cells, label and figure, read off the band the same way a
+ *  banker reads them. */
+const kpiCells = (page) =>
+  page.evaluate(() =>
+    Object.fromEntries(
+      [...document.querySelectorAll("#kpiband .kpi")].map((k) => [
+        k.querySelector(".l")?.textContent ?? "",
+        { value: k.querySelector(".v")?.textContent ?? "", sub: k.querySelector(".s")?.textContent ?? "" },
+      ]),
+    ),
+  );
+
+/** One queue row's popover, label AND figure, which is where a reason states
+ *  its own distance ("Maturity", "in 153d"). */
+const rowDetail = (page, accountId) =>
+  page.evaluate(
+    (id) => {
+      const row = document.querySelector(`#view-home .wl .wlrow[data-open="${id}"]`);
+      if (!row) return null;
+      return [...row.querySelectorAll(".wl-pop-row")].map((p) =>
+        [...p.querySelectorAll("span, b")].map((x) => x.textContent).join(" · "),
+      );
+    },
+    accountId,
+  );
+
+/** Every word the landing is showing. A name that is not in here is not on the
+ *  page, which is the only way to prove an absence. */
+const landingText = (page) =>
+  page.evaluate(() => document.querySelector("#view-home")?.textContent ?? "");
 
 /** Anything on the landing that reads as "still loading". The queue must never
  *  be one of these: an unreachable read leaves the baked rows, not a spinner. */
@@ -588,6 +628,97 @@ try {
     check("portfolioHung", "the rule line still says what the queue is", /need action|needs action/.test(results.portfolioHung.line ?? ""));
     check("portfolioHung", "no page errors", (results.portfolioHung.errors ?? []).length === 0);
     await page.screenshot({ path: `${OUT}/11-portfolio-hung.png`, fullPage: false });
+    await page.close();
+  }
+  /* ------------------------------------------------- 12. legacy stays out */
+  {
+    /* The org's own answer, pollution included. Everything the landing shows
+       has to be the book; everything else has to be nowhere. */
+    const page = await openPage(browser, controls({ livePatch: { Customer360Portfolio: LIVE_PORTFOLIO_LEGACY } }));
+    await waitFor(page, async (p) => (await queueRows(p)).length > 5, 20_000, 200);
+    // The figures count up on arrival; the band is read once it has settled.
+    const settled = await waitFor(page, async (p) => (await kpiCells(p))["Managed exposure"]?.value === "$205.20M", 8_000, 150);
+
+    const rows = await queueRows(page);
+    const ids = rows.map((r) => r.id);
+    const line = await queueLine(page);
+    const divider = await restDivider(page);
+    const cells = await kpiCells(page);
+
+    await page.evaluate(() => document.querySelector("#wlRest")?.click());
+    await sleep(500);
+    const text = await landingText(page);
+    const quietIds = (await queueRows(page)).map((r) => r.id);
+
+    const LEGACY_ON_PAGE = [
+      "Quantum Partners", "Vertex Industries", "Horizon Holdings", "Bright Systems",
+      "Summit Holdings", "BlueSky Ventures", "Global Dynamics", "NextGen Partners",
+      "Pinnacle Group", "Test Business account", "Cy LTD", "ABC Manufacturing",
+      "Flowers For Dreams",
+    ].filter((n) => text.includes(n));
+
+    const rank = (id) => ids.indexOf(id);
+    results.legacyOut = {
+      msToSettle: settled,
+      queue: ids,
+      names: rows.map((r) => r.name),
+      line,
+      divider,
+      kpis: cells,
+      legacyOnPage: LEGACY_ON_PAGE,
+      errors: await page.evaluate(() => window.__DRIVE_OUT.errors),
+    };
+
+    check("legacyOut", "not one legacy row reached the queue", !ids.some((id) => (id ?? "").includes("LEGACY")));
+    check("legacyOut", "and none reached the rest of the book either", !quietIds.some((id) => (id ?? "").includes("LEGACY")));
+    check("legacyOut", "no legacy NAME is anywhere on the landing, queue or book", LEGACY_ON_PAGE.length === 0);
+    check(
+      "legacyOut",
+      "the queue is the real relationships, in severity order",
+      ids.length === 7 &&
+        rank("001LIVE00000003") < rank(ACCOUNT) &&
+        rank(ACCOUNT) < rank(HARTWELL) &&
+        rank(HARTWELL) < rank("001LIVE00000001") &&
+        rank("001LIVE00000001") < rank("001LIVE00000002") &&
+        rank("001LIVE00000002") < rank("001LIVE00000004") &&
+        rank("001LIVE00000004") < rank("001LIVE00000005"),
+    );
+    check("legacyOut", "the sentence counts only the real book", /5 more are quiet\./.test(line ?? ""));
+    check("legacyOut", "the divider counts only the real book", divider?.count === "5");
+    /* THE ORG SAID $308M COMMITTED, $1.09B DRAWN AND 354 PERCENT. The band says
+       what the rows underneath it add up to, which is the only figure a banker
+       can check by looking. */
+    check("legacyOut", "managed exposure is the sum of the real rows", cells["Managed exposure"]?.value === "$205.20M");
+    check("legacyOut", "drawn balance is the sum of the real rows", cells["Drawn balance"]?.value === "$118.05M");
+    check("legacyOut", "utilisation is a book figure, not 354 percent", cells["Utilization"]?.value === "57.5%");
+    check("legacyOut", "the relationship count is the real book", /12 relationships/.test(cells["Managed exposure"]?.sub ?? ""));
+    /* THE SIGNAL CELLS ARE THE BOOK'S TOO. Twenty-five of the thirty covenant
+       rows the org returned are ancient tests on rows nobody has anything
+       booked against; a band that counts them says "30 reviews due, 27
+       overdue" over a queue of seven. */
+    check("legacyOut", "reviews due counts the book's own tests", cells["Reviews due"]?.value === "5");
+    check("legacyOut", "and the overdue count with them", cells["Reviews due"]?.sub === "2 overdue");
+    check("legacyOut", "no page errors", (results.legacyOut.errors ?? []).length === 0);
+    await page.screenshot({ path: `${OUT}/12-legacy-out.png`, fullPage: false });
+    await page.close();
+  }
+
+  /* ------------------------------------------------- 13. the 153rd day */
+  {
+    const page = await openPage(browser, controls({ livePatch: { Customer360Portfolio: LIVE_PORTFOLIO_LEGACY } }));
+    await waitFor(page, async (p) => (await queueRows(p)).length > 5, 20_000, 200);
+    const detail = await rowDetail(page, "001LIVE00000004");
+    const line = await queueLine(page);
+    results.maturity153 = {
+      prairie: detail,
+      line,
+      errors: await page.evaluate(() => window.__DRIVE_OUT.errors),
+    };
+    check("maturity153", "Prairie Ag earned a row on a maturity 153 days out", (detail ?? []).length > 0);
+    check("maturity153", "and the row states the distance itself", (detail ?? []).some((d) => /Maturity · in 153d/.test(d)));
+    check("maturity153", "the sentence names the window the read actually asked for", /maturit(y|ies) inside 180 days/.test(line ?? ""));
+    check("maturity153", "no page errors", (results.maturity153.errors ?? []).length === 0);
+    await page.screenshot({ path: `${OUT}/13-maturity-153.png`, fullPage: false });
     await page.close();
   }
 } finally {

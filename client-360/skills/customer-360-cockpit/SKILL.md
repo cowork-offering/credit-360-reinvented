@@ -81,7 +81,7 @@ doc_id:     cockpit
   "openAccount": { "id": "001…", "name": "Hartwell Precision Manufacturing LLC" },
   "queue": { "needsAction": 7, "quiet": 5, "bookSize": 12, "live": true,
              "byReason": { "COVENANT_BREACH": 2, "COVENANT_OVERDUE": 3, "MATURITY_NEAR": 2 },
-             "line": "7 relationships need action: 2 breaches, 3 tests overdue, 2 maturities inside 90 days. 5 more are quiet." },
+             "line": "7 relationships need action: 2 breaches, 3 tests overdue, 2 maturities inside 180 days. 5 more are quiet." },
   "openTab": "covenants",
   "openRoom": { "kind": "facility", "route": "modify", "packageId": "a5F…", "since": "…T20:11:03Z" },
   "stagedPlan": { "packageId": "a5F…", "route": "modify", "lines": 3, "stagedAt": "…T20:14:41Z" },
@@ -262,17 +262,40 @@ calls, zero bytes uploaded.
 ### (a) One `Customer360Portfolio` call
 Request (all optional): `industry`, `maxAccounts` (default 25, cap 100), `signalWindowDays` (default 90).
 Returns `accounts[]` (TCE desc, truncated to `maxAccounts`), `bookTotals` (`totalCommitted`,
-`totalOutstanding`, `accountCount`, `utilizationPct`), and `signals` (`covenantsDueSoon[]` cap 25,
-`breachedCount`, `maturitiesSoon[]` cap 25).
+`totalOutstanding`, `accountCount`, `utilizationPct`), and `signals` (`covenantsDueSoon[]` cap 50,
+`breachedCount`, `maturitiesSoon[]` cap 50).
 
-`bookTotals.accountCount` spans **ALL** packaged accounts, not the truncated list — never infer book
-size from `accounts.length`.
+**Ask for `signalWindowDays: 180` and `maxAccounts: 60`, which is what the published page asks for.**
+The tool's own default of 90 days cannot see Prairie Ag's seasonal revolver, which matures 153 days
+out and is the single most actionable fact on that relationship; a rebuild that takes the default
+bakes a first paint saying "None in window" over a book with a maturity in it.
+
+**`bookTotals` IS NOT THE BOOK, and must never be baked as if it were.** Measured 2026-09-08: this
+org holds 115 packaged accounts and about 105 are legacy demo rows (Vertex, Horizon, Bright, Summit,
+Quantum, BlueSky, Global, NextGen, Pinnacle, "Test Business account") carrying no exposure and years
+of abandoned balances. Read straight, `bookTotals` says 354 percent utilisation and $1.09B drawn
+against $308M committed. Sum the figures you bake from the account rows you keep (see (b)); the
+published page does the same, so the two agree.
+
+`bookTotals.accountCount` spans **ALL** packaged accounts, not the truncated list — and in this org
+that count is mostly legacy. Never state it as the size of the book.
 
 ### (b) Determine the worklist scope
 The worklist is the **needs-action queue**: accounts carrying covenant tests due or breached,
 maturities in window, modification clustering, or guarantor signals. Build the id set from
 `signals.covenantsDueSoon[].accountId` ∪ `signals.maturitiesSoon[].accountId` ∪ any account you have
 reason to believe carries structural signals.
+
+**FIRST, KEEP ONLY THE BOOK.** A relationship is on the book when the org has something booked
+against it: `tce > 0`, or `outstanding > 0`, or a `stage`, or a `riskRating`. Any one of the four is
+enough, so an approved package with nothing drawn stays and a graded relationship between facilities
+stays. Everything else is a leftover: not on the queue, not under "the rest of the book", not in the
+totals you bake, and not allowed to raise a signal. Apply the rule to `accounts[]` before anything
+else, and drop any signal row naming an account that did not survive it. Do NOT filter on names —
+"Quantum" and "Vertex" are right this afternoon and wrong the first time somebody seeds a real
+Summit. `Customer360Portfolio` restricts its own signal block the same way (TCE > 0), so a signal
+naming a legacy account should no longer arrive at all; the page applies the rule regardless,
+because a read is not a promise.
 
 - **Cap at ~30 accounts** — beyond that the queue stops being a queue.
 - **If the book is smaller than the cap, stage everything.** Always include the anchor.
@@ -292,8 +315,9 @@ for as long as the connector is slow.
 `CLIENT_REQUEST` (a human is waiting) › `COVENANT_BREACH` › `COVENANT_EXCEPTION` › `COVENANT_DUE`
 already overdue › `COVENANT_DUE` inside the window › `MATURITY_NEAR` › `MODIFICATION_CLUSTER` ›
 `GUARANTOR_SIGNAL` › `RECENTLY_MODIFIED`. Ties break on committed exposure, largest first.
-Everything the read lists and no reason fires for is QUIET: it keeps a row, under a collapsed
-divider that states its own count, because the queue is the work and the book is still the book.
+Everything ON THE BOOK that no reason fires for is QUIET: it keeps a row, under a collapsed divider
+that states its own count, because the queue is the work and the book is still the book. A packaged
+account that is not on the book is not quiet, it is absent.
 
 ### (c) Stage details for ALL worklist accounts — BATCHED
 The six detail tools each accept an **inputs array**: `inputs: [{ accountId }, { accountId }, …]`.

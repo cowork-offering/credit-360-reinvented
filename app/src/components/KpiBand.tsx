@@ -3,6 +3,7 @@ import { fmtAsOf, fmtMoney, fmtPct, fmtRelative } from "../data/format";
 import { useCountUp } from "../data/motion";
 import { SERVERS } from "../channel/mcp";
 import { useLaneHealth } from "../channel/laneHealth";
+import { bookTotalsOf } from "../book/livePortfolio";
 
 /* =============================================================================
    THE KPI BAND — the landing's second beat.
@@ -69,20 +70,35 @@ export function KpiBand() {
      the status line disagreeing about the same outage. */
   const lane = useLaneHealth()[SERVERS.customer360];
   const lastGoodAt = live.storedAt ?? lane?.lastGoodAt;
-  const pf = live.portfolio ?? data.portfolio ?? { accounts: [] };
+  /* THE FIGURES COME OFF `data`, THE BANNER OFF `live`, and the split is not
+     cosmetic. `live.portfolio` is the read exactly as the org answered it: 115
+     rows, 105 of them legacy, a 25-row signal block that is mostly abandoned
+     demos. `data.portfolio` is that same read after book/livePortfolio.ts has
+     confined it to the book, which is what the queue and every row underneath
+     this band stand on. Reading the raw one here is how the band came to say
+     "32 relationships" over twelve rows and "27 overdue" over two (caught by
+     the lane drive's legacy scenario, 2026-09-08). The hook is still the source
+     of the freshness stamp and the failure, which are facts about the CALL and
+     have no confined equivalent. */
+  const pf = data.portfolio ?? { accounts: [] };
   const accts = pf.accounts ?? [];
 
-  let sumTce = 0;
-  let sumOut = 0;
-  for (const a of accts) {
-    sumTce += a.tce ?? 0;
-    sumOut += a.outstanding ?? 0;
-  }
-  const bt = pf.bookTotals ?? {};
-  const committed = bt.totalCommitted ?? sumTce;
-  const drawn = bt.totalOutstanding ?? sumOut;
-  const acctCount = bt.accountCount ?? accts.length;
-  const util = bt.utilizationPct ?? (committed > 0 ? (drawn / committed) * 100 : null);
+  /* THE FOUR FIGURES ARE ARITHMETIC ON THE ROWS UNDERNEATH THEM, never the
+     org's `bookTotals`. That rollup spans EVERY packaged account, and in this
+     org 105 of the 115 are legacy demo rows with no exposure and years of
+     abandoned balances: read straight, it says 354 percent utilisation, $1.09B
+     drawn against $308M committed (TEST-PORTFOLIO-DESIGN.md, appendix B). There
+     is no server-side total that excludes them, so the band sums what it is
+     showing. A banker can now add the rows up by hand and get the band.
+
+     book/livePortfolio.ts re-sums `bookTotals` the same way for every other
+     consumer; this is the same arithmetic, done where it is displayed, so the
+     band cannot quietly go back to trusting a figure it did not check. */
+  const book = bookTotalsOf(accts);
+  const committed = book.totalCommitted ?? 0;
+  const drawn = book.totalOutstanding ?? 0;
+  const acctCount = book.accountCount ?? 0;
+  const util = book.utilizationPct ?? null;
 
   const sig = pf.signals;
   const due = sig?.covenantsDueSoon ?? [];

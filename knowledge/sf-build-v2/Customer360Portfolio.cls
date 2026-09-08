@@ -22,10 +22,30 @@
  * relationship fields already selected in Q2/Q3 — no extra query.
  *
  * SIGNALS ARE BOUNDED, not exhaustive: covenantsDueSoon / maturitiesSoon are
- * capped at 25 rows each and clipped to signalWindowDays (default 90). Covenant
+ * capped at 50 rows each and clipped to signalWindowDays (default 90). Covenant
  * "overdue" means Next_Evaluation_Date is in the past AND still active (nCino
  * hasn't re-evaluated) — these are INCLUDED and flagged overdue=true. Full
  * financial / behavioral / risk-migration EWS lives elsewhere in the fleet.
+ *
+ * SIGNALS NAME THE BOOK ONLY, and the cap orders itself (2026-09-08).
+ * Measured live in the bankinggpt sandbox: of 115 packaged accounts, about 105
+ * are legacy demo rows (Vertex, Horizon, Bright, Summit, Quantum, BlueSky,
+ * Global, NextGen, Pinnacle, "Test Business account") carrying TCE 0, no stage
+ * and no rating, each with covenants whose next test fell due in 2025. The
+ * 25-row block came back FULL of them — Quantum Partners fourteen times, Cy LTD
+ * at 452 days overdue — and the real book's own misses (Blue Ridge at 20 days,
+ * Lakeshore at 25) never made the cap. Three changes, none of them to the input
+ * schema or the output shape:
+ *   1. Both signal queries are restricted to accounts whose PACKAGE ROLLUPS
+ *      carry exposure (Σ TCE > 0), computed above from Q1. An account the bank
+ *      has nothing booked against cannot raise a signal about itself.
+ *   2. The cap is 50, not 25.
+ *   3. Overdue tests are ordered MOST RECENTLY MISSED FIRST (date desc), then
+ *      the upcoming ones nearest-first (date asc). A test missed last week is
+ *      one somebody can still act on; a test missed in 2025 is archaeology, and
+ *      it must never crowd the actionable one off the block.
+ * breachedCount follows the same restriction, because a count that includes
+ * abandoned demo rows is not a fact about this bank's book.
  *
  * All objects/fields verified live against the bankinggpt sandbox
  * (sf sobject describe, 2026-07-02). See the Customer360 mcpServerDefinition
@@ -111,11 +131,11 @@ global with sharing class Customer360Portfolio {
     }
 
     global class Signals {
-        @InvocableVariable(label='Covenants Due Soon (capped 25)')
+        @InvocableVariable(label='Covenants Due Soon (capped 50)')
         global List<CovenantDue> covenantsDueSoon;
         @InvocableVariable(label='Breached Count (active + breached across book)')
         global Integer breachedCount;
-        @InvocableVariable(label='Maturities Soon (capped 25)')
+        @InvocableVariable(label='Maturities Soon (capped 50)')
         global List<MaturityDue> maturitiesSoon;
     }
 
@@ -130,7 +150,9 @@ global with sharing class Customer360Portfolio {
         global String note;
     }
 
-    private static final Integer SIGNAL_CAP = 25;
+    /** Raised from 25 on 2026-09-08. At 25 the block could not hold both the
+     *  real book's overdue tests and the ones merely due inside the window. */
+    private static final Integer SIGNAL_CAP = 50;
 
     @InvocableMethod(
         label='Customer 360: Portfolio Home'
@@ -208,6 +230,19 @@ global with sharing class Customer360Portfolio {
                 }
             }
 
+            /* THE BOOK, and it is the only thing a signal may name. An account
+               whose packages roll up to no committed exposure at all is not a
+               relationship this bank is carrying; it is a leftover. Its ancient
+               covenants and its dead loans are excluded from both signal
+               queries below, which is what stops 105 demo rows from filling a
+               block sized for the ten that matter. Free: the rollup was already
+               computed, so this is a walk over a map, not a query. */
+            Set<Id> onBook = new Set<Id>();
+            for (Id acctId : byAccount.keySet()) {
+                PortfolioAccount pa = byAccount.get(acctId);
+                if (pa.tce != null && pa.tce > 0) onBook.add(acctId);
+            }
+
             // Book totals span EVERY account with a package (before the display truncation).
             BookTotals bt = new BookTotals();
             bt.totalCommitted = 0;
@@ -239,21 +274,27 @@ global with sharing class Customer360Portfolio {
             Date today = Date.today();
             Date windowEnd = today.addDays(windowDays);
 
-            // -- Q2: Active covenants across the book (breachedCount + covenantsDueSoon) --
+            // -- Q2: Active covenants ON THE BOOK (breachedCount + covenantsDueSoon) --
             List<LLC_BI__Covenant2__c> covs = [
                 SELECT LLC_BI__Account__c, LLC_BI__Account__r.Name, LLC_BI__Covenant_Type__r.Name,
                        LLC_BI__Next_Evaluation_Date__c, LLC_BI__Breached__c
                 FROM LLC_BI__Covenant2__c
                 WHERE LLC_BI__Active__c = true
+                  AND LLC_BI__Account__c IN :onBook
                 WITH USER_MODE
                 ORDER BY LLC_BI__Next_Evaluation_Date__c ASC NULLS LAST
             ];
+
+            /* CAPPED AFTER THE ORDER IS DECIDED, not while the rows arrive. The
+               old loop took the first 25 the database handed it, which under a
+               date-ascending sort means the 25 OLDEST misses in the org. */
+            List<CovenantDue> overdueRows = new List<CovenantDue>();
+            List<CovenantDue> upcomingRows = new List<CovenantDue>();
             for (LLC_BI__Covenant2__c c : covs) {
                 if (c.LLC_BI__Breached__c == true) sig.breachedCount += 1;
 
                 Date nextEval = c.LLC_BI__Next_Evaluation_Date__c;
                 if (nextEval == null || nextEval > windowEnd) continue;
-                if (sig.covenantsDueSoon.size() >= SIGNAL_CAP) continue;
 
                 CovenantDue cd = new CovenantDue();
                 cd.accountId = c.LLC_BI__Account__c;
@@ -262,20 +303,32 @@ global with sharing class Customer360Portfolio {
                 cd.nextEvaluationDate = String.valueOf(nextEval);
                 cd.daysUntilNextEvaluation = today.daysBetween(nextEval);
                 cd.overdue = nextEval < today;
+                if (cd.overdue == true) overdueRows.add(cd); else upcomingRows.add(cd);
+            }
+            overdueRows.sort(new ByNextEvalDesc());
+            upcomingRows.sort(new ByNextEvalAsc());
+            for (CovenantDue cd : overdueRows) {
+                if (sig.covenantsDueSoon.size() >= SIGNAL_CAP) break;
+                sig.covenantsDueSoon.add(cd);
+            }
+            for (CovenantDue cd : upcomingRows) {
+                if (sig.covenantsDueSoon.size() >= SIGNAL_CAP) break;
                 sig.covenantsDueSoon.add(cd);
             }
 
-            // -- Q3: Open loans maturing inside the window --
+            // -- Q3: Open loans ON THE BOOK maturing inside the window --
+            Integer signalCap = SIGNAL_CAP;
             List<LLC_BI__Loan__c> loans = [
                 SELECT Id, Name, LLC_BI__Account__c, LLC_BI__Account__r.Name, LLC_BI__Maturity_Date__c
                 FROM LLC_BI__Loan__c
                 WHERE LLC_BI__Status__c != 'Closed'
+                  AND LLC_BI__Account__c IN :onBook
                   AND LLC_BI__Maturity_Date__c != null
                   AND LLC_BI__Maturity_Date__c <= :windowEnd
                   AND LLC_BI__Maturity_Date__c >= :today
                 WITH USER_MODE
                 ORDER BY LLC_BI__Maturity_Date__c ASC
-                LIMIT 25
+                LIMIT :signalCap
             ];
             for (LLC_BI__Loan__c ln : loans) {
                 MaturityDue md = new MaturityDue();
@@ -292,12 +345,37 @@ global with sharing class Customer360Portfolio {
 
             res.note = res.accounts.isEmpty()
                 ? 'No accounts with a Product Package match this filter.'
-                : 'Rollups are package-level (Σ TCE/TBE/TOE/Outstanding — never a loan sum); risk rating + stage are from each account\'s highest-TCE package. Book totals span all ' + bt.accountCount + ' packaged accounts; the account list is truncated to the highest-TCE ' + res.accounts.size() + '. Signals are bounded by a ' + windowDays + '-day window and capped at ' + SIGNAL_CAP + ' rows each; overdue covenants (past due, still active) are included and flagged. Financial / behavioral / risk-migration EWS lives elsewhere in the fleet.';
+                : 'Rollups are package-level (Σ TCE/TBE/TOE/Outstanding — never a loan sum); risk rating + stage are from each account\'s highest-TCE package. Book totals span all ' + bt.accountCount + ' packaged accounts; the account list is truncated to the highest-TCE ' + res.accounts.size() + '. Signals name only the ' + onBook.size() + ' accounts whose packages carry exposure (Σ TCE > 0), are bounded by a ' + windowDays + '-day window and capped at ' + SIGNAL_CAP + ' rows each; overdue covenants (past due, still active) are included, flagged, and listed most recently missed first, ahead of the tests merely due. breachedCount counts the same exposure-carrying accounts. Financial / behavioral / risk-migration EWS lives elsewhere in the fleet.';
 
             results.add(res);
         }
 
         return results;
+    }
+
+    /** Overdue tests, MOST RECENTLY MISSED FIRST. A test that fell due last week
+     *  is one a banker can still do something about; one that fell due in 2025
+     *  is archaeology, and under the old ascending sort it was archaeology that
+     *  took the block. */
+    private class ByNextEvalDesc implements Comparator<CovenantDue> {
+        public Integer compare(CovenantDue a, CovenantDue b) {
+            Integer ad = a.daysUntilNextEvaluation != null ? a.daysUntilNextEvaluation : 0;
+            Integer bd = b.daysUntilNextEvaluation != null ? b.daysUntilNextEvaluation : 0;
+            if (ad < bd) return 1;
+            if (ad > bd) return -1;
+            return 0;
+        }
+    }
+
+    /** Upcoming tests, nearest first: the ordinary "due soon" reading. */
+    private class ByNextEvalAsc implements Comparator<CovenantDue> {
+        public Integer compare(CovenantDue a, CovenantDue b) {
+            Integer ad = a.daysUntilNextEvaluation != null ? a.daysUntilNextEvaluation : 0;
+            Integer bd = b.daysUntilNextEvaluation != null ? b.daysUntilNextEvaluation : 0;
+            if (ad > bd) return 1;
+            if (ad < bd) return -1;
+            return 0;
+        }
     }
 
     private class ByTceDesc implements Comparator<PortfolioAccount> {

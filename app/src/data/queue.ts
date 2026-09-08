@@ -43,9 +43,17 @@
    is quiet: it sits under a divider that says how many, collapsed, one click
    away. The queue is the top of the page because it is the work; the book is
    underneath it because it is the book.
+
+   WHICH BOOK, DECIDED UPSTREAM (book/livePortfolio.ts, 2026-09-08). Of the 115
+   packaged accounts this org holds, about 105 are legacy demo rows carrying no
+   exposure at all, and their abandoned covenants are years overdue. They are
+   confined out of the portfolio before it reaches this file, so everything
+   counted here — the queue, the quiet remainder, `bookSize`, and every figure
+   in the sentence — is the real book and nothing else. This file did not learn
+   a second rule about what is real; it was handed a book that already is.
    ============================================================================= */
 
-import type { C360Data, Id, ReasonCode, Worklist } from "./contract";
+import { SIGNAL_WINDOW_DAYS, type C360Data, type Id, type ReasonCode, type Worklist } from "./contract";
 import { deriveWorklist, overdueTestIds, SEVERITY } from "./worklist";
 
 /** Past this the queue stops being a queue (cockpit skill, "worklist scope"). */
@@ -171,7 +179,7 @@ const BUCKET_WORDS: Record<QueueBucket, [string, string]> = {
   COVENANT_EXCEPTION: ["recorded exception", "recorded exceptions"],
   COVENANT_OVERDUE: ["test overdue", "tests overdue"],
   COVENANT_DUE: ["test due", "tests due"],
-  MATURITY_NEAR: ["maturity inside 90 days", "maturities inside 90 days"],
+  MATURITY_NEAR: [`maturity inside ${SIGNAL_WINDOW_DAYS} days`, `maturities inside ${SIGNAL_WINDOW_DAYS} days`],
   MODIFICATION_CLUSTER: ["modification cluster", "modification clusters"],
   GUARANTOR_SIGNAL: ["guarantor signal", "guarantor signals"],
   RECENTLY_MODIFIED: ["recently modified", "recently modified"],
