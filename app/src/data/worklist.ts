@@ -8,6 +8,13 @@
      RECENTLY_MODIFIED      mod age    <= 30 days
      MODIFICATION_CLUSTER   >= 3 modifications within 180 days
 
+   THE 45-DAY GATE IS FOR BUNDLE COVENANTS ONLY. A bundle carries a
+   relationship's whole covenant schedule, unfiltered, so the window is what
+   makes "due" mean anything. `portfolio.signals.covenantsDueSoon` is already
+   filtered in Apex to the org's own signalWindowDays off the org's own today;
+   re-gating it here against a snapshot clock is not a stricter rule, it is a
+   second, staler one, and it silently drops rows the org just flagged.
+
    Server-side (Apex) reason codes take precedence PER ACCOUNT (A9): a valid own
    entry in `worklist.reasons` replaces derivation for that id — including an
    explicit [] ("reviewed, no reasons"). Ids without one are derived here from
@@ -33,7 +40,7 @@ export const MODIFICATION_CLUSTER_WINDOW_DAYS = 180;
 export const MODIFICATION_CLUSTER_MIN = 3;
 
 /** Most-severe first. Drives chip order and worklist ranking. */
-const SEVERITY: ReasonCode[] = [
+export const SEVERITY: ReasonCode[] = [
   // A30.4 — an inbound client request outranks every risk signal: a human is
   // waiting on an answer, which is more urgent than a metric drifting.
   "CLIENT_REQUEST",
@@ -182,6 +189,49 @@ export function deriveReasonsForBundle(bundle: BorrowerBundle, generatedAt: stri
   return orderBySeverity(codes);
 }
 
+/**
+ * Which relationships carry a covenant test that is ALREADY PAST DUE.
+ *
+ * BREACH > OVERDUE test > DUE test is the founder's own ordering, and the
+ * vocabulary does not need a ninth reason code to say it: the chip has always
+ * read "Test due · 2d ago" and turned red on a negative day count. This is the
+ * same fact, lifted so the QUEUE can rank on it too.
+ *
+ * The org's own `overdue` flag wins where it is present: Apex computed it
+ * against the org's today, which on a snapshot assembled weeks ago is the more
+ * honest clock. Everything else measures against `meta.generatedAt` (A10).
+ */
+export function overdueTestIds(data: C360Data): Set<Id> {
+  const generatedAt = data.meta?.generatedAt ?? "";
+  const out = new Set<Id>();
+
+  for (const c of data.portfolio?.signals?.covenantsDueSoon ?? []) {
+    if (!c.accountId) continue;
+    if (c.overdue === true) {
+      out.add(c.accountId);
+      continue;
+    }
+    if (c.overdue === false) continue;
+    const d = dayDiff(c.nextEvaluationDate, generatedAt);
+    if (d !== null && d < 0) out.add(c.accountId);
+  }
+
+  const bundles: Record<Id, BorrowerBundle> = { ...(data.borrowers ?? {}) };
+  const anchorId = data.borrower?.snapshot?.accountId;
+  if (anchorId && !Object.hasOwn(bundles, anchorId)) bundles[anchorId] = data.borrower;
+  for (const [id, bundle] of Object.entries(bundles)) {
+    for (const cov of bundle?.covenants?.covenants ?? []) {
+      const verdict = classifyCovenant(cov);
+      // A breach and an administrative exception are their own reasons and rank
+      // on their own; neither is "the test is late".
+      if (verdict.financialBreach || verdict.kind === "exception") continue;
+      const d = dayDiff(cov.nextEvaluationDate, generatedAt);
+      if (d !== null && d < 0) out.add(id);
+    }
+  }
+  return out;
+}
+
 /** Build the worklist for the whole book.
  *
  *  A9 per-account precedence (F3): a server `worklist.reasons` entry REPLACES
@@ -226,10 +276,17 @@ export function deriveWorklist(data: C360Data): Worklist {
     if (sig && clockOk) {
       for (const c of sig.covenantsDueSoon ?? []) {
         if (c.accountId !== id) continue;
-        const d = dayDiff(c.nextEvaluationDate, generatedAt);
-        // F1: null (missing/unparseable) fires nothing. Overdue (negative) still
-        // counts as due — the test is outstanding, unlike a passed maturity.
-        if (d !== null && d <= COVENANT_DUE_WINDOW_DAYS) codes.add("COVENANT_DUE");
+        /* THE ORG ALREADY DREW THE WINDOW. `covenantsDueSoon` is filtered in
+           Apex to `signalWindowDays` (90) off the ORG's own today, and a second
+           45-day gate here measured against a BAKED `generatedAt` is not a
+           stricter rule: it is a different clock. A cockpit whose snapshot was
+           assembled six weeks ago would drop a test the org just told us is due
+           in October, which is precisely the row a banker opened the page for.
+           F1 still holds — a signal row carrying no READABLE date and no day
+           count fires nothing at all. */
+        const readable =
+          dayDiff(c.nextEvaluationDate, generatedAt) !== null || typeof c.daysUntilNextEvaluation === "number";
+        if (readable) codes.add("COVENANT_DUE");
       }
       for (const m of sig.maturitiesSoon ?? []) {
         if (m.accountId !== id) continue;

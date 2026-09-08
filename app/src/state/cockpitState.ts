@@ -8,6 +8,7 @@ import { useFacilityRoom } from "../components/workroom/roomSession";
 import { useRelationshipRoom } from "../components/relationship/relSession";
 import { useMemoRoom } from "../components/memo/memoSession";
 import { useApp } from "./appState";
+import { queueSentence, type QueueBucket } from "../data/queue";
 
 /* =============================================================================
    THE COCKPIT STATE DOCUMENT, what the banker is actually looking at.
@@ -70,8 +71,31 @@ export interface CockpitLaneState {
   code?: string;
 }
 
+/** WHAT THE LANDING SAYS NEEDS ATTENTION, so a session can answer "what needs
+ *  my attention" from the banker's own screen instead of re-reading the org and
+ *  possibly disagreeing with it. Counts only: no names, no figures, no ids. The
+ *  relationships themselves are a read away and the skill says where. */
+export interface CockpitQueueState {
+  /** Rows on the needs-action queue right now. */
+  needsAction: number;
+  /** Packaged relationships carrying no signal, under the divider. */
+  quiet: number;
+  /** Every packaged relationship the page can see. */
+  bookSize: number;
+  /** TRUE when this membership came off a live Portfolio read this session;
+   *  false means the page is still standing on the baked snapshot. */
+  live: boolean;
+  /** One count per reason, each relationship counted once under its loudest.
+   *  Sums to `needsAction`. */
+  byReason: Partial<Record<QueueBucket, number>>;
+  /** The same sentence the banker is reading above the rows. */
+  line: string;
+}
+
 export interface CockpitStateDoc {
   openAccount: { id: string; name: string } | null;
+  /** The landing's queue, whichever surface the banker is standing on. */
+  queue: CockpitQueueState;
   openTab: string;
   openRoom: { kind: "facility" | "relationship" | "memo"; route: string | null; packageId: string | null; since: string } | null;
   /** A MIRROR, read-only, and never the token. */
@@ -135,7 +159,7 @@ const PLAN_REREAD_MS = 2000;
  * nothing but this file.
  */
 export function useCockpitState(): void {
-  const { data, state } = useApp();
+  const { data, state, queue } = useApp();
   /* SUBSCRIBED FOR THE RE-RENDER, which is what makes a lane change reach the
      document at all. The map itself is the dependency: it is a fresh object
      only when a lane actually changed, so a document write follows a real lane
@@ -185,6 +209,10 @@ export function useCockpitState(): void {
 
   const tab = state.tab;
   const glass = currentGlass();
+  /* THE SENTENCE, NOT A SECOND DERIVATION OF IT. The document carries exactly
+     what the landing says, so a session quoting it and a banker reading the
+     page never disagree about how many relationships need something today. */
+  const queueLine = queueSentence(queue.summary);
 
   useEffect(() => {
     const store = db();
@@ -217,6 +245,14 @@ export function useCockpitState(): void {
 
         const doc: CockpitStateDoc = {
           openAccount: accountId ? { id: accountId, name: bundle?.snapshot?.name ?? accountId } : null,
+          queue: {
+            needsAction: queue.summary.needsAction,
+            quiet: queue.summary.quiet,
+            bookSize: queue.summary.bookSize,
+            live: queue.summary.live,
+            byReason: queue.summary.byBucket,
+            line: queueLine,
+          },
           openTab: tab,
           openRoom,
           stagedPlan: staged,
@@ -267,6 +303,7 @@ export function useCockpitState(): void {
     openRoom?.packageId,
     openRoom?.since,
     lanes,
+    queue.summary,
   ]);
 }
 

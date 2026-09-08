@@ -2,9 +2,13 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { Portfolio } from "../data/contract";
 import { SERVERS, TOOLS, unwrapInvocableOne, watchTool, type McpFailure } from "./mcp";
 import { callGateway, noteServedByBackup, shouldFallBack } from "./gateway/lane";
+import { portfolioSignature } from "../book/livePortfolio";
 
 export interface LivePortfolio {
   portfolio?: Portfolio;
+  /** A structural reading of `portfolio`, so an unchanged book keeps the SAME
+   *  object across refetches. See `settle` below. */
+  signature?: string;
   failure?: McpFailure;
   /** From result.cache.storedAt, never Date.now(). */
   storedAt?: number;
@@ -27,6 +31,20 @@ export interface LivePortfolio {
  *  minutes is still four times inside the observed idle expiry this exists to
  *  survive, which is the only thing the interval was ever for. */
 export const PORTFOLIO_REFETCH_MS = 120_000;
+
+/**
+ * HOW MANY ACCOUNTS THE READ ASKS FOR, and why it is not the tool's default.
+ *
+ * `Customer360Portfolio` truncates to the 25 highest-TCE accounts unless asked
+ * otherwise, and since 2026-09-08 this result is what decides the QUEUE. A book
+ * of forty relationships would then have fifteen the landing could not put a
+ * row on at all, however loudly they were breaching, purely because they are
+ * small. The queue's own cap is thirty, so the read has to be able to see past
+ * it: sixty is comfortably above the cap, well inside the tool's own ceiling of
+ * a hundred, and still one call. `bookTotals` was always book-wide and is
+ * unaffected either way.
+ */
+export const PORTFOLIO_MAX_ACCOUNTS = 60;
 
 /* ------------------------------------------------------- the hidden document
 
@@ -84,14 +102,30 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
        next good event replaces this, which is what recovery looks like. */
     let dead = false;
 
+    /* THE SAME BOOK IS THE SAME OBJECT.
+       FOUNDER CONDITION ONE, 2026-09-08: no latency, no stuck behaviour. This
+       result is now the source of the QUEUE, not just of six figures, so its
+       identity decides whether the whole cockpit re-renders. The watch re-reads
+       every two minutes and hands back a fresh object whether or not a figure
+       moved; a book that did not move keeps the object it had, and only the
+       freshness stamp advances. A real change replaces it, as it always did. */
+    const settle = (portfolio: Portfolio, storedAt: number | undefined) => {
+      const signature = portfolioSignature(portfolio);
+      setLive((prev) =>
+        prev.portfolio && prev.signature === signature
+          ? { ...prev, storedAt, failure: undefined, retrying: false }
+          : { portfolio, signature, storedAt, failure: undefined, retrying: false },
+      );
+    };
+
     const askBackup = async () => {
       try {
-        const ok = await callGateway<Portfolio>(TOOLS.portfolio, [{}]);
+        const ok = await callGateway<Portfolio>(TOOLS.portfolio, [{ maxAccounts: PORTFOLIO_MAX_ACCOUNTS }]);
         if (dead) return;
         const slot = unwrapInvocableOne<Portfolio>(ok.payload);
         if (!slot.ok) return;
         noteServedByBackup(ok.cache?.storedAt);
-        setLive({ portfolio: slot.data, storedAt: ok.cache?.storedAt, failure: undefined, retrying: false });
+        settle(slot.data, ok.cache?.storedAt);
       } catch {
         // Both doors shut. The banner the primary failure raised stands, and it
         // names the lane the banker can actually do something about.
@@ -102,7 +136,7 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
     const stop = watchTool(
       SERVERS.customer360,
       TOOLS.portfolio,
-      { inputs: [{}] },
+      { inputs: [{ maxAccounts: PORTFOLIO_MAX_ACCOUNTS }] },
       (ev) => {
         if (ev.failure) {
           setLive((prev) =>
@@ -122,7 +156,7 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
           return;
         }
         // A good event is what clears the banner. Nothing else does.
-        setLive({ portfolio: slot.data, storedAt: ev.data?.cache?.storedAt, failure: undefined, retrying: false });
+        settle(slot.data, ev.data?.cache?.storedAt);
       },
       {
         staleTime: 120_000,

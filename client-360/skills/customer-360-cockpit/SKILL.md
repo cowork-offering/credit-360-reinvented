@@ -79,6 +79,9 @@ doc_id:     cockpit
 ```json
 {
   "openAccount": { "id": "001…", "name": "Hartwell Precision Manufacturing LLC" },
+  "queue": { "needsAction": 7, "quiet": 5, "bookSize": 12, "live": true,
+             "byReason": { "COVENANT_BREACH": 2, "COVENANT_OVERDUE": 3, "MATURITY_NEAR": 2 },
+             "line": "7 relationships need action: 2 breaches, 3 tests overdue, 2 maturities inside 90 days. 5 more are quiet." },
   "openTab": "covenants",
   "openRoom": { "kind": "facility", "route": "modify", "packageId": "a5F…", "since": "…T20:11:03Z" },
   "stagedPlan": { "packageId": "a5F…", "route": "modify", "lines": 3, "stagedAt": "…T20:14:41Z" },
@@ -91,6 +94,18 @@ doc_id:     cockpit
   "updatedAt": "…T20:15:02Z"
 }
 ```
+
+`queue` IS THE ANSWER TO "what needs my attention". It is the landing's own count, whichever
+surface the banker is standing on: `needsAction` relationships on the queue, `quiet` packaged
+relationships carrying no signal, `bookSize` for both together, and `byReason` counting each
+relationship ONCE under its loudest reason, so the buckets sum to `needsAction`. `line` is the
+exact sentence on the banker's screen — quote it rather than recomputing it, so the page and the
+session never disagree about the same afternoon. `COVENANT_OVERDUE` is a bucket, not a reason
+code: it is a `COVENANT_DUE` whose test is already past due, told apart because the ordering does.
+
+`live: false` means the page is still standing on the BAKED snapshot and the membership is
+whatever the last rebuild wrote, samples included. Say so: "on the snapshot" rather than "today".
+`live: true` means the queue was derived on the page from a Portfolio read this session.
 
 `openAccount` null means the banker is on the worklist, not on a relationship. `openRoom` null
 means no room is up. `stagedPlan` is a MIRROR and carries no decision token, no plan hash and no
@@ -105,6 +120,9 @@ names, no JSON:
 > C&I package, last filed version 12 at 19:58; all lanes live.
 
 > You are on the worklist, nothing open. Salesforce answered 0.4s ago; the backup is not added.
+
+> Seven relationships need action: two breaches, three tests overdue, two maturities inside ninety
+> days. Five more are quiet, and the queue is live off the org rather than off the snapshot.
 
 **When the document cannot be read**, no such document, a store that refuses, an older published
 cockpit that predates this file, **say so in half a sentence and fall back to the systems of
@@ -258,6 +276,24 @@ reason to believe carries structural signals.
 
 - **Cap at ~30 accounts** — beyond that the queue stops being a queue.
 - **If the book is smaller than the cap, stage everything.** Always include the anchor.
+
+**THE PAGE RE-DECIDES THIS ON EVERY OPEN (2026-09-08).** What you bake here is the FIRST PAINT and
+nothing more. The published cockpit makes one `Customer360Portfolio` read on open, and it derives
+the queue from that result on the page: membership, severity order, the cap and the quiet
+remainder. A relationship seeded into the org after this rebuild reaches the landing without a
+rebuild, and a relationship that came off the book leaves it.
+
+So stage a HONEST first paint and do not try to be clever about it: real accounts, real reasons,
+the anchor included. Never bake a relationship the org does not hold — the page drops every
+`_sample_only` row the moment the live read lands, and a fabricated row is a row the banker sees
+for as long as the connector is slow.
+
+**What the page applies, in this order**, so your baked reasons and its derived ones read alike:
+`CLIENT_REQUEST` (a human is waiting) › `COVENANT_BREACH` › `COVENANT_EXCEPTION` › `COVENANT_DUE`
+already overdue › `COVENANT_DUE` inside the window › `MATURITY_NEAR` › `MODIFICATION_CLUSTER` ›
+`GUARANTOR_SIGNAL` › `RECENTLY_MODIFIED`. Ties break on committed exposure, largest first.
+Everything the read lists and no reason fires for is QUIET: it keeps a row, under a collapsed
+divider that states its own count, because the queue is the work and the book is still the book.
 
 ### (c) Stage details for ALL worklist accounts — BATCHED
 The six detail tools each accept an **inputs array**: `inputs: [{ accountId }, { accountId }, …]`.

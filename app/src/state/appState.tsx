@@ -7,10 +7,13 @@ import {
   type ReactNode,
 } from "react";
 import { mergeDynamicBook, useDynamicBook } from "../book/dynamicBook";
+import { mergeLivePortfolio } from "../book/livePortfolio";
 import type { AgentChannel } from "../channel/adapter";
 import { createChannel, formatProbe, probeChannels } from "../channel/adapter";
+import { mcpAvailable } from "../channel/mcp";
+import { useLivePortfolio, type LivePortfolio } from "../channel/useLivePortfolio";
 import type { ActionHistoryRow, ActivityEntry, BorrowerBundle, C360Data, Worklist } from "../data/contract";
-import { deriveWorklist } from "../data/worklist";
+import { deriveQueue, type Queue } from "../data/queue";
 import { loadUi, saveUi, type PersistedUi } from "./persist";
 import { dataVersionOf, loadOverlays, type AccountOverlay } from "./syncOverlay";
 
@@ -299,12 +302,30 @@ function reducer(state: ViewState, action: Action): ViewState {
 interface AppContextValue {
   data: C360Data;
   worklist: Worklist;
+  /** The queue AND the quiet rest of the book, with the counts the briefing
+   *  line and the cockpit state document both read. `worklist` above is
+   *  `queue.worklist`, kept as its own field because every consumer that
+   *  predates the queue reads it. */
+  queue: Queue;
   channel: AgentChannel;
   state: ViewState;
   dispatch: React.Dispatch<Action>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
+
+/* THE LIVE BOOK READ, ON A CONTEXT OF ITS OWN.
+   It carries a freshness stamp that advances every two minutes even when not a
+   figure moved, and the KPI band is the only surface that shows it. On the app
+   context that tick would re-render the whole cockpit; here it wakes the band
+   and nothing else. The DATA off the same read reaches everyone through
+   `data`, whose identity only moves when the book does. */
+const LivePortfolioContext = createContext<LivePortfolio>({});
+
+/** The live book read, for the one band that shows its freshness. */
+export function useLivePortfolioResult(): LivePortfolio {
+  return useContext(LivePortfolioContext);
+}
 
 /** Only restore an account view if that account is actually staged (has a bundle
  *  / portfolio row) and the tab is a known one (SPEC §12 A16). Otherwise fall
@@ -350,9 +371,18 @@ export function AppProvider({ data: injected, children }: { data: C360Data; chil
      baked five is not merely equivalent to the one before this feature: every
      memo below sees the reference it always did. */
   const live = useDynamicBook();
-  const data = useMemo(() => mergeDynamicBook(injected, live), [injected, live]);
+  /* AND THE BOOK THE ORG HAS TODAY. One Portfolio read, the one the KPI band
+     already made, read here so the QUEUE is derived from it rather than from
+     the membership somebody's assembler baked in July. It is identity when the
+     read has not landed, so the first paint is the baked one, exactly. */
+  const book = useLivePortfolio(mcpAvailable());
+  const data = useMemo(
+    () => mergeDynamicBook(mergeLivePortfolio(injected, book.portfolio), live),
+    [injected, book.portfolio, live],
+  );
   const anchor = data.meta.anchorAccountId;
-  const worklist = useMemo(() => deriveWorklist(data), [data]);
+  const queue = useMemo(() => deriveQueue(data, !!book.portfolio), [data, book.portfolio]);
+  const worklist = queue.worklist;
   const channel = useMemo(() => createChannel(), []);
 
   // Channel diagnostics: log ONCE on mount so the founder can read the real
@@ -391,11 +421,15 @@ export function AppProvider({ data: injected, children }: { data: C360Data; chil
   }, [anchor, state.view, state.accountId, state.tab, state.panel, state.draft, state.seenServerCount]);
 
   const value = useMemo<AppContextValue>(
-    () => ({ data, worklist, channel, state, dispatch }),
-    [data, worklist, channel, state],
+    () => ({ data, worklist, queue, channel, state, dispatch }),
+    [data, worklist, queue, channel, state],
   );
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <LivePortfolioContext.Provider value={book}>
+      <AppContext.Provider value={value}>{children}</AppContext.Provider>
+    </LivePortfolioContext.Provider>
+  );
 }
 
 export function useApp(): AppContextValue {

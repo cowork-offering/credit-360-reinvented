@@ -735,9 +735,13 @@ export function watchTool(
     scheduleRetry(failure);
   };
 
+  /* A SUBSCRIPTION HANDLE WE DO NOT OWN. The runtime is supposed to hand back
+     an unsubscribe; a host that hands back nothing would take the whole page
+     down on the next unmount, which is a crash caused entirely by our believing
+     a contract somebody else implements. Default stays the no-op. */
   let stop: () => void = () => {};
   try {
-    stop = api.watchTool(
+    const handle = api.watchTool(
       server,
       tool,
       input,
@@ -762,6 +766,7 @@ export function watchTool(
         refetchInterval: options?.refetchInterval,
       },
     );
+    if (typeof handle === "function") stop = handle;
   } catch (e) {
     const failure = describeFailure(e, server, tool);
     noteLaneFailure(server, failure);

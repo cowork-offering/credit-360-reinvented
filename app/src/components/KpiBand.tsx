@@ -1,9 +1,8 @@
-import { useApp } from "../state/appState";
+import { useApp, useLivePortfolioResult } from "../state/appState";
 import { fmtAsOf, fmtMoney, fmtPct, fmtRelative } from "../data/format";
 import { useCountUp } from "../data/motion";
-import { mcpAvailable, SERVERS } from "../channel/mcp";
+import { SERVERS } from "../channel/mcp";
 import { useLaneHealth } from "../channel/laneHealth";
-import { useLivePortfolio } from "../channel/useLivePortfolio";
 
 /* =============================================================================
    THE KPI BAND — the landing's second beat.
@@ -57,9 +56,11 @@ function KpiCell({ kpi }: { kpi: Kpi }) {
 
 export function KpiBand() {
   const { data, worklist } = useApp();
-  // Live book totals when the capability is present; the staged snapshot
-  // otherwise. A failed refresh keeps the staged figures visible.
-  const live = useLivePortfolio(mcpAvailable());
+  /* THE SAME READ THE QUEUE STANDS ON. Registered once, in the provider: this
+     band used to own the watch, and since 2026-09-08 the landing's membership
+     comes off the same result, so one subscription serves both rather than the
+     page holding two. A failed refresh keeps the staged figures visible. */
+  const live = useLivePortfolioResult();
   /* THE BANNER'S "WHY" COMES OFF THE SAME STORE THE FOOTER READS. The watch's
      own cache stamp is only present when the platform served this identity from
      cache, so a banner raised on a lane that HAS answered recently used to say

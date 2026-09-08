@@ -130,6 +130,8 @@ export function CommandPalette() {
        map of what exists (A27.3). They route through the SAME seam that panel
        uses, `openWorkroom(workroomContextFor(...))`, so the room can never
        disagree with itself about which package a banker is standing in. */
+    const stagedIds = new Set(staged.map((s) => s.id));
+    const bookIds = new Set(data.portfolio.accounts.map((a) => a.accountId));
     const accountName = openAccountId ? staged.find((s) => s.id === openAccountId)?.name : null;
     if (openAccountId && accountName) {
       /* THE RELATIONSHIP ROOM IS ONE ROW, not five. It is a room the banker
@@ -184,12 +186,30 @@ export function CommandPalette() {
       });
     }
 
+    /* AND THE REST OF THE PACKAGED BOOK, which since 2026-09-08 the page can
+       see: the Portfolio read carries every packaged account by name and id,
+       so a relationship the landing lists (on the queue or under the quiet
+       divider) is findable here without waiting on a debounced org search for
+       a name already on screen. It has no bundle yet, so it opens the way an
+       org match does — read first, then go — rather than dispatching straight
+       into an empty workspace. */
+    for (const a of data.portfolio.accounts) {
+      if (!a.accountId || stagedIds.has(a.accountId)) continue;
+      out.push({
+        id: `book:${a.accountId}`,
+        label: `Open ${a.name}`,
+        kind: "Client",
+        aka: `${a.industry ?? ""} ${a.naicsCode ?? ""}`.trim(),
+        run: () => openFromOrg({ accountId: a.accountId, name: a.name, industry: a.industry, naicsCode: a.naicsCode }),
+      });
+    }
+
     /* THE ORG'S OWN MATCHES, under the book's. A relationship already staged
        (or already read live this session) keeps its one row: two rows for one
        borrower would be the palette disagreeing with itself about what is
        open. */
     for (const m of matches) {
-      if (bookHas(data, m.accountId)) continue;
+      if (bookHas(data, m.accountId) || stagedIds.has(m.accountId) || bookIds.has(m.accountId)) continue;
       out.push({
         id: `org:${m.accountId}`,
         label: `Open ${m.name}`,
