@@ -842,7 +842,7 @@ class Seeder:
                 }, e.get('comments'))))
         # NEVER BY DEFAULT (2026-09-08). Every insert of LLC_BI__Covenant_Compliance2__c in this
         # org fires the unmanaged approval orchestration acnpex_covenantApprovalProcess, with no
-        # entry condition, assigned to a hard-coded human (robert.mcclaren@outlook.com). The proof
+        # entry condition, assigned to a hard-coded human (a named individual user). The proof
         # runs fired it 24 times before this was caught. Covenant history lives on the covenant's
         # own LLC_BI__Last_Evaluation_* fields (the Hartwell pattern); compliance rows are written
         # only when the operator sets ALLOW_COMPLIANCE_ROWS=1 knowingly.
