@@ -291,6 +291,11 @@ Every record carries `C360-SEED-2026-09` in a free-text field:
 | Opportunity, Case | `Description` |
 | Pricing Stream + both components, Account Collateral, Loan Collateral2 | `lookupKey` fields, as `C360-SEED-2026-09/<key>` because they are unique |
 
+**The tag is a marker for a person reading the record, not a query key.** Several of the
+fields it lands in are long text areas the org refuses to filter on
+(`Account.Description` among them), so `WHERE ... LIKE '%C360-SEED-2026-09%'` fails outright
+on some objects and is never how anything is found. The manifest is the index.
+
 **Two objects carry no tag and cannot**: `LLC_BI__Account_Covenant__c` and
 `LLC_BI__Loan_Covenant__c` expose no createable text field of any kind. They are
 manifest-only, and they are reachable from their covenant and their loan, so nothing about
