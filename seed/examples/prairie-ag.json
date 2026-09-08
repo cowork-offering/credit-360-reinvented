@@ -1,0 +1,1613 @@
+{
+  "slug": "prairie-ag",
+  "anchorKey": "prairie-ag-holdings",
+  "accounts": [
+    {
+      "key": "prairie-ag-holdings",
+      "name": "Prairie Ag Holdings LP",
+      "kind": "business",
+      "industry": "Agriculture",
+      "naics": "111150",
+      "annualRevenue": 52000000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "nextReviewDate": "2027-02-26",
+      "lastReviewDate": "2026-02-24",
+      "billingCity": "Ames",
+      "billingState": "IA",
+      "description": "Family owned Iowa limited partnership farming 8,900 acres of corn and soybeans across Story, Boone and Hamilton counties. Founded 1978, third generation management, 41 full time and 26 seasonal employees."
+    },
+    {
+      "key": "prairie-ag-gp",
+      "name": "Prairie Ag GP LLC",
+      "kind": "business",
+      "industry": "Agriculture",
+      "naics": "111150",
+      "annualRevenue": 520000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "Ames",
+      "billingState": "IA",
+      "description": "General partner of Prairie Ag Holdings LP, holding a 1 percent general partnership interest and all management authority. Owned equally by Karl and Anna Ellsworth."
+    },
+    {
+      "key": "ellsworth-trust",
+      "name": "Ellsworth Family Trust",
+      "kind": "business",
+      "industry": "Other",
+      "naics": "525920",
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "Ames",
+      "billingState": "IA",
+      "description": "Irrevocable family trust holding a 59 percent limited partnership interest in Prairie Ag Holdings LP for the benefit of the third and fourth generation. Karl Ellsworth is trustee."
+    },
+    {
+      "key": "karl-ellsworth",
+      "name": "Karl Ellsworth",
+      "kind": "person",
+      "description": "Managing partner and trustee of the Ellsworth Family Trust. Holds a 25 percent limited partnership interest directly and 50 percent of Prairie Ag GP LLC. Guarantor."
+    },
+    {
+      "key": "anna-ellsworth",
+      "name": "Anna Ellsworth",
+      "kind": "person",
+      "description": "Partner and head of grain marketing. Holds a 15 percent limited partnership interest directly and 50 percent of Prairie Ag GP LLC. Guarantor."
+    },
+    {
+      "key": "prairie-grain-storage",
+      "name": "Prairie Grain Storage LLC",
+      "kind": "business",
+      "industry": "Agriculture",
+      "naics": "493130",
+      "annualRevenue": 4800000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "Nevada",
+      "billingState": "IA",
+      "description": "Wholly owned storage and conditioning subsidiary. Operates the 1.6 million bushel elevator at Nevada, Iowa, with continuous flow drying and rail loadout, serving the partnership and third party growers."
+    }
+  ],
+  "connections": [
+    {
+      "key": "gp-owns-lp",
+      "from": "prairie-ag-gp",
+      "to": "prairie-ag-holdings",
+      "roleName": "Partner",
+      "ownershipPercent": 1,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "General Partner",
+      "description": "Prairie Ag GP LLC holds the 1 percent general partnership interest and all management and signing authority over Prairie Ag Holdings LP."
+    },
+    {
+      "key": "trust-owns-lp",
+      "from": "ellsworth-trust",
+      "to": "prairie-ag-holdings",
+      "roleName": "Owner",
+      "ownershipPercent": 59,
+      "officialTitle": "Limited Partner",
+      "description": "Ellsworth Family Trust holds a 59 percent limited partnership interest in Prairie Ag Holdings LP."
+    },
+    {
+      "key": "karl-owns-lp",
+      "from": "karl-ellsworth",
+      "to": "prairie-ag-holdings",
+      "roleName": "Partner",
+      "ownershipPercent": 25,
+      "indirectOwnershipPercent": 0.5,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Limited Partner and Managing Member of the General Partner",
+      "description": "Karl Ellsworth holds a 25 percent limited partnership interest directly, plus a further 0.5 percent indirectly through his half of Prairie Ag GP LLC. Trustee of the Ellsworth Family Trust and personal guarantor."
+    },
+    {
+      "key": "anna-owns-lp",
+      "from": "anna-ellsworth",
+      "to": "prairie-ag-holdings",
+      "roleName": "Partner",
+      "ownershipPercent": 15,
+      "indirectOwnershipPercent": 0.5,
+      "authorizedSigner": true,
+      "officialTitle": "Limited Partner and Member of the General Partner",
+      "description": "Anna Ellsworth holds a 15 percent limited partnership interest directly, plus a further 0.5 percent indirectly through her half of Prairie Ag GP LLC. Personal guarantor."
+    },
+    {
+      "key": "karl-owns-gp",
+      "from": "karl-ellsworth",
+      "to": "prairie-ag-gp",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 50,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Managing Member",
+      "description": "Karl Ellsworth holds 50 percent of Prairie Ag GP LLC and is its managing member."
+    },
+    {
+      "key": "anna-owns-gp",
+      "from": "anna-ellsworth",
+      "to": "prairie-ag-gp",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 50,
+      "authorizedSigner": true,
+      "officialTitle": "Member",
+      "description": "Anna Ellsworth holds 50 percent of Prairie Ag GP LLC."
+    },
+    {
+      "key": "karl-trustee",
+      "from": "karl-ellsworth",
+      "to": "ellsworth-trust",
+      "roleName": "Beneficial Owner",
+      "officialTitle": "Trustee",
+      "authorizedSigner": true,
+      "controlProng": true,
+      "description": "Karl Ellsworth is the sole trustee of the Ellsworth Family Trust and votes its 59 percent limited partnership interest."
+    },
+    {
+      "key": "lp-owns-storage",
+      "from": "prairie-ag-holdings",
+      "to": "prairie-grain-storage",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member",
+      "description": "Prairie Ag Holdings LP holds 100 percent of the membership interests in Prairie Grain Storage LLC."
+    }
+  ],
+  "collateral": [
+    {
+      "key": "crops",
+      "name": "Prairie Ag Growing Crops, 2026 Corn and Soybeans",
+      "typeName": "UCC-Crops",
+      "assessmentMethod": "Internal Valuation",
+      "value": 9200000,
+      "liquidationValue": 6900000,
+      "appraisalDate": "2026-07-31",
+      "nextRevaluationDate": "2026-12-31",
+      "valuationFrequency": "Quarterly",
+      "uccState": "IA",
+      "city": "Ames",
+      "state": "IA",
+      "description": "First blanket UCC lien on all growing and harvested crops, crop insurance proceeds and government programme payments.",
+      "legalDescription": "First priority UCC-1 lien on all crops growing or to be grown on 8,900 acres in Story, Boone and Hamilton counties, Iowa, together with all crop insurance proceeds, warehouse receipts and farm programme payments, filed with the Iowa Secretary of State.",
+      "owners": [
+        {
+          "account": "prairie-ag-holdings",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-02-08"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "crops-2026-07",
+          "date": "2026-07-31",
+          "value": 9200000,
+          "source": "Internal Valuation",
+          "type": "As Is Value",
+          "primary": true,
+          "active": true,
+          "description": "July 2026 growing crop valuation: 5,600 acres of corn at 218 bushels and 3,300 acres of soybeans at 62 bushels, priced at the December and November board less basis, discounted for pre-harvest risk."
+        },
+        {
+          "key": "crops-2025-08",
+          "date": "2025-08-29",
+          "value": 8650000,
+          "source": "Financial Statement",
+          "type": "Book Value",
+          "original": true,
+          "description": "2025 crop year valuation carried at the borrowing base certificate of 31 August 2025."
+        }
+      ]
+    },
+    {
+      "key": "grain-inventory",
+      "name": "Prairie Ag Stored Grain Inventory",
+      "typeName": "UCC-Inventory",
+      "assessmentMethod": "Net Book Value",
+      "value": 4300000,
+      "liquidationValue": 3225000,
+      "appraisalDate": "2026-07-31",
+      "nextRevaluationDate": "2026-10-31",
+      "valuationFrequency": "Monthly",
+      "uccState": "IA",
+      "city": "Nevada",
+      "state": "IA",
+      "description": "First blanket UCC lien on stored grain inventory and warehouse receipts held at the Nevada elevator and on farm bins.",
+      "legalDescription": "First priority UCC-1 lien on all inventory of corn and soybeans in store, on farm or in transit, and on all warehouse receipts and scale tickets evidencing the same.",
+      "owners": [
+        {
+          "account": "prairie-ag-holdings",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-02-08"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "grain-2026-07",
+          "date": "2026-07-31",
+          "value": 4300000,
+          "source": "Inventory Report",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "July 2026 position report: 640,000 bushels of corn and 118,000 bushels of soybeans, marked to the cash bid at Nevada less a 10 percent haircut for unpriced bushels."
+        }
+      ]
+    },
+    {
+      "key": "receivables",
+      "name": "Prairie Ag Accounts Receivable",
+      "typeName": "UCC-Accounts",
+      "assessmentMethod": "Internal Valuation",
+      "value": 2600000,
+      "liquidationValue": 1950000,
+      "appraisalDate": "2026-07-31",
+      "nextRevaluationDate": "2026-10-31",
+      "valuationFrequency": "Monthly",
+      "uccState": "IA",
+      "city": "Ames",
+      "state": "IA",
+      "description": "First blanket UCC lien on all accounts, deferred payment contracts and proceeds.",
+      "legalDescription": "First priority UCC-1 lien on all accounts, contract rights, deferred payment grain contracts, chattel paper and proceeds of Prairie Ag Holdings LP.",
+      "owners": [
+        {
+          "account": "prairie-ag-holdings",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-02-08"
+        },
+        {
+          "account": "prairie-ag-holdings",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-02-08"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "ar-2026-07",
+          "date": "2026-07-31",
+          "value": 2600000,
+          "source": "Receivables Aging",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "July 2026 borrowing base certificate: deferred payment contracts with two investment grade processors plus custom farming receivables, after ineligibles for over-90 balances."
+        }
+      ]
+    },
+    {
+      "key": "farm-equipment",
+      "name": "Prairie Ag Farm Equipment Schedule",
+      "typeName": "UCC-Farm Equipment",
+      "assessmentMethod": "Appraisal",
+      "value": 3150000,
+      "liquidationValue": 2205000,
+      "appraisalDate": "2026-04-30",
+      "nextRevaluationDate": "2027-04-30",
+      "valuationFrequency": "Annually",
+      "uccState": "IA",
+      "city": "Ames",
+      "state": "IA",
+      "description": "First UCC lien on the titled and untitled farm equipment schedule: combines, tractors, planters, sprayers, grain carts and tillage.",
+      "legalDescription": "First priority UCC-1 lien on all farm equipment described in Exhibit A to the security agreement, including two class 9 combines, four row crop tractors, a 24 row planter, a self propelled sprayer and related tillage and handling equipment.",
+      "owners": [
+        {
+          "account": "prairie-ag-holdings",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-04-15"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "equip-2026-04",
+          "date": "2026-04-30",
+          "value": 3150000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "description": "April 2026 desktop appraisal of the full equipment schedule by a certified agricultural equipment appraiser, at auction comparable values."
+        },
+        {
+          "key": "equip-2025-04",
+          "date": "2025-04-15",
+          "value": 3420000,
+          "source": "Invoice / Bill of Sale",
+          "type": "Purchase Price",
+          "original": true,
+          "description": "Original schedule value at the April 2025 combine purchase, at dealer invoice less trade allowances."
+        }
+      ]
+    },
+    {
+      "key": "farmland-story",
+      "name": "Prairie Ag Farmland, Story County, 2,400 Acres",
+      "typeName": "Real Estate-Farm Land",
+      "assessmentMethod": "Appraisal",
+      "value": 11500000,
+      "liquidationValue": 9775000,
+      "appraisalDate": "2026-03-18",
+      "nextRevaluationDate": "2029-03-18",
+      "valuationFrequency": "Annually",
+      "uccFiled": false,
+      "city": "Ames",
+      "state": "IA",
+      "description": "First mortgage on 2,400 tillable acres in Story County, Iowa, at a corn suitability rating of 84.",
+      "legalDescription": "First mortgage on 2,400 acres comprising eleven contiguous and near contiguous tracts in Sections 8, 9, 16, 17 and 20, Township 83 North, Range 23 West of the 5th P.M., Story County, Iowa, together with all improvements, drainage tile, grain bins and appurtenant water rights.",
+      "owners": [
+        {
+          "account": "prairie-ag-holdings",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2022-06-15"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "land-story-2026",
+          "date": "2026-03-18",
+          "value": 11500000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "March 2026 narrative appraisal by a state certified general appraiser at $4,792 per acre, supported by nine Story County sales inside eighteen months."
+        },
+        {
+          "key": "land-story-2022",
+          "date": "2022-05-02",
+          "value": 9600000,
+          "source": "Appraisal",
+          "type": "As Is Value",
+          "original": true,
+          "description": "Original acquisition appraisal of May 2022 at $4,000 per acre."
+        }
+      ]
+    },
+    {
+      "key": "farmland-boone",
+      "name": "Prairie Ag Farmland, Boone County, 680 Acres",
+      "typeName": "Real Estate-Farm Land",
+      "assessmentMethod": "Appraisal",
+      "value": 3400000,
+      "liquidationValue": 2890000,
+      "appraisalDate": "2026-03-18",
+      "nextRevaluationDate": "2029-03-18",
+      "valuationFrequency": "Annually",
+      "uccFiled": false,
+      "city": "Boone",
+      "state": "IA",
+      "description": "First mortgage on the second parcel, 680 tillable acres in Boone County, Iowa, at a corn suitability rating of 87.",
+      "legalDescription": "First mortgage on 680 acres in Sections 25 and 36, Township 84 North, Range 27 West of the 5th P.M., Boone County, Iowa, together with all improvements, drainage tile and appurtenances.",
+      "owners": [
+        {
+          "account": "prairie-ag-holdings",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-03-20"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "land-boone-2026",
+          "date": "2026-03-18",
+          "value": 3400000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "March 2026 narrative appraisal at $5,000 per acre, reflecting the higher corn suitability rating and the tiled bottom ground."
+        },
+        {
+          "key": "land-boone-2024",
+          "date": "2024-02-14",
+          "value": 3150000,
+          "source": "Appraisal",
+          "type": "As Is Value",
+          "original": true,
+          "description": "Acquisition appraisal of February 2024 at $4,632 per acre."
+        }
+      ]
+    },
+    {
+      "key": "elevator",
+      "name": "Prairie Grain Storage Elevator, Nevada Iowa",
+      "typeName": "Real Estate-Other RE",
+      "assessmentMethod": "Appraisal",
+      "value": 5200000,
+      "liquidationValue": 3640000,
+      "appraisalDate": "2026-02-27",
+      "nextRevaluationDate": "2029-02-27",
+      "valuationFrequency": "Annually",
+      "uccFiled": false,
+      "city": "Nevada",
+      "state": "IA",
+      "description": "First mortgage on the 1.6 million bushel grain elevator, dryer pad, scales and rail loadout at Nevada, Iowa.",
+      "legalDescription": "First mortgage on Lots 4 through 9, Prairie Industrial Addition, City of Nevada, Story County, Iowa, improved with a 1.6 million bushel concrete and steel grain elevator, receiving pit, two truck scales, an office and a 110 car rail loadout on a leased Union Pacific spur.",
+      "owners": [
+        {
+          "account": "prairie-grain-storage",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2023-09-15"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "elevator-2026",
+          "date": "2026-02-27",
+          "value": 5200000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "February 2026 narrative appraisal on the income and cost approaches, reflecting three full seasons of third party storage revenue since completion."
+        },
+        {
+          "key": "elevator-2023",
+          "date": "2023-08-22",
+          "value": 4900000,
+          "source": "Appraisal",
+          "type": "As Complete Value",
+          "original": true,
+          "description": "As complete appraisal at construction conversion, August 2023."
+        }
+      ]
+    },
+    {
+      "key": "dryer",
+      "name": "Prairie Grain Storage Dryer and Handling Equipment",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Appraisal",
+      "value": 780000,
+      "liquidationValue": 546000,
+      "appraisalDate": "2026-05-12",
+      "nextRevaluationDate": "2027-05-12",
+      "valuationFrequency": "Annually",
+      "uccState": "IA",
+      "city": "Nevada",
+      "state": "IA",
+      "description": "First UCC lien on the continuous flow dryer, legs, conveyors and aeration equipment at the Nevada elevator.",
+      "legalDescription": "First priority UCC-1 lien on one 5,000 bushel per hour continuous flow grain dryer, two 10,000 bushel per hour legs, drag conveyors, distributor and aeration fans installed at the Nevada, Iowa elevator, together with all attachments and proceeds.",
+      "owners": [
+        {
+          "account": "prairie-grain-storage",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-08-01"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "dryer-2026",
+          "date": "2026-05-12",
+          "value": 780000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "description": "May 2026 equipment appraisal at fair market value in place, on comparable used dryer sales."
+        },
+        {
+          "key": "dryer-2024",
+          "date": "2024-07-25",
+          "value": 865000,
+          "source": "Invoice / Bill of Sale",
+          "type": "Purchase Price",
+          "original": true,
+          "description": "Dealer invoice for the dryer, legs and conveyors including installation, July 2024."
+        }
+      ]
+    }
+  ],
+  "covenants": [
+    {
+      "key": "working-capital",
+      "typeName": "Minimum Working Capital",
+      "typeId": "a3Gbb000000PLO0EAO",
+      "recordType": "Financial Ratio",
+      "threshold": 3000000,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Semi-Annually",
+      "effectiveDate": "2022-06-15",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 4120000,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-12-31",
+      "covenantStatus": "Compliant",
+      "graceDays": 15,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum working capital of $3,000,000, tested semi-annually at 30 June and 31 December.",
+      "clause": "Section 7.01(a) of the Master Credit Agreement: Borrower shall maintain Working Capital of not less than $3,000,000 at each measurement date.",
+      "notes": "Working capital defined as current assets including growing crops at cost and stored grain at the cash bid, less current liabilities including the seasonal revolver and the current portion of long term debt. The 30 June measurement sits at the seasonal low point and is the binding one.",
+      "loans": [
+        "op-revolver"
+      ],
+      "evaluations": [
+        {
+          "key": "wc-2025-06",
+          "status": "Compliant",
+          "dueDate": "2025-06-30",
+          "effectiveDate": "2025-01-01",
+          "evaluationDate": "2025-08-14",
+          "value": 3480000,
+          "comments": "30 June 2025 test at $3.48MM, compliant at the seasonal low."
+        },
+        {
+          "key": "wc-2025-12",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-07-01",
+          "evaluationDate": "2026-02-19",
+          "value": 5240000,
+          "comments": "31 December 2025 test at $5.24MM after harvest deliveries, compliant."
+        },
+        {
+          "key": "wc-2026-06",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-08-11",
+          "value": 4120000,
+          "comments": "30 June 2026 test at $4.12MM, compliant and $640K better than the prior June on higher carried inventory."
+        }
+      ]
+    },
+    {
+      "key": "current-ratio",
+      "typeName": "Minimum Current Ratio",
+      "recordType": "Financial Ratio",
+      "threshold": 1.5,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Annually",
+      "effectiveDate": "2022-06-15",
+      "dueDate": "2025-12-31",
+      "lastEvaluationDate": "2025-12-31",
+      "lastEvaluationValue": 1.34,
+      "lastEvaluationStatus": "Waived",
+      "nextEvaluationDate": "2026-12-31",
+      "covenantStatus": "Waived",
+      "breached": true,
+      "graceDays": 15,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum current ratio of 1.50 to 1.00, tested annually at the 31 December fiscal year end.",
+      "clause": "Section 7.01(b) of the Master Credit Agreement: Borrower shall maintain a ratio of current assets to current liabilities of not less than 1.50 to 1.00 at each fiscal year end.",
+      "notes": "The 31 December 2025 test came in at 1.34x. The partnership held 411,000 bushels of unpriced corn off the December board and carried the revolver $2.1MM higher than plan into January, which lifted current liabilities against inventory booked at the depressed cash bid. Waived by the credit officer on 26 February 2026; see policy exception AG-CUR-01.",
+      "loans": [
+        "op-revolver",
+        "land-story"
+      ],
+      "evaluations": [
+        {
+          "key": "cr-2023-12",
+          "status": "Compliant",
+          "dueDate": "2023-12-31",
+          "effectiveDate": "2023-01-01",
+          "evaluationDate": "2024-02-27",
+          "value": 1.72,
+          "comments": "FY2023 test at 1.72x, compliant."
+        },
+        {
+          "key": "cr-2024-12",
+          "status": "Compliant",
+          "dueDate": "2024-12-31",
+          "effectiveDate": "2024-01-01",
+          "evaluationDate": "2025-02-25",
+          "value": 1.61,
+          "comments": "FY2024 test at 1.61x, compliant."
+        },
+        {
+          "key": "cr-2025-12",
+          "status": "Waived",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-01-01",
+          "evaluationDate": "2026-02-20",
+          "value": 1.34,
+          "exceptionReason": "Breached",
+          "comments": "FY2025 harvest test at 1.34x against the 1.50x minimum, driven by unpriced bushels carried at the December cash bid and a higher revolver balance into January. Waived by the credit officer on 26 February 2026 against a marketing plan requiring 60 percent of the 2026 crop priced by 31 October."
+        }
+      ]
+    },
+    {
+      "key": "leverage",
+      "typeName": "Leverage",
+      "recordType": "Financial Ratio",
+      "threshold": 2.5,
+      "operator": "Less Than or Equal To",
+      "acnpexOperator": "<=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2022-06-15",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 2.11,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 15,
+      "complianceDaysPrior": "30",
+      "detail": "Maximum total funded debt to tangible net worth of 2.50 to 1.00, tested quarterly.",
+      "clause": "Section 7.01(c) of the Master Credit Agreement: Borrower shall not permit the ratio of Total Funded Debt to Tangible Net Worth to exceed 2.50 to 1.00.",
+      "notes": "Total funded debt is measured on a combined basis including Prairie Grain Storage LLC. Tangible net worth is stated at the appraised value of the farmland rather than at cost, as permitted by the definition, which is what keeps the ratio inside 2.50x while the mortgages are outstanding.",
+      "loans": [
+        "land-story",
+        "storage-elevator"
+      ],
+      "evaluations": [
+        {
+          "key": "lev-2025-12",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-02-19",
+          "value": 2.24,
+          "comments": "Q4 2025 test at 2.24x, compliant."
+        },
+        {
+          "key": "lev-2026-03",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-05-14",
+          "value": 2.18,
+          "comments": "Q1 2026 test at 2.18x, compliant."
+        },
+        {
+          "key": "lev-2026-06",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-08-11",
+          "value": 2.11,
+          "comments": "Q2 2026 test at 2.11x, compliant and improving as the mortgages amortise."
+        }
+      ]
+    },
+    {
+      "key": "crop-insurance",
+      "typeName": "Collateral Insurance",
+      "recordType": "Information",
+      "threshold": 80,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Annually",
+      "effectiveDate": "2022-06-15",
+      "dueDate": "2026-03-15",
+      "lastEvaluationDate": "2026-03-12",
+      "lastEvaluationValue": 85,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2027-03-15",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Annual evidence of multi peril crop insurance at a coverage level of not less than 80 percent, with the bank named as loss payee.",
+      "clause": "Section 7.03(d) of the Master Credit Agreement: Borrower shall deliver evidence of multi peril crop insurance at a coverage level of not less than 80 percent of approved yield on all planted acres, naming Lender as loss payee, not later than 15 March in each year.",
+      "notes": "Evidence for the 2026 crop year was delivered on 12 March 2026: revenue protection at the 85 percent coverage level on all planted acres through the same agency that has written the policy since 2019, with the bank named as loss payee on the schedule.",
+      "loans": [
+        "op-revolver"
+      ],
+      "evaluations": [
+        {
+          "key": "ci-2025",
+          "status": "Compliant",
+          "dueDate": "2025-03-15",
+          "effectiveDate": "2025-01-01",
+          "evaluationDate": "2025-03-10",
+          "value": 85,
+          "comments": "2025 crop year evidence delivered 10 March 2025 at the 85 percent coverage level."
+        },
+        {
+          "key": "ci-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-15",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-03-12",
+          "value": 85,
+          "comments": "2026 crop year evidence delivered 12 March 2026 at the 85 percent coverage level, bank named as loss payee."
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "key": "operating",
+      "name": "Prairie Ag Operating Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "4",
+      "primaryEntity": "prairie-ag-holdings",
+      "description": "Booked operating package for Prairie Ag Holdings LP. Three facilities totalling $11.4MM of commitments against $7.88MM outstanding: a $10.0MM seasonal revolver governed by a crop and receivables borrowing base, and two equipment notes on the 2025 combine and the 24 row planter. Secured by a first blanket lien on growing crops, stored grain, receivables and the equipment schedule, guaranteed by the general partner and both principals.",
+      "loans": [
+        {
+          "key": "op-revolver",
+          "name": "Prairie Ag Holdings LP - Line of Credit - $10,000,000.00",
+          "lookupKey": "PRA1001",
+          "product": "Line of Credit",
+          "productType": "Non-Real Estate",
+          "riskGrade": "4",
+          "amount": 10000000,
+          "outstanding": 6800000,
+          "rate": 8.0,
+          "noteRate": 8.0,
+          "index": "WSJ Prime",
+          "spread": 0.5,
+          "termMonths": 12,
+          "amortMonths": 12,
+          "applicationDate": "2025-12-18",
+          "closeDate": "2026-02-08",
+          "bookedDate": "2026-02-08",
+          "firstPaymentDate": "2026-03-08",
+          "maturityDate": "2027-02-08",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Revolving Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "Secured Renewal",
+          "purpose": "business_credit_line",
+          "description": "Seasonal revolving line of credit for crop inputs, cash rent and operating costs, renewed annually. Interest only at WSJ Prime plus 0.50 percent, with principal repaid from harvest and deferred payment contract proceeds. Advances are governed by a monthly borrowing base of 60 percent of the growing crop valuation, 70 percent of stored grain and 80 percent of eligible receivables, and the line must be rested for 30 consecutive days between 1 January and 31 March.",
+          "involvements": [
+            {
+              "key": "rev-borrower",
+              "account": "prairie-ag-holdings",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and farming partnership."
+            },
+            {
+              "key": "rev-gp",
+              "account": "prairie-ag-gp",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 1,
+              "guarantyType": "Unlimited",
+              "notes": "General partner and corporate guarantor. Unlimited continuing guaranty, consistent with its general liability for partnership obligations."
+            },
+            {
+              "key": "rev-karl",
+              "account": "karl-ellsworth",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2011."
+            },
+            {
+              "key": "rev-anna",
+              "account": "anna-ellsworth",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 15,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2011."
+            },
+            {
+              "key": "rev-trust",
+              "account": "ellsworth-trust",
+              "borrowerType": "Related Entity",
+              "entityType": "EPC",
+              "relationshipType": "Related Entity",
+              "order": 5,
+              "ownership": 59,
+              "notes": "Majority limited partner. Related entity for global analysis; the trust gives no guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "rev-crops",
+              "collateral": "crops",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 60,
+              "amountPledged": 5520000,
+              "startDate": "2026-02-08",
+              "overrideReason": "Growing crops advanced at 60 percent of the July 2026 valuation against the 80 percent collateral type default, reflecting pre-harvest yield and price risk on unpriced bushels."
+            },
+            {
+              "key": "rev-grain",
+              "collateral": "grain-inventory",
+              "lienPosition": "1st",
+              "isPrimary": false,
+              "advanceRate": 70,
+              "amountPledged": 3010000,
+              "startDate": "2026-02-08",
+              "overrideReason": "Stored grain advanced at 70 percent against the 80 percent default, reflecting the share of bushels still unpriced on the July position report."
+            },
+            {
+              "key": "rev-ar",
+              "collateral": "receivables",
+              "lienPosition": "1st",
+              "isPrimary": false,
+              "advanceRate": 80,
+              "amountPledged": 2080000,
+              "startDate": "2026-02-08",
+              "overrideReason": "Eligible receivables and deferred payment contracts advanced at the 80 percent borrowing base rate on the July 2026 certificate."
+            }
+          ],
+          "fees": [
+            {
+              "key": "rev-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.375,
+              "description": "Origination fee, 0.375 percent of the committed line, charged at each annual renewal."
+            },
+            {
+              "key": "rev-unused",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "payoutFrequency": "Annually",
+              "description": "Unused commitment fee, 0.25 percent per annum on the average undrawn balance. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no commitment entry."
+            },
+            {
+              "key": "rev-fieldexam",
+              "feeType": "Other",
+              "recordType": "Costs",
+              "amount": 7500,
+              "isIncome": false,
+              "payoutFrequency": "Annually",
+              "description": "Annual field examination and borrowing base audit, third party, including the pre-harvest crop inspection."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.5,
+            "rate": 8.0,
+            "amortises": false,
+            "effectiveDate": "2026-02-08",
+            "endDate": "2027-02-08",
+            "termLength": 12
+          }
+        },
+        {
+          "key": "op-combine",
+          "name": "Prairie Ag Holdings LP - Equipment - $900,000.00",
+          "lookupKey": "PRA1002",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "4",
+          "amount": 900000,
+          "outstanding": 675000,
+          "rate": 6.85,
+          "noteRate": 6.85,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2025-03-04",
+          "closeDate": "2025-04-15",
+          "bookedDate": "2025-04-15",
+          "firstPaymentDate": "2025-05-15",
+          "maturityDate": "2030-04-15",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "description": "Five year fully amortising note financing a 2025 class 9 combine with corn head and draper platform, at 90 percent of invoice less trade.",
+          "involvements": [
+            {
+              "key": "com-borrower",
+              "account": "prairie-ag-holdings",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and farming partnership."
+            },
+            {
+              "key": "com-karl",
+              "account": "karl-ellsworth",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2011."
+            },
+            {
+              "key": "com-anna",
+              "account": "anna-ellsworth",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 15,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2011."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "com-equip",
+              "collateral": "farm-equipment",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 1050000,
+              "startDate": "2025-04-15",
+              "overrideReason": "Combine and heads allocated out of the equipment schedule at 75 percent of appraised fair market value, against the 80 percent collateral type default, reflecting auction realisation on used class 9 machines."
+            }
+          ],
+          "fees": [
+            {
+              "key": "com-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            },
+            {
+              "key": "com-ucc",
+              "feeType": "Government Recording",
+              "recordType": "Costs",
+              "amount": 185,
+              "isIncome": false,
+              "description": "Iowa Secretary of State UCC-1 filing and search."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.85,
+            "amortises": true,
+            "effectiveDate": "2025-04-15",
+            "endDate": "2030-04-15",
+            "termLength": 60,
+            "amortMonths": 60
+          }
+        },
+        {
+          "key": "op-planter",
+          "name": "Prairie Ag Holdings LP - Equipment - $500,000.00",
+          "lookupKey": "PRA1003",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "4",
+          "amount": 500000,
+          "outstanding": 407000,
+          "rate": 6.95,
+          "noteRate": 6.95,
+          "index": "Fixed",
+          "termMonths": 48,
+          "amortMonths": 48,
+          "applicationDate": "2025-10-15",
+          "closeDate": "2025-11-20",
+          "bookedDate": "2025-11-20",
+          "firstPaymentDate": "2025-12-20",
+          "maturityDate": "2029-11-20",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "description": "Four year fully amortising note financing a 24 row central fill planter with electric drive, downforce control and in furrow fertiliser, delivered ahead of the 2026 season.",
+          "involvements": [
+            {
+              "key": "pla-borrower",
+              "account": "prairie-ag-holdings",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and farming partnership."
+            },
+            {
+              "key": "pla-karl",
+              "account": "karl-ellsworth",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2011."
+            },
+            {
+              "key": "pla-anna",
+              "account": "anna-ellsworth",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 15,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2011."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "pla-equip",
+              "collateral": "farm-equipment",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 620000,
+              "startDate": "2025-11-20",
+              "overrideReason": "Planter allocated out of the equipment schedule at 75 percent of appraised fair market value, against the 80 percent collateral type default. Combined with the combine allocation the schedule remains advanced inside its 75 percent lendable value."
+            }
+          ],
+          "fees": [
+            {
+              "key": "pla-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.95,
+            "amortises": true,
+            "effectiveDate": "2025-11-20",
+            "endDate": "2029-11-20",
+            "termLength": 48,
+            "amortMonths": 48
+          }
+        }
+      ]
+    },
+    {
+      "key": "land",
+      "name": "Prairie Ag Farmland Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "4",
+      "primaryEntity": "prairie-ag-holdings",
+      "description": "Booked farmland package. Two first mortgages totalling $10.0MM of commitments against $8.93MM outstanding, on 2,400 acres in Story County and a second parcel of 680 acres in Boone County. Both notes amortise over twenty years with a ten year balloon, at 68 and 65 percent of appraised value.",
+      "loans": [
+        {
+          "key": "land-story",
+          "name": "Prairie Ag Holdings LP - Purchase - $7,800,000.00",
+          "lookupKey": "PRA2001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "amount": 7800000,
+          "outstanding": 6876000,
+          "rate": 6.35,
+          "noteRate": 6.35,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2022-04-20",
+          "closeDate": "2022-06-15",
+          "bookedDate": "2022-06-15",
+          "firstPaymentDate": "2022-07-15",
+          "maturityDate": "2032-06-15",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "real_estate_purchase_owner_occupied",
+          "description": "First mortgage on 2,400 tillable acres in Story County, amortising over twenty years with a ten year balloon. Underwritten at 68 percent of the March 2026 appraised value and serviced from crop income rather than cash rent, since the ground is farmed by the partnership itself.",
+          "involvements": [
+            {
+              "key": "ls-borrower",
+              "account": "prairie-ag-holdings",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower, title holder and operator of the mortgaged ground."
+            },
+            {
+              "key": "ls-gp",
+              "account": "prairie-ag-gp",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 1,
+              "guarantyType": "Unlimited",
+              "notes": "General partner and corporate guarantor. Unlimited continuing guaranty."
+            },
+            {
+              "key": "ls-karl",
+              "account": "karl-ellsworth",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2011."
+            },
+            {
+              "key": "ls-anna",
+              "account": "anna-ellsworth",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 15,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2011."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "ls-farmland",
+              "collateral": "farmland-story",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 70,
+              "amountPledged": 7800000,
+              "startDate": "2022-06-15",
+              "overrideReason": "Farmland advanced at 70 percent of the March 2026 appraised value against the 80 percent collateral type default, which is the bank's guideline for row crop ground held for production rather than for sale."
+            }
+          ],
+          "fees": [
+            {
+              "key": "ls-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            },
+            {
+              "key": "ls-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 12400,
+              "isIncome": false,
+              "description": "Narrative farmland appraisal across eleven tracts, third party."
+            },
+            {
+              "key": "ls-title",
+              "feeType": "Title Insurance",
+              "recordType": "Costs",
+              "amount": 16800,
+              "isIncome": false,
+              "description": "Iowa Title Guaranty lender certificate and abstract continuation on all tracts."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.35,
+            "amortises": true,
+            "effectiveDate": "2022-06-15",
+            "endDate": "2032-06-15",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "land-boone",
+          "name": "Prairie Ag Holdings LP - Purchase - $2,200,000.00",
+          "lookupKey": "PRA2002",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "amount": 2200000,
+          "outstanding": 2056000,
+          "rate": 6.6,
+          "noteRate": 6.6,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2024-01-25",
+          "closeDate": "2024-03-20",
+          "bookedDate": "2024-03-20",
+          "firstPaymentDate": "2024-04-20",
+          "maturityDate": "2034-03-20",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "real_estate_purchase_owner_occupied",
+          "description": "First mortgage on the second parcel, 680 tiled acres in Boone County acquired in March 2024, amortising over twenty years with a ten year balloon at 65 percent of appraised value.",
+          "involvements": [
+            {
+              "key": "lb-borrower",
+              "account": "prairie-ag-holdings",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower, title holder and operator of the mortgaged ground."
+            },
+            {
+              "key": "lb-gp",
+              "account": "prairie-ag-gp",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 1,
+              "guarantyType": "Unlimited",
+              "notes": "General partner and corporate guarantor. Unlimited continuing guaranty."
+            },
+            {
+              "key": "lb-karl",
+              "account": "karl-ellsworth",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2011."
+            },
+            {
+              "key": "lb-anna",
+              "account": "anna-ellsworth",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 15,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty since 2011."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "lb-farmland",
+              "collateral": "farmland-boone",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 70,
+              "amountPledged": 2200000,
+              "startDate": "2024-03-20",
+              "overrideReason": "Second parcel advanced at 70 percent of the March 2026 appraised value against the 80 percent collateral type default, on the same row crop guideline as the home farm."
+            }
+          ],
+          "fees": [
+            {
+              "key": "lb-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            },
+            {
+              "key": "lb-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 6900,
+              "isIncome": false,
+              "description": "Narrative farmland appraisal on the Boone County parcel, third party."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.6,
+            "amortises": true,
+            "effectiveDate": "2024-03-20",
+            "endDate": "2034-03-20",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        }
+      ]
+    },
+    {
+      "key": "storage",
+      "name": "Prairie Grain Storage Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "4",
+      "primaryEntity": "prairie-grain-storage",
+      "description": "Booked storage package. Borrower of record is Prairie Grain Storage LLC, with Prairie Ag Holdings LP as unlimited corporate guarantor and both principals on limited guaranties. Two facilities totalling $4.2MM of commitments against $3.70MM outstanding: the grain elevator construction loan converted to a ten year term note in September 2023, and the 2024 dryer and handling equipment note.",
+      "loans": [
+        {
+          "key": "storage-elevator",
+          "name": "Prairie Grain Storage LLC - Term - $3,600,000.00",
+          "lookupKey": "PRA3001",
+          "product": "Term",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "amount": 3600000,
+          "outstanding": 3325000,
+          "rate": 6.75,
+          "noteRate": 6.75,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2022-11-14",
+          "closeDate": "2023-09-15",
+          "bookedDate": "2023-09-15",
+          "firstPaymentDate": "2023-10-15",
+          "maturityDate": "2033-09-15",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "Refinance Existing Loan With Lender",
+          "purpose": "construction_owner_occupied",
+          "description": "The 1.6 million bushel grain elevator construction loan, converted to permanent financing on completion in September 2023. Twenty year amortisation with a ten year balloon, serviced from storage and drying income from the partnership and third party growers.",
+          "involvements": [
+            {
+              "key": "el-borrower",
+              "account": "prairie-grain-storage",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Borrower of record. Wholly owned storage subsidiary and title holder of the elevator."
+            },
+            {
+              "key": "el-parent",
+              "account": "prairie-ag-holdings",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Parent partnership and sole member. Unlimited continuing guaranty."
+            },
+            {
+              "key": "el-karl",
+              "account": "karl-ellsworth",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1800000,
+              "notes": "Personal guaranty limited to $1.8MM, being 50 percent of the note, on the subsidiary's obligations."
+            },
+            {
+              "key": "el-anna",
+              "account": "anna-ellsworth",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 15,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1800000,
+              "notes": "Personal guaranty limited to $1.8MM, being 50 percent of the note, on the subsidiary's obligations."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "el-elevator",
+              "collateral": "elevator",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 70,
+              "amountPledged": 3600000,
+              "startDate": "2023-09-15",
+              "overrideReason": "Special purpose agricultural improvement advanced at 70 percent of the February 2026 appraised value against the 80 percent collateral type default, reflecting the narrow resale market for a single site elevator."
+            }
+          ],
+          "fees": [
+            {
+              "key": "el-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.75,
+              "description": "Origination fee, 0.75 percent, charged at conversion from construction to permanent financing."
+            },
+            {
+              "key": "el-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 9600,
+              "isIncome": false,
+              "description": "As complete appraisal at conversion, third party."
+            },
+            {
+              "key": "el-survey",
+              "feeType": "Survey",
+              "recordType": "Costs",
+              "amount": 4200,
+              "isIncome": false,
+              "description": "ALTA survey of the elevator site and the rail spur easement."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.75,
+            "amortises": true,
+            "effectiveDate": "2023-09-15",
+            "endDate": "2033-09-15",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "storage-dryer",
+          "name": "Prairie Grain Storage LLC - Equipment - $600,000.00",
+          "lookupKey": "PRA3002",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "4",
+          "amount": 600000,
+          "outstanding": 375000,
+          "rate": 7.1,
+          "noteRate": 7.1,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2024-06-20",
+          "closeDate": "2024-08-01",
+          "bookedDate": "2024-08-01",
+          "firstPaymentDate": "2024-09-01",
+          "maturityDate": "2029-08-01",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "purpose": "equipment",
+          "description": "Five year fully amortising note financing the 5,000 bushel per hour continuous flow dryer, two legs and the conveying and aeration package installed at the Nevada elevator ahead of the 2024 harvest.",
+          "involvements": [
+            {
+              "key": "dry-borrower",
+              "account": "prairie-grain-storage",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Borrower of record. Wholly owned storage subsidiary and owner of the dryer."
+            },
+            {
+              "key": "dry-parent",
+              "account": "prairie-ag-holdings",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Parent partnership and sole member. Unlimited continuing guaranty."
+            },
+            {
+              "key": "dry-karl",
+              "account": "karl-ellsworth",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 300000,
+              "notes": "Personal guaranty limited to $300K, being 50 percent of the note."
+            },
+            {
+              "key": "dry-anna",
+              "account": "anna-ellsworth",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 15,
+              "guarantyType": "Limited",
+              "guarantyLimit": 300000,
+              "notes": "Personal guaranty limited to $300K, being 50 percent of the note."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "dry-equip",
+              "collateral": "dryer",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 80,
+              "amountPledged": 600000,
+              "startDate": "2024-08-01",
+              "overrideReason": "Dryer and handling package advanced at 80 percent of the May 2026 appraised fair market value in place, which is the collateral type default and appropriate for installed equipment with an active used market."
+            }
+          ],
+          "fees": [
+            {
+              "key": "dry-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.1,
+            "amortises": true,
+            "effectiveDate": "2024-08-01",
+            "endDate": "2029-08-01",
+            "termLength": 60,
+            "amortMonths": 60
+          }
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "key": "annual-2026",
+      "type": "Annual",
+      "package": "operating",
+      "currentGrade": "4",
+      "recommendedGrade": "4",
+      "covenantsTested": "Yes",
+      "covenantsPassed": "No",
+      "toCommittee": "No",
+      "narrative": "FY2025 annual credit review of the Prairie Ag relationship, completed 24 February 2026 alongside the waiver of the 31 December 2025 current ratio test. Grade affirmed at 4.",
+      "summary": "Prairie Ag group: $25.6MM committed across seven booked facilities in three packages, $20.51MM outstanding. A $10.0MM seasonal revolver on a crop and receivables borrowing base, two equipment notes, two farmland first mortgages on 3,080 owned acres appraised at $14.9MM, and the Nevada elevator and dryer at Prairie Grain Storage LLC. Guaranteed by Prairie Ag GP LLC and both principals, unlimited on the partnership debt and limited to 50 percent of each note on the storage subsidiary.",
+      "recommendation": "Renew the $10.0MM seasonal line at WSJ Prime plus 0.50 percent for a further twelve months at the February 2027 maturity, subject to a satisfactory 2026 harvest borrowing base and evidence that 60 percent of the 2026 crop was priced by 31 October. Hold the grade at 4. Continue to monitor the current ratio at the December 2026 test.",
+      "riskComments": "Risk grade affirmed at 4. Leverage of 2.11x against a 2.50x maximum and working capital of $4.12MM against a $3.00MM minimum are both comfortable. The single covenant miss was the 31 December 2025 current ratio at 1.34x, a marketing timing effect rather than a structural one, and it was waived. Land values across Story and Boone counties held through 2026 and the mortgages sit at 68 and 65 percent of appraised value.",
+      "strengths": "Forty eight year operating history and third generation management with thirty one years in the business. Owned land of 3,080 acres appraised at $14.9MM against $8.93MM of mortgage debt, giving $5.97MM of equity. Multi peril crop insurance at the 85 percent coverage level on every planted acre with the bank as loss payee. Own storage and drying capacity of 1.6 million bushels, which removes harvest delivery pressure and adds third party storage income.",
+      "weaknesses": "Earnings are exposed to corn and soybean price and to a single growing season. The partnership carried 411,000 unpriced bushels into January 2026, which is what caused the current ratio miss. The seasonal line matures 8 February 2027 and the renewal depends on the 2026 harvest base. Third party storage income at the elevator is concentrated in eleven neighbouring growers."
+    }
+  ],
+  "riskRatingReviews": [
+    {
+      "key": "rating-2026",
+      "status": "In Review",
+      "computedGrade": 4,
+      "cashFlowCoverage": 1.42,
+      "creditScore": 754,
+      "revenueGrowth": 4.8,
+      "managementYears": 31,
+      "year1": 2023,
+      "year2": 2024,
+      "year3": 2025,
+      "comments": "Annual risk rating review supporting the FY2025 annual review. Computed grade 4 on three years of tax basis statements converted to accrual, with growing crops and stored grain marked to the cash bid. No override requested."
+    }
+  ],
+  "policyExceptions": [
+    {
+      "key": "pex-current-ratio",
+      "name": "Current ratio below policy minimum at the 31 December 2025 harvest test",
+      "type": "Policy",
+      "code": "AG-CUR-01",
+      "status": "Waived",
+      "severity": "Minor",
+      "severityValue": 1,
+      "loan": "op-revolver",
+      "collateral": "grain-inventory",
+      "mitigation": [
+        "Timing not structure: 411,000 unpriced bushels at the December bid, 1.58x once priced by March 2026.",
+        "Working capital $5.24MM against a $3.00MM minimum, leverage 2.24x against a 2.50x maximum, both in.",
+        "Unlimited guaranties from the general partner and both principals, on $5.97MM of farmland equity."
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "key": "opp-marketing-line",
+      "name": "Prairie Ag - Grain Marketing Line and Interest Rate Swap",
+      "stage": "Proposal",
+      "amount": 1500000,
+      "closeDate": "2026-12-11",
+      "type": "Existing Business",
+      "probability": 60,
+      "leadSource": "Word of mouth",
+      "nextStep": "Margin call line term sheet with the swap indication for the Story County mortgage, meeting booked 29 September after harvest starts.",
+      "description": "A $1.5MM hedging line to margin the CME positions behind the 2027 marketing plan, alongside a ten year interest rate swap to fix the Story County mortgage through its balloon. Raised by Anna Ellsworth after the December 2025 unpriced bushel problem."
+    }
+  ],
+  "cases": [
+    {
+      "key": "case-renewal-base",
+      "subject": "Seasonal revolver renewal: borrowing base treatment of the 2026 growing crop",
+      "status": "New",
+      "priority": "Medium",
+      "origin": "Phone",
+      "type": "Question",
+      "description": "Karl Ellsworth asked how the growing crop will be advanced in the base at the February 2027 renewal, and whether crop insurance proceeds and the unpriced bushel haircut are treated the same way once the 2026 crop is in the bin."
+    }
+  ]
+}

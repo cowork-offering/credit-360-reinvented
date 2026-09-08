@@ -1,0 +1,1375 @@
+{
+  "slug": "sunbelt",
+  "anchorKey": "sunbelt-group",
+  "accounts": [
+    {
+      "key": "sunbelt-group",
+      "name": "Sunbelt Hospitality Group Inc",
+      "kind": "business",
+      "industry": "Hospitality",
+      "naics": "721110",
+      "annualRevenue": 63000000,
+      "riskGrade": "6",
+      "riskStatus": "Medium",
+      "nextReviewDate": "2027-08-28",
+      "lastReviewDate": "2026-08-28",
+      "billingCity": "Orlando",
+      "billingState": "FL",
+      "description": "Owner and manager of two full service hotels in the Orlando market, 486 keys in total. Holds the franchise licences, employs the operating staff and manages both properties for its own single purpose entities under a management agreement. Founded 2009, 412 employees."
+    },
+    {
+      "key": "lakeside-spe",
+      "name": "Sunbelt Lakeside Hotel LLC",
+      "kind": "business",
+      "industry": "Hospitality",
+      "naics": "721110",
+      "annualRevenue": 27500000,
+      "riskGrade": "6",
+      "riskStatus": "Medium",
+      "billingCity": "Windermere",
+      "billingState": "FL",
+      "description": "Single purpose entity, 100 percent owned by Sunbelt Hospitality Group Inc. Title holder of the 268 key Lakeside resort hotel. No employees, no operations of its own; the property is run by the parent under a management agreement."
+    },
+    {
+      "key": "airport-spe",
+      "name": "Sunbelt Airport Hotel LLC",
+      "kind": "business",
+      "industry": "Hospitality",
+      "naics": "721110",
+      "annualRevenue": 19800000,
+      "riskGrade": "6",
+      "riskStatus": "Medium",
+      "billingCity": "Orlando",
+      "billingState": "FL",
+      "description": "Single purpose entity, 100 percent owned by Sunbelt Hospitality Group Inc. Title holder of the 218 key select service hotel adjacent to Orlando International Airport. No employees, managed by the parent."
+    },
+    {
+      "key": "marcus-delgado",
+      "name": "Marcus Delgado",
+      "kind": "person",
+      "riskGrade": "6",
+      "riskStatus": "Medium",
+      "description": "Founder, Chairman and Chief Executive Officer. Holds 70 percent of Sunbelt Hospitality Group Inc directly and 70 percent of both property entities indirectly. Full unlimited guarantor on every facility in the relationship."
+    },
+    {
+      "key": "halcyon-capital",
+      "name": "Halcyon Capital Partners LLC",
+      "kind": "business",
+      "industry": "Finance",
+      "naics": "523999",
+      "annualRevenue": 8400000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "Atlanta",
+      "billingState": "GA",
+      "description": "Private investment firm holding a 30 percent minority stake in Sunbelt Hospitality Group Inc since the 2021 recapitalisation. Passive investor with board observation rights. Provides NO guaranty on any facility."
+    }
+  ],
+  "connections": [
+    {
+      "key": "group-owns-lakeside",
+      "from": "sunbelt-group",
+      "to": "lakeside-spe",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member and Manager",
+      "description": "Sunbelt Hospitality Group Inc holds 100 percent of the membership interests in Sunbelt Lakeside Hotel LLC and manages the property under a management agreement."
+    },
+    {
+      "key": "group-owns-airport",
+      "from": "sunbelt-group",
+      "to": "airport-spe",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member and Manager",
+      "description": "Sunbelt Hospitality Group Inc holds 100 percent of the membership interests in Sunbelt Airport Hotel LLC and manages the property under a management agreement."
+    },
+    {
+      "key": "delgado-owns-group",
+      "from": "marcus-delgado",
+      "to": "sunbelt-group",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 70,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Chairman and Chief Executive Officer",
+      "description": "Founder. Holds 70 percent of the voting stock of Sunbelt Hospitality Group Inc directly. Unlimited guarantor across the relationship."
+    },
+    {
+      "key": "halcyon-owns-group",
+      "from": "halcyon-capital",
+      "to": "sunbelt-group",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 30,
+      "authorizedSigner": false,
+      "officialTitle": "Minority Investor",
+      "description": "Holds 30 percent of Sunbelt Hospitality Group Inc from the 2021 recapitalisation. No guaranty, no operating role, board observation rights only."
+    },
+    {
+      "key": "delgado-lakeside",
+      "from": "marcus-delgado",
+      "to": "lakeside-spe",
+      "roleName": "Beneficial Owner",
+      "indirectOwnershipPercent": 70,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Chairman and Chief Executive Officer",
+      "description": "Holds 70 percent of Sunbelt Lakeside Hotel LLC indirectly through Sunbelt Hospitality Group Inc."
+    },
+    {
+      "key": "delgado-airport",
+      "from": "marcus-delgado",
+      "to": "airport-spe",
+      "roleName": "Beneficial Owner",
+      "indirectOwnershipPercent": 70,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Chairman and Chief Executive Officer",
+      "description": "Holds 70 percent of Sunbelt Airport Hotel LLC indirectly through Sunbelt Hospitality Group Inc."
+    },
+    {
+      "key": "halcyon-lakeside",
+      "from": "halcyon-capital",
+      "to": "lakeside-spe",
+      "roleName": "Beneficial Owner",
+      "indirectOwnershipPercent": 30,
+      "description": "Holds 30 percent of Sunbelt Lakeside Hotel LLC indirectly through Sunbelt Hospitality Group Inc. No guaranty."
+    },
+    {
+      "key": "halcyon-airport",
+      "from": "halcyon-capital",
+      "to": "airport-spe",
+      "roleName": "Beneficial Owner",
+      "indirectOwnershipPercent": 30,
+      "description": "Holds 30 percent of Sunbelt Airport Hotel LLC indirectly through Sunbelt Hospitality Group Inc. No guaranty."
+    }
+  ],
+  "collateral": [
+    {
+      "key": "lakeside-hotel",
+      "name": "Sunbelt Lakeside Resort Hotel - 8820 Conroy Windermere Road, Windermere",
+      "typeName": "Real Estate-Other RE",
+      "assessmentMethod": "Appraisal",
+      "value": 23500000,
+      "liquidationValue": 18800000,
+      "appraisalDate": "2026-08-14",
+      "nextRevaluationDate": "2027-08-14",
+      "valuationFrequency": "Annually",
+      "uccFiled": true,
+      "uccState": "FL",
+      "city": "Windermere",
+      "state": "FL",
+      "description": "268 key full service resort hotel on 9.4 acres with conference space, two food and beverage outlets and 310 surface parking spaces. Reappraised August 2026 at $23.5MM, down from $26.0MM at close.",
+      "legalDescription": "First mortgage, assignment of leases and rents, security agreement and fixture filing on the hotel, land and improvements at 8820 Conroy Windermere Road, Windermere, Orange County, Florida, together with all fixtures, permits, licences and the operating accounts of Sunbelt Lakeside Hotel LLC.",
+      "owners": [
+        {
+          "account": "lakeside-spe",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-05-31"
+        },
+        {
+          "account": "sunbelt-group",
+          "association": "Lessee",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2024-05-31"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "lk-appr-2024",
+          "date": "2024-04-18",
+          "value": 26000000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "original": true,
+          "description": "April 2024 MAI appraisal at origination. Income capitalisation at a 7.75 percent going-in capitalisation rate reconciled with the sales comparison approach. Supported the $18.0MM first mortgage at 69.2 percent loan to value."
+        },
+        {
+          "key": "lk-reappr-2026",
+          "date": "2026-08-14",
+          "value": 23500000,
+          "source": "Appraisal",
+          "type": "As Is Value",
+          "primary": true,
+          "active": true,
+          "description": "August 2026 lender-ordered update. Value cut to $23.5MM on capitalisation rate expansion to 8.50 percent and softer transient demand in the resort submarket. This is the reappraisal that breaches the loan to value covenant."
+        }
+      ]
+    },
+    {
+      "key": "lakeside-ffe",
+      "name": "Sunbelt Lakeside Hotel Furniture, Fixtures and Equipment",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Net Book Value",
+      "value": 3200000,
+      "liquidationValue": 1920000,
+      "appraisalDate": "2026-06-30",
+      "nextRevaluationDate": "2027-06-30",
+      "valuationFrequency": "Annually",
+      "uccFiled": true,
+      "uccState": "FL",
+      "city": "Windermere",
+      "state": "FL",
+      "description": "Guest room case goods, soft goods, lobby and conference furniture, kitchen and laundry equipment and the property management system at the Lakeside hotel, substantially all replaced in the 2025 property improvement plan.",
+      "legalDescription": "First priority UCC-1 lien on all furniture, fixtures, equipment, inventory and general intangibles of Sunbelt Lakeside Hotel LLC located at or used in connection with the Windermere property, filed with the Florida Secured Transaction Registry.",
+      "owners": [
+        {
+          "account": "lakeside-spe",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-03-31"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "lkffe-2025",
+          "date": "2025-04-30",
+          "value": 3600000,
+          "source": "Invoice / Bill of Sale",
+          "type": "Purchase Price",
+          "original": true,
+          "description": "Vendor invoices for the 2025 property improvement plan: guest room case goods and soft goods, lobby refresh, kitchen line and the replacement property management system."
+        },
+        {
+          "key": "lkffe-2026",
+          "date": "2026-06-30",
+          "value": 3200000,
+          "source": "Internal Valuation",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "June 2026 net book value after one year of depreciation on the seven year schedule."
+        }
+      ]
+    },
+    {
+      "key": "airport-hotel",
+      "name": "Sunbelt Airport Hotel - 7455 Augusta National Drive, Orlando",
+      "typeName": "Real Estate-Other RE",
+      "assessmentMethod": "Appraisal",
+      "value": 20500000,
+      "liquidationValue": 16400000,
+      "appraisalDate": "2026-02-10",
+      "nextRevaluationDate": "2027-02-10",
+      "valuationFrequency": "Annually",
+      "uccFiled": true,
+      "uccState": "FL",
+      "city": "Orlando",
+      "state": "FL",
+      "description": "218 key select service hotel on 4.8 acres, two miles from Orlando International Airport. Meeting space, shuttle operation and 240 parking spaces.",
+      "legalDescription": "First mortgage, assignment of leases and rents, security agreement and fixture filing on the hotel, land and improvements at 7455 Augusta National Drive, Orlando, Orange County, Florida, together with all fixtures, permits, licences and the operating accounts of Sunbelt Airport Hotel LLC.",
+      "owners": [
+        {
+          "account": "airport-spe",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2023-09-29"
+        },
+        {
+          "account": "sunbelt-group",
+          "association": "Lessee",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2023-09-29"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "ap-appr-2023",
+          "date": "2023-08-21",
+          "value": 19800000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "original": true,
+          "description": "August 2023 MAI appraisal at origination, income capitalisation at 8.00 percent. Supported the $14.0MM first mortgage at 70.7 percent loan to value."
+        },
+        {
+          "key": "ap-appr-2026",
+          "date": "2026-02-10",
+          "value": 20500000,
+          "source": "Appraisal",
+          "type": "As Is Value",
+          "primary": true,
+          "active": true,
+          "description": "February 2026 update appraisal. Value up to $20.5MM on airport traffic recovery and a full year of the new group contract with two airline crews."
+        }
+      ]
+    },
+    {
+      "key": "airport-ffe",
+      "name": "Sunbelt Airport Hotel Furniture, Fixtures and Equipment",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Net Book Value",
+      "value": 1600000,
+      "liquidationValue": 960000,
+      "appraisalDate": "2026-06-30",
+      "nextRevaluationDate": "2027-06-30",
+      "valuationFrequency": "Annually",
+      "uccFiled": true,
+      "uccState": "FL",
+      "city": "Orlando",
+      "state": "FL",
+      "description": "Guest room and public space furniture, fixtures and equipment, breakfast kitchen, laundry plant and the two airport shuttle vans at the Airport hotel, financed under the 2024 FF&E note.",
+      "legalDescription": "First priority UCC-1 lien on all furniture, fixtures, equipment and inventory of Sunbelt Airport Hotel LLC located at or used in connection with the Augusta National Drive property.",
+      "owners": [
+        {
+          "account": "airport-spe",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-11-29"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "apffe-2024",
+          "date": "2024-11-15",
+          "value": 1850000,
+          "source": "Invoice / Bill of Sale",
+          "type": "Purchase Price",
+          "original": true,
+          "description": "Vendor invoices for the November 2024 FF&E replacement package: guest room furniture, mattresses, breakfast kitchen and laundry plant."
+        },
+        {
+          "key": "apffe-2026",
+          "date": "2026-06-30",
+          "value": 1600000,
+          "source": "Internal Valuation",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "June 2026 net book value after depreciation on the seven year schedule."
+        }
+      ]
+    },
+    {
+      "key": "corp-receivables",
+      "name": "Sunbelt Management Fee Receivables and Assignment of Rents",
+      "typeName": "UCC-Accounts",
+      "assessmentMethod": "Internal Valuation",
+      "value": 4200000,
+      "liquidationValue": 3150000,
+      "appraisalDate": "2026-06-30",
+      "nextRevaluationDate": "2026-12-31",
+      "valuationFrequency": "Semi-Annually",
+      "uccFiled": true,
+      "uccState": "FL",
+      "city": "Orlando",
+      "state": "FL",
+      "description": "Blanket lien on the management company: management fee receivables from both property entities, group and corporate accounts receivable, and the assignment of rents from the retail and restaurant leases at both hotels.",
+      "legalDescription": "First priority UCC-1 lien on all accounts, contract rights, management agreements, general intangibles and proceeds of Sunbelt Hospitality Group Inc, together with a collateral assignment of the leases and rents at both managed properties.",
+      "owners": [
+        {
+          "account": "sunbelt-group",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-11-28"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "corp-ar-2026",
+          "date": "2026-06-30",
+          "value": 4200000,
+          "source": "Receivables Aging",
+          "type": "Balance Sheet",
+          "primary": true,
+          "active": true,
+          "description": "June 2026 aging of management fees, group receivables and assigned lease income on a trailing twelve month basis."
+        }
+      ]
+    },
+    {
+      "key": "corp-vehicles",
+      "name": "Sunbelt Shuttle Fleet and Back of House Equipment",
+      "typeName": "Titled-Motor Vehicle",
+      "assessmentMethod": "Internal Valuation",
+      "value": 1150000,
+      "liquidationValue": 690000,
+      "appraisalDate": "2026-01-20",
+      "nextRevaluationDate": "2027-01-20",
+      "valuationFrequency": "Annually",
+      "uccFiled": true,
+      "uccState": "FL",
+      "city": "Orlando",
+      "state": "FL",
+      "description": "Six guest shuttle buses, four service vans and the shared back of house equipment fleet, titled to the management company and used across both properties.",
+      "legalDescription": "Certificate of title liens on six shuttle buses and four service vans identified by VIN on Schedule A, plus a first priority UCC-1 lien on the shared laundry, grounds and engineering equipment of Sunbelt Hospitality Group Inc.",
+      "owners": [
+        {
+          "account": "sunbelt-group",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-06-30"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "veh-2025",
+          "date": "2025-06-15",
+          "value": 1240000,
+          "source": "Invoice / Bill of Sale",
+          "type": "Purchase Price",
+          "original": true,
+          "description": "June 2025 dealer invoices for the shuttle fleet replacement and the laundry plant upgrade."
+        },
+        {
+          "key": "veh-2026",
+          "date": "2026-01-20",
+          "value": 1150000,
+          "source": "Internal Valuation",
+          "type": "Actual Cash Value",
+          "primary": true,
+          "active": true,
+          "description": "January 2026 internal valuation on published guide values for the titled units and net book value for the equipment."
+        }
+      ]
+    }
+  ],
+  "covenants": [
+    {
+      "key": "dscr",
+      "typeName": "Debt Service Coverage of Borrower",
+      "recordType": "Financial Ratio",
+      "threshold": 1.3,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2023-09-29",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 1.34,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum consolidated Debt Service Coverage Ratio of 1.30x, tested quarterly on a trailing twelve month basis across both properties and the management company.",
+      "clause": "Section 7.01(a) of the Master Credit Agreement: Borrower shall maintain a Debt Service Coverage Ratio of not less than 1.30 to 1.00.",
+      "notes": "Coverage is net operating income after a 4 percent FF&E reserve and the management fee, divided by scheduled principal and interest on all mortgage and term debt. The FF&E reserve deduction is what keeps this ratio tight relative to reported hotel EBITDA.",
+      "loans": [
+        "lk-mortgage",
+        "ap-mortgage",
+        "co-revolver"
+      ],
+      "evaluations": [
+        {
+          "key": "dscr-q3-2025",
+          "status": "Compliant",
+          "dueDate": "2025-09-30",
+          "effectiveDate": "2025-07-01",
+          "evaluationDate": "2025-10-24",
+          "value": 1.41,
+          "comments": "Q3 2025 test at 1.41x on a trailing twelve month basis, compliant."
+        },
+        {
+          "key": "dscr-q4-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-01-28",
+          "value": 1.38,
+          "comments": "Q4 2025 test at 1.38x, compliant. Lakeside out of service rooms during the property improvement plan cost roughly 0.05x."
+        },
+        {
+          "key": "dscr-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-27",
+          "value": 1.36,
+          "comments": "Q1 2026 test at 1.36x, compliant."
+        },
+        {
+          "key": "dscr-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-24",
+          "value": 1.34,
+          "comments": "Q2 2026 test at 1.34x. Compliant but trending down on softer transient rate in the resort submarket."
+        }
+      ]
+    },
+    {
+      "key": "ltv",
+      "typeName": "Financial Indicators",
+      "recordType": "Financial Ratio",
+      "threshold": 70,
+      "operator": "Less Than or Equal To",
+      "acnpexOperator": "<=",
+      "frequency": "Annually",
+      "effectiveDate": "2023-09-29",
+      "dueDate": "2026-08-14",
+      "lastEvaluationDate": "2026-08-14",
+      "lastEvaluationValue": 72.1,
+      "lastEvaluationStatus": "Exception",
+      "nextEvaluationDate": "2027-02-15",
+      "covenantStatus": "Exception",
+      "breached": true,
+      "graceDays": 30,
+      "complianceDaysPrior": "30",
+      "detail": "Maximum loan to value of 70 percent on each mortgaged property, measured as the first mortgage balance over the most recent lender-approved appraised value, tested annually and on receipt of any new appraisal.",
+      "clause": "Section 7.01(b) of the Master Credit Agreement: the outstanding principal of each Property Loan shall not exceed 70 percent of the Appraised Value of the Property securing it.",
+      "notes": "IN BREACH. The August 2026 lender-ordered update on the Lakeside property came in at $23.5MM against $26.0MM at origination, putting that loan at 72.1 percent against the 70 percent maximum. The Airport property tests at 63.1 percent on the February 2026 appraisal and is inside the covenant. A paydown or a partial recourse cure has been requested and is not yet agreed, so the exception is carried Unmitigated.",
+      "loans": [
+        "lk-mortgage",
+        "ap-mortgage"
+      ],
+      "evaluations": [
+        {
+          "key": "ltv-2024",
+          "status": "Compliant",
+          "dueDate": "2024-12-31",
+          "effectiveDate": "2024-01-01",
+          "evaluationDate": "2025-01-30",
+          "value": 68.4,
+          "comments": "2024 annual test on the origination appraisals. Lakeside 68.4 percent, Airport 69.2 percent, both compliant."
+        },
+        {
+          "key": "ltv-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-01-01",
+          "evaluationDate": "2026-01-30",
+          "value": 66.9,
+          "comments": "2025 annual test. Lakeside 66.9 percent on the origination appraisal, Airport 66.1 percent, both compliant."
+        },
+        {
+          "key": "ltv-2026-reappraisal",
+          "status": "Exception",
+          "dueDate": "2026-08-14",
+          "effectiveDate": "2026-08-14",
+          "evaluationDate": "2026-08-21",
+          "value": 72.1,
+          "exceptionReason": "Breached",
+          "comments": "Out of cycle test on the August 2026 Lakeside reappraisal. $16.94MM against $23.5MM is 72.1 percent, 2.1 points above the covenant maximum. Reported to the credit officer 21 August 2026; see policy exception CRE-LTV-01."
+        }
+      ]
+    },
+    {
+      "key": "debt-yield",
+      "typeName": "Coverage - Private Company",
+      "recordType": "Financial Ratio",
+      "threshold": 9,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2023-09-29",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 10.4,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum debt yield of 9.00 percent, being trailing twelve month net operating income after the FF&E reserve divided by the aggregate outstanding mortgage and term debt secured by the two properties, tested quarterly.",
+      "clause": "Section 7.01(c) of the Master Credit Agreement.",
+      "notes": "Debt yield is the test that keeps working when appraised values move, which is why it sits alongside the loan to value covenant. At 10.4 percent it carries 1.4 points of headroom even with the Lakeside value reduction, and it is the ratio the credit officer is leaning on while the loan to value exception is open.",
+      "loans": [
+        "lk-mortgage",
+        "ap-mortgage"
+      ],
+      "evaluations": [
+        {
+          "key": "dy-q4-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-01-28",
+          "value": 10.9,
+          "comments": "Q4 2025 debt yield of 10.9 percent, compliant."
+        },
+        {
+          "key": "dy-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-24",
+          "value": 10.4,
+          "comments": "Q2 2026 debt yield of 10.4 percent, compliant."
+        }
+      ]
+    },
+    {
+      "key": "revpar",
+      "typeName": "Sales Report",
+      "recordType": "Financial Statements",
+      "threshold": 118,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Monthly",
+      "effectiveDate": "2024-05-31",
+      "dueDate": "2026-07-31",
+      "lastEvaluationDate": "2026-07-31",
+      "lastEvaluationValue": 126.4,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 0,
+      "complianceDaysPrior": "14",
+      "detail": "Monthly STR report and operating statement for each property within 30 days of month end, with a minimum blended revenue per available room of $118.00 across the two hotels.",
+      "clause": "Section 6.03 of the Master Credit Agreement (Reporting) and Schedule 6.03 (Minimum RevPAR).",
+      "notes": "Blended RevPAR is weighted by keys, 268 at Lakeside and 218 at the Airport property. July 2026 came in at $126.40 blended, $141.20 at Lakeside and $108.20 at the Airport hotel. The report is the covenant; the minimum is the trigger for a cash management sweep, not for a default.",
+      "loans": [
+        "lk-mortgage",
+        "ap-mortgage",
+        "lk-pip"
+      ],
+      "evaluations": [
+        {
+          "key": "revpar-2026-06",
+          "status": "Compliant",
+          "dueDate": "2026-07-30",
+          "effectiveDate": "2026-06-01",
+          "evaluationDate": "2026-07-22",
+          "value": 131.8,
+          "comments": "June 2026 STR report. Blended RevPAR of $131.80, peak season."
+        },
+        {
+          "key": "revpar-2026-07",
+          "status": "Compliant",
+          "dueDate": "2026-08-30",
+          "effectiveDate": "2026-07-01",
+          "evaluationDate": "2026-08-25",
+          "value": 126.4,
+          "comments": "July 2026 STR report. Blended RevPAR of $126.40, compliant."
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "key": "lakeside",
+      "name": "Sunbelt Lakeside Hotel Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "6",
+      "primaryEntity": "lakeside-spe",
+      "description": "Booked package for the 268 key Lakeside resort hotel. Borrower of record is Sunbelt Lakeside Hotel LLC, the single purpose entity that holds title. Two facilities totalling $20.5MM of commitments against $19.03MM outstanding: the $18.0MM first mortgage and the $2.5MM property improvement plan term loan. Guaranteed by Sunbelt Hospitality Group Inc and by Marcus Delgado, both unlimited. The August 2026 reappraisal put the first mortgage into loan to value breach.",
+      "loans": [
+        {
+          "key": "lk-mortgage",
+          "name": "Sunbelt Lakeside Hotel LLC - Purchase - $18,000,000.00",
+          "lookupKey": "SUN1001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "6",
+          "amount": 18000000,
+          "outstanding": 16940000,
+          "rate": 6.55,
+          "noteRate": 6.55,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2024-03-15",
+          "closeDate": "2024-05-31",
+          "bookedDate": "2024-05-31",
+          "firstPaymentDate": "2024-07-01",
+          "maturityDate": "2034-05-31",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Balloon",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "real_estate_purchase_non_owner_occupied",
+          "description": "First mortgage on the Lakeside resort hotel. Twenty year amortisation with a ten year balloon, fixed at 6.55 percent. Advanced at 69.2 percent of the $26.0MM April 2024 appraisal; the August 2026 update at $23.5MM moves the ratio to 72.1 percent and puts the loan to value covenant into breach.",
+          "involvements": [
+            {
+              "key": "lkm-borrower",
+              "account": "lakeside-spe",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single purpose borrowing entity and title holder of the Windermere property."
+            },
+            {
+              "key": "lkm-group",
+              "account": "sunbelt-group",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Corporate guarantor and manager of the property. Unlimited continuing guaranty and a subordination of the management fee."
+            },
+            {
+              "key": "lkm-delgado",
+              "account": "marcus-delgado",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 70,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, full recourse, in place since the 2024 acquisition."
+            },
+            {
+              "key": "lkm-halcyon",
+              "account": "halcyon-capital",
+              "borrowerType": "Related Entity",
+              "entityType": "Operating Company",
+              "order": 4,
+              "ownership": 30,
+              "notes": "Minority investor at 30 percent. Provides NO guaranty and is carried for the ownership record and the global cash flow view only."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "lkm-hotel",
+              "collateral": "lakeside-hotel",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 70,
+              "amountPledged": 16450000,
+              "startDate": "2024-05-31",
+              "overrideReason": "Full service resort hotel advanced at 70 percent against the 80 percent collateral-type default, on the August 2026 updated appraisal of $23.5MM. The $16.45MM lendable value now sits below the $16.94MM balance, which is the covenant breach the exception records."
+            }
+          ],
+          "fees": [
+            {
+              "key": "lkm-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.75,
+              "description": "Origination fee, 0.75 percent of the note, paid at closing."
+            },
+            {
+              "key": "lkm-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 12500,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "MAI hospitality appraisal at origination, third party."
+            },
+            {
+              "key": "lkm-title",
+              "feeType": "Title Insurance",
+              "recordType": "Costs",
+              "amount": 28400,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "ALTA lenders title policy, endorsements and the survey update."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.55,
+            "amortises": true,
+            "effectiveDate": "2024-05-31",
+            "endDate": "2034-05-31",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "lk-pip",
+          "name": "Sunbelt Lakeside Hotel LLC - Term - $2,500,000.00",
+          "lookupKey": "SUN1002",
+          "product": "Term",
+          "productType": "Real Estate",
+          "riskGrade": "6",
+          "amount": 2500000,
+          "outstanding": 2090000,
+          "rate": 7.25,
+          "noteRate": 7.25,
+          "index": "Fixed",
+          "termMonths": 84,
+          "amortMonths": 84,
+          "applicationDate": "2025-01-20",
+          "closeDate": "2025-03-31",
+          "bookedDate": "2025-03-31",
+          "firstPaymentDate": "2025-05-01",
+          "maturityDate": "2032-03-31",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "property_improvement_non_owner_occupied",
+          "description": "Seven year fully amortising term loan funding the franchisor mandated property improvement plan at the Lakeside hotel: guest room case goods and soft goods, lobby and conference refresh, kitchen line and the replacement property management system. Completed October 2025.",
+          "involvements": [
+            {
+              "key": "lkp-borrower",
+              "account": "lakeside-spe",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single purpose borrowing entity and title holder of the Windermere property."
+            },
+            {
+              "key": "lkp-group",
+              "account": "sunbelt-group",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Corporate guarantor and manager. Unlimited continuing guaranty; the franchise licence sits with this entity."
+            },
+            {
+              "key": "lkp-delgado",
+              "account": "marcus-delgado",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 70,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, full recourse."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "lkp-ffe",
+              "collateral": "lakeside-ffe",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 2400000,
+              "startDate": "2025-03-31",
+              "overrideReason": "Hotel furniture, fixtures and equipment advanced at 75 percent of the $3.2MM net book value, below the 80 percent collateral-type default because soft goods carry no resale value outside the property."
+            }
+          ],
+          "fees": [
+            {
+              "key": "lkp-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.25,
+            "amortises": true,
+            "effectiveDate": "2025-03-31",
+            "endDate": "2032-03-31",
+            "termLength": 84,
+            "amortMonths": 84
+          }
+        }
+      ]
+    },
+    {
+      "key": "airport",
+      "name": "Sunbelt Airport Hotel Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "airport-spe",
+      "description": "Booked package for the 218 key select service Airport hotel. Borrower of record is Sunbelt Airport Hotel LLC. Two facilities totalling $15.1MM of commitments against $13.695MM outstanding: the $14.0MM first mortgage and the $1.1MM FF&E note. Guaranteed by Sunbelt Hospitality Group Inc and by Marcus Delgado, both unlimited. Loan to value of 63.1 percent on the February 2026 appraisal, inside the covenant.",
+      "loans": [
+        {
+          "key": "ap-mortgage",
+          "name": "Sunbelt Airport Hotel LLC - Purchase - $14,000,000.00",
+          "lookupKey": "SUN2001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "5",
+          "amount": 14000000,
+          "outstanding": 12935000,
+          "rate": 6.8,
+          "noteRate": 6.8,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2023-07-10",
+          "closeDate": "2023-09-29",
+          "bookedDate": "2023-09-29",
+          "firstPaymentDate": "2023-11-01",
+          "maturityDate": "2033-09-29",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Balloon",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "real_estate_purchase_non_owner_occupied",
+          "description": "First mortgage on the Airport select service hotel. Twenty year amortisation with a ten year balloon, fixed at 6.80 percent. Advanced at 70.7 percent of the August 2023 appraisal; the February 2026 update at $20.5MM brings the ratio to 63.1 percent.",
+          "involvements": [
+            {
+              "key": "apm-borrower",
+              "account": "airport-spe",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single purpose borrowing entity and title holder of the Augusta National Drive property."
+            },
+            {
+              "key": "apm-group",
+              "account": "sunbelt-group",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Corporate guarantor and manager of the property. Unlimited continuing guaranty and a subordination of the management fee."
+            },
+            {
+              "key": "apm-delgado",
+              "account": "marcus-delgado",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 70,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, full recourse, in place since the 2023 acquisition."
+            },
+            {
+              "key": "apm-halcyon",
+              "account": "halcyon-capital",
+              "borrowerType": "Related Entity",
+              "entityType": "Operating Company",
+              "order": 4,
+              "ownership": 30,
+              "notes": "Minority investor at 30 percent. Provides NO guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "apm-hotel",
+              "collateral": "airport-hotel",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 68,
+              "amountPledged": 13940000,
+              "startDate": "2023-09-29",
+              "overrideReason": "Select service hotel advanced at 68 percent against the 80 percent collateral-type default, on the February 2026 update appraisal of $20.5MM."
+            }
+          ],
+          "fees": [
+            {
+              "key": "apm-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.75,
+              "description": "Origination fee, 0.75 percent of the note, paid at closing."
+            },
+            {
+              "key": "apm-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 11200,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "MAI hospitality appraisal at origination, third party."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.8,
+            "amortises": true,
+            "effectiveDate": "2023-09-29",
+            "endDate": "2033-09-29",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "ap-ffe",
+          "name": "Sunbelt Airport Hotel LLC - Equipment - $1,100,000.00",
+          "lookupKey": "SUN2002",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 1100000,
+          "outstanding": 760000,
+          "rate": 7.4,
+          "noteRate": 7.4,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2024-10-01",
+          "closeDate": "2024-11-29",
+          "bookedDate": "2024-11-29",
+          "firstPaymentDate": "2025-01-01",
+          "maturityDate": "2029-11-29",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "equipment",
+          "description": "Five year fully amortising note financing the November 2024 furniture, fixtures and equipment replacement at the Airport hotel: guest room furniture and mattresses, breakfast kitchen, laundry plant and two shuttle vans.",
+          "involvements": [
+            {
+              "key": "apf-borrower",
+              "account": "airport-spe",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single purpose borrowing entity and owner of the financed equipment."
+            },
+            {
+              "key": "apf-group",
+              "account": "sunbelt-group",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Corporate guarantor and manager of the property. Unlimited continuing guaranty."
+            },
+            {
+              "key": "apf-delgado",
+              "account": "marcus-delgado",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 70,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, full recourse."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "apf-ffe",
+              "collateral": "airport-ffe",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 1200000,
+              "startDate": "2024-11-29",
+              "overrideReason": "Hotel furniture, fixtures and equipment advanced at 75 percent of the $1.6MM net book value, below the 80 percent collateral-type default."
+            }
+          ],
+          "fees": [
+            {
+              "key": "apf-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.4,
+            "amortises": true,
+            "effectiveDate": "2024-11-29",
+            "endDate": "2029-11-29",
+            "termLength": 60,
+            "amortMonths": 60
+          }
+        }
+      ]
+    },
+    {
+      "key": "corporate",
+      "name": "Sunbelt Corporate Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "6",
+      "primaryEntity": "sunbelt-group",
+      "description": "Booked corporate package at the management company. Borrower of record is Sunbelt Hospitality Group Inc. Two facilities totalling $2.9MM of commitments against $2.018MM outstanding: a $2.0MM working capital revolver drawn to $1.3MM and a $900K vehicle and equipment note on the shuttle fleet. Secured by a blanket lien on the management fee receivables and the assignment of rents, plus certificate of title liens on the fleet.",
+      "loans": [
+        {
+          "key": "co-revolver",
+          "name": "Sunbelt Hospitality Group Inc - Line of Credit - $2,000,000.00",
+          "lookupKey": "SUN3001",
+          "product": "Line of Credit",
+          "productType": "Non-Real Estate",
+          "riskGrade": "6",
+          "amount": 2000000,
+          "outstanding": 1300000,
+          "rate": 8.0,
+          "noteRate": 8.0,
+          "index": "WSJ Prime",
+          "spread": 0.5,
+          "termMonths": 24,
+          "amortMonths": 24,
+          "applicationDate": "2025-10-06",
+          "closeDate": "2025-11-28",
+          "bookedDate": "2025-11-28",
+          "firstPaymentDate": "2025-12-31",
+          "maturityDate": "2027-11-28",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Revolving Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "business_credit_line",
+          "description": "Twenty four month working capital revolver at the management company, priced at WSJ Prime plus 0.50 percent, interest only monthly. Funds seasonal payroll and pre-opening group costs between the summer and winter peaks. Drawn $1.30MM of the $2.0MM commitment, $700K available.",
+          "involvements": [
+            {
+              "key": "cor-borrower",
+              "account": "sunbelt-group",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Management company and primary borrower. Holds the franchise licences and employs the property staff."
+            },
+            {
+              "key": "cor-delgado",
+              "account": "marcus-delgado",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "ownership": 70,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, full recourse."
+            },
+            {
+              "key": "cor-lakeside",
+              "account": "lakeside-spe",
+              "borrowerType": "Related Entity",
+              "entityType": "EPC",
+              "order": 3,
+              "ownership": 100,
+              "notes": "Property entity included in the global cash flow analysis. Does not guarantee the corporate line."
+            },
+            {
+              "key": "cor-airport",
+              "account": "airport-spe",
+              "borrowerType": "Related Entity",
+              "entityType": "EPC",
+              "order": 4,
+              "ownership": 100,
+              "notes": "Property entity included in the global cash flow analysis. Does not guarantee the corporate line."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "cor-receivables",
+              "collateral": "corp-receivables",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 60,
+              "amountPledged": 2520000,
+              "startDate": "2025-11-28",
+              "overrideReason": "Management fee receivables and assigned lease income advanced at 60 percent against the 80 percent collateral-type default: the fees are payable by affiliates, so the eligible advance is cut to reflect the intercompany nature of the obligor."
+            }
+          ],
+          "fees": [
+            {
+              "key": "cor-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.35,
+              "description": "Origination fee, 0.35 percent of the committed line."
+            },
+            {
+              "key": "cor-unused",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "payoutFrequency": "Annually",
+              "description": "Unused commitment fee, 0.25 percent per annum on the average undrawn balance, billed annually. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no commitment entry."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.5,
+            "rate": 8.0,
+            "amortises": false,
+            "effectiveDate": "2025-11-28",
+            "endDate": "2027-11-28",
+            "termLength": 24
+          }
+        },
+        {
+          "key": "co-vehicle",
+          "name": "Sunbelt Hospitality Group Inc - Equipment - $900,000.00",
+          "lookupKey": "SUN3002",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "6",
+          "amount": 900000,
+          "outstanding": 718000,
+          "rate": 7.15,
+          "noteRate": 7.15,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2025-05-12",
+          "closeDate": "2025-06-30",
+          "bookedDate": "2025-06-30",
+          "firstPaymentDate": "2025-08-01",
+          "maturityDate": "2030-06-30",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "motor_vehicle",
+          "description": "Five year fully amortising note financing six guest shuttle buses, four service vans and the shared laundry and grounds equipment used across both properties. Titled to the management company.",
+          "involvements": [
+            {
+              "key": "cov-borrower",
+              "account": "sunbelt-group",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Management company and primary borrower. Titled owner of the shuttle fleet."
+            },
+            {
+              "key": "cov-delgado",
+              "account": "marcus-delgado",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "ownership": 70,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, full recourse."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "cov-fleet",
+              "collateral": "corp-vehicles",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 862500,
+              "startDate": "2025-06-30",
+              "overrideReason": "Titled shuttle fleet and back of house equipment advanced at 75 percent of the January 2026 valuation, below the 80 percent collateral-type default to allow for the shuttle depreciation curve."
+            }
+          ],
+          "fees": [
+            {
+              "key": "cov-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            },
+            {
+              "key": "cov-dmv",
+              "feeType": "DMV",
+              "recordType": "Costs",
+              "amount": 1850,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "Florida title and lien recording on ten titled units."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.15,
+            "amortises": true,
+            "effectiveDate": "2025-06-30",
+            "endDate": "2030-06-30",
+            "termLength": 60,
+            "amortMonths": 60
+          }
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "key": "annual-2026",
+      "type": "Annual",
+      "package": "lakeside",
+      "currentGrade": "6",
+      "recommendedGrade": "6",
+      "covenantsTested": "Yes",
+      "covenantsPassed": "No",
+      "toCommittee": "Yes",
+      "narrative": "FY2026 annual credit review of the Sunbelt Hospitality relationship, completed 28 August 2026 immediately after the Lakeside reappraisal. WATCH NOTE: the relationship is placed on the watch list at grade 6. The 14 August 2026 update appraisal on the Lakeside resort came in at $23.5MM against $26.0MM at origination, putting the $18.0MM first mortgage at 72.1 percent loan to value against a 70 percent covenant. Cash flow is unaffected and every payment is current, but the exception is carried Unmitigated pending either a paydown to $16.45MM or an agreed partial recourse cure from the sponsor. Relationship manager to report monthly to the credit officer until the exception is cleared.",
+      "summary": "Sunbelt Hospitality Group: $38.5MM committed across six booked facilities in three packages, $34.667MM outstanding. Two Orlando hotels totalling 486 keys held in single purpose entities, both managed by the parent. Security is first mortgages and assignments of rents on both properties, first liens on the furniture, fixtures and equipment at each, a blanket lien on the management fee receivables and certificate of title liens on the shuttle fleet. Guarantees from Sunbelt Hospitality Group Inc and from Marcus Delgado, both unlimited and full recourse. Halcyon Capital Partners at 30 percent provides no guaranty.",
+      "recommendation": "Hold the grade at 6 and place the relationship on the watch list. Do not waive the loan to value covenant. Require either a $490K principal curtailment on the Lakeside first mortgage or a partial recourse cure agreement from Marcus Delgado within 90 days, and a second update appraisal at 30 June 2027. Continue the $2.0MM corporate revolver on existing terms; it renews November 2027.",
+      "riskComments": "Grade affirmed at 6 with a watch note. Debt service coverage of 1.34x and debt yield of 10.4 percent are both inside covenant and both trending down about 0.02x and 0.5 points per quarter on softer transient rate in the resort submarket. The loan to value breach is a valuation event, not a cash flow event: no payment has ever been late on any of the six facilities. The Airport property is the stronger of the two at 63.1 percent loan to value and a full year of the airline crew contract.",
+      "strengths": "Seventeen years of single ownership and management under Marcus Delgado, who guarantees every facility without limit. Both properties are franchised under long dated licences with the property improvement plan at Lakeside completed in October 2025 and the Airport plan not due until 2029. Blended RevPAR of $126.40 is 7 percent above the covenant minimum and ahead of the comp set. Airport property appraised UP in February 2026.",
+      "weaknesses": "Single market concentration: both hotels are in Orlando and both depend on the same leisure and airport demand drivers. Capitalisation rate expansion has removed $2.5MM of value at Lakeside and put the loan into covenant breach. Halcyon Capital Partners at 30 percent contributes no credit support and has no obligation to fund a cure. The management company is thinly capitalised on its own and the corporate revolver is secured mainly by intercompany receivables."
+    }
+  ],
+  "riskRatingReviews": [
+    {
+      "key": "rg-2026",
+      "status": "In Review",
+      "computedGrade": 6,
+      "cashFlowCoverage": 1.34,
+      "creditScore": 691,
+      "revenueGrowth": 3.2,
+      "managementYears": 17,
+      "year1": 2023,
+      "year2": 2024,
+      "year3": 2025,
+      "comments": "Annual risk rating review supporting the FY2026 annual review. Computed grade 6, affirmed with a watch note. The collateral valuation shortfall at Lakeside is reflected in the grade; no override requested. Guarantor financial statement dated 30 June 2026 shows liquidity of $4.1MM outside the business."
+    }
+  ],
+  "policyExceptions": [
+    {
+      "key": "pex-ltv",
+      "name": "Loan to value above policy maximum after the August 2026 Lakeside reappraisal",
+      "type": "Policy",
+      "code": "CRE-LTV-01",
+      "status": "Unmitigated",
+      "severity": "Major",
+      "severityValue": 2,
+      "loan": "lk-mortgage",
+      "collateral": "lakeside-hotel",
+      "mitigation": [
+        "NOT MITIGATED. August 2026 reappraisal at $23.5MM puts the mortgage at 72.1 percent LTV.",
+        "A $490K curtailment or a partial recourse cure would clear it. Neither agreed, 90 days asked.",
+        "Cash flow unimpaired: DSCR 1.34x, debt yield 10.4 percent, every payment current."
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "key": "opp-third-hotel",
+      "name": "Sunbelt - Kissimmee Extended Stay Acquisition Financing",
+      "stage": "Qualification",
+      "amount": 12500000,
+      "closeDate": "2027-03-31",
+      "type": "Existing Business",
+      "probability": 30,
+      "leadSource": "External Referral",
+      "nextStep": "Hold pending resolution of the Lakeside loan to value exception. Broker package and trailing twelve month statements received; no credit work to start before the exception clears.",
+      "description": "A 142 key extended stay property in Kissimmee offered off market at $17.8MM. Sunbelt has asked for a $12.5MM acquisition mortgage into a new single purpose entity on the same structure as the two existing properties. Parked at qualification while the Lakeside exception is open."
+    }
+  ],
+  "cases": [
+    {
+      "key": "case-comfort-letter",
+      "subject": "Franchisor comfort letter renewal for both properties",
+      "status": "New",
+      "priority": "Medium",
+      "origin": "Email",
+      "type": "Question",
+      "description": "The controller asked whether the existing franchisor comfort letters carry over to the renewed licence terms, or whether the bank needs freshly executed letters naming the current mortgagee for each property. The Lakeside licence was renewed in July 2026 and the Airport licence renews in March 2027."
+    }
+  ]
+}

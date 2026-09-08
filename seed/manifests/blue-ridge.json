@@ -1,0 +1,1092 @@
+{
+  "slug": "blue-ridge",
+  "tag": "C360-SEED-2026-09",
+  "relationship": "Blue Ridge Orthopedic Partners PC",
+  "account": "001bb00001Ld0pxAAB",
+  "createdAt": "2026-09-08T11:55:01+00:00",
+  "order": [
+    {
+      "object": "Account",
+      "key": "blue-ridge-pc",
+      "id": "001bb00001Ld0pxAAB"
+    },
+    {
+      "object": "Account",
+      "key": "blue-ridge-properties",
+      "id": "001bb00001Ld0pyAAB"
+    },
+    {
+      "object": "Account",
+      "key": "blue-ridge-asc",
+      "id": "001bb00001Ld0pzAAB"
+    },
+    {
+      "object": "Account",
+      "key": "whitfield",
+      "id": "001bb00001Ld0q0AAB"
+    },
+    {
+      "object": "Account",
+      "key": "boone",
+      "id": "001bb00001Ld0q1AAB"
+    },
+    {
+      "object": "Account",
+      "key": "okonkwo",
+      "id": "001bb00001Ld0q2AAB"
+    },
+    {
+      "object": "Account",
+      "key": "vasquez",
+      "id": "001bb00001Ld0q3AAB"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "whitfield-owns-pc",
+      "id": "a38bb000001abbHAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "boone-owns-pc",
+      "id": "a38bb000001abbIAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "okonkwo-owns-pc",
+      "id": "a38bb000001abbJAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "vasquez-owns-pc",
+      "id": "a38bb000001abbKAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "whitfield-owns-properties",
+      "id": "a38bb000001abbLAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "boone-owns-properties",
+      "id": "a38bb000001abbMAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "okonkwo-owns-properties",
+      "id": "a38bb000001abbNAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "vasquez-owns-properties",
+      "id": "a38bb000001abbOAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "pc-owns-asc",
+      "id": "a38bb000001abbPAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "pc-properties-affiliate",
+      "id": "a38bb000001abbQAAQ"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "practice",
+      "id": "a5Fbb000000JBHVEA4"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "real-estate",
+      "id": "a5Fbb000000JBHWEA4"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "asc",
+      "id": "a5Fbb000000JBHXEA4"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "pr-revolver",
+      "id": "a4Zbb000002J6WnEAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "pr-acquisition",
+      "id": "a4Zbb000002J6WoEAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "pr-mri",
+      "id": "a4Zbb000002J6WpEAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "re-mob",
+      "id": "a4Zbb000002J6WqEAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "re-parking",
+      "id": "a4Zbb000002J6WrEAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "asc-buildout",
+      "id": "a4Zbb000002J6WsEAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "asc-equip",
+      "id": "a4Zbb000002J6WtEAK"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "prr-1",
+      "id": "a4Lbb000000PVVFEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "prr-2",
+      "id": "a4Lbb000000PVVGEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "prr-3",
+      "id": "a4Lbb000000PVVHEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "prr-4",
+      "id": "a4Lbb000000PVVIEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "prr-5",
+      "id": "a4Lbb000000PVVJEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pra-1",
+      "id": "a4Lbb000000PVVKEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pra-2",
+      "id": "a4Lbb000000PVVLEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pra-3",
+      "id": "a4Lbb000000PVVMEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pra-4",
+      "id": "a4Lbb000000PVVNEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pra-5",
+      "id": "a4Lbb000000PVVOEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "prm-1",
+      "id": "a4Lbb000000PVVPEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "prm-2",
+      "id": "a4Lbb000000PVVQEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "prm-3",
+      "id": "a4Lbb000000PVVREA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "prm-4",
+      "id": "a4Lbb000000PVVSEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "prm-5",
+      "id": "a4Lbb000000PVVTEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rem-1",
+      "id": "a4Lbb000000PVVUEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rem-2",
+      "id": "a4Lbb000000PVVVEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rem-3",
+      "id": "a4Lbb000000PVVWEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rem-4",
+      "id": "a4Lbb000000PVVXEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rem-5",
+      "id": "a4Lbb000000PVVYEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rem-6",
+      "id": "a4Lbb000000PVVZEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rep-1",
+      "id": "a4Lbb000000PVVaEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rep-2",
+      "id": "a4Lbb000000PVVbEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rep-3",
+      "id": "a4Lbb000000PVVcEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rep-4",
+      "id": "a4Lbb000000PVVdEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rep-5",
+      "id": "a4Lbb000000PVVeEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rep-6",
+      "id": "a4Lbb000000PVVfEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "asb-1",
+      "id": "a4Lbb000000PVVgEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "asb-2",
+      "id": "a4Lbb000000PVVhEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "asb-3",
+      "id": "a4Lbb000000PVViEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "asb-4",
+      "id": "a4Lbb000000PVVjEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "asb-5",
+      "id": "a4Lbb000000PVVkEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "asb-6",
+      "id": "a4Lbb000000PVVlEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ase-1",
+      "id": "a4Lbb000000PVVmEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ase-2",
+      "id": "a4Lbb000000PVVnEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ase-3",
+      "id": "a4Lbb000000PVVoEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ase-4",
+      "id": "a4Lbb000000PVVpEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ase-5",
+      "id": "a4Lbb000000PVVqEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ase-6",
+      "id": "a4Lbb000000PVVrEAO"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "pr-revolver",
+      "id": "a50bb00000v5VYcAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "pr-acquisition",
+      "id": "a50bb00000v5VYdAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "pr-mri",
+      "id": "a50bb00000v5VYeAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "re-mob",
+      "id": "a50bb00000v5VYfAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "re-parking",
+      "id": "a50bb00000v5VYgAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "asc-buildout",
+      "id": "a50bb00000v5VYhAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "asc-equip",
+      "id": "a50bb00000v5VYiAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "pr-revolver",
+      "id": "a4zbb000002Txy1AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "pr-acquisition",
+      "id": "a4zbb000002Txy2AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "pr-mri",
+      "id": "a4zbb000002Txy3AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "re-mob",
+      "id": "a4zbb000002Txy4AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "re-parking",
+      "id": "a4zbb000002Txy5AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "asc-buildout",
+      "id": "a4zbb000002Txy6AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "asc-equip",
+      "id": "a4zbb000002Txy7AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "pr-revolver",
+      "id": "a4ybb000002jMG9AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "pr-acquisition",
+      "id": "a4ybb000002jMGAAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "pr-mri",
+      "id": "a4ybb000002jMGBAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "re-mob",
+      "id": "a4ybb000002jMGCAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "re-parking",
+      "id": "a4ybb000002jMGDAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "asc-buildout",
+      "id": "a4ybb000002jMGEAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "asc-equip",
+      "id": "a4ybb000002jMGFAA2"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "prr-orig",
+      "id": "a45bb000001mUzJAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "prr-unused",
+      "id": "a45bb000001mUzKAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "prr-annual",
+      "id": "a45bb000001mUzLAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "pra-orig",
+      "id": "a45bb000001mUzMAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "pra-legal",
+      "id": "a45bb000001mUzNAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "prm-orig",
+      "id": "a45bb000001mUzOAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rem-appraisal",
+      "id": "a45bb000001mUzPAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rem-title",
+      "id": "a45bb000001mUzQAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rem-orig",
+      "id": "a45bb000001mUzRAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rep-orig",
+      "id": "a45bb000001mUzSAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "asb-orig",
+      "id": "a45bb000001mUzTAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ase-orig",
+      "id": "a45bb000001mUzUAAU"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "mob",
+      "id": "a35bb0000019qtFAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "parking-deck",
+      "id": "a35bb0000019qtGAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "asc-improvements",
+      "id": "a35bb0000019qtHAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "asc-equipment",
+      "id": "a35bb0000019qtIAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "mri-equipment",
+      "id": "a35bb0000019qtJAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "br-receivables",
+      "id": "a35bb0000019qtKAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "blanket",
+      "id": "a35bb0000019qtLAAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "mob#0",
+      "id": "a2Vbb000001cD5dEAE"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "mob#1",
+      "id": "a2Vbb000001cD5eEAE"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "mob#2",
+      "id": "a2Vbb000001cD5fEAE"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "parking-deck#0",
+      "id": "a2Vbb000001cD5gEAE"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "asc-improvements#0",
+      "id": "a2Vbb000001cD5hEAE"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "asc-improvements#1",
+      "id": "a2Vbb000001cD5iEAE"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "asc-equipment#0",
+      "id": "a2Vbb000001cD5jEAE"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "mri-equipment#0",
+      "id": "a2Vbb000001cD5kEAE"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "blanket#0",
+      "id": "a2Vbb000001cD5lEAE"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "mob-2026-03",
+      "id": "a34bb000003IN1FAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "mob-2024-10",
+      "id": "a34bb000003IN1GAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "park-2026-03",
+      "id": "a34bb000003IN1HAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "asci-2025-03",
+      "id": "a34bb000003IN1IAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "asci-2025-03-olv",
+      "id": "a34bb000003IN1JAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "asce-2025-03",
+      "id": "a34bb000003IN1KAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "mri-2026-04",
+      "id": "a34bb000003IN1LAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "mri-2025-06",
+      "id": "a34bb000003IN1MAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-2026-07",
+      "id": "a34bb000003IN1NAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-2025-12",
+      "id": "a34bb000003IN1OAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "blanket-2025-09",
+      "id": "a34bb000003IN1PAAW"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "prr-ar",
+      "id": "a4Rbb0000027b4vEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "pra-blanket",
+      "id": "a4Rbb0000027b4wEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "prm-mri",
+      "id": "a4Rbb0000027b4xEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "rem-mob",
+      "id": "a4Rbb0000027b4yEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "rep-deck",
+      "id": "a4Rbb0000027b4zEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "asb-improvements",
+      "id": "a4Rbb0000027b50EAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "ase-equipment",
+      "id": "a4Rbb0000027b51EAA"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "dsc",
+      "id": "a3Bbb000000Tb2bEAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "fixed-charge",
+      "id": "a3Bbb000000Tb2cEAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "capex",
+      "id": "a3Bbb000000Tb2dEAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "key-person",
+      "id": "a3Bbb000000Tb2eEAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "mob-occupancy",
+      "id": "a3Bbb000000Tb2fEAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "asc-insurance",
+      "id": "a3Bbb000000Tb2gEAC"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "dsc",
+      "id": "a2Wbb00000CWjcbEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "fixed-charge",
+      "id": "a2Wbb00000CWjccEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "capex",
+      "id": "a2Wbb00000CWjcdEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "key-person",
+      "id": "a2Wbb00000CWjceEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "mob-occupancy",
+      "id": "a2Wbb00000CWjcfEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "asc-insurance",
+      "id": "a2Wbb00000CWjcgEAD"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dsc@pr-revolver",
+      "id": "a4Vbb000000qpXtEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dsc@pr-acquisition",
+      "id": "a4Vbb000000qpXuEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dsc@re-mob",
+      "id": "a4Vbb000000qpXvEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "fixed-charge@pr-acquisition",
+      "id": "a4Vbb000000qpXwEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "fixed-charge@asc-buildout",
+      "id": "a4Vbb000000qpXxEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "capex@pr-revolver",
+      "id": "a4Vbb000000qpXyEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "capex@pr-mri",
+      "id": "a4Vbb000000qpXzEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "mob-occupancy@re-mob",
+      "id": "a4Vbb000000qpY0EAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "mob-occupancy@re-parking",
+      "id": "a4Vbb000000qpY1EAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "asc-insurance@asc-buildout",
+      "id": "a4Vbb000000qpY2EAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "asc-insurance@asc-equip",
+      "id": "a4Vbb000000qpY3EAI"
+    },
+    {
+      "object": "LLC_BI__Review__c",
+      "key": "annual-2026",
+      "id": "a5nbb00000nBDp0AAG"
+    },
+    {
+      "object": "LLC_BI__Annual_Review__c",
+      "key": "rg-2026",
+      "id": "a2bbb000006E8ThAAK"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-treasury",
+      "id": "006bb00000yJaV5AAK"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-satellite",
+      "id": "006bb00000yJaV6AAK"
+    },
+    {
+      "object": "Case",
+      "key": "case-certificate",
+      "id": "500bb00000v7DnuAAE"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "br-receivables#0",
+      "id": "a2Vbb000001cDOfEAM"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-capex",
+      "id": "a4rbb000003PEfZAAW"
+    }
+  ],
+  "records": {
+    "Account": {
+      "blue-ridge-pc": "001bb00001Ld0pxAAB",
+      "blue-ridge-properties": "001bb00001Ld0pyAAB",
+      "blue-ridge-asc": "001bb00001Ld0pzAAB",
+      "whitfield": "001bb00001Ld0q0AAB",
+      "boone": "001bb00001Ld0q1AAB",
+      "okonkwo": "001bb00001Ld0q2AAB",
+      "vasquez": "001bb00001Ld0q3AAB"
+    },
+    "LLC_BI__Connection__c": {
+      "whitfield-owns-pc": "a38bb000001abbHAAQ",
+      "boone-owns-pc": "a38bb000001abbIAAQ",
+      "okonkwo-owns-pc": "a38bb000001abbJAAQ",
+      "vasquez-owns-pc": "a38bb000001abbKAAQ",
+      "whitfield-owns-properties": "a38bb000001abbLAAQ",
+      "boone-owns-properties": "a38bb000001abbMAAQ",
+      "okonkwo-owns-properties": "a38bb000001abbNAAQ",
+      "vasquez-owns-properties": "a38bb000001abbOAAQ",
+      "pc-owns-asc": "a38bb000001abbPAAQ",
+      "pc-properties-affiliate": "a38bb000001abbQAAQ"
+    },
+    "LLC_BI__Product_Package__c": {
+      "practice": "a5Fbb000000JBHVEA4",
+      "real-estate": "a5Fbb000000JBHWEA4",
+      "asc": "a5Fbb000000JBHXEA4"
+    },
+    "LLC_BI__Loan__c": {
+      "pr-revolver": "a4Zbb000002J6WnEAK",
+      "pr-acquisition": "a4Zbb000002J6WoEAK",
+      "pr-mri": "a4Zbb000002J6WpEAK",
+      "re-mob": "a4Zbb000002J6WqEAK",
+      "re-parking": "a4Zbb000002J6WrEAK",
+      "asc-buildout": "a4Zbb000002J6WsEAK",
+      "asc-equip": "a4Zbb000002J6WtEAK"
+    },
+    "LLC_BI__Legal_Entities__c": {
+      "prr-1": "a4Lbb000000PVVFEA4",
+      "prr-2": "a4Lbb000000PVVGEA4",
+      "prr-3": "a4Lbb000000PVVHEA4",
+      "prr-4": "a4Lbb000000PVVIEA4",
+      "prr-5": "a4Lbb000000PVVJEA4",
+      "pra-1": "a4Lbb000000PVVKEA4",
+      "pra-2": "a4Lbb000000PVVLEA4",
+      "pra-3": "a4Lbb000000PVVMEA4",
+      "pra-4": "a4Lbb000000PVVNEA4",
+      "pra-5": "a4Lbb000000PVVOEA4",
+      "prm-1": "a4Lbb000000PVVPEA4",
+      "prm-2": "a4Lbb000000PVVQEA4",
+      "prm-3": "a4Lbb000000PVVREA4",
+      "prm-4": "a4Lbb000000PVVSEA4",
+      "prm-5": "a4Lbb000000PVVTEA4",
+      "rem-1": "a4Lbb000000PVVUEA4",
+      "rem-2": "a4Lbb000000PVVVEA4",
+      "rem-3": "a4Lbb000000PVVWEA4",
+      "rem-4": "a4Lbb000000PVVXEA4",
+      "rem-5": "a4Lbb000000PVVYEA4",
+      "rem-6": "a4Lbb000000PVVZEA4",
+      "rep-1": "a4Lbb000000PVVaEAO",
+      "rep-2": "a4Lbb000000PVVbEAO",
+      "rep-3": "a4Lbb000000PVVcEAO",
+      "rep-4": "a4Lbb000000PVVdEAO",
+      "rep-5": "a4Lbb000000PVVeEAO",
+      "rep-6": "a4Lbb000000PVVfEAO",
+      "asb-1": "a4Lbb000000PVVgEAO",
+      "asb-2": "a4Lbb000000PVVhEAO",
+      "asb-3": "a4Lbb000000PVViEAO",
+      "asb-4": "a4Lbb000000PVVjEAO",
+      "asb-5": "a4Lbb000000PVVkEAO",
+      "asb-6": "a4Lbb000000PVVlEAO",
+      "ase-1": "a4Lbb000000PVVmEAO",
+      "ase-2": "a4Lbb000000PVVnEAO",
+      "ase-3": "a4Lbb000000PVVoEAO",
+      "ase-4": "a4Lbb000000PVVpEAO",
+      "ase-5": "a4Lbb000000PVVqEAO",
+      "ase-6": "a4Lbb000000PVVrEAO"
+    },
+    "LLC_BI__Pricing_Stream__c": {
+      "pr-revolver": "a50bb00000v5VYcAAM",
+      "pr-acquisition": "a50bb00000v5VYdAAM",
+      "pr-mri": "a50bb00000v5VYeAAM",
+      "re-mob": "a50bb00000v5VYfAAM",
+      "re-parking": "a50bb00000v5VYgAAM",
+      "asc-buildout": "a50bb00000v5VYhAAM",
+      "asc-equip": "a50bb00000v5VYiAAM"
+    },
+    "LLC_BI__Pricing_Rate_Component__c": {
+      "pr-revolver": "a4zbb000002Txy1AAC",
+      "pr-acquisition": "a4zbb000002Txy2AAC",
+      "pr-mri": "a4zbb000002Txy3AAC",
+      "re-mob": "a4zbb000002Txy4AAC",
+      "re-parking": "a4zbb000002Txy5AAC",
+      "asc-buildout": "a4zbb000002Txy6AAC",
+      "asc-equip": "a4zbb000002Txy7AAC"
+    },
+    "LLC_BI__Pricing_Payment_Component__c": {
+      "pr-revolver": "a4ybb000002jMG9AAM",
+      "pr-acquisition": "a4ybb000002jMGAAA2",
+      "pr-mri": "a4ybb000002jMGBAA2",
+      "re-mob": "a4ybb000002jMGCAA2",
+      "re-parking": "a4ybb000002jMGDAA2",
+      "asc-buildout": "a4ybb000002jMGEAA2",
+      "asc-equip": "a4ybb000002jMGFAA2"
+    },
+    "LLC_BI__Fee__c": {
+      "prr-orig": "a45bb000001mUzJAAU",
+      "prr-unused": "a45bb000001mUzKAAU",
+      "prr-annual": "a45bb000001mUzLAAU",
+      "pra-orig": "a45bb000001mUzMAAU",
+      "pra-legal": "a45bb000001mUzNAAU",
+      "prm-orig": "a45bb000001mUzOAAU",
+      "rem-appraisal": "a45bb000001mUzPAAU",
+      "rem-title": "a45bb000001mUzQAAU",
+      "rem-orig": "a45bb000001mUzRAAU",
+      "rep-orig": "a45bb000001mUzSAAU",
+      "asb-orig": "a45bb000001mUzTAAU",
+      "ase-orig": "a45bb000001mUzUAAU"
+    },
+    "LLC_BI__Collateral__c": {
+      "mob": "a35bb0000019qtFAAQ",
+      "parking-deck": "a35bb0000019qtGAAQ",
+      "asc-improvements": "a35bb0000019qtHAAQ",
+      "asc-equipment": "a35bb0000019qtIAAQ",
+      "mri-equipment": "a35bb0000019qtJAAQ",
+      "blanket": "a35bb0000019qtLAAQ",
+      "br-receivables": "a35bb0000019qtKAAQ"
+    },
+    "LLC_BI__Account_Collateral__c": {
+      "mob#0": "a2Vbb000001cD5dEAE",
+      "mob#1": "a2Vbb000001cD5eEAE",
+      "mob#2": "a2Vbb000001cD5fEAE",
+      "parking-deck#0": "a2Vbb000001cD5gEAE",
+      "asc-improvements#0": "a2Vbb000001cD5hEAE",
+      "asc-improvements#1": "a2Vbb000001cD5iEAE",
+      "asc-equipment#0": "a2Vbb000001cD5jEAE",
+      "mri-equipment#0": "a2Vbb000001cD5kEAE",
+      "blanket#0": "a2Vbb000001cD5lEAE",
+      "br-receivables#0": "a2Vbb000001cDOfEAM"
+    },
+    "LLC_BI__Collateral_Valuation__c": {
+      "mob-2026-03": "a34bb000003IN1FAAW",
+      "mob-2024-10": "a34bb000003IN1GAAW",
+      "park-2026-03": "a34bb000003IN1HAAW",
+      "asci-2025-03": "a34bb000003IN1IAAW",
+      "asci-2025-03-olv": "a34bb000003IN1JAAW",
+      "asce-2025-03": "a34bb000003IN1KAAW",
+      "mri-2026-04": "a34bb000003IN1LAAW",
+      "mri-2025-06": "a34bb000003IN1MAAW",
+      "ar-2026-07": "a34bb000003IN1NAAW",
+      "ar-2025-12": "a34bb000003IN1OAAW",
+      "blanket-2025-09": "a34bb000003IN1PAAW"
+    },
+    "LLC_BI__Loan_Collateral2__c": {
+      "prr-ar": "a4Rbb0000027b4vEAA",
+      "pra-blanket": "a4Rbb0000027b4wEAA",
+      "prm-mri": "a4Rbb0000027b4xEAA",
+      "rem-mob": "a4Rbb0000027b4yEAA",
+      "rep-deck": "a4Rbb0000027b4zEAA",
+      "asb-improvements": "a4Rbb0000027b50EAA",
+      "ase-equipment": "a4Rbb0000027b51EAA"
+    },
+    "LLC_BI__Covenant2__c": {
+      "dsc": "a3Bbb000000Tb2bEAC",
+      "fixed-charge": "a3Bbb000000Tb2cEAC",
+      "capex": "a3Bbb000000Tb2dEAC",
+      "key-person": "a3Bbb000000Tb2eEAC",
+      "mob-occupancy": "a3Bbb000000Tb2fEAC",
+      "asc-insurance": "a3Bbb000000Tb2gEAC"
+    },
+    "LLC_BI__Account_Covenant__c": {
+      "dsc": "a2Wbb00000CWjcbEAD",
+      "fixed-charge": "a2Wbb00000CWjccEAD",
+      "capex": "a2Wbb00000CWjcdEAD",
+      "key-person": "a2Wbb00000CWjceEAD",
+      "mob-occupancy": "a2Wbb00000CWjcfEAD",
+      "asc-insurance": "a2Wbb00000CWjcgEAD"
+    },
+    "LLC_BI__Loan_Covenant__c": {
+      "dsc@pr-revolver": "a4Vbb000000qpXtEAI",
+      "dsc@pr-acquisition": "a4Vbb000000qpXuEAI",
+      "dsc@re-mob": "a4Vbb000000qpXvEAI",
+      "fixed-charge@pr-acquisition": "a4Vbb000000qpXwEAI",
+      "fixed-charge@asc-buildout": "a4Vbb000000qpXxEAI",
+      "capex@pr-revolver": "a4Vbb000000qpXyEAI",
+      "capex@pr-mri": "a4Vbb000000qpXzEAI",
+      "mob-occupancy@re-mob": "a4Vbb000000qpY0EAI",
+      "mob-occupancy@re-parking": "a4Vbb000000qpY1EAI",
+      "asc-insurance@asc-buildout": "a4Vbb000000qpY2EAI",
+      "asc-insurance@asc-equip": "a4Vbb000000qpY3EAI"
+    },
+    "LLC_BI__Review__c": {
+      "annual-2026": "a5nbb00000nBDp0AAG"
+    },
+    "LLC_BI__Annual_Review__c": {
+      "rg-2026": "a2bbb000006E8ThAAK"
+    },
+    "Opportunity": {
+      "opp-treasury": "006bb00000yJaV5AAK",
+      "opp-satellite": "006bb00000yJaV6AAK"
+    },
+    "Case": {
+      "case-certificate": "500bb00000v7DnuAAE"
+    },
+    "LLC_BI__Policy_Exception__c": {
+      "pex-capex": "a4rbb000003PEfZAAW"
+    }
+  },
+  "derived": {
+    "LLC_BI__Connection__c": [
+      "a38bb000001abbRAAQ",
+      "a38bb000001abbSAAQ",
+      "a38bb000001abbTAAQ",
+      "a38bb000001abbUAAQ",
+      "a38bb000001abbVAAQ",
+      "a38bb000001abbWAAQ",
+      "a38bb000001abbXAAQ",
+      "a38bb000001abbYAAQ",
+      "a38bb000001ac1NAAQ",
+      "a38bb000001ac1OAAQ"
+    ],
+    "LLC_BI__Loan_Detail__c": [
+      "a4Wbb000001MDPTEA4",
+      "a4Wbb000001MDPUEA4",
+      "a4Wbb000001MDPXEA4",
+      "a4Wbb000001MDPREA4",
+      "a4Wbb000001MDPWEA4",
+      "a4Wbb000001MDPSEA4",
+      "a4Wbb000001MDPVEA4"
+    ],
+    "LLC_BI__Loan_Collateral_Aggregate__c": [
+      "a4Sbb00000GQmcbEAD",
+      "a4Sbb00000GQmccEAD",
+      "a4Sbb00000GQmcdEAD",
+      "a4Sbb00000GQmceEAD",
+      "a4Sbb00000GQmcfEAD",
+      "a4Sbb00000GQmcgEAD",
+      "a4Sbb00000GQmchEAD"
+    ]
+  },
+  "errors": [
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "receivables#0",
+      "errors": [
+        {
+          "statusCode": "DUPLICATE_VALUE",
+          "message": "duplicate value found: LLC_BI__lookupKey__c duplicates value on record with id: a2Vbb000001cAXGEA2",
+          "fields": []
+        }
+      ],
+      "at": "2026-09-08T11:55:26+00:00"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-capex",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Mitigation Reason 1: data value too large: The $370K excess over the $1,500,000 annual limit is the second imaging bay at Hendersonville Road, which is revenue producing from August 2026 and is projected to add $640K of annual technical fee revenue against $210K of incremental cost. (max length=100)",
+          "fields": [
+            "LLC_BI__Mitigation_Reason_1__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:55:36+00:00"
+    }
+  ],
+  "updatedAt": "2026-09-08T11:58:21+00:00"
+}

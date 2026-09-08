@@ -1,0 +1,1354 @@
+{
+  "slug": "cascade",
+  "anchorKey": "cascade-software",
+  "accounts": [
+    {
+      "key": "evergreen-fund",
+      "name": "Evergreen Growth Partners Fund III LP",
+      "kind": "business",
+      "industry": "Finance",
+      "naics": "523999",
+      "annualRevenue": 0,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "San Francisco",
+      "billingState": "CA",
+      "description": "Private equity growth fund. Sponsor of the Cascade platform. Holds 78 percent of Cascade TopCo LLC. Limited guarantor of the credit facilities on an equity cure basis; no personal or unlimited guaranty is given."
+    },
+    {
+      "key": "cascade-topco",
+      "name": "Cascade TopCo LLC",
+      "kind": "business",
+      "industry": "Finance",
+      "naics": "551112",
+      "annualRevenue": 0,
+      "riskGrade": "5",
+      "riskStatus": "Low",
+      "billingCity": "Portland",
+      "billingState": "OR",
+      "description": "Sponsor holding company formed for the November 2025 growth recapitalisation. Owned 78 percent by Evergreen Growth Partners Fund III LP and 22 percent by management. Holds 100 percent of the equity of Cascade Software Solutions Inc and is the grantor of the equity pledge."
+    },
+    {
+      "key": "cascade-software",
+      "name": "Cascade Software Solutions Inc",
+      "kind": "business",
+      "industry": "Technology",
+      "naics": "513210",
+      "annualRevenue": 34000000,
+      "riskGrade": "5",
+      "riskStatus": "Low",
+      "nextReviewDate": "2027-02-15",
+      "lastReviewDate": "2026-02-20",
+      "billingCity": "Portland",
+      "billingState": "OR",
+      "description": "Vertical SaaS provider for field service and workforce scheduling. $34.0MM of annual recurring revenue, 96 percent subscription, 214 employees, founded 2014. Sponsor-owned since the November 2025 growth recapitalisation by Evergreen Growth Partners Fund III LP."
+    },
+    {
+      "key": "lena-marsh",
+      "name": "Lena Marsh",
+      "kind": "person",
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "description": "Co-founder and Chief Executive Officer. Key principal. Holds 13 percent of Cascade TopCo LLC through the management pool. Not a guarantor."
+    },
+    {
+      "key": "tomas-ruiz",
+      "name": "Tomas Ruiz",
+      "kind": "person",
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "description": "Co-founder and Chief Technology Officer. Key principal. Holds 9 percent of Cascade TopCo LLC through the management pool. Not a guarantor."
+    }
+  ],
+  "connections": [
+    {
+      "key": "evergreen-owns-topco",
+      "from": "evergreen-fund",
+      "to": "cascade-topco",
+      "roleName": "Owner",
+      "ownershipPercent": 78,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Controlling Member",
+      "description": "Evergreen Growth Partners Fund III LP holds 78 percent of the Class A units of Cascade TopCo LLC and appoints three of five board seats."
+    },
+    {
+      "key": "marsh-owns-topco",
+      "from": "lena-marsh",
+      "to": "cascade-topco",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 13,
+      "authorizedSigner": true,
+      "officialTitle": "Chief Executive Officer",
+      "description": "Lena Marsh holds 13 percent of Cascade TopCo LLC through the management incentive pool of the recapitalisation."
+    },
+    {
+      "key": "ruiz-owns-topco",
+      "from": "tomas-ruiz",
+      "to": "cascade-topco",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 9,
+      "officialTitle": "Chief Technology Officer",
+      "description": "Tomas Ruiz holds 9 percent of Cascade TopCo LLC through the management incentive pool of the recapitalisation."
+    },
+    {
+      "key": "topco-owns-borrower",
+      "from": "cascade-topco",
+      "to": "cascade-software",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Sole Shareholder",
+      "description": "Cascade TopCo LLC holds 100 percent of the issued share capital of Cascade Software Solutions Inc. Those shares are pledged to the bank under the acquisition facilities."
+    },
+    {
+      "key": "evergreen-borrower",
+      "from": "evergreen-fund",
+      "to": "cascade-software",
+      "roleName": "Beneficial Owner",
+      "indirectOwnershipPercent": 78,
+      "authorizedSigner": false,
+      "controlProng": true,
+      "officialTitle": "Sponsor",
+      "description": "Evergreen Growth Partners Fund III LP holds 78 percent of the borrower indirectly through Cascade TopCo LLC. Sponsor of the platform and limited guarantor on an equity cure basis."
+    },
+    {
+      "key": "marsh-borrower",
+      "from": "lena-marsh",
+      "to": "cascade-software",
+      "roleName": "Officer",
+      "indirectOwnershipPercent": 13,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Chief Executive Officer",
+      "description": "Co-founder and CEO of the borrower. Holds 13 percent indirectly through Cascade TopCo LLC. Key principal under the key-person provision; not a guarantor."
+    },
+    {
+      "key": "ruiz-borrower",
+      "from": "tomas-ruiz",
+      "to": "cascade-software",
+      "roleName": "Officer",
+      "indirectOwnershipPercent": 9,
+      "authorizedSigner": true,
+      "officialTitle": "Chief Technology Officer",
+      "description": "Co-founder and CTO of the borrower. Holds 9 percent indirectly through Cascade TopCo LLC. Key principal under the key-person provision; not a guarantor."
+    }
+  ],
+  "collateral": [
+    {
+      "key": "cascade-receivables",
+      "name": "Cascade Subscription Receivables",
+      "typeName": "UCC-Accounts",
+      "assessmentMethod": "Internal Valuation",
+      "value": 4200000,
+      "liquidationValue": 3150000,
+      "appraisalDate": "2026-07-31",
+      "nextRevaluationDate": "2026-10-31",
+      "valuationFrequency": "Quarterly",
+      "uccState": "OR",
+      "city": "Portland",
+      "state": "OR",
+      "description": "First blanket UCC lien on all present and future accounts receivable, subscription billings and proceeds.",
+      "legalDescription": "First priority UCC-1 lien on all accounts, payment intangibles, chattel paper, instruments and proceeds of Cascade Software Solutions Inc, filed with the Oregon Secretary of State.",
+      "owners": [
+        {
+          "account": "cascade-software",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-11-14"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "ar-2026-07",
+          "date": "2026-07-31",
+          "value": 4200000,
+          "source": "Receivables Aging",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "July 2026 aging. Eligible subscription receivables after ineligibles for balances over 90 days and for the two obligors above the 15 percent concentration cap."
+        },
+        {
+          "key": "ar-2025-11",
+          "date": "2025-11-14",
+          "value": 3350000,
+          "source": "Financial Statement",
+          "type": "Balance Sheet",
+          "original": true,
+          "description": "Closing balance sheet at the November 2025 recapitalisation, gross receivables less allowance."
+        }
+      ]
+    },
+    {
+      "key": "intellectual-property",
+      "name": "Cascade Intellectual Property and General Intangibles",
+      "typeName": "UCC-General Intangibles",
+      "assessmentMethod": "Appraisal",
+      "value": 21000000,
+      "liquidationValue": 8400000,
+      "appraisalDate": "2025-10-28",
+      "nextRevaluationDate": "2027-10-28",
+      "valuationFrequency": "Annually",
+      "uccState": "OR",
+      "city": "Portland",
+      "state": "OR",
+      "description": "First blanket UCC lien on all general intangibles, including the source code, registered trademarks, domain names, patents and the subscription contract base.",
+      "legalDescription": "First priority UCC-1 lien on all general intangibles, intellectual property, software, source code, trademarks, patents, domain names, customer contracts and licence agreements of Cascade Software Solutions Inc, together with a separate intellectual property security agreement recorded at the United States Patent and Trademark Office and the United States Copyright Office.",
+      "owners": [
+        {
+          "account": "cascade-software",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-11-14"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "ip-2025-10",
+          "date": "2025-10-28",
+          "value": 21000000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "original": true,
+          "description": "October 2025 intangible asset appraisal prepared for the recapitalisation. Relief from royalty on the platform and the contract base, reconciled against a market multiple of recurring revenue."
+        },
+        {
+          "key": "ip-2025-10-olv",
+          "date": "2025-10-28",
+          "value": 8400000,
+          "source": "Appraisal",
+          "type": "Orderly Liquidation Value",
+          "description": "October 2025 orderly liquidation value, 40 percent of fair market, reflecting the narrow buyer universe for a single-vertical codebase."
+        }
+      ]
+    },
+    {
+      "key": "topco-equity",
+      "name": "Cascade TopCo LLC Equity Pledge - 100 Percent of the Borrower",
+      "typeName": "Possessory-Securities",
+      "assessmentMethod": "Internal Valuation",
+      "value": 58000000,
+      "liquidationValue": 29000000,
+      "appraisalDate": "2026-06-30",
+      "nextRevaluationDate": "2027-06-30",
+      "valuationFrequency": "Annually",
+      "heldBy": "Lender",
+      "uccFiled": true,
+      "uccState": "OR",
+      "city": "Portland",
+      "state": "OR",
+      "description": "Pledge by Cascade TopCo LLC of 100 percent of the issued share capital of Cascade Software Solutions Inc, with certificates and stock powers held by the bank.",
+      "legalDescription": "Pledge and security agreement dated 14 November 2025 between Cascade TopCo LLC as pledgor and the bank as secured party over all issued and outstanding shares of Cascade Software Solutions Inc, an Oregon corporation, together with share certificates, undated stock powers executed in blank and all proceeds and distributions.",
+      "owners": [
+        {
+          "account": "cascade-topco",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-11-14"
+        },
+        {
+          "account": "cascade-software",
+          "association": "Assignee",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2025-11-14"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "eq-2026-06",
+          "date": "2026-06-30",
+          "value": 58000000,
+          "source": "Internal Valuation",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "June 2026 internal equity valuation. Enterprise value at 2.3 times trailing ARR less funded senior debt and the earn-out obligation."
+        },
+        {
+          "key": "eq-2025-11",
+          "date": "2025-11-14",
+          "value": 49000000,
+          "source": "Financial Statement",
+          "type": "Balance Sheet",
+          "original": true,
+          "description": "Equity value implied by the November 2025 recapitalisation price paid by Evergreen Growth Partners Fund III LP."
+        }
+      ]
+    },
+    {
+      "key": "datacentre-hardware",
+      "name": "Cascade Data Centre Hardware - Hillsboro and Reno",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Net Book Value",
+      "value": 1150000,
+      "liquidationValue": 690000,
+      "appraisalDate": "2026-06-30",
+      "nextRevaluationDate": "2027-06-30",
+      "valuationFrequency": "Annually",
+      "uccState": "OR",
+      "city": "Hillsboro",
+      "state": "OR",
+      "description": "Compute, storage and network hardware in the Hillsboro and Reno colocation halls, per the equipment schedule.",
+      "legalDescription": "First priority UCC-1 lien on the servers, storage arrays, switches, racks and ancillary equipment identified by serial number on Schedule A to the equipment security agreement, located at the Hillsboro, Oregon and Reno, Nevada colocation facilities.",
+      "owners": [
+        {
+          "account": "cascade-software",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-06-30"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "dch-2026-06",
+          "date": "2026-06-30",
+          "value": 1150000,
+          "source": "Invoice / Bill of Sale",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "original": true,
+          "description": "June 2026 vendor invoices and fixed asset register, net book value after the first depreciation run."
+        }
+      ]
+    }
+  ],
+  "covenants": [
+    {
+      "key": "arr",
+      "typeName": "Financial Indicators",
+      "recordType": "Financial Ratio",
+      "threshold": 30000000,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2025-11-14",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 34100000,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum Annual Recurring Revenue of $30,000,000, tested quarterly on the last day of each fiscal quarter.",
+      "clause": "Section 7.01(a) of the Credit Agreement: the Borrower shall not permit Annual Recurring Revenue as at the last day of any fiscal quarter to be less than $30,000,000.",
+      "notes": "ARR is defined as the annualised contracted subscription value of committed subscriptions in effect on the test date, excluding professional services, usage overage and any contract in a termination notice period.",
+      "loans": [
+        "sr-revolver",
+        "sr-growth-term",
+        "sr-ddtl"
+      ],
+      "evaluations": [
+        {
+          "key": "arr-q4-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-01-28",
+          "value": 31200000,
+          "comments": "Q4 2025 test at $31.20MM of ARR, compliant."
+        },
+        {
+          "key": "arr-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-27",
+          "value": 32400000,
+          "comments": "Q1 2026 test at $32.40MM of ARR, compliant."
+        },
+        {
+          "key": "arr-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-24",
+          "value": 34100000,
+          "comments": "Q2 2026 test at $34.10MM of ARR including the tuck-in book, compliant."
+        }
+      ]
+    },
+    {
+      "key": "liquidity",
+      "typeName": "Minimum Liquidity",
+      "typeId": "a3Gbb000000PLNyEAO",
+      "recordType": "Financial Ratio",
+      "threshold": 3000000,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2025-11-14",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 4600000,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum liquidity of $3,000,000, being unrestricted cash plus undrawn availability under the recurring revenue revolver, tested quarterly.",
+      "clause": "Section 7.01(c) of the Credit Agreement.",
+      "notes": "Liquidity counts unrestricted operating cash held with the bank plus undrawn availability under the $5.0MM revolver. Customer deposits held against annual prepayments are excluded.",
+      "loans": [
+        "sr-revolver"
+      ],
+      "evaluations": [
+        {
+          "key": "liq-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-27",
+          "value": 5900000,
+          "comments": "Q1 2026 liquidity of $5.90MM, compliant."
+        },
+        {
+          "key": "liq-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-24",
+          "value": 4600000,
+          "comments": "Q2 2026 liquidity of $4.60MM after the April acquisition funding, compliant."
+        }
+      ]
+    },
+    {
+      "key": "net-leverage",
+      "typeName": "Leverage",
+      "typeId": "a3Gbb000000a2OHEAY",
+      "recordType": "Financial Ratio",
+      "threshold": 3.5,
+      "operator": "Less Than or Equal To",
+      "acnpexOperator": "<=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2025-11-14",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 3.7,
+      "lastEvaluationStatus": "Exception",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Exception",
+      "breached": true,
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Maximum net leverage of 4.00x through 31 March 2026, stepping down to 3.50x from the quarter ending 30 June 2026 and holding at 3.50x thereafter.",
+      "clause": "Section 7.01(b) of the Credit Agreement: the Borrower shall not permit the Net Leverage Ratio as at the last day of any fiscal quarter to exceed 4.00 to 1.00 for any test date on or before 31 March 2026 and 3.50 to 1.00 for any test date thereafter.",
+      "notes": "Net leverage is total funded debt less unrestricted cash divided by trailing twelve month adjusted EBITDA, with a run-rate add back for the acquired tuck-in book capped at 20 percent of adjusted EBITDA. The 30 June 2026 test came in at 3.70x against the stepped-down 3.50x level, a miss of 0.20x. See policy exception CAS-LEV-01: mitigated by a $1.75MM sponsor equity cure funded by Evergreen Growth Partners Fund III LP on 12 August 2026.",
+      "loans": [
+        "sr-growth-term",
+        "sr-ddtl",
+        "acq-term"
+      ],
+      "evaluations": [
+        {
+          "key": "lev-q4-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-01-28",
+          "value": 3.28,
+          "comments": "Q4 2025 test at 3.28x against the 4.00x level, compliant."
+        },
+        {
+          "key": "lev-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-27",
+          "value": 3.41,
+          "comments": "Q1 2026 test at 3.41x against the 4.00x level, the last test before the step-down, compliant."
+        },
+        {
+          "key": "lev-q2-2026",
+          "status": "Exception",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-24",
+          "value": 3.7,
+          "exceptionReason": "Breached",
+          "comments": "Q2 2026 test at 3.70x against the stepped-down 3.50x level, a miss of 0.20x driven by the April tuck-in acquisition funding ahead of the acquired book contributing a full quarter of EBITDA. Cured by a $1.75MM sponsor equity contribution on 12 August 2026 under the equity cure right in Section 7.03."
+        }
+      ]
+    },
+    {
+      "key": "retention",
+      "typeName": "Sales Report",
+      "recordType": "Financial Statements",
+      "threshold": 90,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2025-11-14",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 92,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum gross recurring revenue retention of 90 percent, measured on a trailing twelve month basis and reported quarterly with the compliance certificate.",
+      "clause": "Section 7.01(d) and Schedule 7.01 (Retention Reporting) of the Credit Agreement.",
+      "notes": "Gross retention is the recurring revenue of the cohort in place twelve months earlier that is still contracted at the test date, before expansion. Logo churn and downgrades count against it; expansion and price uplift do not offset it.",
+      "loans": [
+        "sr-revolver",
+        "sr-growth-term"
+      ],
+      "evaluations": [
+        {
+          "key": "ret-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-27",
+          "value": 91,
+          "comments": "Q1 2026 gross retention of 91 percent, compliant."
+        },
+        {
+          "key": "ret-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-24",
+          "value": 92,
+          "comments": "Q2 2026 gross retention of 92 percent, compliant."
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "key": "senior",
+      "name": "Cascade Senior Facilities Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "cascade-software",
+      "description": "Booked senior facilities supporting the November 2025 growth recapitalisation by Evergreen Growth Partners Fund III LP. Three facilities totalling $14.0MM of commitments against $11.43MM outstanding: a $5.0MM recurring revenue revolver, a $7.0MM growth term loan and a $2.0MM delayed draw term loan, now fully drawn. Secured by a first blanket lien over receivables and intellectual property, with a limited sponsor guaranty on an equity cure basis and no personal guaranties.",
+      "loans": [
+        {
+          "key": "sr-revolver",
+          "name": "Cascade Software Solutions Inc - Line of Credit - $5,000,000.00",
+          "lookupKey": "CAS1001",
+          "product": "Line of Credit",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 5000000,
+          "outstanding": 3250000,
+          "rate": 8.0,
+          "noteRate": 8.0,
+          "index": "WSJ Prime",
+          "spread": 0.5,
+          "termMonths": 24,
+          "amortMonths": 24,
+          "applicationDate": "2025-09-22",
+          "closeDate": "2025-11-14",
+          "bookedDate": "2025-11-14",
+          "firstPaymentDate": "2025-12-14",
+          "maturityDate": "2027-11-14",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Revolving Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "business_credit_line",
+          "description": "Recurring revenue revolving line of credit. Availability is the lesser of the $5.0MM commitment and 4.0 times monthly recurring revenue of subscriptions in good standing, tested monthly. Interest only, monthly, at WSJ Prime plus 0.50 percent.",
+          "involvements": [
+            {
+              "key": "srv-borrower",
+              "account": "cascade-software",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and operating company."
+            },
+            {
+              "key": "srv-sponsor",
+              "account": "evergreen-fund",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 78,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2000000,
+              "notes": "Sponsor limited guaranty on an equity cure basis. The $2,000,000 limit is a single aggregate cap shared across every facility in the relationship, not a per facility amount, and is discharged as cure amounts are contributed. No personal guaranty is given by any principal."
+            },
+            {
+              "key": "srv-topco",
+              "account": "cascade-topco",
+              "borrowerType": "Grantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 3,
+              "ownership": 100,
+              "notes": "Holding company and grantor of the pledge over 100 percent of the borrower's shares. No payment guaranty."
+            },
+            {
+              "key": "srv-marsh",
+              "account": "lena-marsh",
+              "borrowerType": "Related Entity",
+              "entityType": "Individual",
+              "relationshipType": "Related Entity",
+              "order": 4,
+              "ownership": 13,
+              "notes": "Key principal under the key-person provision. Chief Executive Officer. No guaranty."
+            },
+            {
+              "key": "srv-ruiz",
+              "account": "tomas-ruiz",
+              "borrowerType": "Related Entity",
+              "entityType": "Individual",
+              "relationshipType": "Related Entity",
+              "order": 5,
+              "ownership": 9,
+              "notes": "Key principal under the key-person provision. Chief Technology Officer. No guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "srv-ar",
+              "collateral": "cascade-receivables",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 80,
+              "amountPledged": 3300000,
+              "startDate": "2025-11-14",
+              "overrideReason": "Eligible subscription receivables advanced at 80 percent against the collateral type default of 80 percent, consistent with the July 2026 aging after ineligibles."
+            }
+          ],
+          "fees": [
+            {
+              "key": "srv-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "paidBy": "Financed from Proceeds",
+              "description": "Origination fee, 0.50 percent of the committed line, paid at close."
+            },
+            {
+              "key": "srv-unused",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 0.375,
+              "payoutFrequency": "Quarterly",
+              "paidBy": "Financed from Proceeds",
+              "description": "Unused commitment fee, 0.375 percent per annum on the average undrawn balance, payable quarterly in arrears. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no commitment entry."
+            },
+            {
+              "key": "srv-agency",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "amount": 15000,
+              "payoutFrequency": "Annually",
+              "paidBy": "Financed from Proceeds",
+              "description": "Annual administrative agency fee of $15,000, payable on each anniversary of the closing date. Booked as Other for the same reason as the unused fee."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.5,
+            "rate": 8.0,
+            "amortises": false,
+            "effectiveDate": "2025-11-14",
+            "endDate": "2027-11-14",
+            "termLength": 24
+          }
+        },
+        {
+          "key": "sr-growth-term",
+          "name": "Cascade Software Solutions Inc - Term - $7,000,000.00",
+          "lookupKey": "CAS1002",
+          "product": "Term",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 7000000,
+          "outstanding": 6300000,
+          "rate": 7.45,
+          "noteRate": 7.45,
+          "index": "Fixed",
+          "termMonths": 72,
+          "amortMonths": 72,
+          "applicationDate": "2025-09-22",
+          "closeDate": "2025-11-14",
+          "bookedDate": "2025-11-14",
+          "firstPaymentDate": "2025-12-14",
+          "maturityDate": "2031-11-14",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "business_expansion",
+          "description": "Six year fully amortising growth term loan funding the sponsor recapitalisation, the go to market build out and the migration of the platform to the Hillsboro and Reno colocation halls.",
+          "involvements": [
+            {
+              "key": "sgt-borrower",
+              "account": "cascade-software",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and operating company."
+            },
+            {
+              "key": "sgt-sponsor",
+              "account": "evergreen-fund",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 78,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2000000,
+              "notes": "Sponsor limited guaranty on an equity cure basis, sharing the single $2,000,000 aggregate cap across the relationship. No personal guaranty is given by any principal."
+            },
+            {
+              "key": "sgt-topco",
+              "account": "cascade-topco",
+              "borrowerType": "Grantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 3,
+              "ownership": 100,
+              "notes": "Holding company and grantor of the equity pledge. No payment guaranty."
+            },
+            {
+              "key": "sgt-marsh",
+              "account": "lena-marsh",
+              "borrowerType": "Related Entity",
+              "entityType": "Individual",
+              "relationshipType": "Related Entity",
+              "order": 4,
+              "ownership": 13,
+              "notes": "Key principal under the key-person provision. Chief Executive Officer. No guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "sgt-ip",
+              "collateral": "intellectual-property",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 35,
+              "amountPledged": 7000000,
+              "startDate": "2025-11-14",
+              "overrideReason": "Intellectual property advanced at 35 percent of the October 2025 appraised fair market value against the collateral type default of 80 percent, reflecting the narrow buyer universe for a single vertical codebase."
+            }
+          ],
+          "fees": [
+            {
+              "key": "sgt-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 1.0,
+              "paidBy": "Financed from Proceeds",
+              "description": "Origination fee, 1.00 percent of the note, paid at close from the recapitalisation proceeds."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.45,
+            "amortises": true,
+            "effectiveDate": "2025-11-14",
+            "endDate": "2031-11-14",
+            "termLength": 72,
+            "amortMonths": 72
+          }
+        },
+        {
+          "key": "sr-ddtl",
+          "name": "Cascade Software Solutions Inc - Term - $2,000,000.00",
+          "lookupKey": "CAS1003",
+          "product": "Term",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 2000000,
+          "outstanding": 1880000,
+          "rate": 7.6,
+          "noteRate": 7.6,
+          "index": "Fixed",
+          "termMonths": 72,
+          "amortMonths": 72,
+          "applicationDate": "2025-09-22",
+          "closeDate": "2025-11-14",
+          "bookedDate": "2025-11-14",
+          "firstPaymentDate": "2025-12-14",
+          "maturityDate": "2031-11-14",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "business_expansion",
+          "description": "Delayed draw term loan committed at close and drawn in full on 2 March 2026 to fund the second data centre hall and the platform rewrite. Coterminous with the growth term loan and amortising on the same schedule from the draw date.",
+          "involvements": [
+            {
+              "key": "ddt-borrower",
+              "account": "cascade-software",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and operating company."
+            },
+            {
+              "key": "ddt-sponsor",
+              "account": "evergreen-fund",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 78,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2000000,
+              "notes": "Sponsor limited guaranty on an equity cure basis, sharing the single $2,000,000 aggregate cap across the relationship."
+            },
+            {
+              "key": "ddt-topco",
+              "account": "cascade-topco",
+              "borrowerType": "Grantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 3,
+              "ownership": 100,
+              "notes": "Holding company and grantor of the equity pledge. No payment guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "ddt-ip",
+              "collateral": "intellectual-property",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 10,
+              "amountPledged": 2000000,
+              "startDate": "2026-03-02",
+              "overrideReason": "Second lien on the intellectual property schedule behind the growth term loan, advanced at a further 10 percent of appraised fair market value."
+            }
+          ],
+          "fees": [
+            {
+              "key": "ddt-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.75,
+              "paidBy": "Financed from Proceeds",
+              "description": "Origination fee, 0.75 percent of the committed delayed draw amount, paid at close of the facility rather than at draw."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.6,
+            "amortises": true,
+            "effectiveDate": "2025-11-14",
+            "endDate": "2031-11-14",
+            "termLength": 72,
+            "amortMonths": 72
+          }
+        }
+      ]
+    },
+    {
+      "key": "acquisition",
+      "name": "Cascade Acquisition Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "cascade-software",
+      "description": "Booked acquisition package funding the April 2026 tuck-in purchase of Rainier Dispatch Systems LLC. Two facilities totalling $5.0MM of commitments against $4.775MM outstanding: a $4.5MM five year acquisition term loan and a $500K twelve month earn-out bridge. Secured by the pledge of 100 percent of the borrower's equity by Cascade TopCo LLC.",
+      "loans": [
+        {
+          "key": "acq-term",
+          "name": "Cascade Software Solutions Inc - Term - $4,500,000.00",
+          "lookupKey": "CAS2001",
+          "product": "Term",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 4500000,
+          "outstanding": 4275000,
+          "rate": 7.9,
+          "noteRate": 7.9,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2026-02-10",
+          "closeDate": "2026-04-20",
+          "bookedDate": "2026-04-20",
+          "firstPaymentDate": "2026-05-20",
+          "maturityDate": "2031-04-20",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "business_acquisition",
+          "description": "Five year fully amortising acquisition term loan funding the cash consideration for Rainier Dispatch Systems LLC, a tuck-in adding $3.1MM of annual recurring revenue and 340 logos in the Pacific Northwest.",
+          "involvements": [
+            {
+              "key": "acq-borrower",
+              "account": "cascade-software",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and acquirer of the tuck-in business."
+            },
+            {
+              "key": "acq-sponsor",
+              "account": "evergreen-fund",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 78,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2000000,
+              "notes": "Sponsor limited guaranty on an equity cure basis, sharing the single $2,000,000 aggregate cap across the relationship. No personal guaranty is given by any principal."
+            },
+            {
+              "key": "acq-topco",
+              "account": "cascade-topco",
+              "borrowerType": "Grantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 3,
+              "ownership": 100,
+              "notes": "Pledgor of 100 percent of the borrower's shares under the pledge and security agreement. No payment guaranty."
+            },
+            {
+              "key": "acq-marsh",
+              "account": "lena-marsh",
+              "borrowerType": "Related Entity",
+              "entityType": "Individual",
+              "relationshipType": "Related Entity",
+              "order": 4,
+              "ownership": 13,
+              "notes": "Key principal under the key-person provision. Chief Executive Officer. No guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "acq-equity",
+              "collateral": "topco-equity",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 10,
+              "amountPledged": 4500000,
+              "startDate": "2026-04-20",
+              "overrideReason": "Equity pledge advanced at 10 percent of the June 2026 internal equity valuation against the collateral type default of 80 percent. Equity in a private sponsor owned software company is taken for control and structural priority rather than for coverage."
+            }
+          ],
+          "fees": [
+            {
+              "key": "acq-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.75,
+              "paidBy": "Financed from Proceeds",
+              "description": "Origination fee, 0.75 percent of the note, paid at close of the acquisition."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.9,
+            "amortises": true,
+            "effectiveDate": "2026-04-20",
+            "endDate": "2031-04-20",
+            "termLength": 60,
+            "amortMonths": 60
+          }
+        },
+        {
+          "key": "acq-earnout",
+          "name": "Cascade Software Solutions Inc - Term - $500,000.00",
+          "lookupKey": "CAS2002",
+          "product": "Term",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 500000,
+          "outstanding": 500000,
+          "rate": 8.25,
+          "noteRate": 8.25,
+          "index": "WSJ Prime",
+          "spread": 0.75,
+          "termMonths": 12,
+          "amortMonths": 12,
+          "applicationDate": "2026-02-10",
+          "closeDate": "2026-04-20",
+          "bookedDate": "2026-04-20",
+          "firstPaymentDate": "2026-05-20",
+          "maturityDate": "2027-04-20",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Single Pay",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "business_acquisition",
+          "description": "Twelve month bridge funding the deferred earn-out consideration payable to the sellers of Rainier Dispatch Systems LLC on the first anniversary of completion. Interest monthly, principal in a single payment at maturity, expected to be repaid from free cash flow or refinanced into the acquisition term loan.",
+          "involvements": [
+            {
+              "key": "ern-borrower",
+              "account": "cascade-software",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and obligor on the earn-out."
+            },
+            {
+              "key": "ern-sponsor",
+              "account": "evergreen-fund",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 78,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2000000,
+              "notes": "Sponsor limited guaranty on an equity cure basis, sharing the single $2,000,000 aggregate cap across the relationship."
+            },
+            {
+              "key": "ern-topco",
+              "account": "cascade-topco",
+              "borrowerType": "Grantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 3,
+              "ownership": 100,
+              "notes": "Pledgor of the borrower's shares. No payment guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "ern-equity",
+              "collateral": "topco-equity",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 2,
+              "amountPledged": 500000,
+              "startDate": "2026-04-20",
+              "overrideReason": "Second lien on the same equity pledge behind the acquisition term loan, advanced at a further 2 percent of the internal equity valuation."
+            }
+          ],
+          "fees": [
+            {
+              "key": "ern-arrange",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "amount": 5000,
+              "paidBy": "Financed from Proceeds",
+              "description": "Flat arrangement fee of $5,000 on the earn-out bridge. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no arrangement entry."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.75,
+            "rate": 8.25,
+            "amortises": false,
+            "effectiveDate": "2026-04-20",
+            "endDate": "2027-04-20",
+            "termLength": 12
+          }
+        }
+      ]
+    },
+    {
+      "key": "equipment-other",
+      "name": "Cascade Equipment and Other Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "cascade-software",
+      "description": "Booked equipment and ancillary package. Two facilities totalling $950K of commitments against $810K outstanding: a $600K equipment loan on the Hillsboro and Reno data centre hardware and a $350K letter of credit facility supporting the office and colocation leases.",
+      "loans": [
+        {
+          "key": "eq-hardware",
+          "name": "Cascade Software Solutions Inc - Equipment - $600,000.00",
+          "lookupKey": "CAS3001",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 600000,
+          "outstanding": 525000,
+          "rate": 7.15,
+          "noteRate": 7.15,
+          "index": "Fixed",
+          "termMonths": 48,
+          "amortMonths": 48,
+          "applicationDate": "2026-05-18",
+          "closeDate": "2026-06-30",
+          "bookedDate": "2026-06-30",
+          "firstPaymentDate": "2026-07-30",
+          "maturityDate": "2030-06-30",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "equipment",
+          "description": "Four year fully amortising equipment note financing the compute, storage and network build out of the Hillsboro and Reno colocation halls.",
+          "involvements": [
+            {
+              "key": "eqh-borrower",
+              "account": "cascade-software",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and owner of the equipment."
+            },
+            {
+              "key": "eqh-sponsor",
+              "account": "evergreen-fund",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 78,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2000000,
+              "notes": "Sponsor limited guaranty on an equity cure basis, sharing the single $2,000,000 aggregate cap across the relationship."
+            },
+            {
+              "key": "eqh-ruiz",
+              "account": "tomas-ruiz",
+              "borrowerType": "Related Entity",
+              "entityType": "Individual",
+              "relationshipType": "Related Entity",
+              "order": 3,
+              "ownership": 9,
+              "notes": "Key principal. Chief Technology Officer and sponsor of the infrastructure programme. No guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "eqh-hardware",
+              "collateral": "datacentre-hardware",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 70,
+              "amountPledged": 600000,
+              "startDate": "2026-06-30",
+              "overrideReason": "Data centre hardware advanced at 70 percent of net book value against the collateral type default of 80 percent, reflecting the fast obsolescence of compute and storage."
+            }
+          ],
+          "fees": [
+            {
+              "key": "eqh-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "paidBy": "Financed from Proceeds",
+              "description": "Origination fee, 0.50 percent of the note, paid at close."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.15,
+            "amortises": true,
+            "effectiveDate": "2026-06-30",
+            "endDate": "2030-06-30",
+            "termLength": 48,
+            "amortMonths": 48
+          }
+        },
+        {
+          "key": "lc-facility",
+          "name": "Cascade Software Solutions Inc - Line of Credit - $350,000.00",
+          "lookupKey": "CAS3002",
+          "product": "Line of Credit",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 350000,
+          "outstanding": 285000,
+          "rate": 2.25,
+          "noteRate": 2.25,
+          "index": "Fixed",
+          "termMonths": 12,
+          "amortMonths": 12,
+          "applicationDate": "2026-05-18",
+          "closeDate": "2026-06-30",
+          "bookedDate": "2026-06-30",
+          "firstPaymentDate": "2026-07-30",
+          "maturityDate": "2027-06-30",
+          "paymentSchedule": "Quarterly",
+          "paymentType": "Revolving Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "other",
+          "description": "Standby letter of credit facility. Three letters of credit totalling $285,000 are issued and outstanding: $190,000 supporting the Portland headquarters lease, $65,000 for the Hillsboro colocation hall and $30,000 for the Reno hall. The 2.25 percent rate is the annual letter of credit fee charged on the face amount rather than an interest rate.",
+          "involvements": [
+            {
+              "key": "lcf-borrower",
+              "account": "cascade-software",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and account party on every letter of credit."
+            },
+            {
+              "key": "lcf-sponsor",
+              "account": "evergreen-fund",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 78,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2000000,
+              "notes": "Sponsor limited guaranty on an equity cure basis, sharing the single $2,000,000 aggregate cap across the relationship."
+            },
+            {
+              "key": "lcf-marsh",
+              "account": "lena-marsh",
+              "borrowerType": "Related Entity",
+              "entityType": "Individual",
+              "relationshipType": "Related Entity",
+              "order": 3,
+              "ownership": 13,
+              "notes": "Key principal. Signatory on the lease reimbursement agreements. No guaranty."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "lcf-ar",
+              "collateral": "cascade-receivables",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 10,
+              "amountPledged": 350000,
+              "startDate": "2026-06-30",
+              "overrideReason": "Second lien on the receivables schedule behind the recurring revenue revolver, advanced at a further 10 percent of the eligible base to cover the issued letters of credit."
+            }
+          ],
+          "fees": [
+            {
+              "key": "lcf-fee",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 1.75,
+              "payoutFrequency": "Annually",
+              "paidBy": "Financed from Proceeds",
+              "description": "Annual letter of credit fee, 1.75 percent per annum on the face amount of each issued letter of credit. Booked as Other: this org's Fee Type picklist is residential and TRID and carries no letter of credit entry."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 2.25,
+            "amortises": false,
+            "effectiveDate": "2026-06-30",
+            "endDate": "2027-06-30",
+            "termLength": 12
+          }
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "key": "annual-2026",
+      "type": "Annual",
+      "package": "senior",
+      "currentGrade": "5",
+      "recommendedGrade": "5",
+      "covenantsTested": "Yes",
+      "covenantsPassed": "No",
+      "toCommittee": "Yes",
+      "narrative": "Annual credit review of the Cascade Software Solutions relationship, prepared following the 30 June 2026 covenant test and the August 2026 sponsor equity cure. Grade affirmed at 5.",
+      "summary": "Cascade group: $19.95MM committed across seven booked facilities in three packages, $17.015MM outstanding. Sponsor owned since November 2025 by Evergreen Growth Partners Fund III LP, which holds 78 percent of Cascade TopCo LLC alongside 22 percent management ownership. Secured by a first blanket lien over subscription receivables and intellectual property, a pledge by Cascade TopCo LLC of 100 percent of the borrower's equity, and a first lien on the data centre hardware. Credit support is a limited sponsor guaranty capped at $2.0MM on an equity cure basis; there are no personal guaranties from the founders.",
+      "recommendation": "Affirm the grade at 5 and continue the relationship as structured. Renew the $5.0MM recurring revenue revolver at maturity subject to ARR holding above $32.0MM. Hold the 3.50x net leverage level rather than resetting it, on the basis that the June miss was funded through the sponsor equity cure exactly as the structure intended. Monitor the $500K earn-out bridge for repayment or term-out ahead of its April 2027 maturity.",
+      "riskComments": "Risk grade affirmed at 5. ARR of $34.1MM is 14 percent above the $30.0MM floor and gross retention of 92 percent is above the 90 percent minimum. Net leverage of 3.70x missed the stepped-down 3.50x level by 0.20x at 30 June 2026; Evergreen contributed $1.75MM of cure equity on 12 August 2026, which is the second cure right of four available under Section 7.03. A sponsor owned capital structure that leans on the equity cure in its first step-down year deserves a watch note even where the cure was funded promptly.",
+      "strengths": "Recurring revenue of $34.1MM at 96 percent subscription with 92 percent gross retention and a 4.1 year average contract life. Founder management team still in place and still holding 22 percent of TopCo alongside the sponsor. A named institutional sponsor with $1.4BN of committed capital in Fund III and a documented equity cure right that has now been exercised and funded on time. Intellectual property appraised at $21.0MM against $9.0MM of debt advanced against it.",
+      "weaknesses": "Leverage is high for the sector at 3.70x and above covenant after the first step-down. Collateral is almost entirely intangible: receivables, intellectual property and a pledge of private company equity, none of which liquidates predictably. Key-person exposure to two founders with no personal guaranties. Integration risk on the Rainier Dispatch Systems tuck-in, which is still on a separate billing platform. The $500K earn-out bridge matures inside twelve months and has no amortisation."
+    }
+  ],
+  "riskRatingReviews": [
+    {
+      "key": "rating-2026",
+      "status": "In Review",
+      "computedGrade": 5,
+      "cashFlowCoverage": 1.18,
+      "creditScore": 705,
+      "revenueGrowth": 18.4,
+      "managementYears": 12,
+      "year1": 2023,
+      "year2": 2024,
+      "year3": 2025,
+      "comments": "Annual risk rating review supporting the FY2026 annual review. Computed grade 5 on a sponsor owned recurring revenue model. Cash flow coverage of 1.18x reflects the June leverage miss before the August equity cure. No override requested."
+    }
+  ],
+  "policyExceptions": [
+    {
+      "key": "pex-leverage",
+      "name": "Net leverage above the stepped-down covenant level, Q2 2026",
+      "type": "Policy",
+      "code": "CAS-LEV-01",
+      "status": "Mitigated",
+      "severity": "Major",
+      "severityValue": 2,
+      "loan": "sr-growth-term",
+      "mitigation": [
+        "Net leverage 3.70x against the 3.50x step-down at 30 June 2026, a miss of 0.20x.",
+        "Evergreen funded a $1.75MM equity cure on 12 August 2026; cured net leverage is 3.41x.",
+        "Second of four cures available; the $2.0MM sponsor limited guaranty cap is still unused."
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "key": "opp-treasury",
+      "name": "Cascade - Treasury, FX and Commercial Card",
+      "stage": "Proposal",
+      "amount": 185000,
+      "closeDate": "2026-12-11",
+      "type": "Existing Business",
+      "probability": 60,
+      "leadSource": "External Referral",
+      "nextStep": "Treasury pricing sheet covering merchant acquiring on subscription billings, GBP and EUR collection accounts for the UK and Ireland book, and a commercial card programme. Meeting booked 29 September with the CFO.",
+      "description": "Treasury and payments whitespace alongside the credit relationship. Subscription billings currently settle through a third party processor and the two European collection accounts sit with another bank."
+    }
+  ],
+  "cases": [
+    {
+      "key": "case-cure",
+      "subject": "Equity cure mechanics: application of the August 2026 contribution to the leverage calculation",
+      "status": "New",
+      "priority": "High",
+      "origin": "Email",
+      "type": "Question",
+      "description": "The sponsor's finance director asked whether the $1.75MM August 2026 cure contribution is applied as a reduction of funded debt or as an addition to trailing twelve month EBITDA for the purposes of the 30 September 2026 net leverage test, and whether the cured 30 June ratio carries forward into the September calculation."
+    }
+  ]
+}

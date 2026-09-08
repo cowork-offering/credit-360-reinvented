@@ -1,0 +1,1122 @@
+{
+  "slug": "northgate",
+  "tag": "C360-SEED-2026-09",
+  "relationship": "Northgate Multifamily Investors LLC",
+  "account": "001bb00001LcuL8AAJ",
+  "createdAt": "2026-09-08T11:56:56+00:00",
+  "order": [
+    {
+      "object": "Account",
+      "key": "northgate-investors",
+      "id": "001bb00001LcuL8AAJ"
+    },
+    {
+      "object": "Account",
+      "key": "northgate-ridge",
+      "id": "001bb00001LcuL9AAJ"
+    },
+    {
+      "object": "Account",
+      "key": "northgate-park-place",
+      "id": "001bb00001LcuLAAAZ"
+    },
+    {
+      "object": "Account",
+      "key": "northgate-crossing",
+      "id": "001bb00001LcuLBAAZ"
+    },
+    {
+      "object": "Account",
+      "key": "northgate-management",
+      "id": "001bb00001LcuLCAAZ"
+    },
+    {
+      "object": "Account",
+      "key": "james-whitcombe",
+      "id": "001bb00001LcuLDAAZ"
+    },
+    {
+      "object": "Account",
+      "key": "adaeze-nwosu",
+      "id": "001bb00001LcuLEAAZ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "sponsor-owns-ridge",
+      "id": "a38bb000001ac6DAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "sponsor-owns-park-place",
+      "id": "a38bb000001ac6EAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "sponsor-owns-crossing",
+      "id": "a38bb000001ac6FAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "sponsor-owns-management",
+      "id": "a38bb000001ac6GAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "whitcombe-owns-sponsor",
+      "id": "a38bb000001ac6HAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "nwosu-owns-sponsor",
+      "id": "a38bb000001ac6IAAQ"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "ridge",
+      "id": "a5Fbb000000JBMLEA4"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "park-place",
+      "id": "a5Fbb000000JBMMEA4"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "crossing",
+      "id": "a5Fbb000000JBMNEA4"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "highland",
+      "id": "a5Fbb000000JBMOEA4"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "ridge-mortgage",
+      "id": "a4Zbb000002J6a1EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "ridge-capex-line",
+      "id": "a4Zbb000002J6a2EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "pp-mortgage",
+      "id": "a4Zbb000002J6a3EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "pp-capex-line",
+      "id": "a4Zbb000002J6a4EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "crossing-perm",
+      "id": "a4Zbb000002J6a5EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "crossing-reno",
+      "id": "a4Zbb000002J6a6EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "crossing-solar",
+      "id": "a4Zbb000002J6a7EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "mgmt-line",
+      "id": "a4Zbb000002J6a8EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "highland-acq",
+      "id": "a4Zbb000002J6a9EAC"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ridge-mtg-borrower",
+      "id": "a4Lbb000000PVdJEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ridge-mtg-sponsor",
+      "id": "a4Lbb000000PVdKEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ridge-mtg-whitcombe",
+      "id": "a4Lbb000000PVdLEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ridge-mtg-nwosu",
+      "id": "a4Lbb000000PVdMEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ridge-cap-borrower",
+      "id": "a4Lbb000000PVdNEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ridge-cap-sponsor",
+      "id": "a4Lbb000000PVdOEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ridge-cap-whitcombe",
+      "id": "a4Lbb000000PVdPEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ridge-cap-nwosu",
+      "id": "a4Lbb000000PVdQEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pp-mtg-borrower",
+      "id": "a4Lbb000000PVdREAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pp-mtg-sponsor",
+      "id": "a4Lbb000000PVdSEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pp-mtg-whitcombe",
+      "id": "a4Lbb000000PVdTEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pp-mtg-nwosu",
+      "id": "a4Lbb000000PVdUEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pp-cap-borrower",
+      "id": "a4Lbb000000PVdVEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pp-cap-sponsor",
+      "id": "a4Lbb000000PVdWEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pp-cap-whitcombe",
+      "id": "a4Lbb000000PVdXEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pp-cap-nwosu",
+      "id": "a4Lbb000000PVdYEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-perm-borrower",
+      "id": "a4Lbb000000PVdZEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-perm-sponsor",
+      "id": "a4Lbb000000PVdaEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-perm-whitcombe",
+      "id": "a4Lbb000000PVdbEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-perm-nwosu",
+      "id": "a4Lbb000000PVdcEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-reno-borrower",
+      "id": "a4Lbb000000PVddEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-reno-sponsor",
+      "id": "a4Lbb000000PVdeEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-reno-whitcombe",
+      "id": "a4Lbb000000PVdfEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-reno-nwosu",
+      "id": "a4Lbb000000PVdgEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-solar-borrower",
+      "id": "a4Lbb000000PVdhEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-solar-sponsor",
+      "id": "a4Lbb000000PVdiEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-solar-whitcombe",
+      "id": "a4Lbb000000PVdjEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cross-solar-nwosu",
+      "id": "a4Lbb000000PVdkEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "mgmt-line-borrower",
+      "id": "a4Lbb000000PVdlEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "mgmt-line-sponsor",
+      "id": "a4Lbb000000PVdmEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "mgmt-line-whitcombe",
+      "id": "a4Lbb000000PVdnEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "mgmt-line-nwosu",
+      "id": "a4Lbb000000PVdoEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "highland-borrower",
+      "id": "a4Lbb000000PVdpEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "highland-whitcombe",
+      "id": "a4Lbb000000PVdqEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "highland-nwosu",
+      "id": "a4Lbb000000PVdrEAG"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "ridge-mortgage",
+      "id": "a50bb00000v5WHlAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "ridge-capex-line",
+      "id": "a50bb00000v5WHmAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "pp-mortgage",
+      "id": "a50bb00000v5WHnAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "pp-capex-line",
+      "id": "a50bb00000v5WHoAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "crossing-perm",
+      "id": "a50bb00000v5WHpAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "crossing-reno",
+      "id": "a50bb00000v5WHqAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "crossing-solar",
+      "id": "a50bb00000v5WHrAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "mgmt-line",
+      "id": "a50bb00000v5WHsAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "highland-acq",
+      "id": "a50bb00000v5WHtAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "ridge-mortgage",
+      "id": "a4zbb000002Ty2rAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "ridge-capex-line",
+      "id": "a4zbb000002Ty2sAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "pp-mortgage",
+      "id": "a4zbb000002Ty2tAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "pp-capex-line",
+      "id": "a4zbb000002Ty2uAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "crossing-perm",
+      "id": "a4zbb000002Ty2vAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "crossing-reno",
+      "id": "a4zbb000002Ty2wAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "crossing-solar",
+      "id": "a4zbb000002Ty2xAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "mgmt-line",
+      "id": "a4zbb000002Ty2yAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "highland-acq",
+      "id": "a4zbb000002Ty2zAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "ridge-mortgage",
+      "id": "a4ybb000002jMKzAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "ridge-capex-line",
+      "id": "a4ybb000002jML0AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "pp-mortgage",
+      "id": "a4ybb000002jML1AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "pp-capex-line",
+      "id": "a4ybb000002jML2AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "crossing-perm",
+      "id": "a4ybb000002jML3AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "crossing-reno",
+      "id": "a4ybb000002jML4AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "crossing-solar",
+      "id": "a4ybb000002jML5AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "mgmt-line",
+      "id": "a4ybb000002jML6AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "highland-acq",
+      "id": "a4ybb000002jML7AAM"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ridge-mtg-orig",
+      "id": "a45bb000001mV49AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ridge-mtg-appraisal",
+      "id": "a45bb000001mV4AAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ridge-mtg-title",
+      "id": "a45bb000001mV4BAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ridge-cap-unused",
+      "id": "a45bb000001mV4CAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ridge-cap-renewal",
+      "id": "a45bb000001mV4DAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "pp-mtg-orig",
+      "id": "a45bb000001mV4EAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "pp-mtg-appraisal",
+      "id": "a45bb000001mV4FAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "pp-cap-unused",
+      "id": "a45bb000001mV4GAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "cross-perm-conv",
+      "id": "a45bb000001mV4HAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "cross-perm-legal",
+      "id": "a45bb000001mV4IAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "cross-reno-orig",
+      "id": "a45bb000001mV4JAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "cross-solar-orig",
+      "id": "a45bb000001mV4KAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "mgmt-line-annual",
+      "id": "a45bb000001mV4LAAU"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "ridge-property",
+      "id": "a35bb0000019qy5AAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "park-place-property",
+      "id": "a35bb0000019qy6AAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "crossing-solar",
+      "id": "a35bb0000019qy7AAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "crossing-property",
+      "id": "a35bb0000019qzhAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "portfolio-reserves",
+      "id": "a35bb0000019qziAAA"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "ridge-property#0",
+      "id": "a2Vbb000001cDLREA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "ridge-property#1",
+      "id": "a2Vbb000001cDLSEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "park-place-property#0",
+      "id": "a2Vbb000001cDLTEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "crossing-property#0",
+      "id": "a2Vbb000001cDLUEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "crossing-property#1",
+      "id": "a2Vbb000001cDLVEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "crossing-solar#0",
+      "id": "a2Vbb000001cDLWEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "portfolio-reserves#0",
+      "id": "a2Vbb000001cDLXEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "portfolio-reserves#1",
+      "id": "a2Vbb000001cDLYEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "portfolio-reserves#2",
+      "id": "a2Vbb000001cDLZEA2"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ridge-val-2026",
+      "id": "a34bb000003IN7hAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ridge-val-2024",
+      "id": "a34bb000003IN7iAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "pp-val-2026",
+      "id": "a34bb000003IN7jAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "pp-val-2024",
+      "id": "a34bb000003IN7kAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "crossing-val-2026",
+      "id": "a34bb000003IN7lAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "crossing-val-2026-stab",
+      "id": "a34bb000003IN7mAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "solar-val-2025",
+      "id": "a34bb000003IN7nAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "reserves-val-2026-08",
+      "id": "a34bb000003IN7oAAG"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "ridge-mtg-pledge",
+      "id": "a4Rbb0000027b9rEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "ridge-cap-pledge",
+      "id": "a4Rbb0000027b9sEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "pp-mtg-pledge",
+      "id": "a4Rbb0000027b9tEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "pp-cap-pledge",
+      "id": "a4Rbb0000027b9uEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "cross-perm-pledge",
+      "id": "a4Rbb0000027b9vEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "cross-reno-pledge",
+      "id": "a4Rbb0000027b9wEAA"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "dscr-ridge",
+      "id": "a3Bbb000000Tb7REAS"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "dscr-park-place",
+      "id": "a3Bbb000000Tb7SEAS"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "dscr-crossing",
+      "id": "a3Bbb000000Tb7TEAS"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "portfolio-ltv",
+      "id": "a3Bbb000000Tb7UEAS"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "minimum-occupancy",
+      "id": "a3Bbb000000Tb7VEAS"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "cash-management-trigger",
+      "id": "a3Bbb000000Tb7WEAS"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "dscr-ridge",
+      "id": "a2Wbb00000CWjntEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "dscr-park-place",
+      "id": "a2Wbb00000CWjnuEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "dscr-crossing",
+      "id": "a2Wbb00000CWjnvEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "portfolio-ltv",
+      "id": "a2Wbb00000CWjnwEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "minimum-occupancy",
+      "id": "a2Wbb00000CWjnxEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "cash-management-trigger",
+      "id": "a2Wbb00000CWjnyEAD"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dscr-ridge@ridge-mortgage",
+      "id": "a4Vbb000000qpcjEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dscr-ridge@ridge-capex-line",
+      "id": "a4Vbb000000qpckEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dscr-park-place@pp-mortgage",
+      "id": "a4Vbb000000qpclEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dscr-park-place@pp-capex-line",
+      "id": "a4Vbb000000qpcmEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dscr-crossing@crossing-perm",
+      "id": "a4Vbb000000qpcnEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dscr-crossing@crossing-reno",
+      "id": "a4Vbb000000qpcoEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "portfolio-ltv@ridge-mortgage",
+      "id": "a4Vbb000000qpcpEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "portfolio-ltv@pp-mortgage",
+      "id": "a4Vbb000000qpcqEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "portfolio-ltv@crossing-perm",
+      "id": "a4Vbb000000qpcrEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "minimum-occupancy@crossing-perm",
+      "id": "a4Vbb000000qpcsEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "minimum-occupancy@crossing-reno",
+      "id": "a4Vbb000000qpctEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "cash-management-trigger@crossing-perm",
+      "id": "a4Vbb000000qpcuEAA"
+    },
+    {
+      "object": "LLC_BI__Review__c",
+      "key": "annual-2026",
+      "id": "a5nbb00000nB1kbAAC"
+    },
+    {
+      "object": "LLC_BI__Annual_Review__c",
+      "key": "rating-2026",
+      "id": "a2bbb000006E8jpAAC"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-highland",
+      "id": "006bb00000yJE1aAAG"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-treasury",
+      "id": "006bb00000yJE1bAAG"
+    },
+    {
+      "object": "Case",
+      "key": "case-reserve-draw",
+      "id": "500bb00000v7ZUrAAM"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "cross-solar-pledge",
+      "id": "a4Rbb0000027bCzEAI"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-occupancy",
+      "id": "a4rbb000003PEhBAAW"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-combined-ltv",
+      "id": "a4rbb000003PEhCAAW"
+    }
+  ],
+  "records": {
+    "Account": {
+      "northgate-investors": "001bb00001LcuL8AAJ",
+      "northgate-ridge": "001bb00001LcuL9AAJ",
+      "northgate-park-place": "001bb00001LcuLAAAZ",
+      "northgate-crossing": "001bb00001LcuLBAAZ",
+      "northgate-management": "001bb00001LcuLCAAZ",
+      "james-whitcombe": "001bb00001LcuLDAAZ",
+      "adaeze-nwosu": "001bb00001LcuLEAAZ"
+    },
+    "LLC_BI__Connection__c": {
+      "sponsor-owns-ridge": "a38bb000001ac6DAAQ",
+      "sponsor-owns-park-place": "a38bb000001ac6EAAQ",
+      "sponsor-owns-crossing": "a38bb000001ac6FAAQ",
+      "sponsor-owns-management": "a38bb000001ac6GAAQ",
+      "whitcombe-owns-sponsor": "a38bb000001ac6HAAQ",
+      "nwosu-owns-sponsor": "a38bb000001ac6IAAQ"
+    },
+    "LLC_BI__Product_Package__c": {
+      "ridge": "a5Fbb000000JBMLEA4",
+      "park-place": "a5Fbb000000JBMMEA4",
+      "crossing": "a5Fbb000000JBMNEA4",
+      "highland": "a5Fbb000000JBMOEA4"
+    },
+    "LLC_BI__Loan__c": {
+      "ridge-mortgage": "a4Zbb000002J6a1EAC",
+      "ridge-capex-line": "a4Zbb000002J6a2EAC",
+      "pp-mortgage": "a4Zbb000002J6a3EAC",
+      "pp-capex-line": "a4Zbb000002J6a4EAC",
+      "crossing-perm": "a4Zbb000002J6a5EAC",
+      "crossing-reno": "a4Zbb000002J6a6EAC",
+      "crossing-solar": "a4Zbb000002J6a7EAC",
+      "mgmt-line": "a4Zbb000002J6a8EAC",
+      "highland-acq": "a4Zbb000002J6a9EAC"
+    },
+    "LLC_BI__Legal_Entities__c": {
+      "ridge-mtg-borrower": "a4Lbb000000PVdJEAW",
+      "ridge-mtg-sponsor": "a4Lbb000000PVdKEAW",
+      "ridge-mtg-whitcombe": "a4Lbb000000PVdLEAW",
+      "ridge-mtg-nwosu": "a4Lbb000000PVdMEAW",
+      "ridge-cap-borrower": "a4Lbb000000PVdNEAW",
+      "ridge-cap-sponsor": "a4Lbb000000PVdOEAW",
+      "ridge-cap-whitcombe": "a4Lbb000000PVdPEAW",
+      "ridge-cap-nwosu": "a4Lbb000000PVdQEAW",
+      "pp-mtg-borrower": "a4Lbb000000PVdREAW",
+      "pp-mtg-sponsor": "a4Lbb000000PVdSEAW",
+      "pp-mtg-whitcombe": "a4Lbb000000PVdTEAW",
+      "pp-mtg-nwosu": "a4Lbb000000PVdUEAW",
+      "pp-cap-borrower": "a4Lbb000000PVdVEAW",
+      "pp-cap-sponsor": "a4Lbb000000PVdWEAW",
+      "pp-cap-whitcombe": "a4Lbb000000PVdXEAW",
+      "pp-cap-nwosu": "a4Lbb000000PVdYEAW",
+      "cross-perm-borrower": "a4Lbb000000PVdZEAW",
+      "cross-perm-sponsor": "a4Lbb000000PVdaEAG",
+      "cross-perm-whitcombe": "a4Lbb000000PVdbEAG",
+      "cross-perm-nwosu": "a4Lbb000000PVdcEAG",
+      "cross-reno-borrower": "a4Lbb000000PVddEAG",
+      "cross-reno-sponsor": "a4Lbb000000PVdeEAG",
+      "cross-reno-whitcombe": "a4Lbb000000PVdfEAG",
+      "cross-reno-nwosu": "a4Lbb000000PVdgEAG",
+      "cross-solar-borrower": "a4Lbb000000PVdhEAG",
+      "cross-solar-sponsor": "a4Lbb000000PVdiEAG",
+      "cross-solar-whitcombe": "a4Lbb000000PVdjEAG",
+      "cross-solar-nwosu": "a4Lbb000000PVdkEAG",
+      "mgmt-line-borrower": "a4Lbb000000PVdlEAG",
+      "mgmt-line-sponsor": "a4Lbb000000PVdmEAG",
+      "mgmt-line-whitcombe": "a4Lbb000000PVdnEAG",
+      "mgmt-line-nwosu": "a4Lbb000000PVdoEAG",
+      "highland-borrower": "a4Lbb000000PVdpEAG",
+      "highland-whitcombe": "a4Lbb000000PVdqEAG",
+      "highland-nwosu": "a4Lbb000000PVdrEAG"
+    },
+    "LLC_BI__Pricing_Stream__c": {
+      "ridge-mortgage": "a50bb00000v5WHlAAM",
+      "ridge-capex-line": "a50bb00000v5WHmAAM",
+      "pp-mortgage": "a50bb00000v5WHnAAM",
+      "pp-capex-line": "a50bb00000v5WHoAAM",
+      "crossing-perm": "a50bb00000v5WHpAAM",
+      "crossing-reno": "a50bb00000v5WHqAAM",
+      "crossing-solar": "a50bb00000v5WHrAAM",
+      "mgmt-line": "a50bb00000v5WHsAAM",
+      "highland-acq": "a50bb00000v5WHtAAM"
+    },
+    "LLC_BI__Pricing_Rate_Component__c": {
+      "ridge-mortgage": "a4zbb000002Ty2rAAC",
+      "ridge-capex-line": "a4zbb000002Ty2sAAC",
+      "pp-mortgage": "a4zbb000002Ty2tAAC",
+      "pp-capex-line": "a4zbb000002Ty2uAAC",
+      "crossing-perm": "a4zbb000002Ty2vAAC",
+      "crossing-reno": "a4zbb000002Ty2wAAC",
+      "crossing-solar": "a4zbb000002Ty2xAAC",
+      "mgmt-line": "a4zbb000002Ty2yAAC",
+      "highland-acq": "a4zbb000002Ty2zAAC"
+    },
+    "LLC_BI__Pricing_Payment_Component__c": {
+      "ridge-mortgage": "a4ybb000002jMKzAAM",
+      "ridge-capex-line": "a4ybb000002jML0AAM",
+      "pp-mortgage": "a4ybb000002jML1AAM",
+      "pp-capex-line": "a4ybb000002jML2AAM",
+      "crossing-perm": "a4ybb000002jML3AAM",
+      "crossing-reno": "a4ybb000002jML4AAM",
+      "crossing-solar": "a4ybb000002jML5AAM",
+      "mgmt-line": "a4ybb000002jML6AAM",
+      "highland-acq": "a4ybb000002jML7AAM"
+    },
+    "LLC_BI__Fee__c": {
+      "ridge-mtg-orig": "a45bb000001mV49AAE",
+      "ridge-mtg-appraisal": "a45bb000001mV4AAAU",
+      "ridge-mtg-title": "a45bb000001mV4BAAU",
+      "ridge-cap-unused": "a45bb000001mV4CAAU",
+      "ridge-cap-renewal": "a45bb000001mV4DAAU",
+      "pp-mtg-orig": "a45bb000001mV4EAAU",
+      "pp-mtg-appraisal": "a45bb000001mV4FAAU",
+      "pp-cap-unused": "a45bb000001mV4GAAU",
+      "cross-perm-conv": "a45bb000001mV4HAAU",
+      "cross-perm-legal": "a45bb000001mV4IAAU",
+      "cross-reno-orig": "a45bb000001mV4JAAU",
+      "cross-solar-orig": "a45bb000001mV4KAAU",
+      "mgmt-line-annual": "a45bb000001mV4LAAU"
+    },
+    "LLC_BI__Collateral__c": {
+      "ridge-property": "a35bb0000019qy5AAA",
+      "park-place-property": "a35bb0000019qy6AAA",
+      "crossing-solar": "a35bb0000019qy7AAA",
+      "crossing-property": "a35bb0000019qzhAAA",
+      "portfolio-reserves": "a35bb0000019qziAAA"
+    },
+    "LLC_BI__Account_Collateral__c": {
+      "ridge-property#0": "a2Vbb000001cDLREA2",
+      "ridge-property#1": "a2Vbb000001cDLSEA2",
+      "park-place-property#0": "a2Vbb000001cDLTEA2",
+      "crossing-property#0": "a2Vbb000001cDLUEA2",
+      "crossing-property#1": "a2Vbb000001cDLVEA2",
+      "crossing-solar#0": "a2Vbb000001cDLWEA2",
+      "portfolio-reserves#0": "a2Vbb000001cDLXEA2",
+      "portfolio-reserves#1": "a2Vbb000001cDLYEA2",
+      "portfolio-reserves#2": "a2Vbb000001cDLZEA2"
+    },
+    "LLC_BI__Collateral_Valuation__c": {
+      "ridge-val-2026": "a34bb000003IN7hAAG",
+      "ridge-val-2024": "a34bb000003IN7iAAG",
+      "pp-val-2026": "a34bb000003IN7jAAG",
+      "pp-val-2024": "a34bb000003IN7kAAG",
+      "crossing-val-2026": "a34bb000003IN7lAAG",
+      "crossing-val-2026-stab": "a34bb000003IN7mAAG",
+      "solar-val-2025": "a34bb000003IN7nAAG",
+      "reserves-val-2026-08": "a34bb000003IN7oAAG"
+    },
+    "LLC_BI__Loan_Collateral2__c": {
+      "ridge-mtg-pledge": "a4Rbb0000027b9rEAA",
+      "ridge-cap-pledge": "a4Rbb0000027b9sEAA",
+      "pp-mtg-pledge": "a4Rbb0000027b9tEAA",
+      "pp-cap-pledge": "a4Rbb0000027b9uEAA",
+      "cross-perm-pledge": "a4Rbb0000027b9vEAA",
+      "cross-reno-pledge": "a4Rbb0000027b9wEAA",
+      "cross-solar-pledge": "a4Rbb0000027bCzEAI"
+    },
+    "LLC_BI__Covenant2__c": {
+      "dscr-ridge": "a3Bbb000000Tb7REAS",
+      "dscr-park-place": "a3Bbb000000Tb7SEAS",
+      "dscr-crossing": "a3Bbb000000Tb7TEAS",
+      "portfolio-ltv": "a3Bbb000000Tb7UEAS",
+      "minimum-occupancy": "a3Bbb000000Tb7VEAS",
+      "cash-management-trigger": "a3Bbb000000Tb7WEAS"
+    },
+    "LLC_BI__Account_Covenant__c": {
+      "dscr-ridge": "a2Wbb00000CWjntEAD",
+      "dscr-park-place": "a2Wbb00000CWjnuEAD",
+      "dscr-crossing": "a2Wbb00000CWjnvEAD",
+      "portfolio-ltv": "a2Wbb00000CWjnwEAD",
+      "minimum-occupancy": "a2Wbb00000CWjnxEAD",
+      "cash-management-trigger": "a2Wbb00000CWjnyEAD"
+    },
+    "LLC_BI__Loan_Covenant__c": {
+      "dscr-ridge@ridge-mortgage": "a4Vbb000000qpcjEAA",
+      "dscr-ridge@ridge-capex-line": "a4Vbb000000qpckEAA",
+      "dscr-park-place@pp-mortgage": "a4Vbb000000qpclEAA",
+      "dscr-park-place@pp-capex-line": "a4Vbb000000qpcmEAA",
+      "dscr-crossing@crossing-perm": "a4Vbb000000qpcnEAA",
+      "dscr-crossing@crossing-reno": "a4Vbb000000qpcoEAA",
+      "portfolio-ltv@ridge-mortgage": "a4Vbb000000qpcpEAA",
+      "portfolio-ltv@pp-mortgage": "a4Vbb000000qpcqEAA",
+      "portfolio-ltv@crossing-perm": "a4Vbb000000qpcrEAA",
+      "minimum-occupancy@crossing-perm": "a4Vbb000000qpcsEAA",
+      "minimum-occupancy@crossing-reno": "a4Vbb000000qpctEAA",
+      "cash-management-trigger@crossing-perm": "a4Vbb000000qpcuEAA"
+    },
+    "LLC_BI__Review__c": {
+      "annual-2026": "a5nbb00000nB1kbAAC"
+    },
+    "LLC_BI__Annual_Review__c": {
+      "rating-2026": "a2bbb000006E8jpAAC"
+    },
+    "Opportunity": {
+      "opp-highland": "006bb00000yJE1aAAG",
+      "opp-treasury": "006bb00000yJE1bAAG"
+    },
+    "Case": {
+      "case-reserve-draw": "500bb00000v7ZUrAAM"
+    },
+    "LLC_BI__Policy_Exception__c": {
+      "pex-occupancy": "a4rbb000003PEhBAAW",
+      "pex-combined-ltv": "a4rbb000003PEhCAAW"
+    }
+  },
+  "derived": {
+    "LLC_BI__Connection__c": [
+      "a38bb000001ac6JAAQ",
+      "a38bb000001ac6KAAQ",
+      "a38bb000001ac6LAAQ",
+      "a38bb000001ac6MAAQ",
+      "a38bb000001ac6NAAQ",
+      "a38bb000001ac6OAAQ"
+    ],
+    "LLC_BI__Loan_Detail__c": [
+      "a4Wbb000001MDUIEA4",
+      "a4Wbb000001MDUOEA4",
+      "a4Wbb000001MDUJEA4",
+      "a4Wbb000001MDUNEA4",
+      "a4Wbb000001MDUHEA4",
+      "a4Wbb000001MDUMEA4",
+      "a4Wbb000001MDUKEA4",
+      "a4Wbb000001MDUPEA4",
+      "a4Wbb000001MDULEA4"
+    ],
+    "LLC_BI__Loan_Collateral_Aggregate__c": [
+      "a4Sbb00000GQnFIEA1",
+      "a4Sbb00000GQnFJEA1",
+      "a4Sbb00000GQnFKEA1",
+      "a4Sbb00000GQnFLEA1",
+      "a4Sbb00000GQnFMEA1",
+      "a4Sbb00000GQnFNEA1",
+      "a4Sbb00000GQnLdEAL"
+    ]
+  },
+  "errors": [
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "crossing-property",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Description: data value too large: 192 unit apartment community built 2004, mid-way through a unit-by-unit value-add renovation. Occupancy held down at 87 percent while units are off line. First deed of trust with an absolute assignment of rents and leases and a lender-held renovation reserve. [C360-SEED-2026-09] (max length=255)",
+          "fields": [
+            "LLC_BI__Description__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:57:20+00:00"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "portfolio-reserves",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Description: data value too large: Lender-held replacement, renovation, tax and insurance reserves across the three properties. Held under the loan agreements and drawn against on requisition; not separately pledged because each reserve is already part of the deed of trust collateral for its own property. [C360-SEED-2026-09] (max length=255)",
+          "fields": [
+            "LLC_BI__Description__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:57:20+00:00"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "cross-solar-pledge",
+      "errors": [
+        {
+          "statusCode": "FIELD_CUSTOM_VALIDATION_EXCEPTION",
+          "message": "You are trying to pledge more than the current lendable value of this collateral. You must check the Authorize Pledge Amount checkbox to continue.",
+          "fields": [
+            "LLC_BI__Authorize__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:57:48+00:00"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-occupancy",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Mitigation Reason 1: data value too large: The shortfall is renovation downtime, not demand: 25 of 192 units were held off line in August 2026 and economic occupancy on the available units was 96.2 percent. (max length=100)",
+          "fields": [
+            "LLC_BI__Mitigation_Reason_1__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:57:54+00:00"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-combined-ltv",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Mitigation Reason 1: data value too large: The senior mortgage alone is at 68 percent of as-is value and inside the guideline; the excess is the second-position renovation loan, which funds value the appraisal has not yet recognised. (max length=100)",
+          "fields": [
+            "LLC_BI__Mitigation_Reason_1__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:57:54+00:00"
+    }
+  ],
+  "updatedAt": "2026-09-08T11:58:31+00:00"
+}

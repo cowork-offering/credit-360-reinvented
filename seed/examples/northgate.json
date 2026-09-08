@@ -1,0 +1,1770 @@
+{
+  "slug": "northgate",
+  "anchorKey": "northgate-investors",
+  "accounts": [
+    {
+      "key": "northgate-investors",
+      "name": "Northgate Multifamily Investors LLC",
+      "kind": "business",
+      "industry": "Other",
+      "naics": "531110",
+      "annualRevenue": 29000000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "nextReviewDate": "2026-09-28",
+      "lastReviewDate": "2025-09-26",
+      "billingCity": "Charlotte",
+      "billingState": "NC",
+      "description": "Sponsor and borrower of record for the Northgate multifamily portfolio. Owns and operates 618 apartment units across three Charlotte submarkets through single-purpose entities. Revenue stated as portfolio net operating income of $29.0MM. Founded 2009."
+    },
+    {
+      "key": "northgate-ridge",
+      "name": "Northgate Ridge Apartments LLC",
+      "kind": "business",
+      "industry": "Other",
+      "naics": "531110",
+      "annualRevenue": 12400000,
+      "riskGrade": "3",
+      "riskStatus": "Low",
+      "billingCity": "Charlotte",
+      "billingState": "NC",
+      "description": "Single-purpose entity holding title to Northgate Ridge Apartments, 240 stabilised units in the University City submarket. 100 percent owned by Northgate Multifamily Investors LLC."
+    },
+    {
+      "key": "northgate-park-place",
+      "name": "Northgate Park Place LLC",
+      "kind": "business",
+      "industry": "Other",
+      "naics": "531110",
+      "annualRevenue": 9100000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "Charlotte",
+      "billingState": "NC",
+      "description": "Single-purpose entity holding title to Northgate Park Place, 186 stabilised units in the Park Road submarket. 100 percent owned by Northgate Multifamily Investors LLC."
+    },
+    {
+      "key": "northgate-crossing",
+      "name": "Northgate Crossing LLC",
+      "kind": "business",
+      "industry": "Other",
+      "naics": "531110",
+      "annualRevenue": 6300000,
+      "riskGrade": "5",
+      "riskStatus": "Medium",
+      "billingCity": "Charlotte",
+      "billingState": "NC",
+      "description": "Single-purpose entity holding title to Northgate Crossing, 192 units in the Steele Creek submarket, mid-way through a value-add renovation. 100 percent owned by Northgate Multifamily Investors LLC."
+    },
+    {
+      "key": "northgate-management",
+      "name": "Northgate Residential Management LLC",
+      "kind": "business",
+      "industry": "Other",
+      "naics": "531311",
+      "annualRevenue": 2400000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "Charlotte",
+      "billingState": "NC",
+      "description": "Affiliated property management company. Manages all three Northgate communities under a three percent of gross receipts management agreement. 100 percent owned by Northgate Multifamily Investors LLC."
+    },
+    {
+      "key": "james-whitcombe",
+      "name": "James Whitcombe",
+      "kind": "person",
+      "description": "Managing Member and Chief Investment Officer. Holds 55 percent of Northgate Multifamily Investors LLC and 55 percent of each property entity indirectly. Limited guarantor on every facility under the standard non-recourse carve-out and full-recourse structures."
+    },
+    {
+      "key": "adaeze-nwosu",
+      "name": "Adaeze Nwosu",
+      "kind": "person",
+      "description": "Member and Chief Operating Officer. Holds 45 percent of Northgate Multifamily Investors LLC and 45 percent of each property entity indirectly. Limited guarantor on every facility under the standard non-recourse carve-out and full-recourse structures."
+    }
+  ],
+  "connections": [
+    {
+      "key": "sponsor-owns-ridge",
+      "from": "northgate-investors",
+      "to": "northgate-ridge",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member",
+      "description": "Northgate Multifamily Investors LLC holds 100 percent of the membership interests in Northgate Ridge Apartments LLC."
+    },
+    {
+      "key": "sponsor-owns-park-place",
+      "from": "northgate-investors",
+      "to": "northgate-park-place",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member",
+      "description": "Northgate Multifamily Investors LLC holds 100 percent of the membership interests in Northgate Park Place LLC."
+    },
+    {
+      "key": "sponsor-owns-crossing",
+      "from": "northgate-investors",
+      "to": "northgate-crossing",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member",
+      "description": "Northgate Multifamily Investors LLC holds 100 percent of the membership interests in Northgate Crossing LLC."
+    },
+    {
+      "key": "sponsor-owns-management",
+      "from": "northgate-investors",
+      "to": "northgate-management",
+      "roleName": "Owner",
+      "ownershipPercent": 100,
+      "officialTitle": "Sole Member",
+      "description": "Northgate Multifamily Investors LLC holds 100 percent of Northgate Residential Management LLC, the affiliated property manager."
+    },
+    {
+      "key": "whitcombe-owns-sponsor",
+      "from": "james-whitcombe",
+      "to": "northgate-investors",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 55,
+      "indirectOwnershipPercent": 55,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Managing Member & Chief Investment Officer",
+      "description": "Holds 55 percent of the sponsor directly, and therefore 55 percent of each property entity and of the management company indirectly."
+    },
+    {
+      "key": "nwosu-owns-sponsor",
+      "from": "adaeze-nwosu",
+      "to": "northgate-investors",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 45,
+      "indirectOwnershipPercent": 45,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Member & Chief Operating Officer",
+      "description": "Holds 45 percent of the sponsor directly, and therefore 45 percent of each property entity and of the management company indirectly."
+    }
+  ],
+  "collateral": [
+    {
+      "key": "ridge-property",
+      "name": "Northgate Ridge Apartments - 8420 Mallard Creek Road, Charlotte",
+      "typeName": "Real Estate-Multi-Family",
+      "assessmentMethod": "Appraisal",
+      "value": 31400000,
+      "liquidationValue": 26690000,
+      "appraisalDate": "2026-03-11",
+      "nextRevaluationDate": "2027-03-11",
+      "valuationFrequency": "Annually",
+      "uccState": "NC",
+      "city": "Charlotte",
+      "state": "NC",
+      "description": "240 unit garden-style apartment community built 2016, stabilised at 95.4 percent occupancy. First deed of trust with an absolute assignment of rents and leases and a lender-held replacement reserve.",
+      "legalDescription": "First deed of trust, security agreement, absolute assignment of rents and leases and fixture filing on the 240 unit apartment community at 8420 Mallard Creek Road, Charlotte, Mecklenburg County, North Carolina, together with all improvements, fixtures, rents, escrows and replacement reserves.",
+      "owners": [
+        {
+          "account": "northgate-ridge",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-05-15"
+        },
+        {
+          "account": "northgate-management",
+          "association": "Lessor",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2024-05-15"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "ridge-val-2026",
+          "date": "2026-03-11",
+          "value": 31400000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "March 2026 MAI as-is appraisal. Direct capitalisation of $1.81MM in-place net operating income at a 5.75 percent capitalisation rate, reconciled against four sales comparables."
+        },
+        {
+          "key": "ridge-val-2024",
+          "date": "2024-04-02",
+          "value": 29800000,
+          "source": "Appraisal",
+          "type": "Purchase Price",
+          "original": true,
+          "description": "April 2024 acquisition appraisal and contract price at closing."
+        }
+      ]
+    },
+    {
+      "key": "park-place-property",
+      "name": "Northgate Park Place - 2915 Selwyn Avenue, Charlotte",
+      "typeName": "Real Estate-Multi-Family",
+      "assessmentMethod": "Appraisal",
+      "value": 23000000,
+      "liquidationValue": 19550000,
+      "appraisalDate": "2026-04-08",
+      "nextRevaluationDate": "2027-04-08",
+      "valuationFrequency": "Annually",
+      "uccState": "NC",
+      "city": "Charlotte",
+      "state": "NC",
+      "description": "186 unit mid-rise apartment community built 2013, stabilised at 96.1 percent occupancy. First deed of trust with an absolute assignment of rents and leases and a lender-held tax and insurance escrow.",
+      "legalDescription": "First deed of trust, security agreement, absolute assignment of rents and leases and fixture filing on the 186 unit apartment community at 2915 Selwyn Avenue, Charlotte, Mecklenburg County, North Carolina, together with all improvements, fixtures, rents and escrows.",
+      "owners": [
+        {
+          "account": "northgate-park-place",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-09-20"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "pp-val-2026",
+          "date": "2026-04-08",
+          "value": 23000000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "April 2026 MAI as-is appraisal. Direct capitalisation of $1.36MM in-place net operating income at a 5.90 percent capitalisation rate."
+        },
+        {
+          "key": "pp-val-2024",
+          "date": "2024-08-14",
+          "value": 21900000,
+          "source": "Appraisal",
+          "type": "Purchase Price",
+          "original": true,
+          "description": "August 2024 acquisition appraisal and contract price at closing."
+        }
+      ]
+    },
+    {
+      "key": "crossing-property",
+      "name": "Northgate Crossing - 11205 Steele Creek Road, Charlotte",
+      "typeName": "Real Estate-Multi-Family",
+      "assessmentMethod": "Appraisal",
+      "value": 16800000,
+      "liquidationValue": 14280000,
+      "appraisalDate": "2026-05-27",
+      "nextRevaluationDate": "2027-05-27",
+      "valuationFrequency": "Semi-Annually",
+      "uccState": "NC",
+      "city": "Charlotte",
+      "state": "NC",
+      "description": "192 unit apartment community built 2004, mid-way through a value-add renovation. Occupancy held at 87 percent while units are off line. First deed of trust with an absolute assignment of rents and a renovation reserve.",
+      "legalDescription": "First deed of trust, security agreement, absolute assignment of rents and leases and fixture filing on the 192 unit apartment community at 11205 Steele Creek Road, Charlotte, Mecklenburg County, North Carolina, together with all improvements, fixtures, rents, escrows and the renovation reserve.",
+      "owners": [
+        {
+          "account": "northgate-crossing",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-11-01"
+        },
+        {
+          "account": "northgate-management",
+          "association": "Lessor",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2024-11-01"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "crossing-val-2026",
+          "date": "2026-05-27",
+          "value": 16800000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "May 2026 MAI as-is appraisal taken at conversion of the bridge loan, reflecting 87 percent occupancy and 64 of 192 units renovated."
+        },
+        {
+          "key": "crossing-val-2026-stab",
+          "date": "2026-05-27",
+          "value": 21500000,
+          "source": "Appraisal",
+          "type": "As Stabilized Value",
+          "description": "May 2026 as-stabilised value on completion of the renovation programme and lease-up to 94 percent, per the same MAI report."
+        }
+      ]
+    },
+    {
+      "key": "crossing-solar",
+      "name": "Northgate Crossing Rooftop Solar and Storage Array",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Sales Invoice",
+      "value": 890000,
+      "liquidationValue": 445000,
+      "appraisalDate": "2025-11-14",
+      "nextRevaluationDate": "2027-11-14",
+      "valuationFrequency": "Biennial",
+      "uccState": "NC",
+      "city": "Charlotte",
+      "state": "NC",
+      "description": "812 kW rooftop photovoltaic array with battery storage and metering across nine buildings at Northgate Crossing, installed November 2025.",
+      "legalDescription": "First priority UCC-1 lien on the photovoltaic modules, inverters, racking, battery storage units and metering equipment listed on Schedule A to the equipment security agreement, together with all proceeds and the related interconnection and incentive payments.",
+      "owners": [
+        {
+          "account": "northgate-crossing",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-11-14"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "solar-val-2025",
+          "date": "2025-11-14",
+          "value": 890000,
+          "source": "Invoice / Bill of Sale",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "original": true,
+          "description": "November 2025 installed cost per the engineering, procurement and construction contract and final invoice, net of the utility interconnection rebate."
+        }
+      ]
+    },
+    {
+      "key": "portfolio-reserves",
+      "name": "Northgate Portfolio Reserve and Escrow Accounts",
+      "typeName": "Possessory-Savings/CDs",
+      "assessmentMethod": "Internal Valuation",
+      "value": 1850000,
+      "liquidationValue": 1850000,
+      "heldBy": "Lender",
+      "appraisalDate": "2026-08-31",
+      "nextRevaluationDate": "2026-11-30",
+      "valuationFrequency": "Quarterly",
+      "uccFiled": false,
+      "uccState": "NC",
+      "city": "Charlotte",
+      "state": "NC",
+      "description": "Lender-held replacement, renovation, tax and insurance reserves across the three properties. Not separately pledged: each reserve is already part of the deed of trust collateral for its own property.",
+      "legalDescription": "Deposit account control agreements over the replacement reserve, renovation reserve and tax and insurance escrow accounts maintained for Northgate Ridge, Northgate Park Place and Northgate Crossing.",
+      "owners": [
+        {
+          "account": "northgate-ridge",
+          "association": "Owner",
+          "percent": 40,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-05-15"
+        },
+        {
+          "account": "northgate-park-place",
+          "association": "Owner",
+          "percent": 27,
+          "pledgingAuthority": true,
+          "primary": false,
+          "startDate": "2024-09-20"
+        },
+        {
+          "account": "northgate-crossing",
+          "association": "Owner",
+          "percent": 33,
+          "pledgingAuthority": true,
+          "primary": false,
+          "startDate": "2024-11-01"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "reserves-val-2026-08",
+          "date": "2026-08-31",
+          "value": 1850000,
+          "source": "Account Balance / Statement",
+          "type": "Cash Balance",
+          "primary": true,
+          "active": true,
+          "description": "31 August 2026 reserve balances: $742,000 Ridge replacement, $498,000 Park Place tax and insurance, $610,000 Crossing renovation."
+        }
+      ]
+    }
+  ],
+  "covenants": [
+    {
+      "key": "dscr-ridge",
+      "typeName": "Debt Service Coverage of Borrower",
+      "recordType": "Financial Ratio",
+      "threshold": 1.25,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2024-05-15",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 1.42,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 15,
+      "complianceDaysPrior": "30",
+      "detail": "Northgate Ridge: minimum property debt service coverage ratio of 1.25x, tested quarterly on a trailing twelve month basis at the property level.",
+      "clause": "Section 5.14(a) of the Ridge Loan Agreement: Borrower shall maintain a Debt Service Coverage Ratio for the Property of not less than 1.25 to 1.00.",
+      "notes": "Property DSCR defined as net operating income less the underwritten replacement reserve of $300 per unit per annum, divided by scheduled principal and interest on the mortgage and the capex line.",
+      "loans": [
+        "ridge-mortgage",
+        "ridge-capex-line"
+      ],
+      "evaluations": [
+        {
+          "key": "dscr-ridge-q4-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-01-29",
+          "value": 1.37,
+          "comments": "Q4 2025 test at 1.37x on trailing twelve month net operating income of $1.74MM."
+        },
+        {
+          "key": "dscr-ridge-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-27",
+          "value": 1.39,
+          "comments": "Q1 2026 test at 1.39x."
+        },
+        {
+          "key": "dscr-ridge-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-24",
+          "value": 1.42,
+          "comments": "Q2 2026 test at 1.42x after the May 2026 renewal lease trade-outs."
+        }
+      ]
+    },
+    {
+      "key": "dscr-park-place",
+      "typeName": "Debt Service Coverage of Borrower",
+      "recordType": "Financial Ratio",
+      "threshold": 1.25,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2024-09-20",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 1.33,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 15,
+      "complianceDaysPrior": "30",
+      "detail": "Northgate Park Place: minimum property debt service coverage ratio of 1.25x, tested quarterly on a trailing twelve month basis at the property level.",
+      "clause": "Section 5.14(a) of the Park Place Loan Agreement: Borrower shall maintain a Debt Service Coverage Ratio for the Property of not less than 1.25 to 1.00.",
+      "notes": "Property DSCR defined as net operating income less the underwritten replacement reserve of $300 per unit per annum, divided by scheduled principal and interest on the mortgage and the capex line.",
+      "loans": [
+        "pp-mortgage",
+        "pp-capex-line"
+      ],
+      "evaluations": [
+        {
+          "key": "dscr-pp-q4-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-01-29",
+          "value": 1.29,
+          "comments": "Q4 2025 test at 1.29x, inside covenant with limited headroom while the property tax reassessment worked through."
+        },
+        {
+          "key": "dscr-pp-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-27",
+          "value": 1.31,
+          "comments": "Q1 2026 test at 1.31x."
+        },
+        {
+          "key": "dscr-pp-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-24",
+          "value": 1.33,
+          "comments": "Q2 2026 test at 1.33x."
+        }
+      ]
+    },
+    {
+      "key": "dscr-crossing",
+      "typeName": "Debt Service Coverage of Borrower",
+      "recordType": "Financial Ratio",
+      "threshold": 1.25,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2026-06-30",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 1.27,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 15,
+      "complianceDaysPrior": "30",
+      "detail": "Northgate Crossing: minimum property debt service coverage ratio of 1.25x, tested quarterly from the first full quarter after conversion of the bridge loan to permanent.",
+      "clause": "Section 5.14(a) of the Crossing Loan Agreement, as amended by the Conversion Amendment dated 30 June 2026.",
+      "notes": "Tested on annualised net operating income for the quarter rather than trailing twelve months until four full quarters have run post conversion. Renovation downtime units are excluded from the underwritten vacancy allowance.",
+      "loans": [
+        "crossing-perm",
+        "crossing-reno"
+      ],
+      "evaluations": [
+        {
+          "key": "dscr-crossing-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-24",
+          "value": 1.27,
+          "comments": "First test after conversion, at 1.27x on annualised second quarter net operating income. Thin, and the reason the relationship is graded 4 rather than 3."
+        }
+      ]
+    },
+    {
+      "key": "portfolio-ltv",
+      "typeName": "Leverage",
+      "recordType": "Financial Ratio",
+      "threshold": 70,
+      "operator": "Less Than or Equal To",
+      "acnpexOperator": "<=",
+      "frequency": "Annually",
+      "effectiveDate": "2024-05-15",
+      "dueDate": "2026-03-31",
+      "lastEvaluationDate": "2026-05-27",
+      "lastEvaluationValue": 68.4,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2027-03-31",
+      "covenantStatus": "Compliant",
+      "graceDays": 30,
+      "complianceDaysPrior": "30",
+      "detail": "Maximum portfolio loan to value of 70 percent, tested annually against the most recent appraisals of the three properties.",
+      "clause": "Section 5.15 of each Loan Agreement and Section 3 of the Cross-Collateral Side Letter: aggregate senior mortgage debt shall not exceed 70 percent of aggregate appraised value.",
+      "notes": "Measured as the three senior mortgages of $49.4MM committed against aggregate as-is appraised value of $71.2MM. The capex lines and the renovation loan sit outside the test and are covered by the separate combined-leverage exception on Crossing.",
+      "loans": [
+        "ridge-mortgage",
+        "pp-mortgage",
+        "crossing-perm"
+      ],
+      "evaluations": [
+        {
+          "key": "ltv-2025",
+          "status": "Compliant",
+          "dueDate": "2025-03-31",
+          "effectiveDate": "2024-05-15",
+          "evaluationDate": "2025-03-28",
+          "value": 69.1,
+          "comments": "2025 annual test at 69.1 percent on the 2024 acquisition appraisals."
+        },
+        {
+          "key": "ltv-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2025-04-01",
+          "evaluationDate": "2026-05-27",
+          "value": 68.4,
+          "comments": "2026 annual test at 68.4 percent once the Crossing as-is appraisal came in at conversion."
+        }
+      ]
+    },
+    {
+      "key": "minimum-occupancy",
+      "typeName": "Rent Roll",
+      "recordType": "Financial Ratio",
+      "threshold": 90,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Monthly",
+      "effectiveDate": "2024-05-15",
+      "dueDate": "2026-08-31",
+      "lastEvaluationDate": "2026-08-31",
+      "lastEvaluationValue": 87,
+      "lastEvaluationStatus": "Exception",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Waived",
+      "breached": true,
+      "graceDays": 15,
+      "complianceDaysPrior": "14",
+      "detail": "Minimum physical occupancy of 90 percent per property, evidenced by a monthly rent roll and operating statement delivered within 20 days of month end.",
+      "clause": "Section 5.16 of each Loan Agreement: Borrower shall maintain physical occupancy at the Property of not less than 90 percent, tested monthly.",
+      "notes": "Occupancy at Northgate Crossing fell to 87 percent in August 2026 with 25 units held off line for the value-add renovation. Waived by the credit officer on 4 September 2026 for the duration of the renovation programme; see policy exception CRE-OCC-01. Ridge at 95.4 percent and Park Place at 96.1 percent are both comfortably inside the test.",
+      "loans": [
+        "crossing-perm",
+        "crossing-reno"
+      ],
+      "evaluations": [
+        {
+          "key": "occ-2026-06",
+          "status": "Compliant",
+          "dueDate": "2026-06-20",
+          "effectiveDate": "2026-05-01",
+          "evaluationDate": "2026-06-18",
+          "value": 91,
+          "comments": "May 2026 rent roll: Crossing at 91 percent with 14 units off line."
+        },
+        {
+          "key": "occ-2026-07",
+          "status": "Exception",
+          "dueDate": "2026-07-20",
+          "effectiveDate": "2026-06-01",
+          "evaluationDate": "2026-07-17",
+          "value": 89,
+          "exceptionReason": "Breached",
+          "comments": "June 2026 rent roll: Crossing at 89 percent as the second renovation phase opened, one point below the test."
+        },
+        {
+          "key": "occ-2026-08",
+          "status": "Waived",
+          "dueDate": "2026-08-20",
+          "effectiveDate": "2026-07-01",
+          "evaluationDate": "2026-08-19",
+          "value": 87,
+          "exceptionReason": "Breached",
+          "comments": "July 2026 rent roll: Crossing at 87 percent with 25 units off line. Waived for the duration of the renovation programme on 4 September 2026 under policy exception CRE-OCC-01."
+        }
+      ]
+    },
+    {
+      "key": "cash-management-trigger",
+      "typeName": "Maintain Accounts",
+      "recordType": "Information",
+      "threshold": 1.15,
+      "operator": "Less Than",
+      "acnpexOperator": "<",
+      "frequency": "Quarterly",
+      "effectiveDate": "2024-05-15",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 1.27,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 0,
+      "complianceDaysPrior": "14",
+      "detail": "Cash management trigger: springing lockbox and hard cash management at any property whose quarterly debt service coverage ratio falls below 1.15x, and all operating accounts to be maintained with the bank.",
+      "clause": "Section 5.17 of each Loan Agreement and the Deposit Account Control Agreements dated 15 May 2024, 20 September 2024 and 1 November 2024.",
+      "notes": "Not sprung. The weakest property at 30 June 2026 is Northgate Crossing at 1.27x, twelve basis points of coverage above the trigger. Compliant here means the trigger has not been hit and cash management remains soft.",
+      "loans": [
+        "crossing-perm"
+      ],
+      "evaluations": [
+        {
+          "key": "cash-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-27",
+          "value": 1.31,
+          "comments": "Q1 2026: weakest property at 1.31x, trigger not sprung."
+        },
+        {
+          "key": "cash-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-24",
+          "value": 1.27,
+          "comments": "Q2 2026: weakest property Crossing at 1.27x, trigger not sprung. Monitored monthly while the renovation runs."
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "key": "ridge",
+      "name": "Northgate Ridge Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "3",
+      "primaryEntity": "northgate-ridge",
+      "description": "Booked package for Northgate Ridge Apartments LLC. $23.5MM committed against $22.225MM outstanding: a $22.0MM stabilised multifamily mortgage on the 240 unit community and a $1.5MM capex line for the amenity and unit-interior programme. Secured by a first deed of trust with an absolute assignment of rents, guaranteed by the sponsor and both principals under standard non-recourse carve-outs.",
+      "loans": [
+        {
+          "key": "ridge-mortgage",
+          "name": "Northgate Ridge Apartments LLC - Purchase - $22,000,000.00",
+          "lookupKey": "NOR1001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "3",
+          "amount": 22000000,
+          "outstanding": 21250000,
+          "rate": 6.35,
+          "noteRate": 6.35,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2024-02-20",
+          "closeDate": "2024-05-15",
+          "bookedDate": "2024-05-15",
+          "firstPaymentDate": "2024-06-15",
+          "maturityDate": "2034-05-15",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "purpose": "real_estate_purchase_non_owner_occupied",
+          "description": "Ten year fixed rate first mortgage on a 240 unit stabilised apartment community, twenty year amortisation with a balloon at year ten. Non-recourse subject to standard carve-outs.",
+          "involvements": [
+            {
+              "key": "ridge-mtg-borrower",
+              "account": "northgate-ridge",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single-purpose borrower and title holder of Northgate Ridge Apartments."
+            },
+            {
+              "key": "ridge-mtg-sponsor",
+              "account": "northgate-investors",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Limited",
+              "guarantyLimit": 3300000,
+              "notes": "Sponsor guarantor. Non-recourse carve-out guaranty capped at 15 percent of the original principal balance, plus full recourse for the standard bad-boy events."
+            },
+            {
+              "key": "ridge-mtg-whitcombe",
+              "account": "james-whitcombe",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 55,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1815000,
+              "notes": "Principal carve-out guarantor. Limited to 55 percent of the $3.30MM carve-out cap."
+            },
+            {
+              "key": "ridge-mtg-nwosu",
+              "account": "adaeze-nwosu",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 45,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1485000,
+              "notes": "Principal carve-out guarantor. Limited to 45 percent of the $3.30MM carve-out cap."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "ridge-mtg-pledge",
+              "collateral": "ridge-property",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 70,
+              "amountPledged": 21980000,
+              "startDate": "2024-05-15",
+              "overrideReason": "Stabilised multifamily advanced at 70 percent of the March 2026 as-is appraised value of $31.4MM, against the 80 percent collateral-type default. First deed of trust with an absolute assignment of rents."
+            }
+          ],
+          "fees": [
+            {
+              "key": "ridge-mtg-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            },
+            {
+              "key": "ridge-mtg-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 12500,
+              "isIncome": false,
+              "paidBy": "Paid Outside Closing",
+              "description": "MAI appraisal of the 240 unit community, third party."
+            },
+            {
+              "key": "ridge-mtg-title",
+              "feeType": "Title Insurance",
+              "recordType": "Costs",
+              "amount": 26400,
+              "isIncome": false,
+              "description": "ALTA lenders title policy, survey endorsement and the assignment of rents endorsement."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.35,
+            "amortises": true,
+            "effectiveDate": "2024-05-15",
+            "endDate": "2034-05-15",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "ridge-capex-line",
+          "name": "Northgate Ridge Apartments LLC - Line of Credit - $1,500,000.00",
+          "lookupKey": "NOR1002",
+          "product": "Line of Credit",
+          "productType": "Real Estate",
+          "riskGrade": "3",
+          "amount": 1500000,
+          "outstanding": 975000,
+          "rate": 8.0,
+          "noteRate": 8.0,
+          "index": "WSJ Prime",
+          "spread": 0.5,
+          "termMonths": 24,
+          "amortMonths": 24,
+          "applicationDate": "2026-03-30",
+          "closeDate": "2026-05-15",
+          "bookedDate": "2026-05-15",
+          "firstPaymentDate": "2026-06-15",
+          "maturityDate": "2028-05-15",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Revolving Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "Secured Renewal",
+          "purpose": "property_improvement_non_owner_occupied",
+          "description": "Revolving capex line funding the amenity refresh and unit-interior programme at Northgate Ridge. Interest only monthly at WSJ Prime plus 0.50 percent, renewed for a further twenty four months in May 2026. Drawn $975,000 of $1.5MM.",
+          "involvements": [
+            {
+              "key": "ridge-cap-borrower",
+              "account": "northgate-ridge",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single-purpose borrower and title holder of Northgate Ridge Apartments."
+            },
+            {
+              "key": "ridge-cap-sponsor",
+              "account": "northgate-investors",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Sponsor guarantor. The capex line is full recourse to the sponsor, unlike the mortgage."
+            },
+            {
+              "key": "ridge-cap-whitcombe",
+              "account": "james-whitcombe",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 55,
+              "guarantyType": "Limited",
+              "guarantyLimit": 825000,
+              "notes": "Principal guarantor, limited to 55 percent of the committed line."
+            },
+            {
+              "key": "ridge-cap-nwosu",
+              "account": "adaeze-nwosu",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 45,
+              "guarantyType": "Limited",
+              "guarantyLimit": 675000,
+              "notes": "Principal guarantor, limited to 45 percent of the committed line."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "ridge-cap-pledge",
+              "collateral": "ridge-property",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 5,
+              "amountPledged": 1500000,
+              "startDate": "2026-05-15",
+              "overrideReason": "Second deed of trust on Northgate Ridge behind the senior mortgage, advanced at a further 5 percent of appraised value. Total advance against the property is 75 percent."
+            }
+          ],
+          "fees": [
+            {
+              "key": "ridge-cap-unused",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "payoutFrequency": "Annually",
+              "description": "Unused commitment fee, 0.25 percent per annum on the average undrawn balance. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no commitment entry."
+            },
+            {
+              "key": "ridge-cap-renewal",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "description": "Renewal fee, 0.25 percent of the committed line, charged at the May 2026 renewal."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.5,
+            "rate": 8.0,
+            "amortises": false,
+            "effectiveDate": "2026-05-15",
+            "endDate": "2028-05-15",
+            "termLength": 24
+          }
+        }
+      ]
+    },
+    {
+      "key": "park-place",
+      "name": "Northgate Park Place Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "4",
+      "primaryEntity": "northgate-park-place",
+      "description": "Booked package for Northgate Park Place LLC. $16.8MM committed against $16.04MM outstanding: a $16.0MM multifamily mortgage on the 186 unit community and an $800K capex line. Secured by a first deed of trust with an absolute assignment of rents, guaranteed by the sponsor and both principals.",
+      "loans": [
+        {
+          "key": "pp-mortgage",
+          "name": "Northgate Park Place LLC - Purchase - $16,000,000.00",
+          "lookupKey": "NOR2001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "amount": 16000000,
+          "outstanding": 15530000,
+          "rate": 6.55,
+          "noteRate": 6.55,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2024-06-24",
+          "closeDate": "2024-09-20",
+          "bookedDate": "2024-09-20",
+          "firstPaymentDate": "2024-10-20",
+          "maturityDate": "2034-09-20",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "purpose": "real_estate_purchase_non_owner_occupied",
+          "description": "Ten year fixed rate first mortgage on a 186 unit mid-rise apartment community, twenty year amortisation with a balloon at year ten. Non-recourse subject to standard carve-outs.",
+          "involvements": [
+            {
+              "key": "pp-mtg-borrower",
+              "account": "northgate-park-place",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single-purpose borrower and title holder of Northgate Park Place."
+            },
+            {
+              "key": "pp-mtg-sponsor",
+              "account": "northgate-investors",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2400000,
+              "notes": "Sponsor guarantor. Non-recourse carve-out guaranty capped at 15 percent of the original principal balance."
+            },
+            {
+              "key": "pp-mtg-whitcombe",
+              "account": "james-whitcombe",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 55,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1320000,
+              "notes": "Principal carve-out guarantor. Limited to 55 percent of the $2.40MM carve-out cap."
+            },
+            {
+              "key": "pp-mtg-nwosu",
+              "account": "adaeze-nwosu",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 45,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1080000,
+              "notes": "Principal carve-out guarantor. Limited to 45 percent of the $2.40MM carve-out cap."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "pp-mtg-pledge",
+              "collateral": "park-place-property",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 70,
+              "amountPledged": 16000000,
+              "startDate": "2024-09-20",
+              "overrideReason": "Stabilised multifamily advanced at 70 percent of the April 2026 as-is appraised value of $23.0MM, against the 80 percent collateral-type default."
+            }
+          ],
+          "fees": [
+            {
+              "key": "pp-mtg-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            },
+            {
+              "key": "pp-mtg-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 9800,
+              "isIncome": false,
+              "paidBy": "Paid Outside Closing",
+              "description": "MAI appraisal of the 186 unit community, third party."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.55,
+            "amortises": true,
+            "effectiveDate": "2024-09-20",
+            "endDate": "2034-09-20",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "pp-capex-line",
+          "name": "Northgate Park Place LLC - Line of Credit - $800,000.00",
+          "lookupKey": "NOR2002",
+          "product": "Line of Credit",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "amount": 800000,
+          "outstanding": 520000,
+          "rate": 8.0,
+          "noteRate": 8.0,
+          "index": "WSJ Prime",
+          "spread": 0.5,
+          "termMonths": 24,
+          "amortMonths": 24,
+          "applicationDate": "2026-05-11",
+          "closeDate": "2026-06-30",
+          "bookedDate": "2026-06-30",
+          "firstPaymentDate": "2026-07-31",
+          "maturityDate": "2028-06-30",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Revolving Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "Secured Renewal",
+          "purpose": "property_improvement_non_owner_occupied",
+          "description": "Revolving capex line funding roof replacement, corridor refresh and the parking deck coating programme at Northgate Park Place. Interest only monthly at WSJ Prime plus 0.50 percent. Drawn $520,000 of $800,000.",
+          "involvements": [
+            {
+              "key": "pp-cap-borrower",
+              "account": "northgate-park-place",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single-purpose borrower and title holder of Northgate Park Place."
+            },
+            {
+              "key": "pp-cap-sponsor",
+              "account": "northgate-investors",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Sponsor guarantor. The capex line is full recourse to the sponsor."
+            },
+            {
+              "key": "pp-cap-whitcombe",
+              "account": "james-whitcombe",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 55,
+              "guarantyType": "Limited",
+              "guarantyLimit": 440000,
+              "notes": "Principal guarantor, limited to 55 percent of the committed line."
+            },
+            {
+              "key": "pp-cap-nwosu",
+              "account": "adaeze-nwosu",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 45,
+              "guarantyType": "Limited",
+              "guarantyLimit": 360000,
+              "notes": "Principal guarantor, limited to 45 percent of the committed line."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "pp-cap-pledge",
+              "collateral": "park-place-property",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 4,
+              "amountPledged": 800000,
+              "startDate": "2026-06-30",
+              "overrideReason": "Second deed of trust on Northgate Park Place behind the senior mortgage, advanced at a further 4 percent of appraised value. Total advance against the property is 74 percent."
+            }
+          ],
+          "fees": [
+            {
+              "key": "pp-cap-unused",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "payoutFrequency": "Annually",
+              "description": "Unused commitment fee, 0.25 percent per annum on the average undrawn balance. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no commitment entry."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.5,
+            "rate": 8.0,
+            "amortises": false,
+            "effectiveDate": "2026-06-30",
+            "endDate": "2028-06-30",
+            "termLength": 24
+          }
+        }
+      ]
+    },
+    {
+      "key": "crossing",
+      "name": "Northgate Crossing Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "northgate-crossing",
+      "description": "Booked package for Northgate Crossing LLC and the affiliated management company. $14.65MM committed against $13.708MM outstanding: an $11.4MM bridge-to-permanent mortgage converted to permanent on 30 June 2026, a $2.2MM value-add renovation loan, a $650K solar equipment loan and a $400K unsecured working capital line for Northgate Residential Management LLC. The weakest of the three properties: 87 percent occupancy against a 90 percent covenant, waived while the renovation runs.",
+      "loans": [
+        {
+          "key": "crossing-perm",
+          "name": "Northgate Crossing LLC - Purchase - $11,400,000.00",
+          "lookupKey": "NOR3001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "5",
+          "amount": 11400000,
+          "outstanding": 11372000,
+          "rate": 6.75,
+          "noteRate": 6.75,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2026-03-16",
+          "closeDate": "2026-06-30",
+          "bookedDate": "2026-06-30",
+          "firstPaymentDate": "2026-07-31",
+          "maturityDate": "2036-06-30",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "Refinance Existing Loan With Lender",
+          "purpose": "real_estate_purchase_non_owner_occupied",
+          "description": "Bridge-to-permanent mortgage on the 192 unit Northgate Crossing community, converted from the interest-only bridge to the ten year permanent tranche on 30 June 2026 on satisfaction of the conversion tests. Twenty year amortisation, balloon at year ten. Two amortising payments made since conversion.",
+          "involvements": [
+            {
+              "key": "cross-perm-borrower",
+              "account": "northgate-crossing",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single-purpose borrower and title holder of Northgate Crossing."
+            },
+            {
+              "key": "cross-perm-sponsor",
+              "account": "northgate-investors",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1710000,
+              "notes": "Sponsor guarantor. Non-recourse carve-out guaranty capped at 15 percent of the converted principal balance."
+            },
+            {
+              "key": "cross-perm-whitcombe",
+              "account": "james-whitcombe",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 55,
+              "guarantyType": "Limited",
+              "guarantyLimit": 940500,
+              "notes": "Principal carve-out guarantor. Limited to 55 percent of the $1.71MM carve-out cap."
+            },
+            {
+              "key": "cross-perm-nwosu",
+              "account": "adaeze-nwosu",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 45,
+              "guarantyType": "Limited",
+              "guarantyLimit": 769500,
+              "notes": "Principal carve-out guarantor. Limited to 45 percent of the $1.71MM carve-out cap."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "cross-perm-pledge",
+              "collateral": "crossing-property",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 68,
+              "amountPledged": 11400000,
+              "startDate": "2024-11-01",
+              "overrideReason": "Advanced at 68 percent of the May 2026 as-is appraised value of $16.8MM taken at conversion, against the 80 percent collateral-type default. First deed of trust with an absolute assignment of rents."
+            }
+          ],
+          "fees": [
+            {
+              "key": "cross-perm-conv",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Conversion fee, 0.50 percent of the converted principal balance, charged on 30 June 2026."
+            },
+            {
+              "key": "cross-perm-legal",
+              "feeType": "Attorney",
+              "recordType": "Costs",
+              "amount": 38000,
+              "isIncome": false,
+              "description": "Conversion amendment, title date-down, reserve account control agreements and outside counsel."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.75,
+            "amortises": true,
+            "effectiveDate": "2026-06-30",
+            "endDate": "2036-06-30",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "crossing-reno",
+          "name": "Northgate Crossing LLC - Construction - $2,200,000.00",
+          "lookupKey": "NOR3002",
+          "product": "Construction",
+          "productType": "Real Estate",
+          "riskGrade": "5",
+          "amount": 2200000,
+          "outstanding": 1540000,
+          "rate": 8.25,
+          "noteRate": 8.25,
+          "index": "WSJ Prime",
+          "spread": 0.75,
+          "termMonths": 36,
+          "amortMonths": 36,
+          "balloon": true,
+          "applicationDate": "2025-06-18",
+          "closeDate": "2025-08-15",
+          "bookedDate": "2025-08-15",
+          "firstPaymentDate": "2025-09-15",
+          "maturityDate": "2028-08-15",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Draw Down Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "New Loan",
+          "purpose": "property_improvement_non_owner_occupied",
+          "description": "Value-add renovation loan funding the unit-by-unit interior programme, amenity rebuild and exterior envelope work at Northgate Crossing. Drawn on requisition against the renovation reserve, interest only at WSJ Prime plus 0.75 percent, balloon at 36 months. 64 of 192 units complete, $1.54MM drawn of $2.2MM.",
+          "involvements": [
+            {
+              "key": "cross-reno-borrower",
+              "account": "northgate-crossing",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single-purpose borrower and title holder of Northgate Crossing."
+            },
+            {
+              "key": "cross-reno-sponsor",
+              "account": "northgate-investors",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Sponsor guarantor. The renovation loan is full recourse to the sponsor and carries a completion guaranty."
+            },
+            {
+              "key": "cross-reno-whitcombe",
+              "account": "james-whitcombe",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 55,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1210000,
+              "notes": "Principal guarantor, limited to 55 percent of the committed renovation facility."
+            },
+            {
+              "key": "cross-reno-nwosu",
+              "account": "adaeze-nwosu",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 45,
+              "guarantyType": "Limited",
+              "guarantyLimit": 990000,
+              "notes": "Principal guarantor, limited to 45 percent of the committed renovation facility."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "cross-reno-pledge",
+              "collateral": "crossing-property",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 14,
+              "amountPledged": 2200000,
+              "startDate": "2025-08-15",
+              "overrideReason": "Second deed of trust on Northgate Crossing behind the permanent mortgage, advanced at a further 14 percent of the as-is appraised value. Total advance of 82 percent of as-is is supported by the $21.5MM as-stabilised value, which puts the combined position at 63 percent on completion. Carried as policy exception CRE-LTV-02."
+            }
+          ],
+          "fees": [
+            {
+              "key": "cross-reno-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the committed renovation facility."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.75,
+            "rate": 8.25,
+            "amortises": false,
+            "effectiveDate": "2025-08-15",
+            "endDate": "2028-08-15",
+            "termLength": 36
+          }
+        },
+        {
+          "key": "crossing-solar",
+          "name": "Northgate Crossing LLC - Equipment - $650,000.00",
+          "lookupKey": "NOR3003",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 650000,
+          "outstanding": 556000,
+          "rate": 7.25,
+          "noteRate": 7.25,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2025-09-29",
+          "closeDate": "2025-11-14",
+          "bookedDate": "2025-11-14",
+          "firstPaymentDate": "2025-12-14",
+          "maturityDate": "2030-11-14",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "purpose": "equipment",
+          "description": "Five year fully amortising equipment note financing the 812 kW rooftop photovoltaic array and battery storage at Northgate Crossing. Repaid from the utility offset and the common-area energy saving.",
+          "involvements": [
+            {
+              "key": "cross-solar-borrower",
+              "account": "northgate-crossing",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Single-purpose borrower and owner of the solar array."
+            },
+            {
+              "key": "cross-solar-sponsor",
+              "account": "northgate-investors",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Sponsor guarantor. The equipment note is full recourse to the sponsor."
+            },
+            {
+              "key": "cross-solar-whitcombe",
+              "account": "james-whitcombe",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 55,
+              "guarantyType": "Limited",
+              "guarantyLimit": 357500,
+              "notes": "Principal guarantor, limited to 55 percent of the note."
+            },
+            {
+              "key": "cross-solar-nwosu",
+              "account": "adaeze-nwosu",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 45,
+              "guarantyType": "Limited",
+              "guarantyLimit": 292500,
+              "notes": "Principal guarantor, limited to 45 percent of the note."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "cross-solar-pledge",
+              "collateral": "crossing-solar",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 650000,
+              "startDate": "2025-11-14",
+              "overrideReason": "Solar and storage equipment advanced at 75 percent of installed cost, against the 80 percent collateral-type default, reflecting the thin secondary market for roof-mounted arrays."
+            }
+          ],
+          "fees": [
+            {
+              "key": "cross-solar-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.25,
+            "amortises": true,
+            "effectiveDate": "2025-11-14",
+            "endDate": "2030-11-14",
+            "termLength": 60
+          }
+        },
+        {
+          "key": "mgmt-line",
+          "name": "Northgate Residential Management LLC - Line of Credit - $400,000.00",
+          "lookupKey": "NOR3004",
+          "product": "Line of Credit",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "amount": 400000,
+          "outstanding": 240000,
+          "rate": 8.75,
+          "noteRate": 8.75,
+          "index": "WSJ Prime",
+          "spread": 1.25,
+          "termMonths": 24,
+          "amortMonths": 24,
+          "applicationDate": "2026-04-13",
+          "closeDate": "2026-05-29",
+          "bookedDate": "2026-05-29",
+          "firstPaymentDate": "2026-06-29",
+          "maturityDate": "2028-05-29",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Revolving Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "Unsecured Renewal",
+          "isSecured": false,
+          "purpose": "business_credit_line",
+          "description": "Unsecured working capital line for Northgate Residential Management LLC, bridging payroll and turn costs between monthly management fee distributions. Interest only at WSJ Prime plus 1.25 percent. Deliberately unsecured: no pledge, priced 75 basis points wider than the secured capex lines. Drawn $240,000 of $400,000.",
+          "involvements": [
+            {
+              "key": "mgmt-line-borrower",
+              "account": "northgate-management",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Affiliated property management company and sole borrower on the unsecured line."
+            },
+            {
+              "key": "mgmt-line-sponsor",
+              "account": "northgate-investors",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Sponsor guarantor. Unlimited continuing guaranty, which is the substitute for collateral on this facility."
+            },
+            {
+              "key": "mgmt-line-whitcombe",
+              "account": "james-whitcombe",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 55,
+              "guarantyType": "Limited",
+              "guarantyLimit": 220000,
+              "notes": "Principal guarantor, limited to 55 percent of the committed line."
+            },
+            {
+              "key": "mgmt-line-nwosu",
+              "account": "adaeze-nwosu",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 45,
+              "guarantyType": "Limited",
+              "guarantyLimit": 180000,
+              "notes": "Principal guarantor, limited to 45 percent of the committed line."
+            }
+          ],
+          "pledges": [],
+          "fees": [
+            {
+              "key": "mgmt-line-annual",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "amount": 2500,
+              "payoutFrequency": "Annually",
+              "description": "Annual facility fee of $2,500 on the unsecured management company line, charged each anniversary. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no annual facility entry."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 1.25,
+            "rate": 8.75,
+            "amortises": false,
+            "effectiveDate": "2026-05-29",
+            "endDate": "2028-05-29",
+            "termLength": 24
+          }
+        }
+      ]
+    },
+    {
+      "key": "highland",
+      "name": "Northgate Highland Acquisition Package",
+      "stage": "Pending",
+      "creditStage": "Credit Underwriting",
+      "status": "New",
+      "approvalStatus": "Not Submitted",
+      "riskRating": "4",
+      "primaryEntity": "northgate-investors",
+      "description": "UNAPPROVED. Pending package carrying the proposed $9.0MM acquisition loan for Highland Court, a fourth 148 unit community in the Plaza Midwood submarket. In credit underwriting; this is the package the cockpit's pending delta reads and the only one a new facility may still join.",
+      "loans": [
+        {
+          "key": "highland-acq",
+          "name": "Northgate Multifamily Investors LLC - Purchase - $9,000,000.00",
+          "lookupKey": "NOR4001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "stage": "Proposal",
+          "status": "Open",
+          "riskGrade": "4",
+          "amount": 9000000,
+          "outstanding": 0,
+          "rate": 6.9,
+          "noteRate": 6.9,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2026-08-24",
+          "closeDate": "2026-12-15",
+          "firstPaymentDate": "2027-01-15",
+          "maturityDate": "2036-12-15",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "real_estate_purchase_non_owner_occupied",
+          "description": "PROPOSED, not booked. Ten year first mortgage funding the acquisition of Highland Court, 148 units built 2007 in Plaza Midwood, at a purchase price of $13.1MM against $4.1MM of sponsor equity. Twenty year amortisation, balloon at year ten. Appraisal ordered, Phase I environmental and property condition assessment outstanding, single-purpose entity to be formed at closing.",
+          "involvements": [
+            {
+              "key": "highland-borrower",
+              "account": "northgate-investors",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Sponsor is the applicant. The single-purpose borrower entity will be substituted in at closing."
+            },
+            {
+              "key": "highland-whitcombe",
+              "account": "james-whitcombe",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "ownership": 55,
+              "guarantyType": "Limited",
+              "guarantyLimit": 742500,
+              "notes": "Proposed principal carve-out guarantor, 55 percent of a $1.35MM carve-out cap."
+            },
+            {
+              "key": "highland-nwosu",
+              "account": "adaeze-nwosu",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 45,
+              "guarantyType": "Limited",
+              "guarantyLimit": 607500,
+              "notes": "Proposed principal carve-out guarantor, 45 percent of a $1.35MM carve-out cap."
+            }
+          ],
+          "pledges": [],
+          "fees": [],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.9,
+            "amortises": true,
+            "effectiveDate": "2026-12-15",
+            "endDate": "2036-12-15",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "key": "annual-2026",
+      "type": "Annual",
+      "package": "ridge",
+      "currentGrade": "4",
+      "recommendedGrade": "4",
+      "covenantsTested": "Yes",
+      "covenantsPassed": "No",
+      "toCommittee": "No",
+      "narrative": "Annual credit review of the Northgate relationship, prepared ahead of the 28 September 2026 review date. Grade affirmed at 4.",
+      "summary": "Northgate group: $54.95MM committed across eight booked facilities in three property packages, $51.983MM outstanding, plus a $9.0MM proposed acquisition mortgage for Highland Court in credit underwriting. 618 units across three Charlotte submarkets, portfolio net operating income $29.0MM. Secured by first deeds of trust with absolute assignments of rents on all three communities, second deeds of trust for the two capex lines and the renovation loan, a first UCC lien on the Crossing solar array, and $1.85MM of lender-held reserves. Guaranteed by the sponsor and by James Whitcombe and Adaeze Nwosu as limited guarantors under carve-out and full-recourse structures.",
+      "recommendation": "Affirm the grade at 4 and renew the review cycle. Continue the occupancy waiver at Northgate Crossing until the renovation programme completes and the property re-leases above 90 percent. Approve the Highland Court acquisition mortgage subject to a satisfactory appraisal, a clean Phase I and formation of the single-purpose borrower.",
+      "riskComments": "Risk grade affirmed at 4. Portfolio loan to value of 68.4 percent is inside the 70 percent test and property debt service coverage is 1.42x at Ridge, 1.33x at Park Place and 1.27x at Crossing, all above the 1.25x minimum. The single covenant breach is physical occupancy at Crossing, 87 percent against a 90 percent test, caused by 25 units held off line for renovation and waived on 4 September 2026. The cash management trigger at 1.15x has not sprung.",
+      "strengths": "Seventeen years of multifamily operating history under the same two principals, with in-house property management. All three communities in supply-constrained Charlotte submarkets with renewal trade-outs running 4.1 percent. $21.7MM of equity above the mortgages on as-is appraised value. Reserves of $1.85MM held by the lender across the portfolio. No maturity inside twenty four months.",
+      "weaknesses": "Single-market concentration: all 618 units are in Mecklenburg County, North Carolina. Northgate Crossing carries execution risk on the value-add programme, is the source of the occupancy breach, and at 82 percent of as-is value is the most levered position in the book. Thin post-conversion coverage at Crossing of 1.27x leaves twelve basis points above the cash management trigger. The Highland Court acquisition would add $9.0MM of exposure in the same market."
+    }
+  ],
+  "riskRatingReviews": [
+    {
+      "key": "rating-2026",
+      "status": "In Review",
+      "computedGrade": 4,
+      "cashFlowCoverage": 1.34,
+      "creditScore": 762,
+      "revenueGrowth": 5.2,
+      "managementYears": 17,
+      "year1": 2023,
+      "year2": 2024,
+      "year3": 2025,
+      "comments": "Annual risk rating review supporting the 2026 annual review. Computed grade 4 on portfolio cash flow coverage of 1.34x, sponsor liquidity of $6.4MM and seventeen years of management experience. No override requested."
+    }
+  ],
+  "policyExceptions": [
+    {
+      "key": "pex-occupancy",
+      "name": "Physical occupancy below the 90 percent covenant at Northgate Crossing",
+      "type": "Policy",
+      "code": "CRE-OCC-01",
+      "status": "Waived",
+      "severity": "Minor",
+      "severityValue": 1,
+      "loan": "crossing-perm",
+      "collateral": "crossing-property",
+      "mitigation": [
+        "Renovation downtime, not demand: 25 of 192 units off line in August 2026.",
+        "Economic occupancy on the available units was 96.2 percent in the same month.",
+        "Debt service coverage held at 1.27x, above the 1.25x covenant, throughout."
+      ]
+    },
+    {
+      "key": "pex-combined-ltv",
+      "name": "Combined advance at Northgate Crossing above the 70 percent portfolio guideline",
+      "type": "Policy",
+      "code": "CRE-LTV-02",
+      "status": "Mitigated",
+      "severity": "Major",
+      "severityValue": 2,
+      "loan": "crossing-reno",
+      "collateral": "crossing-property",
+      "mitigation": [
+        "The senior mortgage alone is at 68 percent of as-is value, inside the guideline.",
+        "As-stabilised value of $21.5MM puts the combined position at 63 percent.",
+        "Full recourse to the sponsor with a completion guaranty and both principals."
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "key": "opp-highland",
+      "name": "Northgate - Highland Court Acquisition Mortgage",
+      "stage": "Credit Underwriting",
+      "amount": 9000000,
+      "closeDate": "2026-12-15",
+      "type": "Existing Business",
+      "probability": 75,
+      "leadSource": "Word of mouth",
+      "nextStep": "Appraisal due 2 October, Phase I and property condition assessment ordered; single-purpose borrower entity to be formed before documentation.",
+      "description": "The $9.0MM ten year first mortgage funding the acquisition of Highland Court, 148 units in Plaza Midwood, staged in the pending Highland package."
+    },
+    {
+      "key": "opp-treasury",
+      "name": "Northgate - Property Operating Accounts and Resident Payments",
+      "stage": "Proposal",
+      "amount": 180000,
+      "closeDate": "2026-11-13",
+      "type": "Existing Business",
+      "probability": 60,
+      "leadSource": "External Referral",
+      "nextStep": "Treasury pricing sheet with the resident payment portal and lockbox, meeting booked 29 September.",
+      "description": "Operating accounts for the three property entities and the management company, resident payment processing, positive pay and a reserve sweep alongside the credit relationship."
+    }
+  ],
+  "cases": [
+    {
+      "key": "case-reserve-draw",
+      "subject": "Renovation reserve draw: requisition 7 for the Crossing amenity rebuild",
+      "status": "New",
+      "priority": "Medium",
+      "origin": "Email",
+      "type": "Service Request",
+      "description": "The asset manager submitted requisition 7 against the Northgate Crossing renovation reserve for $186,400 covering the clubhouse and fitness rebuild, and asked whether the inspection sign-off can run in parallel with the draw rather than ahead of it now that 64 units are complete."
+    }
+  ]
+}

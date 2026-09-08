@@ -1,0 +1,1734 @@
+{
+  "slug": "lakeshore",
+  "anchorKey": "lakeshore-dental",
+  "accounts": [
+    {
+      "key": "lakeshore-dental",
+      "name": "Lakeshore Dental Supply Distributors Inc",
+      "kind": "business",
+      "industry": "Healthcare",
+      "naics": "423450",
+      "annualRevenue": 147000000,
+      "riskGrade": "5",
+      "riskStatus": "Medium",
+      "nextReviewDate": "2027-02-12",
+      "lastReviewDate": "2026-02-12",
+      "billingCity": "Milwaukee",
+      "billingState": "WI",
+      "description": "Wholesale distributor of dental and orthodontic consumables, small equipment and operatory furniture to 4,100 practices across Wisconsin, Illinois, Minnesota, Iowa and Michigan. Founded 1988, 340 employees, one central distribution centre in Glendale and four branch depots. Employee owned since the November 2025 ESOP transaction."
+    },
+    {
+      "key": "lakeshore-esop-trust",
+      "name": "Lakeshore ESOP Trust",
+      "kind": "business",
+      "industry": "Finance",
+      "naics": "525110",
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "Milwaukee",
+      "billingState": "WI",
+      "description": "Employee stock ownership trust established November 2025. Holds 40 percent of the common stock of Lakeshore Dental Supply Distributors Inc for the benefit of the employee participants. Trustee is an independent institutional trustee. The trust does not guarantee bank debt."
+    },
+    {
+      "key": "robert-lindqvist",
+      "name": "Robert Lindqvist",
+      "kind": "person",
+      "riskGrade": "5",
+      "riskStatus": "Low",
+      "description": "Co-founder, Chairman and Chief Executive Officer. Holds 35 percent of the borrower directly and 60 percent of Lakeshore Logistics LLC. Unlimited guarantor on the ABL and growth facilities, limited guarantor on the distribution centre mortgage."
+    },
+    {
+      "key": "marie-lindqvist",
+      "name": "Marie Lindqvist",
+      "kind": "person",
+      "riskGrade": "5",
+      "riskStatus": "Low",
+      "description": "Co-founder, President and Chief Operating Officer. Holds 25 percent of the borrower directly and 40 percent of Lakeshore Logistics LLC. Unlimited guarantor on the ABL and growth facilities, limited guarantor on the distribution centre mortgage."
+    },
+    {
+      "key": "lakeshore-logistics",
+      "name": "Lakeshore Logistics LLC",
+      "kind": "business",
+      "industry": "Transportation",
+      "naics": "531120",
+      "annualRevenue": 1180000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "Glendale",
+      "billingState": "WI",
+      "description": "Real estate holding entity under common ownership with the borrower. Title holder of the Glendale distribution centre, which it leases to the operating company on a triple net lease coterminous with the mortgage."
+    }
+  ],
+  "connections": [
+    {
+      "key": "esop-owns-borrower",
+      "from": "lakeshore-esop-trust",
+      "to": "lakeshore-dental",
+      "roleName": "Owner",
+      "ownershipPercent": 40,
+      "officialTitle": "Employee Stock Ownership Trust",
+      "description": "The Lakeshore ESOP Trust holds 40 percent of the common stock of the borrower, acquired in the November 2025 leveraged ESOP transaction funded by the $3.5MM ESOP term loan."
+    },
+    {
+      "key": "robert-owns-borrower",
+      "from": "robert-lindqvist",
+      "to": "lakeshore-dental",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 35,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Chairman & Chief Executive Officer",
+      "description": "Co-founder. Holds 35 percent of the borrower directly following the ESOP sale. Control prong for beneficial ownership purposes."
+    },
+    {
+      "key": "marie-owns-borrower",
+      "from": "marie-lindqvist",
+      "to": "lakeshore-dental",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 25,
+      "authorizedSigner": true,
+      "officialTitle": "President & Chief Operating Officer",
+      "description": "Co-founder. Holds 25 percent of the borrower directly following the ESOP sale."
+    },
+    {
+      "key": "robert-owns-logistics",
+      "from": "robert-lindqvist",
+      "to": "lakeshore-logistics",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 60,
+      "authorizedSigner": true,
+      "controlProng": true,
+      "officialTitle": "Managing Member",
+      "description": "Holds 60 percent of the membership interests in the real estate entity that owns the Glendale distribution centre."
+    },
+    {
+      "key": "marie-owns-logistics",
+      "from": "marie-lindqvist",
+      "to": "lakeshore-logistics",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 40,
+      "authorizedSigner": true,
+      "officialTitle": "Member",
+      "description": "Holds 40 percent of the membership interests in the real estate entity that owns the Glendale distribution centre."
+    },
+    {
+      "key": "borrower-logistics",
+      "from": "lakeshore-dental",
+      "to": "lakeshore-logistics",
+      "roleName": "Affiliated Company",
+      "indirectOwnershipPercent": 100,
+      "officialTitle": "Tenant under triple net lease",
+      "description": "Affiliated real estate entity under common ownership with the borrower through Robert and Marie Lindqvist. Landlord of the Glendale distribution centre and borrower of record on the real estate package."
+    }
+  ],
+  "collateral": [
+    {
+      "key": "receivables",
+      "name": "Lakeshore Accounts Receivable",
+      "typeName": "UCC-Accounts",
+      "assessmentMethod": "Internal Valuation",
+      "value": 15400000,
+      "liquidationValue": 12320000,
+      "appraisalDate": "2026-07-31",
+      "nextRevaluationDate": "2026-10-31",
+      "valuationFrequency": "Monthly",
+      "uccFiled": true,
+      "uccState": "WI",
+      "city": "Milwaukee",
+      "state": "WI",
+      "description": "First blanket UCC lien on all present and future accounts receivable and proceeds. Gross receivables of $18.9MM at 31 July 2026 less $3.5MM of ineligibles gives an eligible base of $15.4MM.",
+      "legalDescription": "First priority UCC-1 lien on all accounts, chattel paper, instruments, general intangibles and proceeds of Lakeshore Dental Supply Distributors Inc, filed with the Wisconsin Department of Financial Institutions. Ineligibles excluded from the base: accounts over 90 days past invoice, cross-aged accounts where more than 25 percent of the obligor balance is over 90 days, contra accounts against dental supply vendors, unapplied credits, government and dental school receivables without an assignment of claims, and any single obligor concentration above 12 percent.",
+      "owners": [
+        {
+          "association": "Landlord",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2025-11-14",
+          "account": "lakeshore-logistics",
+          "note": "Landlord of the Glendale premises and party to the landlord waiver covering all personal property at the site, including the books and records evidencing the accounts."
+        },
+        {
+          "account": "lakeshore-dental",
+          "association": "Tenant",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2025-11-14",
+          "note": "Occupant of the Glendale premises where the accounts are administered and the books and records are kept."
+        },
+        {
+          "account": "lakeshore-dental",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-11-14"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "ar-2026-07",
+          "date": "2026-07-31",
+          "value": 15400000,
+          "source": "Receivables Aging",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "July 2026 borrowing base certificate. Gross receivables $18.9MM less $3.5MM of ineligibles: $2.1MM over 90 days, $0.7MM cross-aged, $0.4MM contra accounts, $0.3MM concentration excess on the two largest group practices."
+        },
+        {
+          "key": "ar-2025-12",
+          "date": "2025-12-31",
+          "value": 14050000,
+          "source": "Financial Statement",
+          "type": "Balance Sheet",
+          "original": true,
+          "description": "FY2025 audited balance sheet, gross trade receivables less the allowance for doubtful accounts. Original valuation taken at the November 2025 ESOP closing."
+        }
+      ]
+    },
+    {
+      "key": "inventory",
+      "name": "Lakeshore Dental Consumables and Equipment Inventory",
+      "typeName": "UCC-Inventory",
+      "assessmentMethod": "Net Book Value",
+      "value": 9200000,
+      "liquidationValue": 4600000,
+      "appraisalDate": "2026-07-31",
+      "nextRevaluationDate": "2026-10-31",
+      "valuationFrequency": "Monthly",
+      "uccFiled": true,
+      "uccState": "WI",
+      "city": "Glendale",
+      "state": "WI",
+      "description": "First blanket UCC lien on all inventory. Eligible inventory of $9.2MM at 31 July 2026 after excluding short dated consumables, consigned handpieces and in transit goods.",
+      "legalDescription": "First priority UCC-1 lien on all inventory of Lakeshore Dental Supply Distributors Inc wherever located, including the Glendale distribution centre and the four branch depots. Ineligibles excluded from the base: consumables within 120 days of expiry, consigned handpieces and imaging sensors, goods in transit not covered by a negotiable document, slow moving stock with no movement in twelve months, and packaging and shop supplies.",
+      "owners": [
+        {
+          "association": "Landlord",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2025-11-14",
+          "account": "lakeshore-logistics",
+          "note": "Landlord of the Glendale premises and party to the landlord waiver covering the inventory held at the distribution centre."
+        },
+        {
+          "account": "lakeshore-dental",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-11-14"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "inv-2026-07",
+          "date": "2026-07-31",
+          "value": 9200000,
+          "source": "Inventory Report",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "July 2026 perpetual inventory report at moving average cost, eligible categories only."
+        },
+        {
+          "key": "inv-2026-02",
+          "date": "2026-02-13",
+          "value": 4420000,
+          "source": "Appraisal",
+          "type": "Net Orderly Liquidation Value",
+          "description": "February 2026 third party inventory appraisal by Hilco, net orderly liquidation value at 48 percent of eligible cost. Used to set the 50 percent inventory advance rate."
+        }
+      ]
+    },
+    {
+      "key": "equipment",
+      "name": "Lakeshore Warehouse and Materials Handling Equipment",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Appraisal",
+      "value": 2450000,
+      "liquidationValue": 1715000,
+      "appraisalDate": "2026-03-06",
+      "nextRevaluationDate": "2028-03-06",
+      "valuationFrequency": "Biennial",
+      "uccFiled": true,
+      "uccState": "WI",
+      "city": "Glendale",
+      "state": "WI",
+      "description": "Materials handling and warehouse equipment at the Glendale distribution centre and the branch depots: order pickers, reach trucks, conveyor, carton sortation, the pallet racking installed in 2026 and the branch fit out.",
+      "legalDescription": "First priority UCC-1 lien on all equipment, fixtures and accessions identified on Schedule A to the security agreement, including 14 order pickers and reach trucks, the carton sortation line, the 2026 pallet racking installation and the four branch depot fit outs.",
+      "owners": [
+        {
+          "account": "lakeshore-dental",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-11-14"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "eq-2026-03",
+          "date": "2026-03-06",
+          "value": 2450000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "description": "March 2026 desktop appraisal covering the existing fleet and the newly installed racking and sortation line."
+        },
+        {
+          "key": "eq-2026-03-olv",
+          "date": "2026-03-06",
+          "value": 1715000,
+          "source": "Appraisal",
+          "type": "Orderly Liquidation Value",
+          "description": "March 2026 orderly liquidation value, 70 percent of fair market."
+        }
+      ]
+    },
+    {
+      "key": "distribution-centre",
+      "name": "Lakeshore Distribution Centre - 4400 West Bender Road, Glendale",
+      "typeName": "Real Estate-Warehouse",
+      "assessmentMethod": "Appraisal",
+      "value": 8200000,
+      "liquidationValue": 6560000,
+      "appraisalDate": "2026-01-22",
+      "nextRevaluationDate": "2029-01-22",
+      "valuationFrequency": "Annually",
+      "uccState": "WI",
+      "city": "Glendale",
+      "state": "WI",
+      "description": "Owner occupied distribution centre and office, 214,000 sq ft on 19.4 acres, with 24 dock doors, a 32 foot clear height and a 2026 racking installation.",
+      "legalDescription": "First mortgage and assignment of rents and leases on the distribution centre, office and yard at 4400 West Bender Road, Glendale, Milwaukee County, Wisconsin, together with all fixtures and improvements, held of record by Lakeshore Logistics LLC.",
+      "owners": [
+        {
+          "account": "lakeshore-logistics",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-06-20"
+        },
+        {
+          "account": "lakeshore-dental",
+          "association": "Lessee",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2024-06-20"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "dc-2026-01",
+          "date": "2026-01-22",
+          "value": 8200000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "January 2026 MAI as is appraisal, income capitalisation and sales comparison reconciled, reflecting the 2025 dock and lighting improvements."
+        },
+        {
+          "key": "dc-2024-05",
+          "date": "2024-05-28",
+          "value": 7300000,
+          "source": "Appraisal",
+          "type": "As Is Value",
+          "original": true,
+          "description": "May 2024 MAI appraisal taken at the purchase of the property by Lakeshore Logistics LLC."
+        }
+      ]
+    },
+    {
+      "key": "vehicles",
+      "name": "Lakeshore Delivery Fleet - 48 Titled Units",
+      "typeName": "Titled-Motor Vehicle",
+      "assessmentMethod": "Appraisal",
+      "value": 1450000,
+      "liquidationValue": 1015000,
+      "appraisalDate": "2026-02-20",
+      "nextRevaluationDate": "2028-02-20",
+      "valuationFrequency": "Biennial",
+      "uccFiled": true,
+      "uccState": "WI",
+      "city": "Glendale",
+      "state": "WI",
+      "description": "48 delivery vans and box trucks running the five state branch routes, model years 2022 to 2026, with the bank noted as first lienholder on every certificate of title.",
+      "legalDescription": "Certificate of title liens noted in favour of the bank on 48 vehicles identified by VIN on Schedule B to the security agreement, together with a UCC-1 filing on all accessions, tools and proceeds.",
+      "owners": [
+        {
+          "account": "lakeshore-dental",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-02-27"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "veh-2026-02",
+          "date": "2026-02-20",
+          "value": 1450000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "description": "February 2026 valuation at delivery, invoice cost on the 22 new units and NADA trade values on the 26 carried over units."
+        }
+      ]
+    }
+  ],
+  "covenants": [
+    {
+      "key": "fixed-charge",
+      "typeName": "Debt Service Coverage of Borrower",
+      "typeId": "a3Gbb000000PLNqEAO",
+      "recordType": "Financial Ratio",
+      "threshold": 1.1,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2025-11-14",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 1.24,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum Fixed Charge Coverage Ratio of 1.10x, tested quarterly on a trailing twelve month basis.",
+      "clause": "Section 6.01(a) of the Credit Agreement: Borrower shall maintain a Fixed Charge Coverage Ratio of not less than 1.10 to 1.00, tested as of the last day of each fiscal quarter for the four quarters then ended.",
+      "notes": "Fixed charges are scheduled principal and interest on all funded debt, cash taxes, unfinanced capital expenditure, ESOP contributions and distributions. Q2 2026 test at 1.24x. The ratio is tightest in Q1 when the ESOP contribution falls.",
+      "loans": [
+        "abl-revolver",
+        "esop-term",
+        "branch-term"
+      ],
+      "evaluations": [
+        {
+          "key": "fcc-q3-2025",
+          "status": "Compliant",
+          "dueDate": "2025-12-31",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-01-28",
+          "value": 1.33,
+          "comments": "Q4 2025 test at 1.33x, the first test after the ESOP closing. Compliant."
+        },
+        {
+          "key": "fcc-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-03-31",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-04-24",
+          "value": 1.13,
+          "comments": "Q1 2026 test at 1.13x, the tightest quarter of the year once the ESOP contribution and the annual insurance renewal are counted as fixed charges."
+        },
+        {
+          "key": "fcc-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-07-23",
+          "value": 1.24,
+          "comments": "Q2 2026 test at 1.24x, recovered with the spring restocking margin."
+        },
+        {
+          "key": "fcc-q3-2026",
+          "status": "Pending",
+          "dueDate": "2026-09-30",
+          "effectiveDate": "2026-07-01",
+          "comments": "Q3 2026 test period open. Certificate due 30 October 2026."
+        }
+      ]
+    },
+    {
+      "key": "availability",
+      "typeName": "Minimum Liquidity",
+      "typeId": "a3Gbb000000PLNyEAO",
+      "recordType": "Financial Ratio",
+      "threshold": 1500000,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Monthly",
+      "effectiveDate": "2025-11-14",
+      "dueDate": "2026-04-30",
+      "lastEvaluationDate": "2026-04-30",
+      "lastEvaluationValue": 1180000,
+      "lastEvaluationStatus": "Exception",
+      "nextEvaluationDate": "2026-09-20",
+      "covenantStatus": "Exception",
+      "breached": true,
+      "graceDays": 0,
+      "complianceDaysPrior": "14",
+      "detail": "Minimum availability block of $1,500,000 under the asset based revolving line, tested on each monthly borrowing base certificate.",
+      "clause": "Section 2.06 of the Credit Agreement and Schedule 2.06 (Availability Block): Borrower shall at no time permit Availability to be less than $1,500,000.",
+      "notes": "Availability is the lesser of the commitment and the borrowing base, less advances and less the standby letter of credit exposure. The last recorded covenant evaluation is the April 2026 certificate, which reported availability of $1.18MM against the $1.50MM block after a seasonal inventory build and a slow April collection cycle. The block cured on the May 2026 certificate at $3.9MM once the build sold through, and availability was $5.25MM at 31 July 2026. Policy exception CI-AVL-01 records the April breach and remains unmitigated in the file. The next formal test is the September 2026 certificate.",
+      "loans": [
+        "abl-revolver"
+      ],
+      "evaluations": [
+        {
+          "key": "avl-2026-03",
+          "status": "Compliant",
+          "dueDate": "2026-03-20",
+          "effectiveDate": "2026-02-01",
+          "evaluationDate": "2026-03-18",
+          "value": 2640000,
+          "comments": "February 2026 certificate. Availability $2.64MM, inside the block but tightening on the spring inventory build."
+        },
+        {
+          "key": "avl-2026-04",
+          "status": "Exception",
+          "dueDate": "2026-04-20",
+          "effectiveDate": "2026-03-01",
+          "evaluationDate": "2026-04-30",
+          "value": 1180000,
+          "exceptionReason": "Breached",
+          "comments": "April 2026 certificate. Availability $1.18MM against the $1.50MM block. Caused by a $2.1MM inventory build ahead of the Midwest Dental Conference and a nine day slip in the collection cycle. Policy exception CI-AVL-01 raised, unmitigated."
+        },
+        {
+          "key": "avl-2026-05",
+          "status": "Compliant",
+          "dueDate": "2026-05-20",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-05-19",
+          "value": 3900000,
+          "comments": "May 2026 certificate. Availability $3.90MM. The block cured without any change to structure or advance rate."
+        },
+        {
+          "key": "avl-2026-07",
+          "status": "Compliant",
+          "dueDate": "2026-08-20",
+          "effectiveDate": "2026-07-01",
+          "evaluationDate": "2026-08-18",
+          "value": 5250000,
+          "comments": "July 2026 certificate. Availability $5.25MM on a $16.92MM base against a $15.00MM commitment."
+        }
+      ]
+    },
+    {
+      "key": "springing-dsc",
+      "typeName": "Global Debt Service Coverage",
+      "typeId": "a3Gbb000000PLNsEAO",
+      "recordType": "Financial Ratio",
+      "threshold": 1.0,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2025-11-14",
+      "dueDate": "2026-04-30",
+      "lastEvaluationDate": "2026-04-30",
+      "lastEvaluationValue": 1.06,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-09-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Springing global debt service coverage of 1.00x, tested only while availability is below $2,250,000 and for the two consecutive testing periods that follow.",
+      "clause": "Section 6.01(b) of the Credit Agreement: if at any time Availability is less than $2,250,000, Borrower shall maintain a Global Debt Service Coverage Ratio of not less than 1.00 to 1.00, tested for the trailing twelve months as of the most recent month end and on each subsequent test date until Availability has exceeded $2,250,000 for two consecutive months.",
+      "notes": "Global coverage consolidates the borrower, Lakeshore Logistics LLC and the personal debt service of both guarantors. The covenant sprang on the April 2026 certificate when availability fell to $1.18MM and was tested at 1.06x, inside the 1.00x floor. Availability has been above the $2.25MM trigger every month since May 2026, so the covenant is dormant again. The September 2026 date is the standby test that would apply if the trigger were hit again.",
+      "loans": [
+        "abl-revolver",
+        "esop-term"
+      ],
+      "evaluations": [
+        {
+          "key": "sdsc-2026-04",
+          "status": "Compliant",
+          "dueDate": "2026-04-30",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-05-14",
+          "value": 1.06,
+          "comments": "Sprung by the April 2026 availability breach. Global coverage tested at 1.06x on a trailing twelve month basis, inside the 1.00x floor."
+        },
+        {
+          "key": "sdsc-2026-05",
+          "status": "Compliant",
+          "dueDate": "2026-05-31",
+          "effectiveDate": "2026-02-01",
+          "evaluationDate": "2026-06-16",
+          "value": 1.11,
+          "comments": "Second consecutive test after the spring. 1.11x. Availability back above the $2.25MM trigger, so the covenant fell dormant after this test."
+        }
+      ]
+    },
+    {
+      "key": "field-exam",
+      "typeName": "Accounts Receivable",
+      "typeId": "a3Gbb000000PdkXEAS",
+      "recordType": "Information",
+      "threshold": 5,
+      "operator": "Less Than or Equal To",
+      "acnpexOperator": "<=",
+      "frequency": "Semi-Annually",
+      "effectiveDate": "2025-11-14",
+      "dueDate": "2026-08-14",
+      "lastEvaluationDate": "2026-02-13",
+      "lastEvaluationValue": 2.4,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-08-14",
+      "covenantStatus": "overdue",
+      "overdue": true,
+      "graceDays": 30,
+      "complianceDaysPrior": "30",
+      "detail": "Semi-annual field examination of accounts receivable and inventory by the bank or its agent. Verified variance against the reported borrowing base may not exceed 5 percent.",
+      "clause": "Section 5.09 of the Credit Agreement: Borrower shall permit not fewer than two field examinations in each calendar year, at Borrower expense, and shall grant the examiner access to all books, records and locations.",
+      "notes": "OVERDUE. The February 2026 examination reported a 2.4 percent variance against the certificate and no dilution finding worth a reserve. The August 2026 examination was due on 14 August and has not been performed: the examiner rescheduled twice around the borrower's inventory count and the bank has not re-booked it. Policy exception CI-FEX-02 waives the timing to 31 October 2026.",
+      "loans": [
+        "abl-revolver"
+      ],
+      "evaluations": [
+        {
+          "key": "fex-2025-11",
+          "status": "Compliant",
+          "dueDate": "2025-11-30",
+          "effectiveDate": "2025-11-14",
+          "evaluationDate": "2025-11-26",
+          "value": 1.8,
+          "comments": "Pre-closing field examination at the ESOP transaction. Variance 1.8 percent, no ineligible categories added."
+        },
+        {
+          "key": "fex-2026-02",
+          "status": "Compliant",
+          "dueDate": "2026-02-14",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-02-13",
+          "value": 2.4,
+          "comments": "February 2026 field examination. Variance 2.4 percent. Dilution measured at 1.9 percent, inside the 5 percent trigger for a reserve."
+        },
+        {
+          "key": "fex-2026-08",
+          "status": "Exception",
+          "dueDate": "2026-08-14",
+          "effectiveDate": "2026-07-01",
+          "exceptionReason": "Overdue",
+          "comments": "August 2026 field examination not performed. Overdue by 25 days at 8 September 2026. Waived to 31 October 2026 under policy exception CI-FEX-02."
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "key": "abl",
+      "name": "Lakeshore Asset Based Lending Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "lakeshore-dental",
+      "description": "Booked asset based package for Lakeshore Dental Supply Distributors Inc, closed with the November 2025 ESOP transaction. Three facilities totalling $19.4MM of commitments: a $15.0MM revolving line governed by a monthly borrowing base of 80 percent of eligible receivables and 50 percent of eligible inventory, a $3.5MM term loan funding the ESOP share purchase, and a $900K equipment note. Secured by a first blanket lien on receivables, inventory and equipment, guaranteed by both founders without limit.",
+      "loans": [
+        {
+          "key": "abl-revolver",
+          "name": "Lakeshore Dental Supply Distributors Inc - Line of Credit - $15,000,000.00",
+          "lookupKey": "LAK1001",
+          "product": "Line of Credit",
+          "productType": "Non-Real Estate",
+          "stage": "Booked",
+          "status": "Open",
+          "riskGrade": "5",
+          "amount": 15000000,
+          "outstanding": 9750000,
+          "rate": 8.0,
+          "noteRate": 8.0,
+          "index": "WSJ Prime",
+          "spread": 0.5,
+          "termMonths": 24,
+          "amortMonths": 24,
+          "applicationDate": "2025-08-22",
+          "closeDate": "2025-11-14",
+          "bookedDate": "2025-11-14",
+          "firstPaymentDate": "2025-12-01",
+          "maturityDate": "2027-11-14",
+          "paymentType": "Revolving Line Of Credit",
+          "paymentSchedule": "Monthly",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "business_credit_line",
+          "description": "Asset based revolving line governed by a monthly borrowing base of 80 percent of eligible accounts receivable plus 50 percent of eligible inventory, with a $1.5MM availability block and semi-annual field examinations. Interest only, monthly, at WSJ Prime plus 0.50 percent. Drawn $9.75MM against a $16.92MM base and a $15.0MM commitment at 31 July 2026.",
+          "involvements": [
+            {
+              "key": "abr-borrower",
+              "account": "lakeshore-dental",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and operating company."
+            },
+            {
+              "key": "abr-robert",
+              "account": "robert-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 2,
+              "ownership": 35,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several, given at the November 2025 ESOP closing."
+            },
+            {
+              "key": "abr-marie",
+              "account": "marie-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several, given at the November 2025 ESOP closing."
+            },
+            {
+              "key": "abr-logistics",
+              "account": "lakeshore-logistics",
+              "borrowerType": "Related Entity",
+              "entityType": "EPC",
+              "relationshipType": "Related Entity",
+              "order": 4,
+              "ownership": 100,
+              "notes": "Affiliated real estate entity. Landlord of the distribution centre and party to the landlord waiver covering the inventory and equipment collateral."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "abr-ar",
+              "collateral": "receivables",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 80,
+              "amountPledged": 12320000,
+              "startDate": "2025-11-14",
+              "overrideReason": "Eligible receivables advanced at the 80 percent borrowing base rate on the July 2026 certificate, against the 80 percent collateral type default."
+            },
+            {
+              "key": "abr-inv",
+              "collateral": "inventory",
+              "lienPosition": "1st",
+              "isPrimary": false,
+              "advanceRate": 50,
+              "amountPledged": 4600000,
+              "startDate": "2025-11-14",
+              "overrideReason": "Inventory advanced at 50 percent against the 80 percent collateral type default, set to the 48 percent net orderly liquidation value in the February 2026 Hilco appraisal."
+            }
+          ],
+          "fees": [
+            {
+              "key": "abr-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the committed line, charged at the November 2025 closing."
+            },
+            {
+              "key": "abr-unused",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 0.375,
+              "payoutFrequency": "Annually",
+              "description": "Unused commitment fee, 0.375 percent per annum on the average undrawn balance, billed quarterly in arrears. Booked as Other: the org Fee Type picklist is residential and TRID and has no unused commitment entry."
+            },
+            {
+              "key": "abr-monitoring",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "amount": 15000,
+              "payoutFrequency": "Annually",
+              "description": "Annual collateral monitoring fee covering the monthly borrowing base administration and the two field examinations. Booked as Other for the same picklist reason as the unused fee."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.5,
+            "rate": 8.0,
+            "amortises": false,
+            "effectiveDate": "2025-11-14",
+            "endDate": "2027-11-14",
+            "termLength": 24
+          }
+        },
+        {
+          "key": "esop-term",
+          "name": "Lakeshore Dental Supply Distributors Inc - Term - $3,500,000.00",
+          "lookupKey": "LAK1002",
+          "product": "Term",
+          "productType": "Non-Real Estate",
+          "stage": "Booked",
+          "status": "Open",
+          "riskGrade": "5",
+          "amount": 3500000,
+          "outstanding": 3168000,
+          "rate": 7.15,
+          "noteRate": 7.15,
+          "index": "Fixed",
+          "termMonths": 84,
+          "amortMonths": 84,
+          "applicationDate": "2025-08-22",
+          "closeDate": "2025-11-14",
+          "bookedDate": "2025-11-14",
+          "firstPaymentDate": "2025-12-14",
+          "maturityDate": "2032-11-14",
+          "paymentType": "Installment",
+          "paymentSchedule": "Monthly",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "business_acquisition",
+          "description": "Seven year fully amortising term loan funding the company purchase of 40 percent of its shares from the founders for the Lakeshore ESOP Trust. Fixed at 7.15 percent, level monthly principal and interest.",
+          "involvements": [
+            {
+              "key": "esp-borrower",
+              "account": "lakeshore-dental",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower. The company is the borrower of record; the trust holds the shares."
+            },
+            {
+              "key": "esp-trust",
+              "account": "lakeshore-esop-trust",
+              "borrowerType": "Related Entity",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 40,
+              "notes": "The employee stock ownership trust that holds the 40 percent stake purchased with these proceeds. The trust is not a guarantor and gives no credit support."
+            },
+            {
+              "key": "esp-robert",
+              "account": "robert-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 3,
+              "ownership": 35,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several."
+            },
+            {
+              "key": "esp-marie",
+              "account": "marie-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 4,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "esp-ar2",
+              "collateral": "receivables",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 10,
+              "amountPledged": 1540000,
+              "startDate": "2025-11-14",
+              "overrideReason": "Second lien on receivables advanced at 10 percent against the 80 percent collateral type default. The lien is taken for control behind the revolver rather than for coverage; the loan is underwritten to cash flow."
+            }
+          ],
+          "fees": [
+            {
+              "key": "esp-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.75,
+              "description": "Origination fee, 0.75 percent of the note, reflecting the ESOP structuring work."
+            },
+            {
+              "key": "esp-attorney",
+              "feeType": "Attorney",
+              "recordType": "Costs",
+              "amount": 18500,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "Bank counsel fees on the ESOP transaction documents and the intercreditor arrangements."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.15,
+            "amortises": true,
+            "effectiveDate": "2025-11-14",
+            "endDate": "2032-11-14",
+            "termLength": 84,
+            "amortMonths": 84
+          }
+        },
+        {
+          "key": "abl-equipment",
+          "name": "Lakeshore Dental Supply Distributors Inc - Equipment - $900,000.00",
+          "lookupKey": "LAK1003",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "stage": "Booked",
+          "status": "Open",
+          "riskGrade": "5",
+          "amount": 900000,
+          "outstanding": 770000,
+          "rate": 6.85,
+          "noteRate": 6.85,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2025-08-22",
+          "closeDate": "2025-11-14",
+          "bookedDate": "2025-11-14",
+          "firstPaymentDate": "2025-12-14",
+          "maturityDate": "2030-11-14",
+          "paymentType": "Installment",
+          "paymentSchedule": "Monthly",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "equipment",
+          "description": "Five year fully amortising equipment note financing the carton sortation line and six replacement reach trucks at the Glendale distribution centre.",
+          "involvements": [
+            {
+              "key": "abe-borrower",
+              "account": "lakeshore-dental",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and owner of the financed equipment."
+            },
+            {
+              "key": "abe-robert",
+              "account": "robert-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 2,
+              "ownership": 35,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several."
+            },
+            {
+              "key": "abe-marie",
+              "account": "marie-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "abe-equip",
+              "collateral": "equipment",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 900000,
+              "startDate": "2025-11-14",
+              "overrideReason": "Warehouse and materials handling equipment advanced at 75 percent of the March 2026 appraised fair market value, against the 80 percent collateral type default."
+            }
+          ],
+          "fees": [
+            {
+              "key": "abe-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.85,
+            "amortises": true,
+            "effectiveDate": "2025-11-14",
+            "endDate": "2030-11-14",
+            "termLength": 60,
+            "amortMonths": 60
+          }
+        }
+      ]
+    },
+    {
+      "key": "real-estate",
+      "name": "Lakeshore Real Estate Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "4",
+      "primaryEntity": "lakeshore-logistics",
+      "description": "Booked real estate package with Lakeshore Logistics LLC as borrower of record. Two facilities totalling $6.35MM: the $5.9MM first mortgage on the Glendale distribution centre, twenty year amortisation with a ten year balloon, and a $450K improvement note for the 2025 dock, lighting and sprinkler work. The operating company is co-borrower and sole occupant under a triple net lease coterminous with the mortgage.",
+      "loans": [
+        {
+          "key": "dc-mortgage",
+          "name": "Lakeshore Logistics LLC - Purchase - $5,900,000.00",
+          "lookupKey": "LAK2001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "stage": "Booked",
+          "status": "Open",
+          "riskGrade": "4",
+          "amount": 5900000,
+          "outstanding": 5563000,
+          "rate": 6.45,
+          "noteRate": 6.45,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2024-04-08",
+          "closeDate": "2024-06-20",
+          "bookedDate": "2024-06-20",
+          "firstPaymentDate": "2024-07-20",
+          "maturityDate": "2034-06-20",
+          "paymentType": "Installment",
+          "paymentSchedule": "Monthly",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "real_estate_purchase_owner_occupied",
+          "description": "First mortgage on the 214,000 sq ft Glendale distribution centre, twenty year amortisation with a ten year balloon, fixed at 6.45 percent. Loan to value of 68 percent on the January 2026 appraisal.",
+          "involvements": [
+            {
+              "key": "dcm-borrower",
+              "account": "lakeshore-logistics",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Real estate holding entity and title holder of the distribution centre."
+            },
+            {
+              "key": "dcm-operating",
+              "account": "lakeshore-dental",
+              "borrowerType": "Co-Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 100,
+              "notes": "Operating company as co-borrower and sole occupant under a triple net lease coterminous with the note."
+            },
+            {
+              "key": "dcm-robert",
+              "account": "robert-lindqvist",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 3,
+              "ownership": 60,
+              "guarantyType": "Limited",
+              "guarantyLimit": 3540000,
+              "notes": "Limited personal guaranty capped at $3,540,000, being 60 percent of the note, matching his membership interest in the property entity."
+            },
+            {
+              "key": "dcm-marie",
+              "account": "marie-lindqvist",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 4,
+              "ownership": 40,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2360000,
+              "notes": "Limited personal guaranty capped at $2,360,000, being 40 percent of the note, matching her membership interest in the property entity."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "dcm-property",
+              "collateral": "distribution-centre",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 5900000,
+              "startDate": "2024-06-20",
+              "overrideReason": "Owner occupied industrial advanced at 75 percent against the 80 percent collateral type default, on the January 2026 MAI as is appraisal of $8.2MM."
+            }
+          ],
+          "fees": [
+            {
+              "key": "dcm-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            },
+            {
+              "key": "dcm-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 7200,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "MAI appraisal, third party, at the 2024 purchase."
+            },
+            {
+              "key": "dcm-title",
+              "feeType": "Title Insurance",
+              "recordType": "Costs",
+              "amount": 11400,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "ALTA lenders title policy and endorsements."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.45,
+            "amortises": true,
+            "effectiveDate": "2024-06-20",
+            "endDate": "2034-06-20",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "dc-improvement",
+          "name": "Lakeshore Logistics LLC - Term - $450,000.00",
+          "lookupKey": "LAK2002",
+          "product": "Term",
+          "productType": "Real Estate",
+          "stage": "Booked",
+          "status": "Open",
+          "riskGrade": "4",
+          "amount": 450000,
+          "outstanding": 380000,
+          "rate": 6.9,
+          "noteRate": 6.9,
+          "index": "Fixed",
+          "termMonths": 84,
+          "amortMonths": 84,
+          "applicationDate": "2025-02-19",
+          "closeDate": "2025-04-15",
+          "bookedDate": "2025-04-15",
+          "firstPaymentDate": "2025-05-15",
+          "maturityDate": "2032-04-15",
+          "paymentType": "Installment",
+          "paymentSchedule": "Monthly",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "property_improvement_owner_occupied",
+          "description": "Seven year fully amortising improvement note funding four additional dock positions, an LED relighting of the warehouse and an ESFR sprinkler upgrade at the Glendale distribution centre. Secured by a second mortgage behind the 2024 first.",
+          "involvements": [
+            {
+              "key": "dci-borrower",
+              "account": "lakeshore-logistics",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Real estate holding entity and title holder of the improved property."
+            },
+            {
+              "key": "dci-operating",
+              "account": "lakeshore-dental",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 100,
+              "guarantyType": "Unlimited",
+              "notes": "Operating company guarantor. Unlimited continuing guaranty from the tenant that benefits from the improvements."
+            },
+            {
+              "key": "dci-robert",
+              "account": "robert-lindqvist",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 3,
+              "ownership": 60,
+              "guarantyType": "Limited",
+              "guarantyLimit": 270000,
+              "notes": "Limited personal guaranty capped at $270,000, being 60 percent of the note."
+            },
+            {
+              "key": "dci-marie",
+              "account": "marie-lindqvist",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 4,
+              "ownership": 40,
+              "guarantyType": "Limited",
+              "guarantyLimit": 180000,
+              "notes": "Limited personal guaranty capped at $180,000, being 40 percent of the note."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "dci-property2",
+              "collateral": "distribution-centre",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 80,
+              "amountPledged": 450000,
+              "startDate": "2025-04-15",
+              "overrideReason": "Second mortgage advanced to the 80 percent combined loan to value ceiling on the January 2026 appraisal. Combined first and second exposure of $6.35MM sits at 77 percent of the $8.2MM value."
+            }
+          ],
+          "fees": [
+            {
+              "key": "dci-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.9,
+            "amortises": true,
+            "effectiveDate": "2025-04-15",
+            "endDate": "2032-04-15",
+            "termLength": 84,
+            "amortMonths": 84
+          }
+        }
+      ]
+    },
+    {
+      "key": "growth",
+      "name": "Lakeshore Growth Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "lakeshore-dental",
+      "description": "Booked growth package closed February 2026. Four facilities totalling $4.2MM: a $2.4MM term loan for the Madison branch depot, a $1.1MM note on 22 new delivery vehicles, a $400K note on the Glendale pallet racking installation and a $300K standby letter of credit facility supporting the workers compensation programme.",
+      "loans": [
+        {
+          "key": "branch-term",
+          "name": "Lakeshore Dental Supply Distributors Inc - Term - $2,400,000.00",
+          "lookupKey": "LAK3001",
+          "product": "Term",
+          "productType": "Non-Real Estate",
+          "stage": "Booked",
+          "status": "Open",
+          "riskGrade": "5",
+          "amount": 2400000,
+          "outstanding": 2197000,
+          "rate": 7.25,
+          "noteRate": 7.25,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2025-12-11",
+          "closeDate": "2026-02-27",
+          "bookedDate": "2026-02-27",
+          "firstPaymentDate": "2026-03-27",
+          "maturityDate": "2031-02-27",
+          "paymentType": "Installment",
+          "paymentSchedule": "Monthly",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "business_expansion",
+          "description": "Five year fully amortising term loan funding the Madison branch depot: leasehold improvements, opening inventory, the branch fit out and eighteen months of operating losses at the new location.",
+          "involvements": [
+            {
+              "key": "brt-borrower",
+              "account": "lakeshore-dental",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and operator of the new branch."
+            },
+            {
+              "key": "brt-robert",
+              "account": "robert-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 2,
+              "ownership": 35,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several."
+            },
+            {
+              "key": "brt-marie",
+              "account": "marie-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "brt-inv2",
+              "collateral": "inventory",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 15,
+              "amountPledged": 1380000,
+              "startDate": "2026-02-27",
+              "overrideReason": "Second lien on inventory advanced at 15 percent behind the revolver, against the 80 percent collateral type default. The branch loan is underwritten to cash flow with the second lien taken for control."
+            }
+          ],
+          "fees": [
+            {
+              "key": "brt-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.6,
+              "description": "Origination fee, 0.60 percent of the note, reflecting the start up element of the new branch."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.25,
+            "amortises": true,
+            "effectiveDate": "2026-02-27",
+            "endDate": "2031-02-27",
+            "termLength": 60,
+            "amortMonths": 60
+          }
+        },
+        {
+          "key": "fleet-term",
+          "name": "Lakeshore Dental Supply Distributors Inc - Term - $1,100,000.00",
+          "lookupKey": "LAK3002",
+          "product": "Term",
+          "productType": "Non-Real Estate",
+          "stage": "Booked",
+          "status": "Open",
+          "riskGrade": "5",
+          "amount": 1100000,
+          "outstanding": 1006000,
+          "rate": 6.95,
+          "noteRate": 6.95,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2025-12-11",
+          "closeDate": "2026-02-27",
+          "bookedDate": "2026-02-27",
+          "firstPaymentDate": "2026-03-27",
+          "maturityDate": "2031-02-27",
+          "paymentType": "Installment",
+          "paymentSchedule": "Monthly",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "motor_vehicle",
+          "description": "Five year fully amortising note financing 22 replacement delivery vans and box trucks for the five state branch routes. The bank is noted as first lienholder on every certificate of title.",
+          "involvements": [
+            {
+              "key": "flt-borrower",
+              "account": "lakeshore-dental",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and titled owner of the financed vehicles."
+            },
+            {
+              "key": "flt-robert",
+              "account": "robert-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 2,
+              "ownership": 35,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several."
+            },
+            {
+              "key": "flt-marie",
+              "account": "marie-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "flt-vehicles",
+              "collateral": "vehicles",
+              "lienPosition": "1st",
+              "isPrimary": true,
+              "advanceRate": 80,
+              "amountPledged": 1100000,
+              "startDate": "2026-02-27",
+              "overrideReason": "Titled vehicles advanced at 80 percent of the February 2026 valuation, which is the collateral type default and the bank guideline for new titled units."
+            }
+          ],
+          "fees": [
+            {
+              "key": "flt-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            },
+            {
+              "key": "flt-dmv",
+              "feeType": "DMV",
+              "recordType": "Costs",
+              "amount": 2150,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "Wisconsin title and lien notation fees on 22 vehicles."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.95,
+            "amortises": true,
+            "effectiveDate": "2026-02-27",
+            "endDate": "2031-02-27",
+            "termLength": 60,
+            "amortMonths": 60
+          }
+        },
+        {
+          "key": "racking-equipment",
+          "name": "Lakeshore Dental Supply Distributors Inc - Equipment - $400,000.00",
+          "lookupKey": "LAK3003",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "stage": "Booked",
+          "status": "Open",
+          "riskGrade": "5",
+          "amount": 400000,
+          "outstanding": 356000,
+          "rate": 6.8,
+          "noteRate": 6.8,
+          "index": "Fixed",
+          "termMonths": 48,
+          "amortMonths": 48,
+          "applicationDate": "2025-12-11",
+          "closeDate": "2026-02-27",
+          "bookedDate": "2026-02-27",
+          "firstPaymentDate": "2026-03-27",
+          "maturityDate": "2030-02-27",
+          "paymentType": "Installment",
+          "paymentSchedule": "Monthly",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "equipment",
+          "description": "Four year fully amortising equipment note financing the selective pallet racking and mezzanine pick module installed at the Glendale distribution centre in the first quarter of 2026.",
+          "involvements": [
+            {
+              "key": "rck-borrower",
+              "account": "lakeshore-dental",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Primary borrower and owner of the financed racking."
+            },
+            {
+              "key": "rck-logistics",
+              "account": "lakeshore-logistics",
+              "borrowerType": "Grantor",
+              "entityType": "EPC",
+              "relationshipType": "Related Entity",
+              "order": 2,
+              "ownership": 100,
+              "notes": "Landlord and grantor of the fixture filing waiver, so the racking remains personal property of the operating company rather than a fixture of the building."
+            },
+            {
+              "key": "rck-robert",
+              "account": "robert-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 3,
+              "ownership": 35,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several."
+            },
+            {
+              "key": "rck-marie",
+              "account": "marie-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 4,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "rck-equip2",
+              "collateral": "equipment",
+              "lienPosition": "2nd",
+              "isPrimary": true,
+              "advanceRate": 20,
+              "amountPledged": 400000,
+              "startDate": "2026-02-27",
+              "overrideReason": "Second lien on the equipment pool advanced at 20 percent against the 80 percent collateral type default, being the headroom above the first lien held for the 2025 equipment note."
+            }
+          ],
+          "fees": [
+            {
+              "key": "rck-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.8,
+            "amortises": true,
+            "effectiveDate": "2026-02-27",
+            "endDate": "2030-02-27",
+            "termLength": 48,
+            "amortMonths": 48
+          }
+        },
+        {
+          "key": "standby-lc",
+          "name": "Lakeshore Dental Supply Distributors Inc - Line of Credit - $300,000.00",
+          "lookupKey": "LAK3004",
+          "product": "Line of Credit",
+          "productType": "Non-Real Estate",
+          "stage": "Booked",
+          "status": "Open",
+          "riskGrade": "5",
+          "amount": 300000,
+          "outstanding": 285000,
+          "rate": 2.0,
+          "noteRate": 2.0,
+          "index": "Fixed",
+          "termMonths": 12,
+          "amortMonths": 12,
+          "applicationDate": "2025-12-11",
+          "closeDate": "2026-02-27",
+          "bookedDate": "2026-02-27",
+          "firstPaymentDate": "2026-03-27",
+          "maturityDate": "2027-02-27",
+          "paymentType": "Single Pay",
+          "paymentSchedule": "Single Pay",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "other",
+          "description": "Standby letter of credit facility supporting the Wisconsin self insured workers compensation programme. One standby of $285,000 is issued in favour of the Wisconsin Department of Workforce Development, leaving $15,000 of the facility unissued. Priced at 2.00 percent per annum on the issued face amount, renewable annually.",
+          "involvements": [
+            {
+              "key": "slc-borrower",
+              "account": "lakeshore-dental",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "relationshipType": "Primary Owner",
+              "order": 1,
+              "ownership": 100,
+              "notes": "Account party on the standby letter of credit."
+            },
+            {
+              "key": "slc-robert",
+              "account": "robert-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 2,
+              "ownership": 35,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several, covering reimbursement obligations on any drawing."
+            },
+            {
+              "key": "slc-marie",
+              "account": "marie-lindqvist",
+              "borrowerType": "Guarantor",
+              "entityType": "Individual",
+              "contingentType": "Joint & Several",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Unlimited",
+              "notes": "Personal guarantor. Unlimited continuing guaranty, joint and several, covering reimbursement obligations on any drawing."
+            }
+          ],
+          "pledges": [
+            {
+              "key": "slc-inv3",
+              "collateral": "inventory",
+              "lienPosition": "3rd",
+              "isPrimary": true,
+              "advanceRate": 5,
+              "amountPledged": 460000,
+              "startDate": "2026-02-27",
+              "overrideReason": "Third lien on inventory advanced at 5 percent against the 80 percent collateral type default, sized to cover the issued face amount of the standby plus one quarter of fees."
+            }
+          ],
+          "fees": [
+            {
+              "key": "slc-issuance",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 1.25,
+              "payoutFrequency": "Annually",
+              "description": "Standby letter of credit issuance and renewal fee, 1.25 percent per annum on the issued face amount. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no letter of credit entry."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 2.0,
+            "amortises": false,
+            "effectiveDate": "2026-02-27",
+            "endDate": "2027-02-27",
+            "termLength": 12
+          }
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "key": "annual-2026",
+      "type": "Annual",
+      "package": "abl",
+      "currentGrade": "5",
+      "recommendedGrade": "5",
+      "covenantsTested": "Yes",
+      "covenantsPassed": "No",
+      "toCommittee": "No",
+      "narrative": "FY2025 annual credit review of the Lakeshore relationship, the first full review since the November 2025 ESOP transaction. Grade affirmed at 5.",
+      "summary": "Lakeshore group: $29.95MM committed across nine booked facilities in three packages, $23.475MM outstanding. The asset based package carries a $15.0MM revolver on an 80 and 50 borrowing base with a $1.5MM availability block, a $3.5MM ESOP term loan and a $900K equipment note. The real estate package carries the $5.9MM first mortgage and a $450K improvement note on the Glendale distribution centre, borrowed by Lakeshore Logistics LLC. The growth package carries the Madison branch term loan, the vehicle note, the racking note and a $300K standby letter of credit facility. Secured by a first blanket lien on receivables, inventory, equipment and titled vehicles, and by first and second mortgages on the distribution centre. Guaranteed without limit by both founders on the operating facilities and with capped guaranties on the real estate.",
+      "recommendation": "Renew the $15.0MM revolving line at WSJ Prime plus 0.50 percent for a further twenty four months at the November 2027 maturity. Hold the grade at 5. Complete the overdue August field examination before 31 October 2026 and report the findings to credit before the renewal is documented.",
+      "riskComments": "Risk grade affirmed at 5. Fixed charge coverage of 1.24x at Q2 2026 is inside the 1.10x covenant with the tightest quarter, Q1, at 1.13x. Senior leverage rose with the ESOP debt and is amortising on schedule. The April 2026 availability breach is the only covenant miss and it cured without a change to structure or advance rate. The overdue field examination is a bank process failure rather than a borrower failure and is the main open item on the file.",
+      "strengths": "Thirty eight year operating history under the founding management, both of whom remain in day to day control after the ESOP sale. Recurring consumables revenue with 4,100 practice customers and no customer above 3 percent of sales. Owner occupied real estate with $1.85MM of equity above the two mortgages. Inventory turns of 6.1 and a dilution rate of 1.9 percent verified at the February field examination.",
+      "weaknesses": "Seasonal working capital swing around the spring conference and restocking cycle, which is what pushed availability through the block in April 2026. Leveraged ESOP debt service is a permanent new fixed charge that takes Q1 coverage close to the covenant. Margin pressure from group purchasing organisations on consumables. The August 2026 field examination is overdue and the borrowing base has not been independently verified since February."
+    },
+    {
+      "key": "covenant-h1-2026",
+      "type": "AdHoc",
+      "package": "abl",
+      "currentGrade": "5",
+      "recommendedGrade": "5",
+      "covenantsTested": "Yes",
+      "covenantsPassed": "No",
+      "toCommittee": "No",
+      "narrative": "First half 2026 covenant review for the Lakeshore asset based package, covering the four covenants in the credit agreement.",
+      "summary": "Four covenants tested in the first half of 2026: fixed charge coverage at 1.13x in Q1 and 1.24x in Q2 against a 1.10x minimum, both compliant; the $1.5MM availability block breached in April at $1.18MM and cured in May at $3.9MM; the springing global debt service coverage tested at 1.06x and 1.11x when the April breach sprang it, both inside the 1.00x floor; the semi-annual field examination performed in February with a 2.4 percent variance and overdue since 14 August 2026.",
+      "recommendation": "No structural change. Book the field examination for October and confirm the borrowing base ineligible categories with the controller before the examiner attends. Keep policy exception CI-AVL-01 open until the September and October certificates confirm availability above the block through the autumn restocking cycle.",
+      "riskComments": "One covenant breach and one overdue reporting covenant in the period. Neither is grade changing. The availability breach was seasonal and self curing; the overdue examination is a scheduling failure on the bank side.",
+      "strengths": "The borrower produced every monthly certificate on time, including the April certificate that reported its own breach.",
+      "weaknesses": "Availability has no cushion in the April and May window without either a lower inventory build or a temporary overadvance."
+    }
+  ],
+  "riskRatingReviews": [
+    {
+      "key": "rg-2026",
+      "status": "In Review",
+      "computedGrade": 5,
+      "cashFlowCoverage": 1.24,
+      "creditScore": 712,
+      "revenueGrowth": 8.2,
+      "managementYears": 22,
+      "year1": 2023,
+      "year2": 2024,
+      "year3": 2025,
+      "comments": "Annual risk rating review supporting the FY2025 annual review. Computed grade 5. The model output was affirmed without override: the ESOP leverage is offset by the recurring consumables revenue base and the verified collateral coverage."
+    }
+  ],
+  "policyExceptions": [
+    {
+      "key": "pex-availability",
+      "name": "Availability below the $1.5MM minimum availability block, April 2026",
+      "type": "Policy",
+      "code": "CI-AVL-01",
+      "status": "Unmitigated",
+      "severity": "Major",
+      "severityValue": 2,
+      "loan": "abl-revolver",
+      "collateral": "inventory",
+      "mitigation": [
+        "No mitigant accepted. Open until the September and October 2026 certificates clear the block.",
+        "Availability $1.18MM at 30 April 2026, cured to $3.90MM in May and $5.25MM at 31 July 2026.",
+        "No advance exceeded the borrowing base and no overadvance was requested or granted."
+      ]
+    },
+    {
+      "key": "pex-field-exam",
+      "name": "Semi-annual field examination overdue beyond the policy interval",
+      "type": "Policy",
+      "code": "CI-FEX-02",
+      "status": "Waived",
+      "severity": "Minor",
+      "severityValue": 1,
+      "loan": "abl-revolver",
+      "collateral": "receivables",
+      "mitigation": [
+        "Waived by the credit officer on 24 August 2026 to 31 October 2026.",
+        "February 2026 exam: 2.4 percent variance, 1.9 percent dilution, both inside the trigger.",
+        "Monthly borrowing base certificates delivered on time throughout, including April."
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "key": "opp-treasury",
+      "name": "Lakeshore - Treasury Management and Purchasing Card Programme",
+      "stage": "Proposal",
+      "amount": 195000,
+      "closeDate": "2026-11-13",
+      "type": "Existing Business",
+      "probability": 60,
+      "leadSource": "External Referral",
+      "nextStep": "Treasury pricing sheet with the lockbox and purchasing card rebate schedule, meeting booked 29 September.",
+      "description": "Lockbox, positive pay, ACH origination and a purchasing card programme for the branch depots, sold alongside the ABL relationship. The lockbox also shortens the collection cycle that caused the April availability breach."
+    },
+    {
+      "key": "opp-kenosha",
+      "name": "Lakeshore - Kenosha Branch Depot Mortgage",
+      "stage": "Qualification",
+      "amount": 4200000,
+      "closeDate": "2027-02-26",
+      "type": "Existing Business",
+      "probability": 35,
+      "leadSource": "Word of mouth",
+      "nextStep": "Site under letter of intent. Waiting on the borrower's decision to buy rather than lease before any credit work starts.",
+      "description": "Possible owner occupied mortgage on a 60,000 sq ft depot in Kenosha to serve the northern Illinois routes, which the borrower currently runs out of leased space."
+    }
+  ],
+  "cases": [
+    {
+      "key": "case-field-exam",
+      "subject": "Field examination scheduling and the borrowing base ineligible categories",
+      "status": "New",
+      "priority": "High",
+      "origin": "Email",
+      "type": "Question",
+      "description": "The controller asked when the overdue August field examination will be booked, and separately whether consigned handpieces and imaging sensors held at customer practices have to stay in the ineligible column now that title passes on installation rather than on delivery. Both questions have to be answered before the October examination is scheduled."
+    }
+  ]
+}

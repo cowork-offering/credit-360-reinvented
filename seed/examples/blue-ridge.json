@@ -1,0 +1,1771 @@
+{
+  "slug": "blue-ridge",
+  "anchorKey": "blue-ridge-pc",
+  "accounts": [
+    {
+      "key": "blue-ridge-pc",
+      "name": "Blue Ridge Orthopedic Partners PC",
+      "kind": "business",
+      "industry": "Healthcare",
+      "naics": "621111",
+      "annualRevenue": 41000000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "nextReviewDate": "2027-02-15",
+      "lastReviewDate": "2026-02-13",
+      "billingCity": "Asheville",
+      "billingState": "NC",
+      "description": "Physician-owned orthopaedic and sports medicine practice, founded 1998. Nineteen physicians and 214 staff across three western North Carolina clinics, a physical therapy division and an in-house imaging suite. Owned in equal quarters by four surgeon partners."
+    },
+    {
+      "key": "blue-ridge-properties",
+      "name": "Blue Ridge Medical Properties LLC",
+      "kind": "business",
+      "industry": "Healthcare",
+      "naics": "531120",
+      "annualRevenue": 2600000,
+      "riskGrade": "4",
+      "riskStatus": "Low",
+      "billingCity": "Asheville",
+      "billingState": "NC",
+      "description": "Real estate entity under identical ownership to the practice. Title holder of the Hendersonville Road medical office building and the adjoining parking structure, both leased to the practice and to the surgery centre."
+    },
+    {
+      "key": "blue-ridge-asc",
+      "name": "Blue Ridge Surgery Center LLC",
+      "kind": "business",
+      "industry": "Healthcare",
+      "naics": "621493",
+      "annualRevenue": 12800000,
+      "riskGrade": "5",
+      "riskStatus": "Medium",
+      "billingCity": "Asheville",
+      "billingState": "NC",
+      "description": "Ambulatory surgery centre joint venture, 51 percent owned by Blue Ridge Orthopedic Partners PC with the balance held by an unaffiliated hospital system. Four operating rooms and two procedure rooms on the ground floor of the medical office building."
+    },
+    {
+      "key": "whitfield",
+      "name": "Alan Whitfield",
+      "kind": "person",
+      "description": "Managing Partner and President. Board certified orthopaedic surgeon. Holds 25 percent of Blue Ridge Orthopedic Partners PC and 25 percent of Blue Ridge Medical Properties LLC directly. Limited guarantor on every facility."
+    },
+    {
+      "key": "boone",
+      "name": "Marguerite Boone",
+      "kind": "person",
+      "description": "Partner, Chief Medical Officer. Board certified orthopaedic surgeon. Holds 25 percent of Blue Ridge Orthopedic Partners PC and 25 percent of Blue Ridge Medical Properties LLC directly. Limited guarantor on every facility."
+    },
+    {
+      "key": "okonkwo",
+      "name": "Samuel Okonkwo",
+      "kind": "person",
+      "description": "Partner, Director of Surgery. Board certified orthopaedic surgeon. Holds 25 percent of Blue Ridge Orthopedic Partners PC and 25 percent of Blue Ridge Medical Properties LLC directly. Limited guarantor on every facility."
+    },
+    {
+      "key": "vasquez",
+      "name": "Elena Vasquez",
+      "kind": "person",
+      "description": "Partner, Secretary and Treasurer. Board certified orthopaedic surgeon. Holds 25 percent of Blue Ridge Orthopedic Partners PC and 25 percent of Blue Ridge Medical Properties LLC directly. Limited guarantor on every facility."
+    }
+  ],
+  "connections": [
+    {
+      "key": "whitfield-owns-pc",
+      "from": "whitfield",
+      "to": "blue-ridge-pc",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 25,
+      "authorizedSigner": true,
+      "officialTitle": "Managing Partner and President",
+      "description": "Alan Whitfield holds 25 percent of the shares of Blue Ridge Orthopedic Partners PC directly under the shareholders agreement dated 12 March 2019.",
+      "controlProng": true
+    },
+    {
+      "key": "boone-owns-pc",
+      "from": "boone",
+      "to": "blue-ridge-pc",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 25,
+      "authorizedSigner": false,
+      "officialTitle": "Partner, Chief Medical Officer",
+      "description": "Marguerite Boone holds 25 percent of the shares of Blue Ridge Orthopedic Partners PC directly under the shareholders agreement dated 12 March 2019."
+    },
+    {
+      "key": "okonkwo-owns-pc",
+      "from": "okonkwo",
+      "to": "blue-ridge-pc",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 25,
+      "authorizedSigner": false,
+      "officialTitle": "Partner, Director of Surgery",
+      "description": "Samuel Okonkwo holds 25 percent of the shares of Blue Ridge Orthopedic Partners PC directly under the shareholders agreement dated 12 March 2019."
+    },
+    {
+      "key": "vasquez-owns-pc",
+      "from": "vasquez",
+      "to": "blue-ridge-pc",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 25,
+      "authorizedSigner": false,
+      "officialTitle": "Partner, Secretary and Treasurer",
+      "description": "Elena Vasquez holds 25 percent of the shares of Blue Ridge Orthopedic Partners PC directly under the shareholders agreement dated 12 March 2019."
+    },
+    {
+      "key": "whitfield-owns-properties",
+      "from": "whitfield",
+      "to": "blue-ridge-properties",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 25,
+      "authorizedSigner": true,
+      "officialTitle": "Member",
+      "description": "Alan Whitfield holds 25 percent of the membership interests in Blue Ridge Medical Properties LLC directly, mirroring the practice ownership."
+    },
+    {
+      "key": "boone-owns-properties",
+      "from": "boone",
+      "to": "blue-ridge-properties",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 25,
+      "authorizedSigner": false,
+      "officialTitle": "Member",
+      "description": "Marguerite Boone holds 25 percent of the membership interests in Blue Ridge Medical Properties LLC directly, mirroring the practice ownership."
+    },
+    {
+      "key": "okonkwo-owns-properties",
+      "from": "okonkwo",
+      "to": "blue-ridge-properties",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 25,
+      "authorizedSigner": false,
+      "officialTitle": "Member",
+      "description": "Samuel Okonkwo holds 25 percent of the membership interests in Blue Ridge Medical Properties LLC directly, mirroring the practice ownership."
+    },
+    {
+      "key": "vasquez-owns-properties",
+      "from": "vasquez",
+      "to": "blue-ridge-properties",
+      "roleName": "Co-Owner",
+      "ownershipPercent": 25,
+      "authorizedSigner": false,
+      "officialTitle": "Member",
+      "description": "Elena Vasquez holds 25 percent of the membership interests in Blue Ridge Medical Properties LLC directly, mirroring the practice ownership."
+    },
+    {
+      "key": "pc-owns-asc",
+      "from": "blue-ridge-pc",
+      "to": "blue-ridge-asc",
+      "roleName": "Owner",
+      "ownershipPercent": 51,
+      "officialTitle": "Managing Member",
+      "description": "Blue Ridge Orthopedic Partners PC holds 51 percent of Blue Ridge Surgery Center LLC and is the managing member. The remaining 49 percent is held by an unaffiliated hospital system that is not part of this credit relationship."
+    },
+    {
+      "key": "pc-properties-affiliate",
+      "from": "blue-ridge-pc",
+      "to": "blue-ridge-properties",
+      "roleName": "Affiliated Company",
+      "indirectOwnershipPercent": 100,
+      "description": "Affiliated real estate entity under identical ownership. Landlord of the practice and of the surgery centre under triple net leases coterminous with the mortgages."
+    }
+  ],
+  "collateral": [
+    {
+      "key": "mob",
+      "name": "Blue Ridge Medical Office Building - 1120 Hendersonville Road, Asheville",
+      "typeName": "Real Estate-Office",
+      "assessmentMethod": "Appraisal",
+      "value": 12400000,
+      "liquidationValue": 9920000,
+      "appraisalDate": "2026-03-19",
+      "nextRevaluationDate": "2027-03-19",
+      "valuationFrequency": "Annually",
+      "uccFiled": false,
+      "uccState": "NC",
+      "city": "Asheville",
+      "state": "NC",
+      "description": "Owner-occupied medical office building, 74,000 sq ft on 6.4 acres, built 2014 and expanded 2021. Clinic, imaging suite and the ground floor surgery centre.",
+      "legalDescription": "First deed of trust and assignment of leases and rents on the medical office building at 1120 Hendersonville Road, Asheville, Buncombe County, North Carolina, together with all fixtures and improvements.",
+      "owners": [
+        {
+          "account": "blue-ridge-properties",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-11-15"
+        },
+        {
+          "account": "blue-ridge-pc",
+          "association": "Lessee",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2024-11-15"
+        },
+        {
+          "account": "blue-ridge-asc",
+          "association": "Lessee",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2025-03-31"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "mob-2026-03",
+          "date": "2026-03-19",
+          "value": 12400000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "March 2026 MAI as-is appraisal. Income capitalisation at a 7.25 percent rate reconciled against three regional medical office sales."
+        },
+        {
+          "key": "mob-2024-10",
+          "date": "2024-10-02",
+          "value": 11600000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "original": true,
+          "description": "October 2024 origination appraisal supporting the mortgage."
+        }
+      ]
+    },
+    {
+      "key": "parking-deck",
+      "name": "Blue Ridge Parking Structure - 1120 Hendersonville Road, Asheville",
+      "typeName": "Real Estate-Other RE",
+      "assessmentMethod": "Appraisal",
+      "value": 2900000,
+      "liquidationValue": 2175000,
+      "appraisalDate": "2026-03-19",
+      "nextRevaluationDate": "2027-03-19",
+      "valuationFrequency": "Annually",
+      "city": "Asheville",
+      "state": "NC",
+      "description": "Three level 268 space parking structure adjoining the medical office building, completed 2024 and serving the clinic, the imaging suite and the surgery centre.",
+      "legalDescription": "First deed of trust on the parking structure and the underlying 1.1 acre parcel at 1120 Hendersonville Road, Asheville, Buncombe County, North Carolina.",
+      "owners": [
+        {
+          "account": "blue-ridge-properties",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2024-11-15"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "park-2026-03",
+          "date": "2026-03-19",
+          "value": 2900000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Real Estate",
+          "primary": true,
+          "active": true,
+          "description": "March 2026 MAI as-is appraisal, cost approach weighted for a single purpose structure with no independent access."
+        }
+      ]
+    },
+    {
+      "key": "asc-improvements",
+      "name": "Blue Ridge Surgery Center Leasehold Improvements",
+      "typeName": "UCC-Fixtures",
+      "assessmentMethod": "Appraisal",
+      "value": 5200000,
+      "liquidationValue": 2080000,
+      "appraisalDate": "2025-03-14",
+      "nextRevaluationDate": "2027-03-14",
+      "valuationFrequency": "Biennial",
+      "uccFiled": true,
+      "uccState": "NC",
+      "city": "Asheville",
+      "state": "NC",
+      "description": "Ambulatory surgery centre build-out: four operating rooms, two procedure rooms, sterile processing, medical gas, HVAC and generator, 18,400 sq ft on the ground floor of the medical office building.",
+      "legalDescription": "First priority UCC-1 lien on all fixtures and leasehold improvements of Blue Ridge Surgery Center LLC at 1120 Hendersonville Road, Asheville, with a landlord waiver and consent from Blue Ridge Medical Properties LLC.",
+      "owners": [
+        {
+          "account": "blue-ridge-asc",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-03-31"
+        },
+        {
+          "account": "blue-ridge-properties",
+          "association": "Landlord",
+          "percent": 0,
+          "pledgingAuthority": false,
+          "primary": false,
+          "startDate": "2025-03-31"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "asci-2025-03",
+          "date": "2025-03-14",
+          "value": 5200000,
+          "source": "Appraisal",
+          "type": "As Complete Value",
+          "primary": true,
+          "active": true,
+          "description": "March 2025 as-complete valuation of the surgery centre build-out from the general contractor schedule of values and the architect certification."
+        },
+        {
+          "key": "asci-2025-03-olv",
+          "date": "2025-03-14",
+          "value": 2080000,
+          "source": "Appraisal",
+          "type": "Orderly Liquidation Value",
+          "original": true,
+          "description": "Orderly liquidation value at 40 percent of cost, reflecting the limited resale market for single purpose surgical fit-out."
+        }
+      ]
+    },
+    {
+      "key": "asc-equipment",
+      "name": "Blue Ridge Surgery Center Surgical Equipment",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Sales Invoice",
+      "value": 1150000,
+      "liquidationValue": 690000,
+      "appraisalDate": "2025-03-14",
+      "nextRevaluationDate": "2027-03-14",
+      "valuationFrequency": "Biennial",
+      "uccFiled": true,
+      "uccState": "NC",
+      "city": "Asheville",
+      "state": "NC",
+      "description": "Surgical tables, arthroscopy towers, C-arm imaging, anaesthesia machines, sterilisers and patient monitoring, per the equipment schedule to the note.",
+      "legalDescription": "First priority UCC-1 lien on all equipment of Blue Ridge Surgery Center LLC identified by serial number on Schedule A to the security agreement.",
+      "owners": [
+        {
+          "account": "blue-ridge-asc",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-03-31"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "asce-2025-03",
+          "date": "2025-03-14",
+          "value": 1150000,
+          "source": "Invoice / Bill of Sale",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "description": "Vendor invoices for the March 2025 equipment package, net of trade-in."
+        }
+      ]
+    },
+    {
+      "key": "mri-equipment",
+      "name": "Blue Ridge Imaging Suite - MRI and Radiography Equipment",
+      "typeName": "UCC-Equipment",
+      "assessmentMethod": "Appraisal",
+      "value": 2050000,
+      "liquidationValue": 1230000,
+      "appraisalDate": "2026-04-22",
+      "nextRevaluationDate": "2027-04-22",
+      "valuationFrequency": "Annually",
+      "uccFiled": true,
+      "uccState": "NC",
+      "city": "Asheville",
+      "state": "NC",
+      "description": "1.5T wide-bore MRI, digital radiography suite and PACS, installed 2025 and expanded with a second imaging bay in 2026.",
+      "legalDescription": "First priority UCC-1 lien on the magnetic resonance imaging system, the digital radiography units and all related software licences and upgrades of Blue Ridge Orthopedic Partners PC.",
+      "owners": [
+        {
+          "account": "blue-ridge-pc",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-06-30"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "mri-2026-04",
+          "date": "2026-04-22",
+          "value": 2050000,
+          "source": "Appraisal",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "primary": true,
+          "active": true,
+          "description": "April 2026 desktop appraisal covering the original MRI and the 2026 imaging suite addition."
+        },
+        {
+          "key": "mri-2025-06",
+          "date": "2025-06-30",
+          "value": 1780000,
+          "source": "Invoice / Bill of Sale",
+          "type": "Fair Market Value - Equipment / Transportation",
+          "original": true,
+          "description": "June 2025 vendor invoice for the 1.5T MRI and the radiography suite."
+        }
+      ]
+    },
+    {
+      "key": "br-receivables",
+      "name": "Blue Ridge Patient and Third Party Receivables",
+      "typeName": "UCC-Accounts",
+      "assessmentMethod": "Internal Valuation",
+      "value": 7600000,
+      "liquidationValue": 5320000,
+      "appraisalDate": "2026-07-31",
+      "nextRevaluationDate": "2026-10-31",
+      "valuationFrequency": "Monthly",
+      "uccFiled": true,
+      "uccState": "NC",
+      "city": "Asheville",
+      "state": "NC",
+      "description": "Assignment of all patient, commercial payor, Medicare and Medicare Advantage receivables, stated net of contractual allowances.",
+      "legalDescription": "First priority UCC-1 lien and assignment of all accounts, health care insurance receivables and proceeds of Blue Ridge Orthopedic Partners PC, filed with the North Carolina Secretary of State.",
+      "owners": [
+        {
+          "account": "blue-ridge-pc",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2026-01-31"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "ar-2026-07",
+          "date": "2026-07-31",
+          "value": 7600000,
+          "source": "Receivables Aging",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "July 2026 borrowing base certificate. Net collectible receivables after contractual allowances, excluding balances over 120 days and all self-pay."
+        },
+        {
+          "key": "ar-2025-12",
+          "date": "2025-12-31",
+          "value": 7050000,
+          "source": "Financial Statement",
+          "type": "Balance Sheet",
+          "original": true,
+          "description": "FY2025 reviewed financial statements, net patient receivables."
+        }
+      ]
+    },
+    {
+      "key": "blanket",
+      "name": "Blue Ridge Blanket Lien - All Business Assets",
+      "typeName": "UCC-General Intangibles",
+      "assessmentMethod": "Net Book Value",
+      "value": 3400000,
+      "liquidationValue": 1700000,
+      "appraisalDate": "2025-09-30",
+      "nextRevaluationDate": "2026-12-31",
+      "valuationFrequency": "Annually",
+      "uccFiled": true,
+      "uccState": "NC",
+      "city": "Asheville",
+      "state": "NC",
+      "description": "Blanket lien on all other business assets of the practice: clinical and office equipment, general intangibles, payor contracts, the practice management system and the acquired charts of the Skyland group.",
+      "legalDescription": "First priority UCC-1 lien on all assets of Blue Ridge Orthopedic Partners PC now owned or hereafter acquired, excluding the imaging equipment held under a separate schedule.",
+      "owners": [
+        {
+          "account": "blue-ridge-pc",
+          "association": "Owner",
+          "percent": 100,
+          "pledgingAuthority": true,
+          "primary": true,
+          "startDate": "2025-09-30"
+        }
+      ],
+      "valuations": [
+        {
+          "key": "blanket-2025-09",
+          "date": "2025-09-30",
+          "value": 3400000,
+          "source": "Financial Statement",
+          "type": "Book Value",
+          "primary": true,
+          "active": true,
+          "description": "Net book value of practice equipment, leasehold improvements and intangibles at the September 2025 acquisition closing."
+        }
+      ]
+    }
+  ],
+  "covenants": [
+    {
+      "key": "dsc",
+      "typeName": "Debt Service Coverage of Borrower",
+      "recordType": "Financial Ratio",
+      "threshold": 1.3,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2026-01-31",
+      "dueDate": "2026-08-19",
+      "lastEvaluationDate": "2026-03-31",
+      "lastEvaluationValue": 1.41,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-08-19",
+      "covenantStatus": "In Progress",
+      "overdue": true,
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum Debt Service Coverage Ratio of 1.30x for the practice on a trailing twelve month basis, tested quarterly. THE Q2 2026 TEST IS OVERDUE: the certificate was due 19 August 2026 and has not been received.",
+      "clause": "Section 6.02(a) of the Credit Agreement dated 31 January 2026: Borrower shall maintain a Debt Service Coverage Ratio of not less than 1.30 to 1.00.",
+      "notes": "DSCR defined as (EBITDA less physician distributions in excess of market compensation less unfinanced capital expenditure) divided by total scheduled debt service. The Q2 2026 compliance certificate was due 19 August 2026 and is 20 days overdue at 8 September 2026; the practice administrator has attributed the delay to the Skyland practice management system conversion.",
+      "loans": [
+        "pr-revolver",
+        "pr-acquisition",
+        "re-mob"
+      ],
+      "evaluations": [
+        {
+          "key": "dsc-q3-2025",
+          "status": "Compliant",
+          "dueDate": "2025-11-14",
+          "effectiveDate": "2025-07-01",
+          "evaluationDate": "2025-11-10",
+          "value": 1.52,
+          "comments": "Q3 2025 test at 1.52x, compliant, before the acquisition debt service."
+        },
+        {
+          "key": "dsc-q4-2025",
+          "status": "Compliant",
+          "dueDate": "2026-02-14",
+          "effectiveDate": "2025-10-01",
+          "evaluationDate": "2026-02-11",
+          "value": 1.44,
+          "comments": "Q4 2025 test at 1.44x, compliant, first full quarter of acquisition debt."
+        },
+        {
+          "key": "dsc-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-05-20",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-05-18",
+          "value": 1.41,
+          "comments": "Q1 2026 test at 1.41x, compliant."
+        },
+        {
+          "key": "dsc-q2-2026",
+          "status": "In Progress",
+          "dueDate": "2026-08-19",
+          "effectiveDate": "2026-04-01",
+          "comments": "Q2 2026 certificate due 19 August 2026, not received. 20 days overdue at 8 September 2026."
+        }
+      ]
+    },
+    {
+      "key": "fixed-charge",
+      "typeName": "Debt Service Coverage with and without Distributions",
+      "typeId": "a3Gbb000000PLNrEAO",
+      "recordType": "Financial Ratio",
+      "threshold": 1.2,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Quarterly",
+      "effectiveDate": "2026-01-31",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 1.34,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-11-14",
+      "covenantStatus": "Compliant",
+      "graceDays": 10,
+      "complianceDaysPrior": "30",
+      "detail": "Minimum Fixed Charge Coverage Ratio of 1.20x, tested quarterly, measured with and without physician distributions.",
+      "clause": "Section 6.02(b) of the Credit Agreement: Borrower shall maintain a Fixed Charge Coverage Ratio of not less than 1.20 to 1.00.",
+      "notes": "Fixed charges include scheduled debt service, the building and surgery centre rent under the affiliate leases, and capital lease obligations. Physician distributions above market compensation are deducted from the numerator. The org catalog carries no Fixed Charge Coverage entry, so the type used is Debt Service Coverage with and without Distributions, which is the same measure in this org.",
+      "loans": [
+        "pr-acquisition",
+        "asc-buildout"
+      ],
+      "evaluations": [
+        {
+          "key": "fcc-q1-2026",
+          "status": "Compliant",
+          "dueDate": "2026-05-20",
+          "effectiveDate": "2026-01-01",
+          "evaluationDate": "2026-05-18",
+          "value": 1.29,
+          "comments": "Q1 2026 fixed charge coverage at 1.29x, compliant."
+        },
+        {
+          "key": "fcc-q2-2026",
+          "status": "Compliant",
+          "dueDate": "2026-08-19",
+          "effectiveDate": "2026-04-01",
+          "evaluationDate": "2026-08-14",
+          "value": 1.34,
+          "comments": "Q2 2026 fixed charge coverage at 1.34x, compliant. Reported from the management accounts pending the full DSC certificate."
+        }
+      ]
+    },
+    {
+      "key": "capex",
+      "typeName": "Fixed Asset Purchases",
+      "typeId": "a3Gbb000000PLO4EAO",
+      "recordType": "Financial Ratio",
+      "threshold": 1500000,
+      "operator": "Less Than or Equal To",
+      "acnpexOperator": "<=",
+      "frequency": "Annually",
+      "effectiveDate": "2026-01-31",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 1870000,
+      "lastEvaluationStatus": "Exception",
+      "nextEvaluationDate": "2027-06-30",
+      "covenantStatus": "Exception",
+      "breached": true,
+      "graceDays": 0,
+      "complianceDaysPrior": "30",
+      "detail": "Unfinanced capital expenditure may not exceed $1,500,000 in any fiscal year without the prior written consent of the bank.",
+      "clause": "Section 6.03(d) of the Credit Agreement: Borrower shall not make Capital Expenditures exceeding $1,500,000 in the aggregate in any fiscal year.",
+      "notes": "BREACHED at the June 2026 measurement: $1.87MM of capital expenditure against the $1.5MM limit, the excess being the second imaging bay added to the Hendersonville Road suite. Mitigated rather than waived; see policy exception BR-CAPEX-01.",
+      "loans": [
+        "pr-revolver",
+        "pr-mri"
+      ],
+      "evaluations": [
+        {
+          "key": "capex-2025",
+          "status": "Compliant",
+          "dueDate": "2025-06-30",
+          "effectiveDate": "2024-07-01",
+          "evaluationDate": "2025-07-24",
+          "value": 1180000,
+          "comments": "FY2025 capital expenditure of $1.18MM, inside the $1.5MM limit."
+        },
+        {
+          "key": "capex-2026",
+          "status": "Exception",
+          "dueDate": "2026-06-30",
+          "effectiveDate": "2025-07-01",
+          "evaluationDate": "2026-07-28",
+          "value": 1870000,
+          "exceptionReason": "Breached",
+          "comments": "FY2026 capital expenditure of $1.87MM against the $1.5MM limit. The $370K excess is the second imaging bay, which is revenue producing from August 2026. Mitigated by the bank on 12 August 2026."
+        }
+      ]
+    },
+    {
+      "key": "key-person",
+      "typeName": "Life Insurance",
+      "recordType": "Information",
+      "threshold": 5000000,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Annually",
+      "effectiveDate": "2026-01-31",
+      "dueDate": "2026-02-13",
+      "lastEvaluationDate": "2026-02-13",
+      "lastEvaluationValue": 6000000,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2027-02-13",
+      "covenantStatus": "Compliant",
+      "graceDays": 30,
+      "complianceDaysPrior": "30",
+      "detail": "Key person condition: the practice shall maintain key person life insurance of not less than $5,000,000 on Dr Alan Whitfield and Dr Samuel Okonkwo in aggregate, collaterally assigned to the bank, with evidence delivered annually.",
+      "clause": "Section 5.09 of the Credit Agreement (Key Person and Insurance Conditions).",
+      "notes": "Key person provision carried as a condition rather than a financial test. Policies of $3.0MM on Dr Whitfield and $3.0MM on Dr Okonkwo are in force and collaterally assigned; evidence delivered 13 February 2026 with the annual review. The practice also holds a buy-sell agreement funded by the same policies."
+    },
+    {
+      "key": "mob-occupancy",
+      "typeName": "Rent Roll",
+      "recordType": "Information",
+      "threshold": 90,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Semi-Annually",
+      "effectiveDate": "2024-11-15",
+      "dueDate": "2026-06-30",
+      "lastEvaluationDate": "2026-06-30",
+      "lastEvaluationValue": 96,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2026-12-31",
+      "covenantStatus": "Compliant",
+      "graceDays": 15,
+      "complianceDaysPrior": "30",
+      "detail": "Loan level: the medical office building shall maintain leased occupancy of not less than 90 percent, evidenced by a certified rent roll delivered semi-annually.",
+      "clause": "Section 6.05 of the Mortgage Loan Agreement (Rent Roll and Occupancy).",
+      "notes": "Occupancy of 96 percent at 30 June 2026: the practice on 58 percent of net rentable area, the surgery centre on 25 percent, third party specialists on 13 percent, with one 1,900 sq ft suite vacant. Both affiliate leases are triple net and coterminous with the mortgage.",
+      "loans": [
+        "re-mob",
+        "re-parking"
+      ]
+    },
+    {
+      "key": "asc-insurance",
+      "typeName": "Collateral Insurance",
+      "recordType": "Information",
+      "threshold": 6350000,
+      "operator": "Greater Tan or Equal To",
+      "acnpexOperator": ">=",
+      "frequency": "Annually",
+      "effectiveDate": "2025-03-31",
+      "dueDate": "2026-04-30",
+      "lastEvaluationDate": "2026-04-30",
+      "lastEvaluationValue": 6800000,
+      "lastEvaluationStatus": "Compliant",
+      "nextEvaluationDate": "2027-04-30",
+      "covenantStatus": "Compliant",
+      "graceDays": 15,
+      "complianceDaysPrior": "30",
+      "detail": "Loan level: the surgery centre shall insure the leasehold improvements and the equipment for not less than $6,350,000 with the bank named as lenders loss payee, evidence delivered annually.",
+      "clause": "Section 5.04 of the Surgery Center Security Agreement (Insurance).",
+      "notes": "Replacement cost cover of $6.8MM in force to 30 April 2027, naming the bank as lenders loss payee, with business interruption cover of twelve months and medical malpractice carried separately at the centre level.",
+      "loans": [
+        "asc-buildout",
+        "asc-equip"
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "key": "practice",
+      "name": "Blue Ridge Practice Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "4",
+      "primaryEntity": "blue-ridge-pc",
+      "description": "Booked practice package for Blue Ridge Orthopedic Partners PC. Three facilities totalling $11.3MM of commitments against $9.28MM outstanding: a $3.0MM receivables-based revolver, the $6.5MM term loan that funded the 2025 Skyland Orthopaedic acquisition, and a $1.8MM imaging equipment note. Secured by the assignment of receivables, the blanket lien and the imaging schedule, with limited guaranties from all four physician partners.",
+      "loans": [
+        {
+          "key": "pr-revolver",
+          "amount": 3000000,
+          "involvements": [
+            {
+              "key": "prr-1",
+              "account": "blue-ridge-pc",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "ownership": 100,
+              "relationshipType": "Primary Owner",
+              "notes": "Primary borrower and operating practice."
+            },
+            {
+              "key": "prr-2",
+              "account": "whitfield",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 750000,
+              "contingentType": "Pro Rata",
+              "notes": "Alan Whitfield: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "prr-3",
+              "account": "boone",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 750000,
+              "contingentType": "Pro Rata",
+              "notes": "Marguerite Boone: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "prr-4",
+              "account": "okonkwo",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 750000,
+              "contingentType": "Pro Rata",
+              "notes": "Samuel Okonkwo: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "prr-5",
+              "account": "vasquez",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 5,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 750000,
+              "contingentType": "Pro Rata",
+              "notes": "Elena Vasquez: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            }
+          ],
+          "name": "Blue Ridge Orthopedic Partners PC - Line of Credit - $3,000,000.00",
+          "lookupKey": "BLR1001",
+          "product": "Line of Credit",
+          "productType": "Non-Real Estate",
+          "riskGrade": "4",
+          "outstanding": 1950000,
+          "rate": 8.0,
+          "noteRate": 8.0,
+          "index": "WSJ Prime",
+          "spread": 0.5,
+          "termMonths": 24,
+          "amortMonths": 24,
+          "applicationDate": "2025-11-20",
+          "closeDate": "2026-01-31",
+          "bookedDate": "2026-01-31",
+          "firstPaymentDate": "2026-02-28",
+          "maturityDate": "2028-01-31",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Revolving Line Of Credit",
+          "interestAccrualMethod": "Actual_360",
+          "loanClass": "Secured Renewal",
+          "isSecured": true,
+          "purpose": "business_credit_line",
+          "description": "Revolving line of credit for working capital and payor lag, governed by a monthly base of 75 percent of net collectible receivables under 120 days. Interest only, monthly, at WSJ Prime plus 0.50 percent. Drawn $1.95MM of $3.0MM at 31 July 2026.",
+          "pledges": [
+            {
+              "key": "prr-ar",
+              "collateral": "br-receivables",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 5700000,
+              "startDate": "2026-01-31",
+              "overrideReason": "Health care receivables advanced at 75 percent of net collectible value against the 80 percent collateral-type default, reflecting contractual allowance risk on commercial payor balances."
+            }
+          ],
+          "fees": [
+            {
+              "key": "prr-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the committed line."
+            },
+            {
+              "key": "prr-unused",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "percentage": 0.25,
+              "payoutFrequency": "Annually",
+              "description": "Unused commitment fee, 0.25 percent per annum on the average undrawn balance. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no commitment entry."
+            },
+            {
+              "key": "prr-annual",
+              "feeType": "Other",
+              "recordType": "Fees",
+              "amount": 3500,
+              "payoutFrequency": "Annually",
+              "description": "Annual line servicing and renewal fee, $3,500, charged each anniversary."
+            }
+          ],
+          "pricing": {
+            "rateType": "Floating with Index",
+            "index": "Prime",
+            "spread": 0.5,
+            "rate": 8.0,
+            "amortises": false,
+            "effectiveDate": "2026-01-31",
+            "endDate": "2028-01-31",
+            "termLength": 24
+          }
+        },
+        {
+          "key": "pr-acquisition",
+          "amount": 6500000,
+          "involvements": [
+            {
+              "key": "pra-1",
+              "account": "blue-ridge-pc",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "ownership": 100,
+              "relationshipType": "Primary Owner",
+              "notes": "Primary borrower and operating practice."
+            },
+            {
+              "key": "pra-2",
+              "account": "whitfield",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1625000,
+              "contingentType": "Pro Rata",
+              "notes": "Alan Whitfield: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "pra-3",
+              "account": "boone",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1625000,
+              "contingentType": "Pro Rata",
+              "notes": "Marguerite Boone: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "pra-4",
+              "account": "okonkwo",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1625000,
+              "contingentType": "Pro Rata",
+              "notes": "Samuel Okonkwo: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "pra-5",
+              "account": "vasquez",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 5,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1625000,
+              "contingentType": "Pro Rata",
+              "notes": "Elena Vasquez: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            }
+          ],
+          "name": "Blue Ridge Orthopedic Partners PC - Term - $6,500,000.00",
+          "lookupKey": "BLR1002",
+          "product": "Term",
+          "productType": "Non-Real Estate",
+          "riskGrade": "4",
+          "outstanding": 5850000,
+          "rate": 7.35,
+          "noteRate": 7.35,
+          "index": "Fixed",
+          "termMonths": 84,
+          "amortMonths": 84,
+          "applicationDate": "2025-07-14",
+          "closeDate": "2025-09-30",
+          "bookedDate": "2025-09-30",
+          "firstPaymentDate": "2025-10-31",
+          "maturityDate": "2032-09-30",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "business_acquisition",
+          "description": "Seven year fully amortising term loan funding the September 2025 acquisition of Skyland Orthopaedic Associates, a five physician group with two satellite clinics. Lent against practice cash flow and secured by the blanket lien.",
+          "pledges": [
+            {
+              "key": "pra-blanket",
+              "collateral": "blanket",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 50,
+              "amountPledged": 1700000,
+              "startDate": "2025-09-30",
+              "overrideReason": "Blanket lien advanced at 50 percent of net book value against the 80 percent collateral-type default. The acquisition loan is underwritten to cash flow, not to collateral, and the coverage read is expected to show a shortfall."
+            }
+          ],
+          "fees": [
+            {
+              "key": "pra-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.75,
+              "description": "Origination fee, 0.75 percent of the note."
+            },
+            {
+              "key": "pra-legal",
+              "feeType": "Attorney",
+              "recordType": "Costs",
+              "amount": 28500,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "Acquisition documentation, health care regulatory opinion and the UCC search package, outside counsel."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.35,
+            "amortises": true,
+            "effectiveDate": "2025-09-30",
+            "endDate": "2032-09-30",
+            "termLength": 84
+          }
+        },
+        {
+          "key": "pr-mri",
+          "amount": 1800000,
+          "involvements": [
+            {
+              "key": "prm-1",
+              "account": "blue-ridge-pc",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "ownership": 100,
+              "relationshipType": "Primary Owner",
+              "notes": "Primary borrower and operating practice."
+            },
+            {
+              "key": "prm-2",
+              "account": "whitfield",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 2,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 450000,
+              "contingentType": "Pro Rata",
+              "notes": "Alan Whitfield: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "prm-3",
+              "account": "boone",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 450000,
+              "contingentType": "Pro Rata",
+              "notes": "Marguerite Boone: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "prm-4",
+              "account": "okonkwo",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 450000,
+              "contingentType": "Pro Rata",
+              "notes": "Samuel Okonkwo: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "prm-5",
+              "account": "vasquez",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 5,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 450000,
+              "contingentType": "Pro Rata",
+              "notes": "Elena Vasquez: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            }
+          ],
+          "name": "Blue Ridge Orthopedic Partners PC - Equipment - $1,800,000.00",
+          "lookupKey": "BLR1003",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "4",
+          "outstanding": 1480000,
+          "rate": 6.95,
+          "noteRate": 6.95,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2025-05-02",
+          "closeDate": "2025-06-30",
+          "bookedDate": "2025-06-30",
+          "firstPaymentDate": "2025-07-31",
+          "maturityDate": "2030-06-30",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "equipment",
+          "description": "Five year fully amortising equipment note financing the 1.5T wide-bore MRI, the digital radiography suite and the PACS installation in the Hendersonville Road imaging suite.",
+          "pledges": [
+            {
+              "key": "prm-mri",
+              "collateral": "mri-equipment",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 80,
+              "amountPledged": 1640000,
+              "startDate": "2025-06-30",
+              "overrideReason": "Imaging equipment advanced at 80 percent of appraised fair market value, the standard rate for titled medical imaging with an active secondary market."
+            }
+          ],
+          "fees": [
+            {
+              "key": "prm-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.95,
+            "amortises": true,
+            "effectiveDate": "2025-06-30",
+            "endDate": "2030-06-30",
+            "termLength": 60
+          }
+        }
+      ]
+    },
+    {
+      "key": "real-estate",
+      "name": "Blue Ridge Real Estate Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "4",
+      "primaryEntity": "blue-ridge-properties",
+      "description": "Booked owner-occupied real estate package. Borrower of record is Blue Ridge Medical Properties LLC with the practice as co-borrower and occupant. Two facilities totalling $11.3MM of commitments against $10.745MM outstanding: the medical office building mortgage and the parking structure term loan, cross-defaulted and cross-collateralised.",
+      "loans": [
+        {
+          "key": "re-mob",
+          "amount": 9200000,
+          "involvements": [
+            {
+              "key": "rem-1",
+              "account": "blue-ridge-properties",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "order": 1,
+              "ownership": 100,
+              "relationshipType": "Primary Owner",
+              "notes": "Real estate holding entity and title holder of the medical office building."
+            },
+            {
+              "key": "rem-2",
+              "account": "blue-ridge-pc",
+              "borrowerType": "Co-Borrower",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "relationshipType": "Related Entity",
+              "notes": "Operating practice as co-borrower and principal occupant under a triple net lease coterminous with the note."
+            },
+            {
+              "key": "rem-3",
+              "account": "whitfield",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2300000,
+              "contingentType": "Pro Rata",
+              "notes": "Alan Whitfield: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "rem-4",
+              "account": "boone",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2300000,
+              "contingentType": "Pro Rata",
+              "notes": "Marguerite Boone: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "rem-5",
+              "account": "okonkwo",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 5,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2300000,
+              "contingentType": "Pro Rata",
+              "notes": "Samuel Okonkwo: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "rem-6",
+              "account": "vasquez",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 6,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 2300000,
+              "contingentType": "Pro Rata",
+              "notes": "Elena Vasquez: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            }
+          ],
+          "name": "Blue Ridge Medical Properties LLC - Purchase - $9,200,000.00",
+          "lookupKey": "BLR2001",
+          "product": "Purchase",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "outstanding": 8760000,
+          "rate": 6.35,
+          "noteRate": 6.35,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2024-09-05",
+          "closeDate": "2024-11-15",
+          "bookedDate": "2024-11-15",
+          "firstPaymentDate": "2024-12-15",
+          "maturityDate": "2034-11-15",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "real_estate_purchase_owner_occupied",
+          "description": "Twenty year amortising first mortgage with a ten year balloon on the 74,000 sq ft medical office building, occupied by the practice and by the surgery centre under triple net leases. 74 percent loan to value at origination.",
+          "pledges": [
+            {
+              "key": "rem-mob",
+              "collateral": "mob",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 72,
+              "amountPledged": 8928000,
+              "startDate": "2024-11-15",
+              "overrideReason": "Owner-occupied medical office advanced at 72 percent against the 80 percent collateral-type default, on the March 2026 MAI as-is appraisal, inside the 75 percent policy ceiling for single tenant medical office."
+            }
+          ],
+          "fees": [
+            {
+              "key": "rem-appraisal",
+              "feeType": "Appraisal",
+              "recordType": "Costs",
+              "amount": 12500,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "MAI appraisal of the medical office building, third party."
+            },
+            {
+              "key": "rem-title",
+              "feeType": "Title Insurance",
+              "recordType": "Costs",
+              "amount": 16200,
+              "isIncome": false,
+              "paidBy": "Financed from Proceeds",
+              "description": "ALTA lenders title policy and endorsements."
+            },
+            {
+              "key": "rem-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.35,
+            "amortises": true,
+            "effectiveDate": "2024-11-15",
+            "endDate": "2034-11-15",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        },
+        {
+          "key": "re-parking",
+          "amount": 2100000,
+          "involvements": [
+            {
+              "key": "rep-1",
+              "account": "blue-ridge-properties",
+              "borrowerType": "Borrower",
+              "entityType": "EPC",
+              "order": 1,
+              "ownership": 100,
+              "relationshipType": "Primary Owner",
+              "notes": "Real estate holding entity and title holder of the parking structure."
+            },
+            {
+              "key": "rep-2",
+              "account": "blue-ridge-pc",
+              "borrowerType": "Co-Borrower",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 100,
+              "relationshipType": "Related Entity",
+              "notes": "Operating practice as co-borrower and principal occupant under a triple net lease coterminous with the note."
+            },
+            {
+              "key": "rep-3",
+              "account": "whitfield",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 525000,
+              "contingentType": "Pro Rata",
+              "notes": "Alan Whitfield: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "rep-4",
+              "account": "boone",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 525000,
+              "contingentType": "Pro Rata",
+              "notes": "Marguerite Boone: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "rep-5",
+              "account": "okonkwo",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 5,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 525000,
+              "contingentType": "Pro Rata",
+              "notes": "Samuel Okonkwo: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "rep-6",
+              "account": "vasquez",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 6,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 525000,
+              "contingentType": "Pro Rata",
+              "notes": "Elena Vasquez: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            }
+          ],
+          "name": "Blue Ridge Medical Properties LLC - Term - $2,100,000.00",
+          "lookupKey": "BLR2002",
+          "product": "Term",
+          "productType": "Real Estate",
+          "riskGrade": "4",
+          "outstanding": 1985000,
+          "rate": 6.6,
+          "noteRate": 6.6,
+          "index": "Fixed",
+          "termMonths": 120,
+          "amortMonths": 240,
+          "balloon": true,
+          "applicationDate": "2024-09-05",
+          "closeDate": "2024-11-15",
+          "bookedDate": "2024-11-15",
+          "firstPaymentDate": "2024-12-15",
+          "maturityDate": "2034-11-15",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "property_improvement_owner_occupied",
+          "description": "Twenty year amortising term loan with a ten year balloon financing the 268 space parking structure completed in 2024, cross-defaulted with the building mortgage.",
+          "pledges": [
+            {
+              "key": "rep-deck",
+              "collateral": "parking-deck",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 70,
+              "amountPledged": 2030000,
+              "startDate": "2024-11-15",
+              "overrideReason": "Single purpose parking structure advanced at 70 percent against the 80 percent collateral-type default; the deck has no independent access and no separate marketability from the building."
+            }
+          ],
+          "fees": [
+            {
+              "key": "rep-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 6.6,
+            "amortises": true,
+            "effectiveDate": "2024-11-15",
+            "endDate": "2034-11-15",
+            "termLength": 120,
+            "amortMonths": 240
+          }
+        }
+      ]
+    },
+    {
+      "key": "asc",
+      "name": "Blue Ridge Surgery Center Package",
+      "stage": "Complete",
+      "creditStage": "Booked",
+      "status": "Approved",
+      "riskRating": "5",
+      "primaryEntity": "blue-ridge-asc",
+      "description": "Booked surgery centre package. Borrower of record is Blue Ridge Surgery Center LLC, the 51 percent owned ambulatory surgery joint venture, guaranteed by the practice without limit and by the four partners on a limited basis. Two facilities totalling $5.15MM of commitments against $4.575MM outstanding.",
+      "loans": [
+        {
+          "key": "asc-buildout",
+          "amount": 4400000,
+          "involvements": [
+            {
+              "key": "asb-1",
+              "account": "blue-ridge-asc",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "ownership": 100,
+              "relationshipType": "Primary Owner",
+              "notes": "Ambulatory surgery centre joint venture and borrower of record."
+            },
+            {
+              "key": "asb-2",
+              "account": "blue-ridge-pc",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 51,
+              "relationshipType": "Related Entity",
+              "notes": "Managing member and 51 percent owner of the surgery centre. Unlimited continuing guaranty from the practice.",
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "asb-3",
+              "account": "whitfield",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1100000,
+              "contingentType": "Pro Rata",
+              "notes": "Alan Whitfield: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "asb-4",
+              "account": "boone",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1100000,
+              "contingentType": "Pro Rata",
+              "notes": "Marguerite Boone: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "asb-5",
+              "account": "okonkwo",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 5,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1100000,
+              "contingentType": "Pro Rata",
+              "notes": "Samuel Okonkwo: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "asb-6",
+              "account": "vasquez",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 6,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 1100000,
+              "contingentType": "Pro Rata",
+              "notes": "Elena Vasquez: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            }
+          ],
+          "name": "Blue Ridge Surgery Center LLC - Term - $4,400,000.00",
+          "lookupKey": "BLR3001",
+          "product": "Term",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "outstanding": 3960000,
+          "rate": 7.1,
+          "noteRate": 7.1,
+          "index": "Fixed",
+          "termMonths": 84,
+          "amortMonths": 84,
+          "applicationDate": "2024-12-09",
+          "closeDate": "2025-03-31",
+          "bookedDate": "2025-03-31",
+          "firstPaymentDate": "2025-04-30",
+          "maturityDate": "2032-03-31",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "property_improvement_non_owner_occupied",
+          "description": "Seven year fully amortising term loan for the ambulatory surgery centre build-out on the ground floor of the medical office building: four operating rooms, two procedure rooms, sterile processing and the generator plant. Secured by the leasehold improvements with a landlord waiver.",
+          "pledges": [
+            {
+              "key": "asb-improvements",
+              "collateral": "asc-improvements",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 75,
+              "amountPledged": 3900000,
+              "startDate": "2025-03-31",
+              "overrideReason": "Leasehold improvements advanced at 75 percent of as-complete value against the 80 percent collateral-type default, reflecting the single purpose fit-out and its 40 percent orderly liquidation value."
+            }
+          ],
+          "fees": [
+            {
+              "key": "asb-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.75,
+              "description": "Origination fee, 0.75 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.1,
+            "amortises": true,
+            "effectiveDate": "2025-03-31",
+            "endDate": "2032-03-31",
+            "termLength": 84
+          }
+        },
+        {
+          "key": "asc-equip",
+          "amount": 750000,
+          "involvements": [
+            {
+              "key": "ase-1",
+              "account": "blue-ridge-asc",
+              "borrowerType": "Borrower",
+              "entityType": "Operating Company",
+              "order": 1,
+              "ownership": 100,
+              "relationshipType": "Primary Owner",
+              "notes": "Ambulatory surgery centre joint venture and borrower of record."
+            },
+            {
+              "key": "ase-2",
+              "account": "blue-ridge-pc",
+              "borrowerType": "Guarantor",
+              "entityType": "Operating Company",
+              "order": 2,
+              "ownership": 51,
+              "relationshipType": "Related Entity",
+              "notes": "Managing member and 51 percent owner of the surgery centre. Unlimited continuing guaranty from the practice.",
+              "guarantyType": "Unlimited"
+            },
+            {
+              "key": "ase-3",
+              "account": "whitfield",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 3,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 187500,
+              "contingentType": "Pro Rata",
+              "notes": "Alan Whitfield: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "ase-4",
+              "account": "boone",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 4,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 187500,
+              "contingentType": "Pro Rata",
+              "notes": "Marguerite Boone: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "ase-5",
+              "account": "okonkwo",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 5,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 187500,
+              "contingentType": "Pro Rata",
+              "notes": "Samuel Okonkwo: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            },
+            {
+              "key": "ase-6",
+              "account": "vasquez",
+              "borrowerType": "Limited Guarantor",
+              "entityType": "Individual",
+              "order": 6,
+              "ownership": 25,
+              "guarantyType": "Limited",
+              "guarantyLimit": 187500,
+              "contingentType": "Pro Rata",
+              "notes": "Elena Vasquez: limited guaranty capped at 25 percent of the note, several and not joint, matching the 25 percent shareholding."
+            }
+          ],
+          "name": "Blue Ridge Surgery Center LLC - Equipment - $750,000.00",
+          "lookupKey": "BLR3002",
+          "product": "Equipment",
+          "productType": "Non-Real Estate",
+          "riskGrade": "5",
+          "outstanding": 615000,
+          "rate": 7.25,
+          "noteRate": 7.25,
+          "index": "Fixed",
+          "termMonths": 60,
+          "amortMonths": 60,
+          "applicationDate": "2024-12-09",
+          "closeDate": "2025-03-31",
+          "bookedDate": "2025-03-31",
+          "firstPaymentDate": "2025-04-30",
+          "maturityDate": "2030-03-31",
+          "paymentSchedule": "Monthly",
+          "paymentType": "Installment",
+          "interestAccrualMethod": "30_360",
+          "loanClass": "New Loan",
+          "isSecured": true,
+          "purpose": "equipment",
+          "description": "Five year fully amortising equipment note financing the surgical tables, arthroscopy towers, C-arm imaging, anaesthesia machines and sterilisers installed at the surgery centre opening.",
+          "pledges": [
+            {
+              "key": "ase-equipment",
+              "collateral": "asc-equipment",
+              "lienPosition": "1st",
+              "pledgedStatus": "Active",
+              "isPrimary": true,
+              "advanceRate": 80,
+              "amountPledged": 920000,
+              "startDate": "2025-03-31",
+              "overrideReason": "Surgical equipment advanced at 80 percent of invoice value, the standard rate for serialised medical equipment with an active secondary market."
+            }
+          ],
+          "fees": [
+            {
+              "key": "ase-orig",
+              "feeType": "Loan Origination",
+              "recordType": "Fees",
+              "percentage": 0.5,
+              "description": "Origination fee, 0.50 percent of the note."
+            }
+          ],
+          "pricing": {
+            "rateType": "Fixed",
+            "rate": 7.25,
+            "amortises": true,
+            "effectiveDate": "2025-03-31",
+            "endDate": "2030-03-31",
+            "termLength": 60
+          }
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "key": "annual-2026",
+      "type": "Annual",
+      "package": "practice",
+      "currentGrade": "4",
+      "recommendedGrade": "4",
+      "covenantsTested": "Yes",
+      "covenantsPassed": "No",
+      "toCommittee": "No",
+      "narrative": "FY2026 annual credit review of the Blue Ridge relationship, prepared against the 15 February 2027 review date and brought forward by the overdue Q2 2026 debt service certificate. Grade affirmed at 4.",
+      "summary": "Blue Ridge group: $27.75MM committed across seven booked facilities in three packages, $24.6MM outstanding. The practice package carries a $3.0MM receivables revolver, the $6.5MM Skyland acquisition term loan and a $1.8MM imaging note. The real estate package carries the $9.2MM medical office building mortgage and the $2.1MM parking structure loan at Blue Ridge Medical Properties LLC. The surgery centre package carries the $4.4MM build-out loan and a $750K equipment note at the 51 percent owned joint venture. All four physician partners guarantee every facility on a limited, several basis at 25 percent of each note.",
+      "recommendation": "Affirm grade 4 and renew the $3.0MM revolving line at WSJ Prime plus 0.50 percent at its January 2028 maturity. Obtain the Q2 2026 debt service certificate within thirty days and reinstate quarterly reporting discipline. Hold the capex exception as mitigated rather than waived, and raise the annual capex limit to $2.0MM at renewal to match the imaging plan.",
+      "riskComments": "Risk grade affirmed at 4. Coverage of 1.41x at the last measured quarter and fixed charge coverage of 1.34x are both inside covenant. The only open items are the FY2026 capex breach, mitigated, and the overdue Q2 2026 certificate, which is a reporting failure rather than a performance one.",
+      "strengths": "Twenty eight year operating history and stable partner group with no departures since 2019. Owner-occupied real estate held in an affiliate with $1.1MM of equity above the mortgages at the March 2026 appraisal. Ancillary revenue from imaging, physical therapy and the surgery centre distribution diversifies away from professional fees. Payor mix weighted to commercial rather than government.",
+      "weaknesses": "Reporting discipline: the Q2 2026 debt service certificate is twenty days late and the practice management conversion is the stated cause. Capital expenditure ran $370K over the covenant limit in FY2026. Physician concentration, with the top two surgeons generating 41 percent of professional revenue. The surgery centre is 49 percent owned by a hospital system whose intentions on renewal of the joint venture agreement in 2029 are not known."
+    }
+  ],
+  "riskRatingReviews": [
+    {
+      "key": "rg-2026",
+      "status": "In Review",
+      "computedGrade": 4,
+      "cashFlowCoverage": 1.41,
+      "creditScore": 761,
+      "revenueGrowth": 11.2,
+      "managementYears": 28,
+      "year1": 2023,
+      "year2": 2024,
+      "year3": 2025,
+      "comments": "Annual risk rating review supporting the FY2026 annual review. Computed grade 4 on coverage of 1.41x, leverage of 1.7x and twenty eight years of partner management. No override requested. The overdue Q2 certificate is treated as a reporting item and does not move the grade."
+    }
+  ],
+  "policyExceptions": [
+    {
+      "key": "pex-capex",
+      "name": "Capital expenditure limit exceeded, FY2026 imaging suite",
+      "type": "Policy",
+      "code": "BR-CAPEX-01",
+      "status": "Mitigated",
+      "severity": "Minor",
+      "severityValue": 1,
+      "loan": "pr-mri",
+      "collateral": "mri-equipment",
+      "mitigation": [
+        "Excess of $370K is the second imaging bay, revenue producing from August 2026.",
+        "Funded from operating cash flow, not the line; availability never below $1.05MM.",
+        "Limited guaranties from all four partners intact; imaging carries a first lien."
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "key": "opp-treasury",
+      "name": "Blue Ridge - Treasury, Merchant and Practice Card Programme",
+      "stage": "Proposal",
+      "amount": 185000,
+      "closeDate": "2026-11-13",
+      "type": "Existing Business",
+      "probability": 60,
+      "leadSource": "External Referral",
+      "nextStep": "Merchant services pricing against the current patient payment processor, meeting booked 29 September.",
+      "description": "Lockbox, positive pay, ACH origination, patient payment merchant services and a practice purchasing card programme alongside the credit relationship."
+    },
+    {
+      "key": "opp-satellite",
+      "name": "Blue Ridge - Hendersonville Satellite Clinic Mortgage",
+      "stage": "Qualification",
+      "amount": 3600000,
+      "closeDate": "2027-03-31",
+      "type": "Existing Business",
+      "probability": 35,
+      "leadSource": "Word of mouth",
+      "nextStep": "Partners to confirm the site in November; letter of intent not yet signed.",
+      "description": "Prospective owner-occupied mortgage on a fourth clinic site in Hendersonville, which the partners intend to hold in Blue Ridge Medical Properties LLC. No package opened; whitespace only."
+    }
+  ],
+  "cases": [
+    {
+      "key": "case-certificate",
+      "subject": "Q2 2026 debt service certificate outstanding, practice management conversion",
+      "status": "New",
+      "priority": "High",
+      "origin": "Email",
+      "type": "Question",
+      "description": "The practice administrator wrote to say the Q2 2026 debt service coverage certificate, due 19 August 2026, is held up by the Skyland practice management system conversion and asked whether the bank will accept management accounts in the interim. The covenant is twenty days overdue at 8 September 2026."
+    }
+  ]
+}

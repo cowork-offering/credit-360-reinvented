@@ -1,0 +1,856 @@
+{
+  "slug": "cascade",
+  "tag": "C360-SEED-2026-09",
+  "relationship": "Cascade Software Solutions Inc",
+  "account": "001bb00001Ld14VAAR",
+  "createdAt": "2026-09-08T11:55:49+00:00",
+  "order": [
+    {
+      "object": "Account",
+      "key": "evergreen-fund",
+      "id": "001bb00001Ld14TAAR"
+    },
+    {
+      "object": "Account",
+      "key": "cascade-topco",
+      "id": "001bb00001Ld14UAAR"
+    },
+    {
+      "object": "Account",
+      "key": "cascade-software",
+      "id": "001bb00001Ld14VAAR"
+    },
+    {
+      "object": "Account",
+      "key": "lena-marsh",
+      "id": "001bb00001Ld14WAAR"
+    },
+    {
+      "object": "Account",
+      "key": "tomas-ruiz",
+      "id": "001bb00001Ld14XAAR"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "evergreen-owns-topco",
+      "id": "a38bb000001ac4bAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "marsh-owns-topco",
+      "id": "a38bb000001ac4cAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "ruiz-owns-topco",
+      "id": "a38bb000001ac4dAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "topco-owns-borrower",
+      "id": "a38bb000001ac4eAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "evergreen-borrower",
+      "id": "a38bb000001ac4fAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "marsh-borrower",
+      "id": "a38bb000001ac4gAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "ruiz-borrower",
+      "id": "a38bb000001ac4hAAA"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "senior",
+      "id": "a5Fbb000000JBKjEAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "acquisition",
+      "id": "a5Fbb000000JBKkEAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "equipment-other",
+      "id": "a5Fbb000000JBKlEAO"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "sr-revolver",
+      "id": "a4Zbb000002J6S3EAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "sr-growth-term",
+      "id": "a4Zbb000002J6S4EAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "sr-ddtl",
+      "id": "a4Zbb000002J6S5EAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "acq-term",
+      "id": "a4Zbb000002J6S6EAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "acq-earnout",
+      "id": "a4Zbb000002J6S7EAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "eq-hardware",
+      "id": "a4Zbb000002J6S8EAK"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "lc-facility",
+      "id": "a4Zbb000002J6S9EAK"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "srv-borrower",
+      "id": "a4Lbb000000PVYTEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "srv-sponsor",
+      "id": "a4Lbb000000PVYUEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "srv-topco",
+      "id": "a4Lbb000000PVYVEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "srv-marsh",
+      "id": "a4Lbb000000PVYWEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "srv-ruiz",
+      "id": "a4Lbb000000PVYXEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "sgt-borrower",
+      "id": "a4Lbb000000PVYYEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "sgt-sponsor",
+      "id": "a4Lbb000000PVYZEA4"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "sgt-topco",
+      "id": "a4Lbb000000PVYaEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "sgt-marsh",
+      "id": "a4Lbb000000PVYbEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ddt-borrower",
+      "id": "a4Lbb000000PVYcEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ddt-sponsor",
+      "id": "a4Lbb000000PVYdEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ddt-topco",
+      "id": "a4Lbb000000PVYeEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "acq-borrower",
+      "id": "a4Lbb000000PVYfEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "acq-sponsor",
+      "id": "a4Lbb000000PVYgEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "acq-topco",
+      "id": "a4Lbb000000PVYhEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "acq-marsh",
+      "id": "a4Lbb000000PVYiEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ern-borrower",
+      "id": "a4Lbb000000PVYjEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ern-sponsor",
+      "id": "a4Lbb000000PVYkEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ern-topco",
+      "id": "a4Lbb000000PVYlEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "eqh-borrower",
+      "id": "a4Lbb000000PVYmEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "eqh-sponsor",
+      "id": "a4Lbb000000PVYnEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "eqh-ruiz",
+      "id": "a4Lbb000000PVYoEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lcf-borrower",
+      "id": "a4Lbb000000PVYpEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lcf-sponsor",
+      "id": "a4Lbb000000PVYqEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lcf-marsh",
+      "id": "a4Lbb000000PVYrEAO"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "sr-revolver",
+      "id": "a50bb00000v5WEXAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "sr-growth-term",
+      "id": "a50bb00000v5WEYAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "sr-ddtl",
+      "id": "a50bb00000v5WEZAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "acq-term",
+      "id": "a50bb00000v5WEaAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "acq-earnout",
+      "id": "a50bb00000v5WEbAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "eq-hardware",
+      "id": "a50bb00000v5WEcAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "lc-facility",
+      "id": "a50bb00000v5WEdAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "sr-revolver",
+      "id": "a4zbb000002Ty1FAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "sr-growth-term",
+      "id": "a4zbb000002Ty1GAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "sr-ddtl",
+      "id": "a4zbb000002Ty1HAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "acq-term",
+      "id": "a4zbb000002Ty1IAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "acq-earnout",
+      "id": "a4zbb000002Ty1JAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "eq-hardware",
+      "id": "a4zbb000002Ty1KAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "lc-facility",
+      "id": "a4zbb000002Ty1LAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "sr-revolver",
+      "id": "a4ybb000002jMJNAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "sr-growth-term",
+      "id": "a4ybb000002jMJOAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "sr-ddtl",
+      "id": "a4ybb000002jMJPAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "acq-term",
+      "id": "a4ybb000002jMJQAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "acq-earnout",
+      "id": "a4ybb000002jMJRAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "eq-hardware",
+      "id": "a4ybb000002jMJSAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "lc-facility",
+      "id": "a4ybb000002jMJTAA2"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "srv-orig",
+      "id": "a45bb000001mV2XAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "srv-unused",
+      "id": "a45bb000001mV2YAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "srv-agency",
+      "id": "a45bb000001mV2ZAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "sgt-orig",
+      "id": "a45bb000001mV2aAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ddt-orig",
+      "id": "a45bb000001mV2bAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "acq-orig",
+      "id": "a45bb000001mV2cAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ern-arrange",
+      "id": "a45bb000001mV2dAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "eqh-orig",
+      "id": "a45bb000001mV2eAAE"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "cascade-receivables",
+      "id": "a35bb0000019qwTAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "intellectual-property",
+      "id": "a35bb0000019qwUAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "topco-equity",
+      "id": "a35bb0000019qwVAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "datacentre-hardware",
+      "id": "a35bb0000019qwWAAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "intellectual-property#0",
+      "id": "a2Vbb000001cDJzEAM"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "topco-equity#0",
+      "id": "a2Vbb000001cDK0EAM"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "topco-equity#1",
+      "id": "a2Vbb000001cDK1EAM"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "datacentre-hardware#0",
+      "id": "a2Vbb000001cDK2EAM"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-2026-07",
+      "id": "a34bb000003IN4TAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-2025-11",
+      "id": "a34bb000003IN4UAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ip-2025-10",
+      "id": "a34bb000003IN4VAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ip-2025-10-olv",
+      "id": "a34bb000003IN4WAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "eq-2026-06",
+      "id": "a34bb000003IN4XAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "eq-2025-11",
+      "id": "a34bb000003IN4YAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "dch-2026-06",
+      "id": "a34bb000003IN4ZAAW"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "srv-ar",
+      "id": "a4Rbb0000027b89EAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "sgt-ip",
+      "id": "a4Rbb0000027b8AEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "ddt-ip",
+      "id": "a4Rbb0000027b8BEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "acq-equity",
+      "id": "a4Rbb0000027b8CEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "ern-equity",
+      "id": "a4Rbb0000027b8DEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "eqh-hardware",
+      "id": "a4Rbb0000027b8EEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "lcf-ar",
+      "id": "a4Rbb0000027b8FEAQ"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "arr",
+      "id": "a3Bbb000000Tb5pEAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "liquidity",
+      "id": "a3Bbb000000Tb5qEAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "net-leverage",
+      "id": "a3Bbb000000Tb5rEAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "retention",
+      "id": "a3Bbb000000Tb5sEAC"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "arr",
+      "id": "a2Wbb00000CWjkfEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "liquidity",
+      "id": "a2Wbb00000CWjkgEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "net-leverage",
+      "id": "a2Wbb00000CWjkhEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "retention",
+      "id": "a2Wbb00000CWjkiEAD"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "arr@sr-revolver",
+      "id": "a4Vbb000000qpb7EAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "arr@sr-growth-term",
+      "id": "a4Vbb000000qpb8EAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "arr@sr-ddtl",
+      "id": "a4Vbb000000qpb9EAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "liquidity@sr-revolver",
+      "id": "a4Vbb000000qpbAEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "net-leverage@sr-growth-term",
+      "id": "a4Vbb000000qpbBEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "net-leverage@sr-ddtl",
+      "id": "a4Vbb000000qpbCEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "net-leverage@acq-term",
+      "id": "a4Vbb000000qpbDEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "retention@sr-revolver",
+      "id": "a4Vbb000000qpbEEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "retention@sr-growth-term",
+      "id": "a4Vbb000000qpbFEAQ"
+    },
+    {
+      "object": "LLC_BI__Review__c",
+      "key": "annual-2026",
+      "id": "a5nbb00000nBAnsAAG"
+    },
+    {
+      "object": "LLC_BI__Annual_Review__c",
+      "key": "rating-2026",
+      "id": "a2bbb000006E8iDAAS"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-treasury",
+      "id": "006bb00000yJ5shAAC"
+    },
+    {
+      "object": "Case",
+      "key": "case-cure",
+      "id": "500bb00000v7FCoAAM"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "lcf-fee",
+      "id": "a45bb000001mV7NAAU"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "cascade-receivables#0",
+      "id": "a2Vbb000001cDTVEA2"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-leverage",
+      "id": "a4rbb000003PEinAAG"
+    }
+  ],
+  "records": {
+    "Account": {
+      "evergreen-fund": "001bb00001Ld14TAAR",
+      "cascade-topco": "001bb00001Ld14UAAR",
+      "cascade-software": "001bb00001Ld14VAAR",
+      "lena-marsh": "001bb00001Ld14WAAR",
+      "tomas-ruiz": "001bb00001Ld14XAAR"
+    },
+    "LLC_BI__Connection__c": {
+      "evergreen-owns-topco": "a38bb000001ac4bAAA",
+      "marsh-owns-topco": "a38bb000001ac4cAAA",
+      "ruiz-owns-topco": "a38bb000001ac4dAAA",
+      "topco-owns-borrower": "a38bb000001ac4eAAA",
+      "evergreen-borrower": "a38bb000001ac4fAAA",
+      "marsh-borrower": "a38bb000001ac4gAAA",
+      "ruiz-borrower": "a38bb000001ac4hAAA"
+    },
+    "LLC_BI__Product_Package__c": {
+      "senior": "a5Fbb000000JBKjEAO",
+      "acquisition": "a5Fbb000000JBKkEAO",
+      "equipment-other": "a5Fbb000000JBKlEAO"
+    },
+    "LLC_BI__Loan__c": {
+      "sr-revolver": "a4Zbb000002J6S3EAK",
+      "sr-growth-term": "a4Zbb000002J6S4EAK",
+      "sr-ddtl": "a4Zbb000002J6S5EAK",
+      "acq-term": "a4Zbb000002J6S6EAK",
+      "acq-earnout": "a4Zbb000002J6S7EAK",
+      "eq-hardware": "a4Zbb000002J6S8EAK",
+      "lc-facility": "a4Zbb000002J6S9EAK"
+    },
+    "LLC_BI__Legal_Entities__c": {
+      "srv-borrower": "a4Lbb000000PVYTEA4",
+      "srv-sponsor": "a4Lbb000000PVYUEA4",
+      "srv-topco": "a4Lbb000000PVYVEA4",
+      "srv-marsh": "a4Lbb000000PVYWEA4",
+      "srv-ruiz": "a4Lbb000000PVYXEA4",
+      "sgt-borrower": "a4Lbb000000PVYYEA4",
+      "sgt-sponsor": "a4Lbb000000PVYZEA4",
+      "sgt-topco": "a4Lbb000000PVYaEAO",
+      "sgt-marsh": "a4Lbb000000PVYbEAO",
+      "ddt-borrower": "a4Lbb000000PVYcEAO",
+      "ddt-sponsor": "a4Lbb000000PVYdEAO",
+      "ddt-topco": "a4Lbb000000PVYeEAO",
+      "acq-borrower": "a4Lbb000000PVYfEAO",
+      "acq-sponsor": "a4Lbb000000PVYgEAO",
+      "acq-topco": "a4Lbb000000PVYhEAO",
+      "acq-marsh": "a4Lbb000000PVYiEAO",
+      "ern-borrower": "a4Lbb000000PVYjEAO",
+      "ern-sponsor": "a4Lbb000000PVYkEAO",
+      "ern-topco": "a4Lbb000000PVYlEAO",
+      "eqh-borrower": "a4Lbb000000PVYmEAO",
+      "eqh-sponsor": "a4Lbb000000PVYnEAO",
+      "eqh-ruiz": "a4Lbb000000PVYoEAO",
+      "lcf-borrower": "a4Lbb000000PVYpEAO",
+      "lcf-sponsor": "a4Lbb000000PVYqEAO",
+      "lcf-marsh": "a4Lbb000000PVYrEAO"
+    },
+    "LLC_BI__Pricing_Stream__c": {
+      "sr-revolver": "a50bb00000v5WEXAA2",
+      "sr-growth-term": "a50bb00000v5WEYAA2",
+      "sr-ddtl": "a50bb00000v5WEZAA2",
+      "acq-term": "a50bb00000v5WEaAAM",
+      "acq-earnout": "a50bb00000v5WEbAAM",
+      "eq-hardware": "a50bb00000v5WEcAAM",
+      "lc-facility": "a50bb00000v5WEdAAM"
+    },
+    "LLC_BI__Pricing_Rate_Component__c": {
+      "sr-revolver": "a4zbb000002Ty1FAAS",
+      "sr-growth-term": "a4zbb000002Ty1GAAS",
+      "sr-ddtl": "a4zbb000002Ty1HAAS",
+      "acq-term": "a4zbb000002Ty1IAAS",
+      "acq-earnout": "a4zbb000002Ty1JAAS",
+      "eq-hardware": "a4zbb000002Ty1KAAS",
+      "lc-facility": "a4zbb000002Ty1LAAS"
+    },
+    "LLC_BI__Pricing_Payment_Component__c": {
+      "sr-revolver": "a4ybb000002jMJNAA2",
+      "sr-growth-term": "a4ybb000002jMJOAA2",
+      "sr-ddtl": "a4ybb000002jMJPAA2",
+      "acq-term": "a4ybb000002jMJQAA2",
+      "acq-earnout": "a4ybb000002jMJRAA2",
+      "eq-hardware": "a4ybb000002jMJSAA2",
+      "lc-facility": "a4ybb000002jMJTAA2"
+    },
+    "LLC_BI__Fee__c": {
+      "srv-orig": "a45bb000001mV2XAAU",
+      "srv-unused": "a45bb000001mV2YAAU",
+      "srv-agency": "a45bb000001mV2ZAAU",
+      "sgt-orig": "a45bb000001mV2aAAE",
+      "ddt-orig": "a45bb000001mV2bAAE",
+      "acq-orig": "a45bb000001mV2cAAE",
+      "ern-arrange": "a45bb000001mV2dAAE",
+      "eqh-orig": "a45bb000001mV2eAAE",
+      "lcf-fee": "a45bb000001mV7NAAU"
+    },
+    "LLC_BI__Collateral__c": {
+      "intellectual-property": "a35bb0000019qwUAAQ",
+      "topco-equity": "a35bb0000019qwVAAQ",
+      "datacentre-hardware": "a35bb0000019qwWAAQ",
+      "cascade-receivables": "a35bb0000019qwTAAQ"
+    },
+    "LLC_BI__Account_Collateral__c": {
+      "intellectual-property#0": "a2Vbb000001cDJzEAM",
+      "topco-equity#0": "a2Vbb000001cDK0EAM",
+      "topco-equity#1": "a2Vbb000001cDK1EAM",
+      "datacentre-hardware#0": "a2Vbb000001cDK2EAM",
+      "cascade-receivables#0": "a2Vbb000001cDTVEA2"
+    },
+    "LLC_BI__Collateral_Valuation__c": {
+      "ar-2026-07": "a34bb000003IN4TAAW",
+      "ar-2025-11": "a34bb000003IN4UAAW",
+      "ip-2025-10": "a34bb000003IN4VAAW",
+      "ip-2025-10-olv": "a34bb000003IN4WAAW",
+      "eq-2026-06": "a34bb000003IN4XAAW",
+      "eq-2025-11": "a34bb000003IN4YAAW",
+      "dch-2026-06": "a34bb000003IN4ZAAW"
+    },
+    "LLC_BI__Loan_Collateral2__c": {
+      "srv-ar": "a4Rbb0000027b89EAA",
+      "sgt-ip": "a4Rbb0000027b8AEAQ",
+      "ddt-ip": "a4Rbb0000027b8BEAQ",
+      "acq-equity": "a4Rbb0000027b8CEAQ",
+      "ern-equity": "a4Rbb0000027b8DEAQ",
+      "eqh-hardware": "a4Rbb0000027b8EEAQ",
+      "lcf-ar": "a4Rbb0000027b8FEAQ"
+    },
+    "LLC_BI__Covenant2__c": {
+      "arr": "a3Bbb000000Tb5pEAC",
+      "liquidity": "a3Bbb000000Tb5qEAC",
+      "net-leverage": "a3Bbb000000Tb5rEAC",
+      "retention": "a3Bbb000000Tb5sEAC"
+    },
+    "LLC_BI__Account_Covenant__c": {
+      "arr": "a2Wbb00000CWjkfEAD",
+      "liquidity": "a2Wbb00000CWjkgEAD",
+      "net-leverage": "a2Wbb00000CWjkhEAD",
+      "retention": "a2Wbb00000CWjkiEAD"
+    },
+    "LLC_BI__Loan_Covenant__c": {
+      "arr@sr-revolver": "a4Vbb000000qpb7EAA",
+      "arr@sr-growth-term": "a4Vbb000000qpb8EAA",
+      "arr@sr-ddtl": "a4Vbb000000qpb9EAA",
+      "liquidity@sr-revolver": "a4Vbb000000qpbAEAQ",
+      "net-leverage@sr-growth-term": "a4Vbb000000qpbBEAQ",
+      "net-leverage@sr-ddtl": "a4Vbb000000qpbCEAQ",
+      "net-leverage@acq-term": "a4Vbb000000qpbDEAQ",
+      "retention@sr-revolver": "a4Vbb000000qpbEEAQ",
+      "retention@sr-growth-term": "a4Vbb000000qpbFEAQ"
+    },
+    "LLC_BI__Review__c": {
+      "annual-2026": "a5nbb00000nBAnsAAG"
+    },
+    "LLC_BI__Annual_Review__c": {
+      "rating-2026": "a2bbb000006E8iDAAS"
+    },
+    "Opportunity": {
+      "opp-treasury": "006bb00000yJ5shAAC"
+    },
+    "Case": {
+      "case-cure": "500bb00000v7FCoAAM"
+    },
+    "LLC_BI__Policy_Exception__c": {
+      "pex-leverage": "a4rbb000003PEinAAG"
+    }
+  },
+  "derived": {
+    "LLC_BI__Connection__c": [
+      "a38bb000001ac4iAAA",
+      "a38bb000001ac4jAAA",
+      "a38bb000001ac4kAAA",
+      "a38bb000001ac4lAAA",
+      "a38bb000001ac4mAAA",
+      "a38bb000001ac4nAAA"
+    ],
+    "LLC_BI__Loan_Detail__c": [
+      "a4Wbb000001MDSiEAO",
+      "a4Wbb000001MDSfEAO",
+      "a4Wbb000001MDSlEAO",
+      "a4Wbb000001MDSgEAO",
+      "a4Wbb000001MDSkEAO",
+      "a4Wbb000001MDSjEAO",
+      "a4Wbb000001MDShEAO"
+    ],
+    "LLC_BI__Loan_Collateral_Aggregate__c": [
+      "a4Sbb00000GQnALEA1",
+      "a4Sbb00000GQnAMEA1",
+      "a4Sbb00000GQnANEA1",
+      "a4Sbb00000GQnAOEA1",
+      "a4Sbb00000GQnAPEA1",
+      "a4Sbb00000GQnAQEA1",
+      "a4Sbb00000GQnAREA1"
+    ]
+  },
+  "errors": [
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "lcf-fee",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Fee Type Description: data value too large: Annual letter of credit fee, 1.75 percent per annum on the face amount of each issued letter of credit, payable annually in advance. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no letter of credit entry. [C360-SEED-2026-09] (max length=255)",
+          "fields": [
+            "LLC_BI__Fee_Type_Description__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:56:45+00:00"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "receivables#0",
+      "errors": [
+        {
+          "statusCode": "DUPLICATE_VALUE",
+          "message": "duplicate value found: LLC_BI__lookupKey__c duplicates value on record with id: a2Vbb000001cAXGEA2",
+          "fields": []
+        }
+      ],
+      "at": "2026-09-08T11:56:47+00:00"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-leverage",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Mitigation Reason 1: data value too large: Net leverage came in at 3.70x against the 3.50x level that took effect for the quarter ending 30 June 2026, a miss of 0.20x, caused by the April 2026 acquisition drawing before the acquired book contributed a full quarter of EBITDA. (max length=100)",
+          "fields": [
+            "LLC_BI__Mitigation_Reason_1__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:56:56+00:00"
+    }
+  ],
+  "updatedAt": "2026-09-08T11:58:53+00:00"
+}

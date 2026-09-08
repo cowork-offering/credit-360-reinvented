@@ -1,0 +1,1066 @@
+{
+  "slug": "lakeshore",
+  "tag": "C360-SEED-2026-09",
+  "relationship": "Lakeshore Dental Supply Distributors Inc",
+  "account": "001bb00001LcIAeAAN",
+  "createdAt": "2026-09-08T11:59:00+00:00",
+  "order": [
+    {
+      "object": "Account",
+      "key": "lakeshore-dental",
+      "id": "001bb00001LcIAeAAN"
+    },
+    {
+      "object": "Account",
+      "key": "lakeshore-esop-trust",
+      "id": "001bb00001LcIAfAAN"
+    },
+    {
+      "object": "Account",
+      "key": "robert-lindqvist",
+      "id": "001bb00001LcIAgAAN"
+    },
+    {
+      "object": "Account",
+      "key": "marie-lindqvist",
+      "id": "001bb00001LcIAhAAN"
+    },
+    {
+      "object": "Account",
+      "key": "lakeshore-logistics",
+      "id": "001bb00001LcIAiAAN"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "esop-owns-borrower",
+      "id": "a38bb000001ac9RAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "robert-owns-borrower",
+      "id": "a38bb000001ac9SAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "marie-owns-borrower",
+      "id": "a38bb000001ac9TAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "robert-owns-logistics",
+      "id": "a38bb000001ac9UAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "marie-owns-logistics",
+      "id": "a38bb000001ac9VAAQ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "borrower-logistics",
+      "id": "a38bb000001ac9WAAQ"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "abl",
+      "id": "a5Fbb000000JBPZEA4"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "real-estate",
+      "id": "a5Fbb000000JBPaEAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "growth",
+      "id": "a5Fbb000000JBPbEAO"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "abl-revolver",
+      "id": "a4Zbb000002J6erEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "esop-term",
+      "id": "a4Zbb000002J6esEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "abl-equipment",
+      "id": "a4Zbb000002J6etEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "dc-mortgage",
+      "id": "a4Zbb000002J6euEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "dc-improvement",
+      "id": "a4Zbb000002J6evEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "branch-term",
+      "id": "a4Zbb000002J6ewEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "fleet-term",
+      "id": "a4Zbb000002J6exEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "racking-equipment",
+      "id": "a4Zbb000002J6eyEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "standby-lc",
+      "id": "a4Zbb000002J6ezEAC"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "abr-borrower",
+      "id": "a4Lbb000000PVgXEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "abr-robert",
+      "id": "a4Lbb000000PVgYEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "abr-marie",
+      "id": "a4Lbb000000PVgZEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "abr-logistics",
+      "id": "a4Lbb000000PVgaEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "esp-borrower",
+      "id": "a4Lbb000000PVgbEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "esp-trust",
+      "id": "a4Lbb000000PVgcEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "esp-robert",
+      "id": "a4Lbb000000PVgdEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "esp-marie",
+      "id": "a4Lbb000000PVgeEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "abe-borrower",
+      "id": "a4Lbb000000PVgfEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "abe-robert",
+      "id": "a4Lbb000000PVggEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "abe-marie",
+      "id": "a4Lbb000000PVghEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dcm-borrower",
+      "id": "a4Lbb000000PVgiEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dcm-operating",
+      "id": "a4Lbb000000PVgjEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dcm-robert",
+      "id": "a4Lbb000000PVgkEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dcm-marie",
+      "id": "a4Lbb000000PVglEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dci-borrower",
+      "id": "a4Lbb000000PVgmEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dci-operating",
+      "id": "a4Lbb000000PVgnEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dci-robert",
+      "id": "a4Lbb000000PVgoEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dci-marie",
+      "id": "a4Lbb000000PVgpEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "brt-borrower",
+      "id": "a4Lbb000000PVgqEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "brt-robert",
+      "id": "a4Lbb000000PVgrEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "brt-marie",
+      "id": "a4Lbb000000PVgsEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "flt-borrower",
+      "id": "a4Lbb000000PVgtEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "flt-robert",
+      "id": "a4Lbb000000PVguEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "flt-marie",
+      "id": "a4Lbb000000PVgvEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rck-borrower",
+      "id": "a4Lbb000000PVgwEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rck-logistics",
+      "id": "a4Lbb000000PVgxEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rck-robert",
+      "id": "a4Lbb000000PVgyEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rck-marie",
+      "id": "a4Lbb000000PVgzEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "slc-borrower",
+      "id": "a4Lbb000000PVh0EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "slc-robert",
+      "id": "a4Lbb000000PVh1EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "slc-marie",
+      "id": "a4Lbb000000PVh2EAG"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "abl-revolver",
+      "id": "a50bb00000v5WT3AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "esop-term",
+      "id": "a50bb00000v5WT4AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "abl-equipment",
+      "id": "a50bb00000v5WT5AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "dc-mortgage",
+      "id": "a50bb00000v5WT6AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "dc-improvement",
+      "id": "a50bb00000v5WT7AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "branch-term",
+      "id": "a50bb00000v5WT8AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "fleet-term",
+      "id": "a50bb00000v5WT9AAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "racking-equipment",
+      "id": "a50bb00000v5WTAAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "standby-lc",
+      "id": "a50bb00000v5WTBAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "abl-revolver",
+      "id": "a4zbb000002Ty65AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "esop-term",
+      "id": "a4zbb000002Ty66AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "abl-equipment",
+      "id": "a4zbb000002Ty67AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "dc-mortgage",
+      "id": "a4zbb000002Ty68AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "dc-improvement",
+      "id": "a4zbb000002Ty69AAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "branch-term",
+      "id": "a4zbb000002Ty6AAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "fleet-term",
+      "id": "a4zbb000002Ty6BAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "racking-equipment",
+      "id": "a4zbb000002Ty6CAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "standby-lc",
+      "id": "a4zbb000002Ty6DAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "abl-revolver",
+      "id": "a4ybb000002jMPpAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "esop-term",
+      "id": "a4ybb000002jMPqAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "abl-equipment",
+      "id": "a4ybb000002jMPrAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "dc-mortgage",
+      "id": "a4ybb000002jMPsAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "dc-improvement",
+      "id": "a4ybb000002jMPtAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "branch-term",
+      "id": "a4ybb000002jMPuAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "fleet-term",
+      "id": "a4ybb000002jMPvAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "racking-equipment",
+      "id": "a4ybb000002jMPwAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "standby-lc",
+      "id": "a4ybb000002jMPxAAM"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "abr-orig",
+      "id": "a45bb000001mV8zAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "abr-monitoring",
+      "id": "a45bb000001mV90AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "esp-orig",
+      "id": "a45bb000001mV91AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "esp-attorney",
+      "id": "a45bb000001mV92AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "abe-orig",
+      "id": "a45bb000001mV93AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "dcm-orig",
+      "id": "a45bb000001mV94AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "dcm-appraisal",
+      "id": "a45bb000001mV95AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "dcm-title",
+      "id": "a45bb000001mV96AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "dci-orig",
+      "id": "a45bb000001mV97AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "brt-orig",
+      "id": "a45bb000001mV98AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "flt-orig",
+      "id": "a45bb000001mV99AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "flt-dmv",
+      "id": "a45bb000001mV9AAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rck-orig",
+      "id": "a45bb000001mV9BAAU"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "slc-issuance",
+      "id": "a45bb000001mV9CAAU"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "receivables",
+      "id": "a35bb0000019r2vAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "inventory",
+      "id": "a35bb0000019r2wAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "equipment",
+      "id": "a35bb0000019r2xAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "distribution-centre",
+      "id": "a35bb0000019r2yAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "vehicles",
+      "id": "a35bb0000019r2zAAA"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "equipment#0",
+      "id": "a2Vbb000001cDWvEAM"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "distribution-centre#0",
+      "id": "a2Vbb000001cDWwEAM"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "distribution-centre#1",
+      "id": "a2Vbb000001cDWxEAM"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "vehicles#0",
+      "id": "a2Vbb000001cDWyEAM"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-2026-07",
+      "id": "a34bb000003INAvAAO"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-2025-12",
+      "id": "a34bb000003INAwAAO"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "inv-2026-07",
+      "id": "a34bb000003INAxAAO"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "inv-2026-02",
+      "id": "a34bb000003INAyAAO"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "eq-2026-03",
+      "id": "a34bb000003INAzAAO"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "eq-2026-03-olv",
+      "id": "a34bb000003INB0AAO"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "dc-2026-01",
+      "id": "a34bb000003INB1AAO"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "dc-2024-05",
+      "id": "a34bb000003INB2AAO"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "veh-2026-02",
+      "id": "a34bb000003INB3AAO"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "abr-ar",
+      "id": "a4Rbb0000027bEbEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "abr-inv",
+      "id": "a4Rbb0000027bEcEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "esp-ar2",
+      "id": "a4Rbb0000027bEdEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "abe-equip",
+      "id": "a4Rbb0000027bEeEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "dcm-property",
+      "id": "a4Rbb0000027bEfEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "dci-property2",
+      "id": "a4Rbb0000027bEgEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "brt-inv2",
+      "id": "a4Rbb0000027bEhEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "flt-vehicles",
+      "id": "a4Rbb0000027bEiEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "rck-equip2",
+      "id": "a4Rbb0000027bEjEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "slc-inv3",
+      "id": "a4Rbb0000027bEkEAI"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "fixed-charge",
+      "id": "a3Bbb000000TbAfEAK"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "availability",
+      "id": "a3Bbb000000TbAgEAK"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "springing-dsc",
+      "id": "a3Bbb000000TbAhEAK"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "field-exam",
+      "id": "a3Bbb000000TbAiEAK"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "fixed-charge",
+      "id": "a2Wbb00000CWjMUEA1"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "availability",
+      "id": "a2Wbb00000CWjMVEA1"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "springing-dsc",
+      "id": "a2Wbb00000CWjMWEA1"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "field-exam",
+      "id": "a2Wbb00000CWjMXEA1"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "fixed-charge@abl-revolver",
+      "id": "a4Vbb000000qphZEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "fixed-charge@esop-term",
+      "id": "a4Vbb000000qphaEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "fixed-charge@branch-term",
+      "id": "a4Vbb000000qphbEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "availability@abl-revolver",
+      "id": "a4Vbb000000qphcEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "springing-dsc@abl-revolver",
+      "id": "a4Vbb000000qphdEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "springing-dsc@esop-term",
+      "id": "a4Vbb000000qpheEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "field-exam@abl-revolver",
+      "id": "a4Vbb000000qphfEAA"
+    },
+    {
+      "object": "LLC_BI__Review__c",
+      "key": "annual-2026",
+      "id": "a5nbb00000nAb2AAAS"
+    },
+    {
+      "object": "LLC_BI__Review__c",
+      "key": "covenant-h1-2026",
+      "id": "a5nbb00000nAb2BAAS"
+    },
+    {
+      "object": "LLC_BI__Annual_Review__c",
+      "key": "rg-2026",
+      "id": "a2bbb000006E8rtAAC"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-treasury",
+      "id": "006bb00000yIeZEAA0"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-kenosha",
+      "id": "006bb00000yIeZFAA0"
+    },
+    {
+      "object": "Case",
+      "key": "case-field-exam",
+      "id": "500bb00000v7QD4AAM"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "abr-unused",
+      "id": "a45bb000001mVAbAAM"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "inventory#1",
+      "id": "a2Vbb000001cDbhEAE"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-availability",
+      "id": "a4rbb000003PEm1AAG"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-field-exam",
+      "id": "a4rbb000003PEm2AAG"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "receivables#2",
+      "id": "a2Vbb000001cDdJEAU"
+    }
+  ],
+  "records": {
+    "Account": {
+      "lakeshore-dental": "001bb00001LcIAeAAN",
+      "lakeshore-esop-trust": "001bb00001LcIAfAAN",
+      "robert-lindqvist": "001bb00001LcIAgAAN",
+      "marie-lindqvist": "001bb00001LcIAhAAN",
+      "lakeshore-logistics": "001bb00001LcIAiAAN"
+    },
+    "LLC_BI__Connection__c": {
+      "esop-owns-borrower": "a38bb000001ac9RAAQ",
+      "robert-owns-borrower": "a38bb000001ac9SAAQ",
+      "marie-owns-borrower": "a38bb000001ac9TAAQ",
+      "robert-owns-logistics": "a38bb000001ac9UAAQ",
+      "marie-owns-logistics": "a38bb000001ac9VAAQ",
+      "borrower-logistics": "a38bb000001ac9WAAQ"
+    },
+    "LLC_BI__Product_Package__c": {
+      "abl": "a5Fbb000000JBPZEA4",
+      "real-estate": "a5Fbb000000JBPaEAO",
+      "growth": "a5Fbb000000JBPbEAO"
+    },
+    "LLC_BI__Loan__c": {
+      "abl-revolver": "a4Zbb000002J6erEAC",
+      "esop-term": "a4Zbb000002J6esEAC",
+      "abl-equipment": "a4Zbb000002J6etEAC",
+      "dc-mortgage": "a4Zbb000002J6euEAC",
+      "dc-improvement": "a4Zbb000002J6evEAC",
+      "branch-term": "a4Zbb000002J6ewEAC",
+      "fleet-term": "a4Zbb000002J6exEAC",
+      "racking-equipment": "a4Zbb000002J6eyEAC",
+      "standby-lc": "a4Zbb000002J6ezEAC"
+    },
+    "LLC_BI__Legal_Entities__c": {
+      "abr-borrower": "a4Lbb000000PVgXEAW",
+      "abr-robert": "a4Lbb000000PVgYEAW",
+      "abr-marie": "a4Lbb000000PVgZEAW",
+      "abr-logistics": "a4Lbb000000PVgaEAG",
+      "esp-borrower": "a4Lbb000000PVgbEAG",
+      "esp-trust": "a4Lbb000000PVgcEAG",
+      "esp-robert": "a4Lbb000000PVgdEAG",
+      "esp-marie": "a4Lbb000000PVgeEAG",
+      "abe-borrower": "a4Lbb000000PVgfEAG",
+      "abe-robert": "a4Lbb000000PVggEAG",
+      "abe-marie": "a4Lbb000000PVghEAG",
+      "dcm-borrower": "a4Lbb000000PVgiEAG",
+      "dcm-operating": "a4Lbb000000PVgjEAG",
+      "dcm-robert": "a4Lbb000000PVgkEAG",
+      "dcm-marie": "a4Lbb000000PVglEAG",
+      "dci-borrower": "a4Lbb000000PVgmEAG",
+      "dci-operating": "a4Lbb000000PVgnEAG",
+      "dci-robert": "a4Lbb000000PVgoEAG",
+      "dci-marie": "a4Lbb000000PVgpEAG",
+      "brt-borrower": "a4Lbb000000PVgqEAG",
+      "brt-robert": "a4Lbb000000PVgrEAG",
+      "brt-marie": "a4Lbb000000PVgsEAG",
+      "flt-borrower": "a4Lbb000000PVgtEAG",
+      "flt-robert": "a4Lbb000000PVguEAG",
+      "flt-marie": "a4Lbb000000PVgvEAG",
+      "rck-borrower": "a4Lbb000000PVgwEAG",
+      "rck-logistics": "a4Lbb000000PVgxEAG",
+      "rck-robert": "a4Lbb000000PVgyEAG",
+      "rck-marie": "a4Lbb000000PVgzEAG",
+      "slc-borrower": "a4Lbb000000PVh0EAG",
+      "slc-robert": "a4Lbb000000PVh1EAG",
+      "slc-marie": "a4Lbb000000PVh2EAG"
+    },
+    "LLC_BI__Pricing_Stream__c": {
+      "abl-revolver": "a50bb00000v5WT3AAM",
+      "esop-term": "a50bb00000v5WT4AAM",
+      "abl-equipment": "a50bb00000v5WT5AAM",
+      "dc-mortgage": "a50bb00000v5WT6AAM",
+      "dc-improvement": "a50bb00000v5WT7AAM",
+      "branch-term": "a50bb00000v5WT8AAM",
+      "fleet-term": "a50bb00000v5WT9AAM",
+      "racking-equipment": "a50bb00000v5WTAAA2",
+      "standby-lc": "a50bb00000v5WTBAA2"
+    },
+    "LLC_BI__Pricing_Rate_Component__c": {
+      "abl-revolver": "a4zbb000002Ty65AAC",
+      "esop-term": "a4zbb000002Ty66AAC",
+      "abl-equipment": "a4zbb000002Ty67AAC",
+      "dc-mortgage": "a4zbb000002Ty68AAC",
+      "dc-improvement": "a4zbb000002Ty69AAC",
+      "branch-term": "a4zbb000002Ty6AAAS",
+      "fleet-term": "a4zbb000002Ty6BAAS",
+      "racking-equipment": "a4zbb000002Ty6CAAS",
+      "standby-lc": "a4zbb000002Ty6DAAS"
+    },
+    "LLC_BI__Pricing_Payment_Component__c": {
+      "abl-revolver": "a4ybb000002jMPpAAM",
+      "esop-term": "a4ybb000002jMPqAAM",
+      "abl-equipment": "a4ybb000002jMPrAAM",
+      "dc-mortgage": "a4ybb000002jMPsAAM",
+      "dc-improvement": "a4ybb000002jMPtAAM",
+      "branch-term": "a4ybb000002jMPuAAM",
+      "fleet-term": "a4ybb000002jMPvAAM",
+      "racking-equipment": "a4ybb000002jMPwAAM",
+      "standby-lc": "a4ybb000002jMPxAAM"
+    },
+    "LLC_BI__Fee__c": {
+      "abr-orig": "a45bb000001mV8zAAE",
+      "abr-monitoring": "a45bb000001mV90AAE",
+      "esp-orig": "a45bb000001mV91AAE",
+      "esp-attorney": "a45bb000001mV92AAE",
+      "abe-orig": "a45bb000001mV93AAE",
+      "dcm-orig": "a45bb000001mV94AAE",
+      "dcm-appraisal": "a45bb000001mV95AAE",
+      "dcm-title": "a45bb000001mV96AAE",
+      "dci-orig": "a45bb000001mV97AAE",
+      "brt-orig": "a45bb000001mV98AAE",
+      "flt-orig": "a45bb000001mV99AAE",
+      "flt-dmv": "a45bb000001mV9AAAU",
+      "rck-orig": "a45bb000001mV9BAAU",
+      "slc-issuance": "a45bb000001mV9CAAU",
+      "abr-unused": "a45bb000001mVAbAAM"
+    },
+    "LLC_BI__Collateral__c": {
+      "receivables": "a35bb0000019r2vAAA",
+      "inventory": "a35bb0000019r2wAAA",
+      "equipment": "a35bb0000019r2xAAA",
+      "distribution-centre": "a35bb0000019r2yAAA",
+      "vehicles": "a35bb0000019r2zAAA"
+    },
+    "LLC_BI__Account_Collateral__c": {
+      "equipment#0": "a2Vbb000001cDWvEAM",
+      "distribution-centre#0": "a2Vbb000001cDWwEAM",
+      "distribution-centre#1": "a2Vbb000001cDWxEAM",
+      "vehicles#0": "a2Vbb000001cDWyEAM",
+      "inventory#1": "a2Vbb000001cDbhEAE",
+      "receivables#2": "a2Vbb000001cDdJEAU"
+    },
+    "LLC_BI__Collateral_Valuation__c": {
+      "ar-2026-07": "a34bb000003INAvAAO",
+      "ar-2025-12": "a34bb000003INAwAAO",
+      "inv-2026-07": "a34bb000003INAxAAO",
+      "inv-2026-02": "a34bb000003INAyAAO",
+      "eq-2026-03": "a34bb000003INAzAAO",
+      "eq-2026-03-olv": "a34bb000003INB0AAO",
+      "dc-2026-01": "a34bb000003INB1AAO",
+      "dc-2024-05": "a34bb000003INB2AAO",
+      "veh-2026-02": "a34bb000003INB3AAO"
+    },
+    "LLC_BI__Loan_Collateral2__c": {
+      "abr-ar": "a4Rbb0000027bEbEAI",
+      "abr-inv": "a4Rbb0000027bEcEAI",
+      "esp-ar2": "a4Rbb0000027bEdEAI",
+      "abe-equip": "a4Rbb0000027bEeEAI",
+      "dcm-property": "a4Rbb0000027bEfEAI",
+      "dci-property2": "a4Rbb0000027bEgEAI",
+      "brt-inv2": "a4Rbb0000027bEhEAI",
+      "flt-vehicles": "a4Rbb0000027bEiEAI",
+      "rck-equip2": "a4Rbb0000027bEjEAI",
+      "slc-inv3": "a4Rbb0000027bEkEAI"
+    },
+    "LLC_BI__Covenant2__c": {
+      "fixed-charge": "a3Bbb000000TbAfEAK",
+      "availability": "a3Bbb000000TbAgEAK",
+      "springing-dsc": "a3Bbb000000TbAhEAK",
+      "field-exam": "a3Bbb000000TbAiEAK"
+    },
+    "LLC_BI__Account_Covenant__c": {
+      "fixed-charge": "a2Wbb00000CWjMUEA1",
+      "availability": "a2Wbb00000CWjMVEA1",
+      "springing-dsc": "a2Wbb00000CWjMWEA1",
+      "field-exam": "a2Wbb00000CWjMXEA1"
+    },
+    "LLC_BI__Loan_Covenant__c": {
+      "fixed-charge@abl-revolver": "a4Vbb000000qphZEAQ",
+      "fixed-charge@esop-term": "a4Vbb000000qphaEAA",
+      "fixed-charge@branch-term": "a4Vbb000000qphbEAA",
+      "availability@abl-revolver": "a4Vbb000000qphcEAA",
+      "springing-dsc@abl-revolver": "a4Vbb000000qphdEAA",
+      "springing-dsc@esop-term": "a4Vbb000000qpheEAA",
+      "field-exam@abl-revolver": "a4Vbb000000qphfEAA"
+    },
+    "LLC_BI__Review__c": {
+      "annual-2026": "a5nbb00000nAb2AAAS",
+      "covenant-h1-2026": "a5nbb00000nAb2BAAS"
+    },
+    "LLC_BI__Annual_Review__c": {
+      "rg-2026": "a2bbb000006E8rtAAC"
+    },
+    "Opportunity": {
+      "opp-treasury": "006bb00000yIeZEAA0",
+      "opp-kenosha": "006bb00000yIeZFAA0"
+    },
+    "Case": {
+      "case-field-exam": "500bb00000v7QD4AAM"
+    },
+    "LLC_BI__Policy_Exception__c": {
+      "pex-availability": "a4rbb000003PEm1AAG",
+      "pex-field-exam": "a4rbb000003PEm2AAG"
+    }
+  },
+  "derived": {
+    "LLC_BI__Connection__c": [
+      "a38bb000001ac9XAAQ",
+      "a38bb000001ac9YAAQ",
+      "a38bb000001ac9ZAAQ",
+      "a38bb000001ac9aAAA",
+      "a38bb000001ac9bAAA",
+      "a38bb000001ac9cAAA"
+    ],
+    "LLC_BI__Loan_Detail__c": [
+      "a4Wbb000001MDXZEA4",
+      "a4Wbb000001MDXVEA4",
+      "a4Wbb000001MDXXEA4",
+      "a4Wbb000001MDXbEAO",
+      "a4Wbb000001MDXYEA4",
+      "a4Wbb000001MDXWEA4",
+      "a4Wbb000001MDXcEAO",
+      "a4Wbb000001MDXaEAO",
+      "a4Wbb000001MDXdEAO"
+    ],
+    "LLC_BI__Loan_Collateral_Aggregate__c": [
+      "a4Sbb00000GQmj3EAD",
+      "a4Sbb00000GQmj4EAD",
+      "a4Sbb00000GQmj5EAD",
+      "a4Sbb00000GQmj6EAD",
+      "a4Sbb00000GQmj7EAD",
+      "a4Sbb00000GQmj8EAD",
+      "a4Sbb00000GQmj9EAD",
+      "a4Sbb00000GQmjAEAT",
+      "a4Sbb00000GQmjBEAT"
+    ]
+  },
+  "errors": [
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "abr-unused",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Fee Type Description: data value too large: Unused commitment fee, 0.375 percent per annum on the average undrawn balance of the line, billed quarterly in arrears. Booked as Other because the Fee Type picklist in this org is residential and TRID and carries no unused commitment entry. [C360-SEED-2026-09] (max length=255)",
+          "fields": [
+            "LLC_BI__Fee_Type_Description__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:59:21+00:00"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "receivables#0",
+      "errors": [
+        {
+          "statusCode": "DUPLICATE_VALUE",
+          "message": "duplicate value found: LLC_BI__lookupKey__c duplicates value on record with id: a2Vbb000001cAXGEA2",
+          "fields": []
+        }
+      ],
+      "at": "2026-09-08T11:59:23+00:00"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "inventory#0",
+      "errors": [
+        {
+          "statusCode": "DUPLICATE_VALUE",
+          "message": "duplicate value found: LLC_BI__lookupKey__c duplicates value on record with id: a2Vbb000001cAXHEA2",
+          "fields": []
+        }
+      ],
+      "at": "2026-09-08T11:59:23+00:00"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-availability",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Mitigation Reason 1: data value too large: No structural mitigant has been accepted. The exception remains open pending the September and October 2026 borrowing base certificates, which have to show availability above the block through the autumn restocking cycle before credit will close it. (max length=100)",
+          "fields": [
+            "LLC_BI__Mitigation_Reason_1__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:59:34+00:00"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-field-exam",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Mitigation Reason 1: data value too large: Waived by the credit officer on 24 August 2026 to 31 October 2026. The examiner rescheduled twice around the borrower&#39;s physical inventory count and the delay is a bank scheduling failure, not a borrower default. (max length=100)",
+          "fields": [
+            "LLC_BI__Mitigation_Reason_1__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:59:34+00:00"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "receivables#1",
+      "errors": [
+        {
+          "statusCode": "DUPLICATE_VALUE",
+          "message": "duplicate value found: LLC_BI__lookupKey__c duplicates value on record with id: a2Vbb000001cDa1EAE",
+          "fields": []
+        }
+      ],
+      "at": "2026-09-08T12:02:22+00:00"
+    }
+  ],
+  "updatedAt": "2026-09-08T12:27:29+00:00"
+}

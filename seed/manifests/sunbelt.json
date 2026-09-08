@@ -1,0 +1,858 @@
+{
+  "slug": "sunbelt",
+  "tag": "C360-SEED-2026-09",
+  "relationship": "Sunbelt Hospitality Group Inc",
+  "account": "001bb00001Ld0rZAAR",
+  "createdAt": "2026-09-08T11:55:16+00:00",
+  "order": [
+    {
+      "object": "Account",
+      "key": "sunbelt-group",
+      "id": "001bb00001Ld0rZAAR"
+    },
+    {
+      "object": "Account",
+      "key": "lakeside-spe",
+      "id": "001bb00001Ld0raAAB"
+    },
+    {
+      "object": "Account",
+      "key": "airport-spe",
+      "id": "001bb00001Ld0rbAAB"
+    },
+    {
+      "object": "Account",
+      "key": "marcus-delgado",
+      "id": "001bb00001Ld0rcAAB"
+    },
+    {
+      "object": "Account",
+      "key": "halcyon-capital",
+      "id": "001bb00001Ld0rdAAB"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "group-owns-lakeside",
+      "id": "a38bb000001ac2zAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "group-owns-airport",
+      "id": "a38bb000001ac30AAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "delgado-owns-group",
+      "id": "a38bb000001ac31AAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "halcyon-owns-group",
+      "id": "a38bb000001ac32AAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "delgado-lakeside",
+      "id": "a38bb000001ac33AAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "delgado-airport",
+      "id": "a38bb000001ac34AAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "halcyon-lakeside",
+      "id": "a38bb000001ac35AAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "halcyon-airport",
+      "id": "a38bb000001ac36AAA"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "lakeside",
+      "id": "a5Fbb000000JBJ7EAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "airport",
+      "id": "a5Fbb000000JBJ8EAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "corporate",
+      "id": "a5Fbb000000JBJ9EAO"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "lk-mortgage",
+      "id": "a4Zbb000002J6YPEA0"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "lk-pip",
+      "id": "a4Zbb000002J6YQEA0"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "ap-mortgage",
+      "id": "a4Zbb000002J6YREA0"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "ap-ffe",
+      "id": "a4Zbb000002J6YSEA0"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "co-revolver",
+      "id": "a4Zbb000002J6YTEA0"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "co-vehicle",
+      "id": "a4Zbb000002J6YUEA0"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lkm-borrower",
+      "id": "a4Lbb000000PVWrEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lkm-group",
+      "id": "a4Lbb000000PVWsEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lkm-delgado",
+      "id": "a4Lbb000000PVWtEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lkm-halcyon",
+      "id": "a4Lbb000000PVWuEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lkp-borrower",
+      "id": "a4Lbb000000PVWvEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lkp-group",
+      "id": "a4Lbb000000PVWwEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lkp-delgado",
+      "id": "a4Lbb000000PVWxEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "apm-borrower",
+      "id": "a4Lbb000000PVWyEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "apm-group",
+      "id": "a4Lbb000000PVWzEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "apm-delgado",
+      "id": "a4Lbb000000PVX0EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "apm-halcyon",
+      "id": "a4Lbb000000PVX1EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "apf-borrower",
+      "id": "a4Lbb000000PVX2EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "apf-group",
+      "id": "a4Lbb000000PVX3EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "apf-delgado",
+      "id": "a4Lbb000000PVX4EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cor-borrower",
+      "id": "a4Lbb000000PVX5EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cor-delgado",
+      "id": "a4Lbb000000PVX6EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cor-lakeside",
+      "id": "a4Lbb000000PVX7EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cor-airport",
+      "id": "a4Lbb000000PVX8EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cov-borrower",
+      "id": "a4Lbb000000PVX9EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "cov-delgado",
+      "id": "a4Lbb000000PVXAEA4"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "lk-mortgage",
+      "id": "a50bb00000v5O7MAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "lk-pip",
+      "id": "a50bb00000v5O7NAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "ap-mortgage",
+      "id": "a50bb00000v5O7OAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "ap-ffe",
+      "id": "a50bb00000v5O7PAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "co-revolver",
+      "id": "a50bb00000v5O7QAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "co-vehicle",
+      "id": "a50bb00000v5O7RAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "lk-mortgage",
+      "id": "a4zbb000002TxzdAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "lk-pip",
+      "id": "a4zbb000002TxzeAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "ap-mortgage",
+      "id": "a4zbb000002TxzfAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "ap-ffe",
+      "id": "a4zbb000002TxzgAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "co-revolver",
+      "id": "a4zbb000002TxzhAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "co-vehicle",
+      "id": "a4zbb000002TxziAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "lk-mortgage",
+      "id": "a4ybb000002jMHlAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "lk-pip",
+      "id": "a4ybb000002jMHmAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "ap-mortgage",
+      "id": "a4ybb000002jMHnAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "ap-ffe",
+      "id": "a4ybb000002jMHoAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "co-revolver",
+      "id": "a4ybb000002jMHpAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "co-vehicle",
+      "id": "a4ybb000002jMHqAAM"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "lkm-orig",
+      "id": "a45bb000001mV0vAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "lkm-appraisal",
+      "id": "a45bb000001mV0wAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "lkm-title",
+      "id": "a45bb000001mV0xAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "lkp-orig",
+      "id": "a45bb000001mV0yAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "apm-orig",
+      "id": "a45bb000001mV0zAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "apm-appraisal",
+      "id": "a45bb000001mV10AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "apf-orig",
+      "id": "a45bb000001mV11AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "cor-orig",
+      "id": "a45bb000001mV12AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "cor-unused",
+      "id": "a45bb000001mV13AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "cov-orig",
+      "id": "a45bb000001mV14AAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "cov-dmv",
+      "id": "a45bb000001mV15AAE"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "lakeside-hotel",
+      "id": "a35bb0000019qurAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "lakeside-ffe",
+      "id": "a35bb0000019qusAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "airport-hotel",
+      "id": "a35bb0000019qutAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "airport-ffe",
+      "id": "a35bb0000019quuAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "corp-receivables",
+      "id": "a35bb0000019quvAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "corp-vehicles",
+      "id": "a35bb0000019quwAAA"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "lakeside-hotel#0",
+      "id": "a2Vbb000001c62UEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "lakeside-hotel#1",
+      "id": "a2Vbb000001c62VEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "lakeside-ffe#0",
+      "id": "a2Vbb000001c62WEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "airport-hotel#0",
+      "id": "a2Vbb000001c62XEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "airport-hotel#1",
+      "id": "a2Vbb000001c62YEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "airport-ffe#0",
+      "id": "a2Vbb000001c62ZEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "corp-receivables#0",
+      "id": "a2Vbb000001c62aEAA"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "corp-vehicles#0",
+      "id": "a2Vbb000001c62bEAA"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "lk-appr-2024",
+      "id": "a34bb000003IN2rAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "lkffe-2025",
+      "id": "a34bb000003IN2sAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "lkffe-2026",
+      "id": "a34bb000003IN2tAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ap-appr-2023",
+      "id": "a34bb000003IN2uAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ap-appr-2026",
+      "id": "a34bb000003IN2vAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "apffe-2024",
+      "id": "a34bb000003IN2wAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "apffe-2026",
+      "id": "a34bb000003IN2xAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "corp-ar-2026",
+      "id": "a34bb000003IN2yAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "veh-2025",
+      "id": "a34bb000003IN2zAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "veh-2026",
+      "id": "a34bb000003IN30AAG"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "lkm-hotel",
+      "id": "a4Rbb0000027b6XEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "lkp-ffe",
+      "id": "a4Rbb0000027b6YEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "apm-hotel",
+      "id": "a4Rbb0000027b6ZEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "apf-ffe",
+      "id": "a4Rbb0000027b6aEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "cor-receivables",
+      "id": "a4Rbb0000027b6bEAA"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "cov-fleet",
+      "id": "a4Rbb0000027b6cEAA"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "dscr",
+      "id": "a3Bbb000000Tb4DEAS"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "ltv",
+      "id": "a3Bbb000000Tb4EEAS"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "debt-yield",
+      "id": "a3Bbb000000Tb4FEAS"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "revpar",
+      "id": "a3Bbb000000Tb4GEAS"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "dscr",
+      "id": "a2Wbb00000CWjfpEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "ltv",
+      "id": "a2Wbb00000CWjfqEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "debt-yield",
+      "id": "a2Wbb00000CWjfrEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "revpar",
+      "id": "a2Wbb00000CWjfsEAD"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dscr@lk-mortgage",
+      "id": "a4Vbb000000qpZVEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dscr@ap-mortgage",
+      "id": "a4Vbb000000qpZWEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dscr@co-revolver",
+      "id": "a4Vbb000000qpZXEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "ltv@lk-mortgage",
+      "id": "a4Vbb000000qpZYEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "ltv@ap-mortgage",
+      "id": "a4Vbb000000qpZZEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "debt-yield@lk-mortgage",
+      "id": "a4Vbb000000qpZaEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "debt-yield@ap-mortgage",
+      "id": "a4Vbb000000qpZbEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "revpar@lk-mortgage",
+      "id": "a4Vbb000000qpZcEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "revpar@ap-mortgage",
+      "id": "a4Vbb000000qpZdEAI"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "revpar@lk-pip",
+      "id": "a4Vbb000000qpZeEAI"
+    },
+    {
+      "object": "LLC_BI__Review__c",
+      "key": "annual-2026",
+      "id": "a5nbb00000nB0NFAA0"
+    },
+    {
+      "object": "LLC_BI__Annual_Review__c",
+      "key": "rg-2026",
+      "id": "a2bbb000006E8blAAC"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-third-hotel",
+      "id": "006bb00000yJTOkAAO"
+    },
+    {
+      "object": "Case",
+      "key": "case-comfort-letter",
+      "id": "500bb00000v7ZMnAAM"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "lk-reappr-2026",
+      "id": "a34bb000003IN65AAG"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-ltv",
+      "id": "a4rbb000003PEdxAAG"
+    }
+  ],
+  "records": {
+    "Account": {
+      "sunbelt-group": "001bb00001Ld0rZAAR",
+      "lakeside-spe": "001bb00001Ld0raAAB",
+      "airport-spe": "001bb00001Ld0rbAAB",
+      "marcus-delgado": "001bb00001Ld0rcAAB",
+      "halcyon-capital": "001bb00001Ld0rdAAB"
+    },
+    "LLC_BI__Connection__c": {
+      "group-owns-lakeside": "a38bb000001ac2zAAA",
+      "group-owns-airport": "a38bb000001ac30AAA",
+      "delgado-owns-group": "a38bb000001ac31AAA",
+      "halcyon-owns-group": "a38bb000001ac32AAA",
+      "delgado-lakeside": "a38bb000001ac33AAA",
+      "delgado-airport": "a38bb000001ac34AAA",
+      "halcyon-lakeside": "a38bb000001ac35AAA",
+      "halcyon-airport": "a38bb000001ac36AAA"
+    },
+    "LLC_BI__Product_Package__c": {
+      "lakeside": "a5Fbb000000JBJ7EAO",
+      "airport": "a5Fbb000000JBJ8EAO",
+      "corporate": "a5Fbb000000JBJ9EAO"
+    },
+    "LLC_BI__Loan__c": {
+      "lk-mortgage": "a4Zbb000002J6YPEA0",
+      "lk-pip": "a4Zbb000002J6YQEA0",
+      "ap-mortgage": "a4Zbb000002J6YREA0",
+      "ap-ffe": "a4Zbb000002J6YSEA0",
+      "co-revolver": "a4Zbb000002J6YTEA0",
+      "co-vehicle": "a4Zbb000002J6YUEA0"
+    },
+    "LLC_BI__Legal_Entities__c": {
+      "lkm-borrower": "a4Lbb000000PVWrEAO",
+      "lkm-group": "a4Lbb000000PVWsEAO",
+      "lkm-delgado": "a4Lbb000000PVWtEAO",
+      "lkm-halcyon": "a4Lbb000000PVWuEAO",
+      "lkp-borrower": "a4Lbb000000PVWvEAO",
+      "lkp-group": "a4Lbb000000PVWwEAO",
+      "lkp-delgado": "a4Lbb000000PVWxEAO",
+      "apm-borrower": "a4Lbb000000PVWyEAO",
+      "apm-group": "a4Lbb000000PVWzEAO",
+      "apm-delgado": "a4Lbb000000PVX0EAO",
+      "apm-halcyon": "a4Lbb000000PVX1EAO",
+      "apf-borrower": "a4Lbb000000PVX2EAO",
+      "apf-group": "a4Lbb000000PVX3EAO",
+      "apf-delgado": "a4Lbb000000PVX4EAO",
+      "cor-borrower": "a4Lbb000000PVX5EAO",
+      "cor-delgado": "a4Lbb000000PVX6EAO",
+      "cor-lakeside": "a4Lbb000000PVX7EAO",
+      "cor-airport": "a4Lbb000000PVX8EAO",
+      "cov-borrower": "a4Lbb000000PVX9EAO",
+      "cov-delgado": "a4Lbb000000PVXAEA4"
+    },
+    "LLC_BI__Pricing_Stream__c": {
+      "lk-mortgage": "a50bb00000v5O7MAAU",
+      "lk-pip": "a50bb00000v5O7NAAU",
+      "ap-mortgage": "a50bb00000v5O7OAAU",
+      "ap-ffe": "a50bb00000v5O7PAAU",
+      "co-revolver": "a50bb00000v5O7QAAU",
+      "co-vehicle": "a50bb00000v5O7RAAU"
+    },
+    "LLC_BI__Pricing_Rate_Component__c": {
+      "lk-mortgage": "a4zbb000002TxzdAAC",
+      "lk-pip": "a4zbb000002TxzeAAC",
+      "ap-mortgage": "a4zbb000002TxzfAAC",
+      "ap-ffe": "a4zbb000002TxzgAAC",
+      "co-revolver": "a4zbb000002TxzhAAC",
+      "co-vehicle": "a4zbb000002TxziAAC"
+    },
+    "LLC_BI__Pricing_Payment_Component__c": {
+      "lk-mortgage": "a4ybb000002jMHlAAM",
+      "lk-pip": "a4ybb000002jMHmAAM",
+      "ap-mortgage": "a4ybb000002jMHnAAM",
+      "ap-ffe": "a4ybb000002jMHoAAM",
+      "co-revolver": "a4ybb000002jMHpAAM",
+      "co-vehicle": "a4ybb000002jMHqAAM"
+    },
+    "LLC_BI__Fee__c": {
+      "lkm-orig": "a45bb000001mV0vAAE",
+      "lkm-appraisal": "a45bb000001mV0wAAE",
+      "lkm-title": "a45bb000001mV0xAAE",
+      "lkp-orig": "a45bb000001mV0yAAE",
+      "apm-orig": "a45bb000001mV0zAAE",
+      "apm-appraisal": "a45bb000001mV10AAE",
+      "apf-orig": "a45bb000001mV11AAE",
+      "cor-orig": "a45bb000001mV12AAE",
+      "cor-unused": "a45bb000001mV13AAE",
+      "cov-orig": "a45bb000001mV14AAE",
+      "cov-dmv": "a45bb000001mV15AAE"
+    },
+    "LLC_BI__Collateral__c": {
+      "lakeside-hotel": "a35bb0000019qurAAA",
+      "lakeside-ffe": "a35bb0000019qusAAA",
+      "airport-hotel": "a35bb0000019qutAAA",
+      "airport-ffe": "a35bb0000019quuAAA",
+      "corp-receivables": "a35bb0000019quvAAA",
+      "corp-vehicles": "a35bb0000019quwAAA"
+    },
+    "LLC_BI__Account_Collateral__c": {
+      "lakeside-hotel#0": "a2Vbb000001c62UEAQ",
+      "lakeside-hotel#1": "a2Vbb000001c62VEAQ",
+      "lakeside-ffe#0": "a2Vbb000001c62WEAQ",
+      "airport-hotel#0": "a2Vbb000001c62XEAQ",
+      "airport-hotel#1": "a2Vbb000001c62YEAQ",
+      "airport-ffe#0": "a2Vbb000001c62ZEAQ",
+      "corp-receivables#0": "a2Vbb000001c62aEAA",
+      "corp-vehicles#0": "a2Vbb000001c62bEAA"
+    },
+    "LLC_BI__Collateral_Valuation__c": {
+      "lk-appr-2024": "a34bb000003IN2rAAG",
+      "lkffe-2025": "a34bb000003IN2sAAG",
+      "lkffe-2026": "a34bb000003IN2tAAG",
+      "ap-appr-2023": "a34bb000003IN2uAAG",
+      "ap-appr-2026": "a34bb000003IN2vAAG",
+      "apffe-2024": "a34bb000003IN2wAAG",
+      "apffe-2026": "a34bb000003IN2xAAG",
+      "corp-ar-2026": "a34bb000003IN2yAAG",
+      "veh-2025": "a34bb000003IN2zAAG",
+      "veh-2026": "a34bb000003IN30AAG",
+      "lk-reappr-2026": "a34bb000003IN65AAG"
+    },
+    "LLC_BI__Loan_Collateral2__c": {
+      "lkm-hotel": "a4Rbb0000027b6XEAQ",
+      "lkp-ffe": "a4Rbb0000027b6YEAQ",
+      "apm-hotel": "a4Rbb0000027b6ZEAQ",
+      "apf-ffe": "a4Rbb0000027b6aEAA",
+      "cor-receivables": "a4Rbb0000027b6bEAA",
+      "cov-fleet": "a4Rbb0000027b6cEAA"
+    },
+    "LLC_BI__Covenant2__c": {
+      "dscr": "a3Bbb000000Tb4DEAS",
+      "ltv": "a3Bbb000000Tb4EEAS",
+      "debt-yield": "a3Bbb000000Tb4FEAS",
+      "revpar": "a3Bbb000000Tb4GEAS"
+    },
+    "LLC_BI__Account_Covenant__c": {
+      "dscr": "a2Wbb00000CWjfpEAD",
+      "ltv": "a2Wbb00000CWjfqEAD",
+      "debt-yield": "a2Wbb00000CWjfrEAD",
+      "revpar": "a2Wbb00000CWjfsEAD"
+    },
+    "LLC_BI__Loan_Covenant__c": {
+      "dscr@lk-mortgage": "a4Vbb000000qpZVEAY",
+      "dscr@ap-mortgage": "a4Vbb000000qpZWEAY",
+      "dscr@co-revolver": "a4Vbb000000qpZXEAY",
+      "ltv@lk-mortgage": "a4Vbb000000qpZYEAY",
+      "ltv@ap-mortgage": "a4Vbb000000qpZZEAY",
+      "debt-yield@lk-mortgage": "a4Vbb000000qpZaEAI",
+      "debt-yield@ap-mortgage": "a4Vbb000000qpZbEAI",
+      "revpar@lk-mortgage": "a4Vbb000000qpZcEAI",
+      "revpar@ap-mortgage": "a4Vbb000000qpZdEAI",
+      "revpar@lk-pip": "a4Vbb000000qpZeEAI"
+    },
+    "LLC_BI__Review__c": {
+      "annual-2026": "a5nbb00000nB0NFAA0"
+    },
+    "LLC_BI__Annual_Review__c": {
+      "rg-2026": "a2bbb000006E8blAAC"
+    },
+    "Opportunity": {
+      "opp-third-hotel": "006bb00000yJTOkAAO"
+    },
+    "Case": {
+      "case-comfort-letter": "500bb00000v7ZMnAAM"
+    },
+    "LLC_BI__Policy_Exception__c": {
+      "pex-ltv": "a4rbb000003PEdxAAG"
+    }
+  },
+  "derived": {
+    "LLC_BI__Connection__c": [
+      "a38bb000001ac37AAA",
+      "a38bb000001ac38AAA",
+      "a38bb000001ac39AAA",
+      "a38bb000001ac3AAAQ"
+    ],
+    "LLC_BI__Loan_Detail__c": [
+      "a4Wbb000001MDR4EAO",
+      "a4Wbb000001MDR6EAO",
+      "a4Wbb000001MDR8EAO",
+      "a4Wbb000001MDR3EAO",
+      "a4Wbb000001MDR7EAO",
+      "a4Wbb000001MDR5EAO"
+    ],
+    "LLC_BI__Loan_Collateral_Aggregate__c": [
+      "a4Sbb00000GQn5VEAT",
+      "a4Sbb00000GQn5WEAT",
+      "a4Sbb00000GQn5XEAT",
+      "a4Sbb00000GQn5YEAT",
+      "a4Sbb00000GQn5ZEAT",
+      "a4Sbb00000GQn5aEAD"
+    ]
+  },
+  "errors": [
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "lk-reappr-2026",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Valuation Description: data value too large: August 2026 lender-ordered update. Value reduced to $23.5MM on capitalisation rate expansion to 8.50 percent and softer transient demand in the Orlando resort submarket. This is the reappraisal that puts the loan to value covenant into breach at 72.1 percent. (max length=255)",
+          "fields": [
+            "LLC_BI__Valuation_Description__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:56:07+00:00"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-ltv",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Mitigation Reason 1: data value too large: NOT MITIGATED. The 14 August 2026 update appraisal values the Lakeside resort at $23.5MM against $26.0MM at origination, putting the $16.94MM first mortgage balance at 72.1 percent loan to value against the 70 percent policy and covenant maximum. (max length=100)",
+          "fields": [
+            "LLC_BI__Mitigation_Reason_1__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:56:15+00:00"
+    }
+  ],
+  "updatedAt": "2026-09-08T11:57:29+00:00"
+}

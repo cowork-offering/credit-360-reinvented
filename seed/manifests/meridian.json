@@ -1,0 +1,1030 @@
+{
+  "slug": "meridian",
+  "tag": "C360-SEED-2026-09",
+  "relationship": "Meridian Coastal Logistics LLC",
+  "account": "001bb00001Ld0ZqAAJ",
+  "createdAt": "2026-09-08T11:52:43+00:00",
+  "order": [
+    {
+      "object": "Account",
+      "key": "meridian-holdings",
+      "id": "001bb00001Ld0ZpAAJ"
+    },
+    {
+      "object": "Account",
+      "key": "meridian-logistics",
+      "id": "001bb00001Ld0ZqAAJ"
+    },
+    {
+      "object": "Account",
+      "key": "coastal-freight-properties",
+      "id": "001bb00001Ld0ZrAAJ"
+    },
+    {
+      "object": "Account",
+      "key": "daniel-okafor",
+      "id": "001bb00001Ld0ZsAAJ"
+    },
+    {
+      "object": "Account",
+      "key": "priya-raman",
+      "id": "001bb00001Ld0ZtAAJ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "holdings-owns-borrower",
+      "id": "a38bb000001abzlAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "holdings-owns-properties",
+      "id": "a38bb000001abzmAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "okafor-owns-holdings",
+      "id": "a38bb000001abznAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "raman-owns-holdings",
+      "id": "a38bb000001abzoAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "okafor-borrower",
+      "id": "a38bb000001abzpAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "raman-borrower",
+      "id": "a38bb000001abzqAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "borrower-properties",
+      "id": "a38bb000001abzrAAA"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "working-capital",
+      "id": "a5Fbb000000JBFtEAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "real-estate",
+      "id": "a5Fbb000000JBFuEAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "fleet",
+      "id": "a5Fbb000000JBFvEAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "distribution-centre",
+      "id": "a5Fbb000000JBFwEAO"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "wc-revolver",
+      "id": "a4Zbb000002J5ywEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "wc-tractors",
+      "id": "a4Zbb000002J5yxEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "wc-trailers",
+      "id": "a4Zbb000002J5yyEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "wc-acquisition",
+      "id": "a4Zbb000002J5yzEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "re-warehouse",
+      "id": "a4Zbb000002J5z0EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "re-crossdock",
+      "id": "a4Zbb000002J5z1EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "fl-tranche-1",
+      "id": "a4Zbb000002J5z2EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "fl-tranche-2",
+      "id": "a4Zbb000002J5z3EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "fl-tranche-3",
+      "id": "a4Zbb000002J5z4EAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "dc-term",
+      "id": "a4Zbb000002J5z5EAC"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wcr-borrower",
+      "id": "a4Lbb000000PVTdEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wcr-holdings",
+      "id": "a4Lbb000000PVTeEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wcr-okafor",
+      "id": "a4Lbb000000PVTfEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wcr-raman",
+      "id": "a4Lbb000000PVTgEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wct-borrower",
+      "id": "a4Lbb000000PVThEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wct-okafor",
+      "id": "a4Lbb000000PVTiEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wct-raman",
+      "id": "a4Lbb000000PVTjEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wcl-borrower",
+      "id": "a4Lbb000000PVTkEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wcl-okafor",
+      "id": "a4Lbb000000PVTlEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wca-borrower",
+      "id": "a4Lbb000000PVTmEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wca-holdings",
+      "id": "a4Lbb000000PVTnEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wca-okafor",
+      "id": "a4Lbb000000PVToEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "wca-raman",
+      "id": "a4Lbb000000PVTpEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rew-borrower",
+      "id": "a4Lbb000000PVTqEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rew-operating",
+      "id": "a4Lbb000000PVTrEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rew-holdings",
+      "id": "a4Lbb000000PVTsEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rew-okafor",
+      "id": "a4Lbb000000PVTtEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rew-raman",
+      "id": "a4Lbb000000PVTuEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rec-borrower",
+      "id": "a4Lbb000000PVTvEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rec-operating",
+      "id": "a4Lbb000000PVTwEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rec-okafor",
+      "id": "a4Lbb000000PVTxEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "fl1-borrower",
+      "id": "a4Lbb000000PVTyEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "fl1-okafor",
+      "id": "a4Lbb000000PVTzEAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "fl2-borrower",
+      "id": "a4Lbb000000PVU0EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "fl2-okafor",
+      "id": "a4Lbb000000PVU1EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "fl3-borrower",
+      "id": "a4Lbb000000PVU2EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "fl3-holdings",
+      "id": "a4Lbb000000PVU3EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dc-borrower",
+      "id": "a4Lbb000000PVU4EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dc-holdings",
+      "id": "a4Lbb000000PVU5EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dc-okafor",
+      "id": "a4Lbb000000PVU6EAO"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dc-raman",
+      "id": "a4Lbb000000PVU7EAO"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "wc-revolver",
+      "id": "a50bb00000v5I8NAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "wc-tractors",
+      "id": "a50bb00000v5I8OAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "wc-trailers",
+      "id": "a50bb00000v5I8PAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "wc-acquisition",
+      "id": "a50bb00000v5I8QAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "re-warehouse",
+      "id": "a50bb00000v5I8RAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "re-crossdock",
+      "id": "a50bb00000v5I8SAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "fl-tranche-1",
+      "id": "a50bb00000v5I8TAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "fl-tranche-2",
+      "id": "a50bb00000v5I8UAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "fl-tranche-3",
+      "id": "a50bb00000v5I8VAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "dc-term",
+      "id": "a50bb00000v5I8WAAU"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "wc-revolver",
+      "id": "a4zbb000002TxunAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "wc-tractors",
+      "id": "a4zbb000002TxuoAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "wc-trailers",
+      "id": "a4zbb000002TxupAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "wc-acquisition",
+      "id": "a4zbb000002TxuqAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "re-warehouse",
+      "id": "a4zbb000002TxurAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "re-crossdock",
+      "id": "a4zbb000002TxusAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "fl-tranche-1",
+      "id": "a4zbb000002TxutAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "fl-tranche-2",
+      "id": "a4zbb000002TxuuAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "fl-tranche-3",
+      "id": "a4zbb000002TxuvAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "dc-term",
+      "id": "a4zbb000002TxuwAAC"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "wc-revolver",
+      "id": "a4ybb000002jMEXAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "wc-tractors",
+      "id": "a4ybb000002jMEYAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "wc-trailers",
+      "id": "a4ybb000002jMEZAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "wc-acquisition",
+      "id": "a4ybb000002jMEaAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "re-warehouse",
+      "id": "a4ybb000002jMEbAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "re-crossdock",
+      "id": "a4ybb000002jMEcAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "fl-tranche-1",
+      "id": "a4ybb000002jMEdAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "fl-tranche-2",
+      "id": "a4ybb000002jMEeAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "fl-tranche-3",
+      "id": "a4ybb000002jMEfAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "dc-term",
+      "id": "a4ybb000002jMEgAAM"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "wcr-orig",
+      "id": "a45bb000001mUxhAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "wcr-unused",
+      "id": "a45bb000001mUxiAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "wcr-annual",
+      "id": "a45bb000001mUxjAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "wct-orig",
+      "id": "a45bb000001mUxkAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "wcl-orig",
+      "id": "a45bb000001mUxlAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "wca-orig",
+      "id": "a45bb000001mUxmAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "wca-legal",
+      "id": "a45bb000001mUxnAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rew-appraisal",
+      "id": "a45bb000001mUxoAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rew-title",
+      "id": "a45bb000001mUxpAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rew-orig",
+      "id": "a45bb000001mUxqAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rec-orig",
+      "id": "a45bb000001mUxrAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "fl1-orig",
+      "id": "a45bb000001mUxsAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "fl2-orig",
+      "id": "a45bb000001mUxtAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "fl3-orig",
+      "id": "a45bb000001mUxuAAE"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "receivables",
+      "id": "a35bb0000019qrdAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "inventory",
+      "id": "a35bb0000019qreAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "tractors",
+      "id": "a35bb0000019qrfAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "trailers",
+      "id": "a35bb0000019qrgAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "warehouse",
+      "id": "a35bb0000019qrhAAA"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "crossdock",
+      "id": "a35bb0000019qriAAA"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "receivables#0",
+      "id": "a2Vbb000001cAXGEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "inventory#0",
+      "id": "a2Vbb000001cAXHEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "tractors#0",
+      "id": "a2Vbb000001cAXIEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "trailers#0",
+      "id": "a2Vbb000001cAXJEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "warehouse#0",
+      "id": "a2Vbb000001cAXKEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "warehouse#1",
+      "id": "a2Vbb000001cAXLEA2"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "crossdock#0",
+      "id": "a2Vbb000001cAXMEA2"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-2026-07",
+      "id": "a34bb000003IMzdAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-2025-12",
+      "id": "a34bb000003IMzeAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "inv-2026-07",
+      "id": "a34bb000003IMzfAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "trac-2026-05",
+      "id": "a34bb000003IMzgAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "trac-2026-05-olv",
+      "id": "a34bb000003IMzhAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "trail-2026-05",
+      "id": "a34bb000003IMziAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "wh-2026-01",
+      "id": "a34bb000003IMzjAAG"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "cd-2026-01",
+      "id": "a34bb000003IMzkAAG"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "wcr-ar",
+      "id": "a4Rbb0000027b3JEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "wcr-inv",
+      "id": "a4Rbb0000027b3KEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "wct-tractors",
+      "id": "a4Rbb0000027b3LEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "wcl-trailers",
+      "id": "a4Rbb0000027b3MEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "wca-ar",
+      "id": "a4Rbb0000027b3NEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "rew-warehouse",
+      "id": "a4Rbb0000027b3OEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "rec-crossdock",
+      "id": "a4Rbb0000027b3PEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "fl1-tractors",
+      "id": "a4Rbb0000027b3QEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "fl2-trailers",
+      "id": "a4Rbb0000027b3REAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "fl3-trailers",
+      "id": "a4Rbb0000027b3SEAQ"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "dsc",
+      "id": "a3Bbb000000Tb0zEAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "leverage",
+      "id": "a3Bbb000000Tb10EAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "borrowing-base",
+      "id": "a3Bbb000000Tb11EAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "liquidity",
+      "id": "a3Bbb000000Tb12EAC"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "dsc",
+      "id": "a2Wbb00000CWjO5EAL"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "leverage",
+      "id": "a2Wbb00000CWjO6EAL"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "borrowing-base",
+      "id": "a2Wbb00000CWjO7EAL"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "liquidity",
+      "id": "a2Wbb00000CWjO8EAL"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dsc@wc-revolver",
+      "id": "a4Vbb000000qpRREAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "dsc@wc-acquisition",
+      "id": "a4Vbb000000qpRSEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "borrowing-base@wc-revolver",
+      "id": "a4Vbb000000qpRTEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "liquidity@wc-revolver",
+      "id": "a4Vbb000000qpRUEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "liquidity@wc-acquisition",
+      "id": "a4Vbb000000qpRVEAY"
+    },
+    {
+      "object": "LLC_BI__Review__c",
+      "key": "annual-2026",
+      "id": "a5nbb00000nBFE3AAO"
+    },
+    {
+      "object": "LLC_BI__Annual_Review__c",
+      "key": "rg-2026",
+      "id": "a2bbb000006E8GnAAK"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-treasury",
+      "id": "006bb00000yJ1UCAA0"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-jax",
+      "id": "006bb00000yJ1UDAA0"
+    },
+    {
+      "object": "Case",
+      "key": "case-bbc",
+      "id": "500bb00000v7TSgAAM"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-dsc",
+      "id": "a4rbb000003PEcLAAW"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-adv",
+      "id": "a4rbb000003PEcMAAW"
+    }
+  ],
+  "records": {
+    "Account": {
+      "meridian-holdings": "001bb00001Ld0ZpAAJ",
+      "meridian-logistics": "001bb00001Ld0ZqAAJ",
+      "coastal-freight-properties": "001bb00001Ld0ZrAAJ",
+      "daniel-okafor": "001bb00001Ld0ZsAAJ",
+      "priya-raman": "001bb00001Ld0ZtAAJ"
+    },
+    "LLC_BI__Connection__c": {
+      "holdings-owns-borrower": "a38bb000001abzlAAA",
+      "holdings-owns-properties": "a38bb000001abzmAAA",
+      "okafor-owns-holdings": "a38bb000001abznAAA",
+      "raman-owns-holdings": "a38bb000001abzoAAA",
+      "okafor-borrower": "a38bb000001abzpAAA",
+      "raman-borrower": "a38bb000001abzqAAA",
+      "borrower-properties": "a38bb000001abzrAAA"
+    },
+    "LLC_BI__Product_Package__c": {
+      "working-capital": "a5Fbb000000JBFtEAO",
+      "real-estate": "a5Fbb000000JBFuEAO",
+      "fleet": "a5Fbb000000JBFvEAO",
+      "distribution-centre": "a5Fbb000000JBFwEAO"
+    },
+    "LLC_BI__Loan__c": {
+      "wc-revolver": "a4Zbb000002J5ywEAC",
+      "wc-tractors": "a4Zbb000002J5yxEAC",
+      "wc-trailers": "a4Zbb000002J5yyEAC",
+      "wc-acquisition": "a4Zbb000002J5yzEAC",
+      "re-warehouse": "a4Zbb000002J5z0EAC",
+      "re-crossdock": "a4Zbb000002J5z1EAC",
+      "fl-tranche-1": "a4Zbb000002J5z2EAC",
+      "fl-tranche-2": "a4Zbb000002J5z3EAC",
+      "fl-tranche-3": "a4Zbb000002J5z4EAC",
+      "dc-term": "a4Zbb000002J5z5EAC"
+    },
+    "LLC_BI__Legal_Entities__c": {
+      "wcr-borrower": "a4Lbb000000PVTdEAO",
+      "wcr-holdings": "a4Lbb000000PVTeEAO",
+      "wcr-okafor": "a4Lbb000000PVTfEAO",
+      "wcr-raman": "a4Lbb000000PVTgEAO",
+      "wct-borrower": "a4Lbb000000PVThEAO",
+      "wct-okafor": "a4Lbb000000PVTiEAO",
+      "wct-raman": "a4Lbb000000PVTjEAO",
+      "wcl-borrower": "a4Lbb000000PVTkEAO",
+      "wcl-okafor": "a4Lbb000000PVTlEAO",
+      "wca-borrower": "a4Lbb000000PVTmEAO",
+      "wca-holdings": "a4Lbb000000PVTnEAO",
+      "wca-okafor": "a4Lbb000000PVToEAO",
+      "wca-raman": "a4Lbb000000PVTpEAO",
+      "rew-borrower": "a4Lbb000000PVTqEAO",
+      "rew-operating": "a4Lbb000000PVTrEAO",
+      "rew-holdings": "a4Lbb000000PVTsEAO",
+      "rew-okafor": "a4Lbb000000PVTtEAO",
+      "rew-raman": "a4Lbb000000PVTuEAO",
+      "rec-borrower": "a4Lbb000000PVTvEAO",
+      "rec-operating": "a4Lbb000000PVTwEAO",
+      "rec-okafor": "a4Lbb000000PVTxEAO",
+      "fl1-borrower": "a4Lbb000000PVTyEAO",
+      "fl1-okafor": "a4Lbb000000PVTzEAO",
+      "fl2-borrower": "a4Lbb000000PVU0EAO",
+      "fl2-okafor": "a4Lbb000000PVU1EAO",
+      "fl3-borrower": "a4Lbb000000PVU2EAO",
+      "fl3-holdings": "a4Lbb000000PVU3EAO",
+      "dc-borrower": "a4Lbb000000PVU4EAO",
+      "dc-holdings": "a4Lbb000000PVU5EAO",
+      "dc-okafor": "a4Lbb000000PVU6EAO",
+      "dc-raman": "a4Lbb000000PVU7EAO"
+    },
+    "LLC_BI__Pricing_Stream__c": {
+      "wc-revolver": "a50bb00000v5I8NAAU",
+      "wc-tractors": "a50bb00000v5I8OAAU",
+      "wc-trailers": "a50bb00000v5I8PAAU",
+      "wc-acquisition": "a50bb00000v5I8QAAU",
+      "re-warehouse": "a50bb00000v5I8RAAU",
+      "re-crossdock": "a50bb00000v5I8SAAU",
+      "fl-tranche-1": "a50bb00000v5I8TAAU",
+      "fl-tranche-2": "a50bb00000v5I8UAAU",
+      "fl-tranche-3": "a50bb00000v5I8VAAU",
+      "dc-term": "a50bb00000v5I8WAAU"
+    },
+    "LLC_BI__Pricing_Rate_Component__c": {
+      "wc-revolver": "a4zbb000002TxunAAC",
+      "wc-tractors": "a4zbb000002TxuoAAC",
+      "wc-trailers": "a4zbb000002TxupAAC",
+      "wc-acquisition": "a4zbb000002TxuqAAC",
+      "re-warehouse": "a4zbb000002TxurAAC",
+      "re-crossdock": "a4zbb000002TxusAAC",
+      "fl-tranche-1": "a4zbb000002TxutAAC",
+      "fl-tranche-2": "a4zbb000002TxuuAAC",
+      "fl-tranche-3": "a4zbb000002TxuvAAC",
+      "dc-term": "a4zbb000002TxuwAAC"
+    },
+    "LLC_BI__Pricing_Payment_Component__c": {
+      "wc-revolver": "a4ybb000002jMEXAA2",
+      "wc-tractors": "a4ybb000002jMEYAA2",
+      "wc-trailers": "a4ybb000002jMEZAA2",
+      "wc-acquisition": "a4ybb000002jMEaAAM",
+      "re-warehouse": "a4ybb000002jMEbAAM",
+      "re-crossdock": "a4ybb000002jMEcAAM",
+      "fl-tranche-1": "a4ybb000002jMEdAAM",
+      "fl-tranche-2": "a4ybb000002jMEeAAM",
+      "fl-tranche-3": "a4ybb000002jMEfAAM",
+      "dc-term": "a4ybb000002jMEgAAM"
+    },
+    "LLC_BI__Fee__c": {
+      "wcr-orig": "a45bb000001mUxhAAE",
+      "wcr-unused": "a45bb000001mUxiAAE",
+      "wcr-annual": "a45bb000001mUxjAAE",
+      "wct-orig": "a45bb000001mUxkAAE",
+      "wcl-orig": "a45bb000001mUxlAAE",
+      "wca-orig": "a45bb000001mUxmAAE",
+      "wca-legal": "a45bb000001mUxnAAE",
+      "rew-appraisal": "a45bb000001mUxoAAE",
+      "rew-title": "a45bb000001mUxpAAE",
+      "rew-orig": "a45bb000001mUxqAAE",
+      "rec-orig": "a45bb000001mUxrAAE",
+      "fl1-orig": "a45bb000001mUxsAAE",
+      "fl2-orig": "a45bb000001mUxtAAE",
+      "fl3-orig": "a45bb000001mUxuAAE"
+    },
+    "LLC_BI__Collateral__c": {
+      "receivables": "a35bb0000019qrdAAA",
+      "inventory": "a35bb0000019qreAAA",
+      "tractors": "a35bb0000019qrfAAA",
+      "trailers": "a35bb0000019qrgAAA",
+      "warehouse": "a35bb0000019qrhAAA",
+      "crossdock": "a35bb0000019qriAAA"
+    },
+    "LLC_BI__Account_Collateral__c": {
+      "receivables#0": "a2Vbb000001cAXGEA2",
+      "inventory#0": "a2Vbb000001cAXHEA2",
+      "tractors#0": "a2Vbb000001cAXIEA2",
+      "trailers#0": "a2Vbb000001cAXJEA2",
+      "warehouse#0": "a2Vbb000001cAXKEA2",
+      "warehouse#1": "a2Vbb000001cAXLEA2",
+      "crossdock#0": "a2Vbb000001cAXMEA2"
+    },
+    "LLC_BI__Collateral_Valuation__c": {
+      "ar-2026-07": "a34bb000003IMzdAAG",
+      "ar-2025-12": "a34bb000003IMzeAAG",
+      "inv-2026-07": "a34bb000003IMzfAAG",
+      "trac-2026-05": "a34bb000003IMzgAAG",
+      "trac-2026-05-olv": "a34bb000003IMzhAAG",
+      "trail-2026-05": "a34bb000003IMziAAG",
+      "wh-2026-01": "a34bb000003IMzjAAG",
+      "cd-2026-01": "a34bb000003IMzkAAG"
+    },
+    "LLC_BI__Loan_Collateral2__c": {
+      "wcr-ar": "a4Rbb0000027b3JEAQ",
+      "wcr-inv": "a4Rbb0000027b3KEAQ",
+      "wct-tractors": "a4Rbb0000027b3LEAQ",
+      "wcl-trailers": "a4Rbb0000027b3MEAQ",
+      "wca-ar": "a4Rbb0000027b3NEAQ",
+      "rew-warehouse": "a4Rbb0000027b3OEAQ",
+      "rec-crossdock": "a4Rbb0000027b3PEAQ",
+      "fl1-tractors": "a4Rbb0000027b3QEAQ",
+      "fl2-trailers": "a4Rbb0000027b3REAQ",
+      "fl3-trailers": "a4Rbb0000027b3SEAQ"
+    },
+    "LLC_BI__Covenant2__c": {
+      "dsc": "a3Bbb000000Tb0zEAC",
+      "leverage": "a3Bbb000000Tb10EAC",
+      "borrowing-base": "a3Bbb000000Tb11EAC",
+      "liquidity": "a3Bbb000000Tb12EAC"
+    },
+    "LLC_BI__Account_Covenant__c": {
+      "dsc": "a2Wbb00000CWjO5EAL",
+      "leverage": "a2Wbb00000CWjO6EAL",
+      "borrowing-base": "a2Wbb00000CWjO7EAL",
+      "liquidity": "a2Wbb00000CWjO8EAL"
+    },
+    "LLC_BI__Loan_Covenant__c": {
+      "dsc@wc-revolver": "a4Vbb000000qpRREAY",
+      "dsc@wc-acquisition": "a4Vbb000000qpRSEAY",
+      "borrowing-base@wc-revolver": "a4Vbb000000qpRTEAY",
+      "liquidity@wc-revolver": "a4Vbb000000qpRUEAY",
+      "liquidity@wc-acquisition": "a4Vbb000000qpRVEAY"
+    },
+    "LLC_BI__Review__c": {
+      "annual-2026": "a5nbb00000nBFE3AAO"
+    },
+    "LLC_BI__Annual_Review__c": {
+      "rg-2026": "a2bbb000006E8GnAAK"
+    },
+    "Opportunity": {
+      "opp-treasury": "006bb00000yJ1UCAA0",
+      "opp-jax": "006bb00000yJ1UDAA0"
+    },
+    "Case": {
+      "case-bbc": "500bb00000v7TSgAAM"
+    },
+    "LLC_BI__Policy_Exception__c": {
+      "pex-dsc": "a4rbb000003PEcLAAW",
+      "pex-adv": "a4rbb000003PEcMAAW"
+    }
+  },
+  "derived": {
+    "LLC_BI__Connection__c": [
+      "a38bb000001abzsAAA",
+      "a38bb000001abztAAA",
+      "a38bb000001abzuAAA",
+      "a38bb000001abzvAAA",
+      "a38bb000001abzwAAA",
+      "a38bb000001abzxAAA",
+      "a38bb000001abzyAAA"
+    ],
+    "LLC_BI__Loan_Detail__c": [
+      "a4Wbb000001MDNtEAO",
+      "a4Wbb000001MDNxEAO",
+      "a4Wbb000001MDNsEAO",
+      "a4Wbb000001MDNrEAO",
+      "a4Wbb000001MDNuEAO",
+      "a4Wbb000001MDNpEAO",
+      "a4Wbb000001MDNvEAO",
+      "a4Wbb000001MDNyEAO",
+      "a4Wbb000001MDNqEAO",
+      "a4Wbb000001MDNwEAO"
+    ],
+    "LLC_BI__Loan_Collateral_Aggregate__c": [
+      "a4Sbb00000GQmhJEAT",
+      "a4Sbb00000GQmhKEAT",
+      "a4Sbb00000GQmhLEAT",
+      "a4Sbb00000GQmhMEAT",
+      "a4Sbb00000GQmhNEAT",
+      "a4Sbb00000GQmhOEAT",
+      "a4Sbb00000GQmhPEAT",
+      "a4Sbb00000GQmhQEAT",
+      "a4Sbb00000GQmhREAT"
+    ]
+  },
+  "errors": [
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-dsc",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Mitigation Reason 1: data value too large: Fuel surcharge recovery lagged the April 2026 diesel spike by one billing cycle. The July operating results have the surcharge fully caught up and the trailing twelve month ratio back above 1.25x on management figures. (max length=100)",
+          "fields": [
+            "LLC_BI__Mitigation_Reason_1__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:53:16+00:00"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-adv",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Mitigation Reason 1: data value too large: The acquisition loan is underwritten to cash flow, not to the borrowing base; the second lien is taken for control rather than for coverage. (max length=100)",
+          "fields": [
+            "LLC_BI__Mitigation_Reason_1__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:53:16+00:00"
+    }
+  ],
+  "updatedAt": "2026-09-08T11:53:43+00:00"
+}

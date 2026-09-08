@@ -1,0 +1,981 @@
+{
+  "slug": "prairie-ag",
+  "tag": "C360-SEED-2026-09",
+  "relationship": "Prairie Ag Holdings LP",
+  "account": "001bb00001Ld1HNAAZ",
+  "createdAt": "2026-09-08T11:57:24+00:00",
+  "order": [
+    {
+      "object": "Account",
+      "key": "prairie-ag-holdings",
+      "id": "001bb00001Ld1HNAAZ"
+    },
+    {
+      "object": "Account",
+      "key": "prairie-ag-gp",
+      "id": "001bb00001Ld1HOAAZ"
+    },
+    {
+      "object": "Account",
+      "key": "ellsworth-trust",
+      "id": "001bb00001Ld1HPAAZ"
+    },
+    {
+      "object": "Account",
+      "key": "karl-ellsworth",
+      "id": "001bb00001Ld1HQAAZ"
+    },
+    {
+      "object": "Account",
+      "key": "anna-ellsworth",
+      "id": "001bb00001Ld1HRAAZ"
+    },
+    {
+      "object": "Account",
+      "key": "prairie-grain-storage",
+      "id": "001bb00001Ld1HSAAZ"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "gp-owns-lp",
+      "id": "a38bb000001ac7pAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "trust-owns-lp",
+      "id": "a38bb000001ac7qAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "karl-owns-lp",
+      "id": "a38bb000001ac7rAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "anna-owns-lp",
+      "id": "a38bb000001ac7sAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "karl-owns-gp",
+      "id": "a38bb000001ac7tAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "anna-owns-gp",
+      "id": "a38bb000001ac7uAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "karl-trustee",
+      "id": "a38bb000001ac7vAAA"
+    },
+    {
+      "object": "LLC_BI__Connection__c",
+      "key": "lp-owns-storage",
+      "id": "a38bb000001ac7wAAA"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "operating",
+      "id": "a5Fbb000000JBNxEAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "land",
+      "id": "a5Fbb000000JBNyEAO"
+    },
+    {
+      "object": "LLC_BI__Product_Package__c",
+      "key": "storage",
+      "id": "a5Fbb000000JBNzEAO"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "op-revolver",
+      "id": "a4Zbb000002J6bdEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "op-combine",
+      "id": "a4Zbb000002J6beEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "op-planter",
+      "id": "a4Zbb000002J6bfEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "land-story",
+      "id": "a4Zbb000002J6bgEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "land-boone",
+      "id": "a4Zbb000002J6bhEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "storage-elevator",
+      "id": "a4Zbb000002J6biEAC"
+    },
+    {
+      "object": "LLC_BI__Loan__c",
+      "key": "storage-dryer",
+      "id": "a4Zbb000002J6bjEAC"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rev-borrower",
+      "id": "a4Lbb000000PVevEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rev-gp",
+      "id": "a4Lbb000000PVewEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rev-karl",
+      "id": "a4Lbb000000PVexEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rev-anna",
+      "id": "a4Lbb000000PVeyEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "rev-trust",
+      "id": "a4Lbb000000PVezEAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "com-borrower",
+      "id": "a4Lbb000000PVf0EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "com-karl",
+      "id": "a4Lbb000000PVf1EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "com-anna",
+      "id": "a4Lbb000000PVf2EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pla-borrower",
+      "id": "a4Lbb000000PVf3EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pla-karl",
+      "id": "a4Lbb000000PVf4EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "pla-anna",
+      "id": "a4Lbb000000PVf5EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ls-borrower",
+      "id": "a4Lbb000000PVf6EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ls-gp",
+      "id": "a4Lbb000000PVf7EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ls-karl",
+      "id": "a4Lbb000000PVf8EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "ls-anna",
+      "id": "a4Lbb000000PVf9EAG"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lb-borrower",
+      "id": "a4Lbb000000PVfAEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lb-gp",
+      "id": "a4Lbb000000PVfBEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lb-karl",
+      "id": "a4Lbb000000PVfCEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "lb-anna",
+      "id": "a4Lbb000000PVfDEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "el-borrower",
+      "id": "a4Lbb000000PVfEEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "el-parent",
+      "id": "a4Lbb000000PVfFEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "el-karl",
+      "id": "a4Lbb000000PVfGEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "el-anna",
+      "id": "a4Lbb000000PVfHEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dry-borrower",
+      "id": "a4Lbb000000PVfIEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dry-parent",
+      "id": "a4Lbb000000PVfJEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dry-karl",
+      "id": "a4Lbb000000PVfKEAW"
+    },
+    {
+      "object": "LLC_BI__Legal_Entities__c",
+      "key": "dry-anna",
+      "id": "a4Lbb000000PVfLEAW"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "op-revolver",
+      "id": "a50bb00000v5WJNAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "op-combine",
+      "id": "a50bb00000v5WJOAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "op-planter",
+      "id": "a50bb00000v5WJPAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "land-story",
+      "id": "a50bb00000v5WJQAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "land-boone",
+      "id": "a50bb00000v5WJRAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "storage-elevator",
+      "id": "a50bb00000v5WJSAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Stream__c",
+      "key": "storage-dryer",
+      "id": "a50bb00000v5WJTAA2"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "op-revolver",
+      "id": "a4zbb000002Ty4TAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "op-combine",
+      "id": "a4zbb000002Ty4UAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "op-planter",
+      "id": "a4zbb000002Ty4VAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "land-story",
+      "id": "a4zbb000002Ty4WAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "land-boone",
+      "id": "a4zbb000002Ty4XAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "storage-elevator",
+      "id": "a4zbb000002Ty4YAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Rate_Component__c",
+      "key": "storage-dryer",
+      "id": "a4zbb000002Ty4ZAAS"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "op-revolver",
+      "id": "a4ybb000002jMMbAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "op-combine",
+      "id": "a4ybb000002jMMcAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "op-planter",
+      "id": "a4ybb000002jMMdAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "land-story",
+      "id": "a4ybb000002jMMeAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "land-boone",
+      "id": "a4ybb000002jMMfAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "storage-elevator",
+      "id": "a4ybb000002jMMgAAM"
+    },
+    {
+      "object": "LLC_BI__Pricing_Payment_Component__c",
+      "key": "storage-dryer",
+      "id": "a4ybb000002jMMhAAM"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rev-orig",
+      "id": "a45bb000001mV5lAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rev-unused",
+      "id": "a45bb000001mV5mAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "rev-fieldexam",
+      "id": "a45bb000001mV5nAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "com-orig",
+      "id": "a45bb000001mV5oAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "com-ucc",
+      "id": "a45bb000001mV5pAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "pla-orig",
+      "id": "a45bb000001mV5qAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ls-orig",
+      "id": "a45bb000001mV5rAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ls-appraisal",
+      "id": "a45bb000001mV5sAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "ls-title",
+      "id": "a45bb000001mV5tAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "lb-orig",
+      "id": "a45bb000001mV5uAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "lb-appraisal",
+      "id": "a45bb000001mV5vAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "el-orig",
+      "id": "a45bb000001mV5wAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "el-appraisal",
+      "id": "a45bb000001mV5xAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "el-survey",
+      "id": "a45bb000001mV5yAAE"
+    },
+    {
+      "object": "LLC_BI__Fee__c",
+      "key": "dry-orig",
+      "id": "a45bb000001mV5zAAE"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "crops",
+      "id": "a35bb0000019r1JAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "grain-inventory",
+      "id": "a35bb0000019r1KAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "receivables",
+      "id": "a35bb0000019r1LAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "farm-equipment",
+      "id": "a35bb0000019r1MAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "farmland-story",
+      "id": "a35bb0000019r1NAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "farmland-boone",
+      "id": "a35bb0000019r1OAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "elevator",
+      "id": "a35bb0000019r1PAAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral__c",
+      "key": "dryer",
+      "id": "a35bb0000019r1QAAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "crops#0",
+      "id": "a2Vbb000001c78FEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "grain-inventory#0",
+      "id": "a2Vbb000001c78GEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "farm-equipment#0",
+      "id": "a2Vbb000001c78HEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "farmland-story#0",
+      "id": "a2Vbb000001c78IEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "farmland-boone#0",
+      "id": "a2Vbb000001c78JEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "elevator#0",
+      "id": "a2Vbb000001c78KEAQ"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "dryer#0",
+      "id": "a2Vbb000001c78LEAQ"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "crops-2026-07",
+      "id": "a34bb000003IN9JAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "crops-2025-08",
+      "id": "a34bb000003IN9KAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "grain-2026-07",
+      "id": "a34bb000003IN9LAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "ar-2026-07",
+      "id": "a34bb000003IN9MAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "equip-2026-04",
+      "id": "a34bb000003IN9NAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "equip-2025-04",
+      "id": "a34bb000003IN9OAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "land-story-2026",
+      "id": "a34bb000003IN9PAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "land-story-2022",
+      "id": "a34bb000003IN9QAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "land-boone-2026",
+      "id": "a34bb000003IN9RAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "land-boone-2024",
+      "id": "a34bb000003IN9SAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "elevator-2026",
+      "id": "a34bb000003IN9TAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "elevator-2023",
+      "id": "a34bb000003IN9UAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "dryer-2026",
+      "id": "a34bb000003IN9VAAW"
+    },
+    {
+      "object": "LLC_BI__Collateral_Valuation__c",
+      "key": "dryer-2024",
+      "id": "a34bb000003IN9WAAW"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "rev-crops",
+      "id": "a4Rbb0000027bBNEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "rev-grain",
+      "id": "a4Rbb0000027bBOEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "rev-ar",
+      "id": "a4Rbb0000027bBPEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "com-equip",
+      "id": "a4Rbb0000027bBQEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "pla-equip",
+      "id": "a4Rbb0000027bBREAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "ls-farmland",
+      "id": "a4Rbb0000027bBSEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "lb-farmland",
+      "id": "a4Rbb0000027bBTEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "el-elevator",
+      "id": "a4Rbb0000027bBUEAY"
+    },
+    {
+      "object": "LLC_BI__Loan_Collateral2__c",
+      "key": "dry-equip",
+      "id": "a4Rbb0000027bBVEAY"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "working-capital",
+      "id": "a3Bbb000000Tb93EAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "current-ratio",
+      "id": "a3Bbb000000Tb94EAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "leverage",
+      "id": "a3Bbb000000Tb95EAC"
+    },
+    {
+      "object": "LLC_BI__Covenant2__c",
+      "key": "crop-insurance",
+      "id": "a3Bbb000000Tb96EAC"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "working-capital",
+      "id": "a2Wbb00000CWjvxEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "current-ratio",
+      "id": "a2Wbb00000CWjvyEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "leverage",
+      "id": "a2Wbb00000CWjvzEAD"
+    },
+    {
+      "object": "LLC_BI__Account_Covenant__c",
+      "key": "crop-insurance",
+      "id": "a2Wbb00000CWjw0EAD"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "working-capital@op-revolver",
+      "id": "a4Vbb000000qpeLEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "current-ratio@op-revolver",
+      "id": "a4Vbb000000qpeMEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "current-ratio@land-story",
+      "id": "a4Vbb000000qpeNEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "leverage@land-story",
+      "id": "a4Vbb000000qpeOEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "leverage@storage-elevator",
+      "id": "a4Vbb000000qpePEAQ"
+    },
+    {
+      "object": "LLC_BI__Loan_Covenant__c",
+      "key": "crop-insurance@op-revolver",
+      "id": "a4Vbb000000qpeQEAQ"
+    },
+    {
+      "object": "LLC_BI__Review__c",
+      "key": "annual-2026",
+      "id": "a5nbb00000nB1z8AAC"
+    },
+    {
+      "object": "LLC_BI__Annual_Review__c",
+      "key": "rating-2026",
+      "id": "a2bbb000006E87EAAS"
+    },
+    {
+      "object": "Opportunity",
+      "key": "opp-marketing-line",
+      "id": "006bb00000yHxR1AAK"
+    },
+    {
+      "object": "Case",
+      "key": "case-renewal-base",
+      "id": "500bb00000v7ZcvAAE"
+    },
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "receivables#1",
+      "id": "a2Vbb000001cDa1EAE"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-current-ratio",
+      "id": "a4rbb000003PEkPAAW"
+    }
+  ],
+  "records": {
+    "Account": {
+      "prairie-ag-holdings": "001bb00001Ld1HNAAZ",
+      "prairie-ag-gp": "001bb00001Ld1HOAAZ",
+      "ellsworth-trust": "001bb00001Ld1HPAAZ",
+      "karl-ellsworth": "001bb00001Ld1HQAAZ",
+      "anna-ellsworth": "001bb00001Ld1HRAAZ",
+      "prairie-grain-storage": "001bb00001Ld1HSAAZ"
+    },
+    "LLC_BI__Connection__c": {
+      "gp-owns-lp": "a38bb000001ac7pAAA",
+      "trust-owns-lp": "a38bb000001ac7qAAA",
+      "karl-owns-lp": "a38bb000001ac7rAAA",
+      "anna-owns-lp": "a38bb000001ac7sAAA",
+      "karl-owns-gp": "a38bb000001ac7tAAA",
+      "anna-owns-gp": "a38bb000001ac7uAAA",
+      "karl-trustee": "a38bb000001ac7vAAA",
+      "lp-owns-storage": "a38bb000001ac7wAAA"
+    },
+    "LLC_BI__Product_Package__c": {
+      "operating": "a5Fbb000000JBNxEAO",
+      "land": "a5Fbb000000JBNyEAO",
+      "storage": "a5Fbb000000JBNzEAO"
+    },
+    "LLC_BI__Loan__c": {
+      "op-revolver": "a4Zbb000002J6bdEAC",
+      "op-combine": "a4Zbb000002J6beEAC",
+      "op-planter": "a4Zbb000002J6bfEAC",
+      "land-story": "a4Zbb000002J6bgEAC",
+      "land-boone": "a4Zbb000002J6bhEAC",
+      "storage-elevator": "a4Zbb000002J6biEAC",
+      "storage-dryer": "a4Zbb000002J6bjEAC"
+    },
+    "LLC_BI__Legal_Entities__c": {
+      "rev-borrower": "a4Lbb000000PVevEAG",
+      "rev-gp": "a4Lbb000000PVewEAG",
+      "rev-karl": "a4Lbb000000PVexEAG",
+      "rev-anna": "a4Lbb000000PVeyEAG",
+      "rev-trust": "a4Lbb000000PVezEAG",
+      "com-borrower": "a4Lbb000000PVf0EAG",
+      "com-karl": "a4Lbb000000PVf1EAG",
+      "com-anna": "a4Lbb000000PVf2EAG",
+      "pla-borrower": "a4Lbb000000PVf3EAG",
+      "pla-karl": "a4Lbb000000PVf4EAG",
+      "pla-anna": "a4Lbb000000PVf5EAG",
+      "ls-borrower": "a4Lbb000000PVf6EAG",
+      "ls-gp": "a4Lbb000000PVf7EAG",
+      "ls-karl": "a4Lbb000000PVf8EAG",
+      "ls-anna": "a4Lbb000000PVf9EAG",
+      "lb-borrower": "a4Lbb000000PVfAEAW",
+      "lb-gp": "a4Lbb000000PVfBEAW",
+      "lb-karl": "a4Lbb000000PVfCEAW",
+      "lb-anna": "a4Lbb000000PVfDEAW",
+      "el-borrower": "a4Lbb000000PVfEEAW",
+      "el-parent": "a4Lbb000000PVfFEAW",
+      "el-karl": "a4Lbb000000PVfGEAW",
+      "el-anna": "a4Lbb000000PVfHEAW",
+      "dry-borrower": "a4Lbb000000PVfIEAW",
+      "dry-parent": "a4Lbb000000PVfJEAW",
+      "dry-karl": "a4Lbb000000PVfKEAW",
+      "dry-anna": "a4Lbb000000PVfLEAW"
+    },
+    "LLC_BI__Pricing_Stream__c": {
+      "op-revolver": "a50bb00000v5WJNAA2",
+      "op-combine": "a50bb00000v5WJOAA2",
+      "op-planter": "a50bb00000v5WJPAA2",
+      "land-story": "a50bb00000v5WJQAA2",
+      "land-boone": "a50bb00000v5WJRAA2",
+      "storage-elevator": "a50bb00000v5WJSAA2",
+      "storage-dryer": "a50bb00000v5WJTAA2"
+    },
+    "LLC_BI__Pricing_Rate_Component__c": {
+      "op-revolver": "a4zbb000002Ty4TAAS",
+      "op-combine": "a4zbb000002Ty4UAAS",
+      "op-planter": "a4zbb000002Ty4VAAS",
+      "land-story": "a4zbb000002Ty4WAAS",
+      "land-boone": "a4zbb000002Ty4XAAS",
+      "storage-elevator": "a4zbb000002Ty4YAAS",
+      "storage-dryer": "a4zbb000002Ty4ZAAS"
+    },
+    "LLC_BI__Pricing_Payment_Component__c": {
+      "op-revolver": "a4ybb000002jMMbAAM",
+      "op-combine": "a4ybb000002jMMcAAM",
+      "op-planter": "a4ybb000002jMMdAAM",
+      "land-story": "a4ybb000002jMMeAAM",
+      "land-boone": "a4ybb000002jMMfAAM",
+      "storage-elevator": "a4ybb000002jMMgAAM",
+      "storage-dryer": "a4ybb000002jMMhAAM"
+    },
+    "LLC_BI__Fee__c": {
+      "rev-orig": "a45bb000001mV5lAAE",
+      "rev-unused": "a45bb000001mV5mAAE",
+      "rev-fieldexam": "a45bb000001mV5nAAE",
+      "com-orig": "a45bb000001mV5oAAE",
+      "com-ucc": "a45bb000001mV5pAAE",
+      "pla-orig": "a45bb000001mV5qAAE",
+      "ls-orig": "a45bb000001mV5rAAE",
+      "ls-appraisal": "a45bb000001mV5sAAE",
+      "ls-title": "a45bb000001mV5tAAE",
+      "lb-orig": "a45bb000001mV5uAAE",
+      "lb-appraisal": "a45bb000001mV5vAAE",
+      "el-orig": "a45bb000001mV5wAAE",
+      "el-appraisal": "a45bb000001mV5xAAE",
+      "el-survey": "a45bb000001mV5yAAE",
+      "dry-orig": "a45bb000001mV5zAAE"
+    },
+    "LLC_BI__Collateral__c": {
+      "crops": "a35bb0000019r1JAAQ",
+      "grain-inventory": "a35bb0000019r1KAAQ",
+      "receivables": "a35bb0000019r1LAAQ",
+      "farm-equipment": "a35bb0000019r1MAAQ",
+      "farmland-story": "a35bb0000019r1NAAQ",
+      "farmland-boone": "a35bb0000019r1OAAQ",
+      "elevator": "a35bb0000019r1PAAQ",
+      "dryer": "a35bb0000019r1QAAQ"
+    },
+    "LLC_BI__Account_Collateral__c": {
+      "crops#0": "a2Vbb000001c78FEAQ",
+      "grain-inventory#0": "a2Vbb000001c78GEAQ",
+      "farm-equipment#0": "a2Vbb000001c78HEAQ",
+      "farmland-story#0": "a2Vbb000001c78IEAQ",
+      "farmland-boone#0": "a2Vbb000001c78JEAQ",
+      "elevator#0": "a2Vbb000001c78KEAQ",
+      "dryer#0": "a2Vbb000001c78LEAQ",
+      "receivables#1": "a2Vbb000001cDa1EAE"
+    },
+    "LLC_BI__Collateral_Valuation__c": {
+      "crops-2026-07": "a34bb000003IN9JAAW",
+      "crops-2025-08": "a34bb000003IN9KAAW",
+      "grain-2026-07": "a34bb000003IN9LAAW",
+      "ar-2026-07": "a34bb000003IN9MAAW",
+      "equip-2026-04": "a34bb000003IN9NAAW",
+      "equip-2025-04": "a34bb000003IN9OAAW",
+      "land-story-2026": "a34bb000003IN9PAAW",
+      "land-story-2022": "a34bb000003IN9QAAW",
+      "land-boone-2026": "a34bb000003IN9RAAW",
+      "land-boone-2024": "a34bb000003IN9SAAW",
+      "elevator-2026": "a34bb000003IN9TAAW",
+      "elevator-2023": "a34bb000003IN9UAAW",
+      "dryer-2026": "a34bb000003IN9VAAW",
+      "dryer-2024": "a34bb000003IN9WAAW"
+    },
+    "LLC_BI__Loan_Collateral2__c": {
+      "rev-crops": "a4Rbb0000027bBNEAY",
+      "rev-grain": "a4Rbb0000027bBOEAY",
+      "rev-ar": "a4Rbb0000027bBPEAY",
+      "com-equip": "a4Rbb0000027bBQEAY",
+      "pla-equip": "a4Rbb0000027bBREAY",
+      "ls-farmland": "a4Rbb0000027bBSEAY",
+      "lb-farmland": "a4Rbb0000027bBTEAY",
+      "el-elevator": "a4Rbb0000027bBUEAY",
+      "dry-equip": "a4Rbb0000027bBVEAY"
+    },
+    "LLC_BI__Covenant2__c": {
+      "working-capital": "a3Bbb000000Tb93EAC",
+      "current-ratio": "a3Bbb000000Tb94EAC",
+      "leverage": "a3Bbb000000Tb95EAC",
+      "crop-insurance": "a3Bbb000000Tb96EAC"
+    },
+    "LLC_BI__Account_Covenant__c": {
+      "working-capital": "a2Wbb00000CWjvxEAD",
+      "current-ratio": "a2Wbb00000CWjvyEAD",
+      "leverage": "a2Wbb00000CWjvzEAD",
+      "crop-insurance": "a2Wbb00000CWjw0EAD"
+    },
+    "LLC_BI__Loan_Covenant__c": {
+      "working-capital@op-revolver": "a4Vbb000000qpeLEAQ",
+      "current-ratio@op-revolver": "a4Vbb000000qpeMEAQ",
+      "current-ratio@land-story": "a4Vbb000000qpeNEAQ",
+      "leverage@land-story": "a4Vbb000000qpeOEAQ",
+      "leverage@storage-elevator": "a4Vbb000000qpePEAQ",
+      "crop-insurance@op-revolver": "a4Vbb000000qpeQEAQ"
+    },
+    "LLC_BI__Review__c": {
+      "annual-2026": "a5nbb00000nB1z8AAC"
+    },
+    "LLC_BI__Annual_Review__c": {
+      "rating-2026": "a2bbb000006E87EAAS"
+    },
+    "Opportunity": {
+      "opp-marketing-line": "006bb00000yHxR1AAK"
+    },
+    "Case": {
+      "case-renewal-base": "500bb00000v7ZcvAAE"
+    },
+    "LLC_BI__Policy_Exception__c": {
+      "pex-current-ratio": "a4rbb000003PEkPAAW"
+    }
+  },
+  "derived": {
+    "LLC_BI__Connection__c": [
+      "a38bb000001ac7xAAA",
+      "a38bb000001ac7yAAA",
+      "a38bb000001ac7zAAA",
+      "a38bb000001ac80AAA",
+      "a38bb000001ac81AAA",
+      "a38bb000001ac82AAA",
+      "a38bb000001ac83AAA"
+    ],
+    "LLC_BI__Loan_Detail__c": [
+      "a4Wbb000001MDVxEAO",
+      "a4Wbb000001MDVwEAO",
+      "a4Wbb000001MDVyEAO",
+      "a4Wbb000001MDVuEAO",
+      "a4Wbb000001MDVzEAO",
+      "a4Wbb000001MDVvEAO",
+      "a4Wbb000001MDVtEAO"
+    ],
+    "LLC_BI__Loan_Collateral_Aggregate__c": [
+      "a4Sbb00000GQnK1EAL",
+      "a4Sbb00000GQnK2EAL",
+      "a4Sbb00000GQnK3EAL",
+      "a4Sbb00000GQnK4EAL",
+      "a4Sbb00000GQnK5EAL",
+      "a4Sbb00000GQnK6EAL",
+      "a4Sbb00000GQnK7EAL"
+    ]
+  },
+  "errors": [
+    {
+      "object": "LLC_BI__Account_Collateral__c",
+      "key": "receivables#0",
+      "errors": [
+        {
+          "statusCode": "DUPLICATE_VALUE",
+          "message": "duplicate value found: LLC_BI__lookupKey__c duplicates value on record with id: a2Vbb000001cAXGEA2",
+          "fields": []
+        }
+      ],
+      "at": "2026-09-08T11:58:18+00:00"
+    },
+    {
+      "object": "LLC_BI__Policy_Exception__c",
+      "key": "pex-current-ratio",
+      "errors": [
+        {
+          "statusCode": "STRING_TOO_LONG",
+          "message": "Mitigation Reason 1: data value too large: The 1.34x result against a 1.50x minimum was a marketing timing effect: 411,000 bushels of corn were carried unpriced at the depressed December cash bid while the revolver ran $2.1MM above plan into January. Priced and delivered by March 2026 the ratio recomputes at 1.58x. (max length=100)",
+          "fields": [
+            "LLC_BI__Mitigation_Reason_1__c"
+          ]
+        }
+      ],
+      "at": "2026-09-08T11:58:27+00:00"
+    }
+  ],
+  "updatedAt": "2026-09-08T12:27:22+00:00"
+}
