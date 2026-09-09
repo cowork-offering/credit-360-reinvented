@@ -17,9 +17,14 @@ older `Customer 360 · Relationship Cockpit`) that the viewer owns or is shared,
 `assets/cockpit.json` if that reads. One listing call and one read, no fetch and no publish. The
 published page refreshes itself from there, one connector lane per module, painting the last good
 figures it holds (marked by their age) until the live ones land. REBUILDING the cockpit is the other
-path and the only one that fetches, assembles and publishes: it runs when a banker asks to rebuild
-or republish, or when no cockpit resolves for this viewer, and the banker is then told they can
-share the new page to their organization from its own Share control. The agent and the guided skills are
+path, the only one that assembles and publishes: it runs when a banker asks to rebuild or republish,
+or when no cockpit resolves for this viewer, and the banker is then told they can share the new page
+to their organization from its own Share control. Only the ASKED-FOR rebuild fetches. The
+no-cockpit-resolved case bakes the bundled snapshot `assets/live-data.json` and publishes it, since
+the page refreshes itself through the viewer's own connectors the moment they land;
+`assets/sample-data.json` is test-only and is never published to a banker. Every publish passes
+`assets/capabilities.json` whole, and the first one passes favicon 🏦, which is never changed
+afterwards. The agent and the guided skills are
 the natural-chat front door over the same tools.
 
 ## 2. Prerequisites (environment, not plugin)

@@ -674,4 +674,9 @@ outcome-ambiguous for writes, so a write is never auto-retried.
 2. Assemble with data: `node render/assemble-cockpit.mjs --data <data.json> --out <out.html>`.
 3. Publish the assembled file **by path** with `capabilities` from §1.
 4. State in the reply which tools are pattern-inferred (§2) — not inside the page.
-5. Keep `favicon` and `title` stable across redeploys.
+5. Keep `favicon` and `title` stable across redeploys. The favicon is **🏦 on the first publish,
+   never changed**. It is the icon the canonical `Credit 360 · Relationship Cockpit` carries, so
+   every cockpit published from this plugin carries it too. A redeploy passes no `favicon` at all
+   and keeps the icon the artifact already has: a changed icon reads as a different page to the
+   banker hunting for their tab. The title is `Credit 360 · Relationship Cockpit`, exactly, because
+   the skill's open resolves a viewer's cockpit by matching that title in an artifact listing.

@@ -50,13 +50,35 @@ Resolve in this order and STOP at the first that answers:
    succeeds for it. That URL was published from ONE organization, so for a viewer outside it the
    read fails and the URL is worthless. Never hand it over unread.
 
-4. **Nothing resolved: this viewer has no cockpit yet, so publish them one.** Take the REBUILD path
-   below. It is the existing publish path, unchanged: the capabilities manifest whole from
-   `assets/capabilities.json`, the favicon rule, the title stable. Then tell the banker in ONE line
-   that the page can be shared to their organization from its own Share control, so colleagues open
-   this cockpit instead of each publishing another. Use the URL that publish returned for the rest
-   of the session: it is this session's step 1 from now on, the target of every intent, and the
-   store the cockpit state is read from.
+4. **Nothing resolved: this viewer has no cockpit yet, so publish them one.** Take the REBUILD
+   path's assemble-and-publish half, with NO fetch sequence in front of it, and bake the BUNDLED
+   SNAPSHOT:
+
+   ```
+   node <pluginRoot>/render/assemble-cockpit.mjs --data <pluginRoot>/assets/live-data.json --out /tmp/customer-360.html
+   ```
+
+   **`assets/live-data.json` is the data a first open bakes.** It is the shipped five-borrower book
+   and it is a FIRST PAINT, not the answer: the moment this banker lands, the page reads their own
+   org through their own connectors, lane by lane, and every baked figure is replaced by its own
+   read (see "Why this is not a stale page" above). Running the whole fetch sequence before the
+   first publish buys a slower open and the same screen ten seconds later. **`assets/sample-data.json`
+   is for the repo's tests and the render probes ONLY, and is never published to a banker**: it is
+   fictitious, and it is not the book.
+
+   Everything else is the existing publish path, unchanged: the capabilities manifest whole from
+   `assets/capabilities.json`, **favicon 🏦 on the first publish, never changed**, and the title
+   exactly `Credit 360 · Relationship Cockpit`, which is what step 2 matches on. Then tell the
+   banker in ONE line that the page can be shared to their organization from its own Share control,
+   so colleagues open this cockpit instead of each publishing another. Use the URL that publish
+   returned for the rest of the session: it is this session's step 1 from now on, the target of
+   every intent, and the store the cockpit state is read from.
+
+   **One caveat to carry, honestly and only when it bites.** The bundled snapshot stages the
+   `meta.userId` of the seat that baked it, and the org compares `approverUserId` to the RUNNING
+   identity before it will redeem a decision token. Reads, the worklist and the rooms all work on
+   this fresh page. The first governed WRITE from this seat needs a rebuild from this viewer's own
+   session, which stages their own id. Say that when they reach for a write, not in the open.
 
 **Hand over exactly one URL, in one line.** Do not offer the banker a choice of cockpits and do not
 list the ones you rejected.
@@ -186,8 +208,15 @@ Take this path ONLY when one of these is true:
 - a founder has said the canonical cockpit is to be replaced.
 
 Everything from STEP 0 to the end of the RENDER section describes THAT path, and none of its rules
-may be relaxed to make a rebuild faster: no fallback data sources, the capabilities manifest whole on
-every publish, and the read-only execute path warning whenever `meta.userId` cannot be read.
+may be relaxed to make a rebuild faster: never substitute invented or older figures for a read that
+failed, the capabilities manifest whole on every publish, and the read-only execute path warning
+whenever `meta.userId` cannot be read.
+
+**The no-cockpit case does not fetch.** When you are here only because THE OPEN resolved nothing
+(step 4), assemble `<pluginRoot>/assets/live-data.json` and publish it. The fetch sequence below
+belongs to a banker who ASKED to rebuild, and to a founder replacing the canonical cockpit. The
+bundled snapshot is the baked fallback a fresh seat opens on and the page refreshes itself from
+there; `assets/sample-data.json` is test-only and is never published.
 
 **A rebuild does not move the canonical cockpit.** `assets/cockpit.json` is hand-edited, once, when a
 founder blesses a new canonical URL. What a rebuild DOES do is give this viewer a cockpit of their
@@ -735,11 +764,13 @@ organization the sharing IS available, from the published page's own Share contr
 advice to a banker who just had one published is "share it to your organization" rather than "wait
 for a canonical URL".
 
-**Keep `favicon` and `title` stable across redeploys** (`app/PUBLISH.md` §6.5). Pass a favicon on
-the FIRST publish of a new cockpit and never change it afterwards: a redeploy omits it and keeps
-the icon the artifact has, because bankers find the tab by its icon and a changed one reads as a
-different page. The title is `Credit 360 · Relationship Cockpit` and it is what THE OPEN's listing
-step matches on, so renaming a published cockpit makes it unresolvable for its own viewer.
+**Keep `favicon` and `title` stable across redeploys** (`app/PUBLISH.md` §6.5). The favicon is
+**🏦 on the first publish, never changed**. That is the icon the canonical cockpit carries, so every
+cockpit published from this plugin carries the same one; a redeploy omits `favicon` entirely and
+keeps the icon the artifact already has, because bankers find the tab by its icon and a changed one
+reads as a different page. The title is `Credit 360 · Relationship Cockpit` and it is what THE
+OPEN's listing step matches on, so renaming a published cockpit makes it unresolvable for its own
+viewer.
 
 **Updates are full-replace only:** rebuild the whole `C360_DATA`, re-run the assembler to a fresh
 `--out`, and `update_artifact` by file path. Never edit rendered HTML or inject JSON by hand.

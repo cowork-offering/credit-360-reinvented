@@ -262,11 +262,15 @@ describe("law 3 — the WIRED room, on the baked relationship", () => {
     // Wave 2: the opener is proactive. Of Hartwell's six booked members, none
     // matures inside the coming quarter as of this snapshot's own clock
     // (`meta.generatedAt`), so the highest-priority thing this room can say is
-    // the nearest covenant test due soon — the Accounts Receivable test on the
-    // Line of Credit, six days out (`nextMove.ts`, tier 2). The old headcount
-    // sentence ("All 6 members are booked...") is now the fallback, exercised
-    // in modifyEngine.test.ts on a bundle with no next move to lead on.
-    expect(headline).toContain("The Accounts Receivable covenant is due in 6 days.");
+    // the nearest covenant test due SOON (`nextMove.ts`, tier 2). On the clock
+    // this snapshot actually carries, 2026-08-25, that is the Debt Service
+    // Coverage with and without Distributions test, 36 days out. The Accounts
+    // Receivable test is 25 days PAST due on the same clock, and the opener
+    // deliberately does not lead on a missed test: it is the room's overdue
+    // tier that says that out loud (`tips.ts`, exercised below). The old
+    // headcount sentence ("All 6 members are booked...") is the fallback,
+    // exercised in modifyEngine.test.ts on a bundle with no next move.
+    expect(headline).toContain("The Debt Service Coverage with and without Distributions covenant is due in 36 days.");
     expect(headline).toMatch(/Start the review\?$/);
   });
 
@@ -1832,8 +1836,20 @@ describe("the two quiet tiers under the conversation", () => {
     expect(tip.querySelector(".wk-tip-l")!.textContent).toMatch(/^The DSC test is \d+ days overdue\.$/);
   });
 
-  it("renders NOTHING when nothing is overdue and no channel answered", async () => {
+  /** The same bundle with every covenant test still ahead of the clock. The
+   *  baked snapshot carries a late one of its own (Accounts Receivable, 25 days
+   *  past due on `meta.generatedAt`), so the quiet case has to be CONSTRUCTED
+   *  the way the overdue case above is. A negative test that reads its premise
+   *  off whatever the last data bake happened to contain is not testing
+   *  anything. */
+  function quietBundle() {
     const bundle = data.borrowers![accountId];
+    const covenants = (bundle.covenants?.covenants ?? []).map((c) => ({ ...c, nextEvaluationDate: "2027-06-30" }));
+    return { ...bundle, covenants: { ...bundle.covenants, covenants } };
+  }
+
+  it("renders NOTHING when nothing is overdue and no channel answered", async () => {
+    const bundle = quietBundle();
     const room = openWithReads({
       bundle,
       accountName: bundle.snapshot!.name!,

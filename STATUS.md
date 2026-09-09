@@ -2,6 +2,30 @@
 
 ## Changelog
 
+- **0.9.4 (2026-09-09)** A FIRST OPEN ON A NEW SEAT NOW WORKS END TO END. Two defects sat on step 4
+  of the open, the path a viewer with no cockpit takes. (1) The shipped five-borrower book,
+  `assets/live-data.json`, could not be assembled at all: it was baked in two passes and the clock
+  was left at the first, so five Hartwell activity rows postdated `meta.generatedAt` and the
+  assembler's A10 assertion refused the file. The DATA is fixed, not the assertion: no repo script
+  queries the org (a re-bake needs a session holding the Customer 360 connector), so
+  `meta.generatedAt` moves to the LATEST OBSERVATION TIMESTAMP the file carries, computed over every
+  historical instant in it (`activity[].ts`, `requests[].receivedAt`, boom `createdAt`):
+  `2026-08-25T04:55:34Z`. Forward-looking scheduled dates run to 2036 and are excluded by design,
+  since they are compared against the clock as a window. A new `meta.generatedAtNote` records the
+  two-pass history and what the next re-bake must undo. The corrected clock changes three derived
+  states on Hartwell and the tests move with it: the room's opener now leads on the DSC test 36 days
+  out rather than the AR test 6 days out, the AR test reads 25 days overdue in the room's overdue
+  tier, and the ticket quotes Aug 25 as the prepared-on date. The quiet-tier negative test now
+  CONSTRUCTS its "nothing overdue" premise instead of inheriting it from whatever the last bake held.
+  Challenge count (19) and data-quality findings (1) are identical on both clocks. (2) The favicon had
+  no value anywhere in the repo, so a first publish had nothing to pass. It is 🏦, the icon the
+  canonical cockpit carries, now fixed in `SKILL.md` step 4, `app/PUBLISH.md` §6.5 and
+  `assets/cockpit.json`'s `_comment`: on the first publish, never changed. Step 4 also now names its
+  DATA: it bakes the bundled `assets/live-data.json` with no fetch in front of it, because the page
+  refreshes itself through the viewer's own connectors on landing, and `assets/sample-data.json` is
+  test-only and never published to a banker. Step 4 carries one honest caveat: the bundled snapshot
+  stages the baker's `meta.userId`, so the first governed WRITE from a fresh seat needs a rebuild from
+  that viewer's own session.
 - **0.9.3 (2026-09-09)** The cockpit resolves PER VIEWER, because a single canonical URL cannot serve
   more than one organization. An artifact declaring runtime capabilities is organization-internal and
   never opens by public link, so the pinned `canonicalArtifactUrl` (published 13:24 from an account in

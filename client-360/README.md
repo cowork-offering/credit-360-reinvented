@@ -49,9 +49,13 @@ debounced, under 8 KB, through the same guarded door every other store write pas
 **Fetching, assembling and publishing is the REBUILD path**, taken only when a banker asks for it or
 when no cockpit resolves for this viewer. A rebuild does not move the canonical cockpit:
 `assets/cockpit.json` is hand-edited once, when a founder blesses a new URL. What it does give the
-viewer is a cockpit in their own organization, which is the only kind that opens for them. Every
-publish passes `assets/capabilities.json` whole and keeps the page's favicon and title stable; no
-passcode, token or secret is ever written into the page.
+viewer is a cockpit in their own organization, which is the only kind that opens for them. When no
+cockpit resolves, what gets baked is the bundled snapshot `assets/live-data.json`, with no fetch in
+front of it, and the page refreshes itself from there; `assets/sample-data.json` is test-only and is never published to a banker. Every
+publish passes `assets/capabilities.json` whole and keeps the page's favicon and title stable:
+favicon 🏦 on the first publish, never changed, and the title `Credit 360 · Relationship Cockpit`
+exactly, since the open resolves a viewer's cockpit by that title. No passcode, token or secret is
+ever written into the page.
 
 ## Connectors this plugin needs (names must match exactly)
 

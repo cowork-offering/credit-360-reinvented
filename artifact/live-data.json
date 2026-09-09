@@ -3,7 +3,8 @@
   "meta": {
     "user": "Fabian Goetzens",
     "dateISO": "2026-07-25T11:49:49",
-    "generatedAt": "2026-07-25T21:04:49Z",
+    "generatedAt": "2026-08-25T04:55:34Z",
+    "generatedAtNote": "NOT the moment of a fetch. This snapshot was baked in two passes: the Piedmont anchor and the sample bundles on 2026-07-25T21:04:49Z, then the Hartwell bundle from a later org read whose newest activity entry is 2026-08-25T04:55:34Z. The original clock was left at the first pass, which put five Hartwell activity rows AFTER meta.generatedAt and failed the assembler's A10 assertion (activity and request timestamps are historical and must not postdate the deterministic snapshot clock), so the shipped book could not be assembled at all. A re-bake from the org is only possible from a session holding the Customer 360 connector (the fetch sequence in skills/credit-360-cockpit/SKILL.md); no repo script queries the org. So the clock was moved forward instead, to the LATEST OBSERVATION TIMESTAMP present anywhere in this file, computed over every historical instant it carries (activity[].ts, requests[].receivedAt, boom.spread.file createdAt): 2026-08-25T04:55:34Z, at borrowers[\"001bb00001I7FPNAA3\"].activity[0].ts. Forward-looking scheduled dates (maturityDate, nextEvaluationDate, closeDate) run to 2036 and are deliberately EXCLUDED: they are compared against the clock as a window and are supposed to postdate it. meta.dateISO is left at the first pass on purpose; it is the report date behind validate-c360's stale-covenant heuristic, not the A10 clock. Replace both with a real fetch time on the next re-bake and drop this note. Set 2026-09-09.",
     "orgAlias": "bankinggpt",
     "anchorAccountId": "001bb00001DLtRMAA1",
     "accent": "#6B1CC4",

@@ -151,8 +151,10 @@ describe("F3/F4 — the junction card states what is actually attached", () => {
 
   it("quotes the read the ticket is using, not a date with no data behind it", () => {
     const text = openTicket("Loan Modification").textContent ?? "";
-    // live-data was assembled 2026-07-25T21:04:49Z and nothing has been synced.
-    expect(text).toContain("as it was prepared on Jul 25, 2026, 21:04 UTC");
+    // live-data's snapshot clock is `meta.generatedAt`, 2026-08-25T04:55:34Z (its
+    // latest observation, the newest Hartwell activity row), and nothing has been
+    // synced since.
+    expect(text).toContain("as it was prepared on Aug 25, 2026, 04:55 UTC");
     expect(text).toContain("Sync this relationship to recheck it on today's figures");
     expect(text).not.toContain("computed from data as of");
   });
