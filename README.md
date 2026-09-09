@@ -156,15 +156,23 @@ node --test client-360/render/tool-names.test.mjs
 node --test client-360/render/capabilities.test.mjs
 node --test client-360/render/skill-blocks.test.mjs
 node --test client-360/render/handoff-routing.test.mjs
+node design/probes/probe.mjs /tmp/c360-publish.html         # 0 rim violations
+node design/probes/chaos.mjs /tmp/c360-publish.html         # 19 scenarios green
+node design/probes/drive-lanes.mjs /tmp/c360-publish.html   # 13 scenarios, 64 assertions
 ```
+
+The three probes take the assembled build path as their argument. Run bare, they gate a stale
+file and report false failures.
 
 `client-360/assets/customer-360-template.html` is generated. `scripts/sync-plugin-assets.mjs` keeps
 it byte-identical to `artifact/customer-360-template.html`, and `--check` fails the release when it
 drifts. Never hand-edit it.
 
 The demo anchors are Piedmont Precision Components, Inc. (Account `001bb00001DLtRMAA1`, org
-`bankinggpt`) and Hartwell Industrial Group.
+`bankinggpt`) and Hartwell Precision Manufacturing LLC (Account `001bb00001I7FPNAA3`).
 
 ## Support
 
-The engagement team.
+The engagement team: Fabian Goetzens (Accenture), who owns the plugin, the connectors and the
+marketplace hand-overs. Open an issue on this repository for anything reproducible; include the
+build stamp from the cockpit footer and the connector line as shown.

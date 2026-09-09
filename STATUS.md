@@ -1,4 +1,16 @@
-# Credit 360 — Status & Charter (2026-08-14, post-migration)
+# Credit 360, status and changelog
+
+## Changelog
+
+- **0.9.0 (2026-09-09)** The product is named Credit 360 everywhere (plugin `credit-360`, skill
+  `credit-360-cockpit`, page title, docs); the Salesforce connector keeps its name `Customer 360`.
+  Marketplace repo `cowork-offering/credit-360`. Polished README with connector setup.
+- **0.8.x (2026-09-08 to 09)** The book's read is a poll, not a watch (the runtime refuses a watch on
+  this connector's tools). The hero summary and chips are derived live for every relationship. The
+  vendored memo copy names the rating source AFS. Live worklist derived from Customer360Portfolio;
+  the book rule (exposure or a grade); a new facility always creates a new Product Package.
+- **0.7.0 (2026-09-06)** Stability build: instant open, last-good cache, per-lane retry and knock, wall
+  clocks, the Salesforce Read Backup lane, room deadlines and resume, chaos harness, memo store lean.
 
 **Read this first.** This repo is the single source for Credit 360: code, plugin packaging,
 and the full knowledge tree (`knowledge/`). New sessions start here, then
