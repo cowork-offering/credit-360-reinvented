@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { SIGNAL_WINDOW_DAYS, type Portfolio } from "../data/contract";
-import { SERVERS, TOOLS, unwrapInvocableOne, watchTool, type McpFailure } from "./mcp";
+import { SERVERS, TOOLS, callTool, unwrapInvocableOne, type McpFailure } from "./mcp";
 import { callGateway, noteServedByBackup, shouldFallBack } from "./gateway/lane";
 import { portfolioSignature } from "../book/livePortfolio";
 
@@ -10,17 +10,17 @@ export interface LivePortfolio {
    *  object across refetches. See `settle` below. */
   signature?: string;
   failure?: McpFailure;
-  /** From result.cache.storedAt, never Date.now(). */
+  /** The platform stamp of a cached answer, or the arrival time of an executed one. */
   storedAt?: number;
   /** A re-registration the banker asked for is in flight. */
   retrying?: boolean;
-  /** Re-register the watch: the banker's own gesture on the banner. */
+  /** Read again now: the banker's own gesture on the banner. */
   retry?: () => void;
 }
 
 /** The book does not move second to second, so this sits well above the
  *  platform's ~30s polling floor. It exists so an expired MCP session heals
- *  itself: the watch re-reads on its own and the next good event clears the
+ *  itself: the poll re-reads on its own and the next good read clears the
  *  banner, instead of the failure standing until the view remounts.
  *
  *  TWO MINUTES SINCE 2026-09-04, from one (founder: the cockpit "seems to
@@ -47,7 +47,7 @@ export const PORTFOLIO_REFETCH_MS = 120_000;
 export const PORTFOLIO_MAX_ACCOUNTS = 60;
 
 /**
- * THE ONE INPUT SHAPE BOTH DOORS USE, so the watch and the backup can never ask
+ * THE ONE INPUT SHAPE BOTH DOORS USE, so the poll and the backup can never ask
  * for different books.
  *
  * WHY THE WINDOW IS NOT THE TOOL'S DEFAULT. `Customer360Portfolio` defaults
@@ -66,12 +66,10 @@ const PORTFOLIO_INPUT = {
 
 /* ------------------------------------------------------- the hidden document
 
-   A cockpit behind a slide deck must not poll. The platform throttles timers on
-   a hidden page but does not stop a watch, and the cost of a refetch is never
-   the request alone: it is the render it lands. So the watch is TORN DOWN when
-   the page goes away and REGISTERED AGAIN when it comes back, which also makes
-   the return a fresh read rather than a two-minute-old one. A quick tab flip is
-   served from the watch's own cache (staleTime) and costs nothing at all. */
+   A cockpit behind a slide deck must not poll. The cost of a refetch is never
+   the request alone: it is the render it lands. So the poll is TORN DOWN when
+   the page goes away and STARTED AGAIN when it comes back, which also makes
+   the return a fresh read rather than a two-minute-old one. */
 function subscribeVisibility(cb: () => void): () => void {
   if (typeof document === "undefined") return () => {};
   document.addEventListener("visibilitychange", cb);
@@ -83,26 +81,34 @@ function documentVisible(): boolean {
 }
 
 /** TRUE while the page is on screen. Server snapshot is `true`: a render with
- *  no document is a render with no watch to pause. */
+ *  no document is a render with no poll to pause. */
 export function usePageVisible(): boolean {
   return useSyncExternalStore(subscribeVisibility, documentVisible, () => true);
 }
 
-/** Keep the home KPI band current from Customer360Portfolio.
+/** Keep the home KPI band, and since 2026-09-08 the QUEUE, current from
+ *  Customer360Portfolio.
  *
- *  This is the DISPLAY arm: watchTool replays the cached entry, refreshes when
- *  stale, and delivers every newer result. The watch layer retries a retryable
- *  failure once before it reports anything, so a connector re-handshake after
- *  an idle session never reaches the banker at all.
+ *  THIS IS A POLL, NOT A WATCH, SINCE 2026-09-09. The read ran as `watchTool`
+ *  from 2026-07-25 and carried the 2026-09-03 demo; on 2026-09-09 the founder's
+ *  seat opened the cockpit to "Salesforce unreachable: bad_request" over the
+ *  baked rows, with the platform's own reason beside it: "declared-write tools
+ *  cannot be watched". The runtime allows a watch only on a tool whose
+ *  connector declares `readOnlyHint: true`; the Salesforce-hosted MCP server
+ *  declares its Apex invocables the other way, every one of them, reads
+ *  included, and `Customer360Portfolio` is the only tool the page ever watched.
+ *  So the book's read goes through `callTool` like the other nine reads on the
+ *  same connector, which were answering in the same minute, and the page keeps
+ *  its own two-minute clock. `callTool` also brings what the watch never had:
+ *  the retry policy, the wall clock, and a line on the health list.
  *
  *  Failures never blank the band: a transient error keeps the last good data
  *  with a staleness note, and only an authz denial retracts it. */
 export function useLivePortfolio(enabled: boolean): LivePortfolio {
   const [live, setLive] = useState<LivePortfolio>({});
   const visible = usePageVisible();
-  // Bumped by the banner's Retry: a new value tears the watch down and
-  // registers it again, which is the only way to recover a registration that
-  // failed outright.
+  // Bumped by the banner's Retry: a new value restarts the poll, and the first
+  // read of a restart asks for a fresh execution rather than a cached one.
   const [attempt, setAttempt] = useState(0);
 
   const retry = useCallback(() => {
@@ -112,18 +118,13 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
 
   useEffect(() => {
     if (!enabled || !visible) return;
-    /* THE BACKUP LANE IS A ONE-SHOT HERE, NOT A WRAPPED CALL. `watchTool` is a
-       subscription with no fallback arm: there is no second registration to
-       make and no second stream to reconcile. So when the watch reports a hop
-       failure the band asks the backup ONCE, by hand, and feeds the answer
-       through the same unwrapper. The watch keeps running underneath and its
-       next good event replaces this, which is what recovery looks like. */
     let dead = false;
+    let inFlight = false;
 
     /* THE SAME BOOK IS THE SAME OBJECT.
        FOUNDER CONDITION ONE, 2026-09-08: no latency, no stuck behaviour. This
-       result is now the source of the QUEUE, not just of six figures, so its
-       identity decides whether the whole cockpit re-renders. The watch re-reads
+       result is the source of the QUEUE, not just of six figures, so its
+       identity decides whether the whole cockpit re-renders. The poll re-reads
        every two minutes and hands back a fresh object whether or not a figure
        moved; a book that did not move keeps the object it had, and only the
        freshness stamp advances. A real change replaces it, as it always did. */
@@ -136,6 +137,10 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
       );
     };
 
+    /* THE BACKUP LANE IS A ONE-SHOT. When the primary reports a hop failure the
+       band asks the backup ONCE, by hand, and feeds the answer through the same
+       unwrapper. The poll keeps running underneath and its next good read
+       replaces this, which is what recovery looks like. */
     const askBackup = async () => {
       try {
         const ok = await callGateway<Portfolio>(TOOLS.portfolio, [{ ...PORTFOLIO_INPUT }]);
@@ -150,48 +155,52 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
       }
     };
 
-    // Store the (synchronous) unsubscribe before anything can fire.
-    const stop = watchTool(
-      SERVERS.customer360,
-      TOOLS.portfolio,
-      { inputs: [{ ...PORTFOLIO_INPUT }] },
-      (ev) => {
-        if (ev.failure) {
-          setLive((prev) =>
-            // Authz denial ⇒ retract rendered data. Transient ⇒ keep last good.
-            ev.failure!.retract
-              ? { failure: ev.failure, retrying: false }
-              : { ...prev, failure: ev.failure, retrying: false },
-          );
-          // Only the conditions the lane already encodes: a denial is about WHO
-          // asked, and the backup asks as somebody else.
-          if (shouldFallBack(ev.failure)) void askBackup();
-          return;
-        }
-        const slot = unwrapInvocableOne<Portfolio>(ev.data?.payload);
+    const read = async (refresh: boolean) => {
+      // One flight at a time: a slow org must not stack reads behind the timer.
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const ok = await callTool<unknown>(
+          SERVERS.customer360,
+          TOOLS.portfolio,
+          { inputs: [{ ...PORTFOLIO_INPUT }] },
+          { read: true, cache: refresh ? { refresh: true } : { staleTime: PORTFOLIO_REFETCH_MS } },
+        );
+        if (dead) return;
+        const slot = unwrapInvocableOne<Portfolio>(ok.payload);
         if (!slot.ok) {
           setLive((prev) => ({ ...prev, failure: undefined, retrying: false }));
           return;
         }
-        // A good event is what clears the banner. Nothing else does.
-        settle(slot.data, ev.data?.cache?.storedAt);
-      },
-      {
-        staleTime: 120_000,
-        /* POLLING IS BACK, at a minute, and deliberately.
-           It was removed on 2026-07-25 because a tighter loop starved the chat
-           of connector budget. What put it back is the stuck banner: the
-           Salesforce-hosted MCP session expires on idle, and with no poll and
-           no retry the first failure after a pause was the LAST event the watch
-           ever delivered. A minute is twice the platform's ~30s floor, is
-           coalesced per identity so every section costs one flight, and pauses
-           while the page is hidden. */
-        refetchInterval: PORTFOLIO_REFETCH_MS,
-      },
-    );
+        /* A cached answer carries the platform's own stamp. An answer with no
+           cache block was EXECUTED for this call (the contract's word), and a
+           declared write is never cached, so the moment it arrived is the
+           honest "as of": that is the one case Date.now() states a fact. */
+        settle(slot.data, ok.cache?.storedAt ?? Date.now());
+      } catch (err) {
+        if (dead) return;
+        const failure = err as McpFailure;
+        setLive((prev) =>
+          // Authz denial ⇒ retract rendered data. Transient ⇒ keep last good.
+          failure.retract ? { failure, retrying: false } : { ...prev, failure, retrying: false },
+        );
+        // Only the conditions the lane already encodes: a denial is about WHO
+        // asked, and the backup asks as somebody else.
+        if (shouldFallBack(failure)) void askBackup();
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void read(attempt > 0);
+    /* TWO MINUTES, on the page's own clock. The reason the interval exists at
+       all is the idle expiry of the Salesforce-hosted MCP session: with no
+       re-read, the first failure after a pause stood until the view remounted.
+       It pauses while the page is hidden (this effect is gone by then). */
+    const timer = setInterval(() => void read(true), PORTFOLIO_REFETCH_MS);
     return () => {
       dead = true;
-      stop();
+      clearInterval(timer);
     };
   }, [enabled, attempt, visible]);
 

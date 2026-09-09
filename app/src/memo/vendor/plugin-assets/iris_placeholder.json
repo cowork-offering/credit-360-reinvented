@@ -1,6 +1,6 @@
 {
-  "_source": "IRIS-PLACEHOLDER",
-  "_note": "Stand-in until the IRIS MCP lands. Swap for the real MCP (Snowflake schema) with no prompt change. Leverage is NS (null) — EBITDA is breakeven, so an EBITDA-based ratio is not meaningful; do not fabricate.",
+  "_source": "AFS-PLACEHOLDER",
+  "_note": "Stand-in until the AFS MCP lands. Swap for the real MCP (Snowflake schema) with no prompt change. Leverage is NS (null) — EBITDA is breakeven, so an EBITDA-based ratio is not meaningful; do not fabricate.",
   "externalUniqueId": "001bb00001DLtRMAA1",
   "riskRatingTrend": {
     "scale": "Acme Bank 1–15 (Pass 1–12, Low Pass 13–15, Criticized 16, Classified 17)",
@@ -250,7 +250,7 @@
     }
   ],
   "sensitivity": {
-    "_note": "IRIS-placeholder sensitivity on the binding DSC covenant. Base = FY2024 actual.",
+    "_note": "AFS-placeholder sensitivity on the binding DSC covenant. Base = FY2024 actual.",
     "scenarios": [
       {
         "name": "Base (FY2024 actual)",

@@ -2,12 +2,20 @@
 
 **Source repo:** `cowork-offering/credit-memo-reinvented`
 **Commit:** `d975605`
-**Vendored:** 2026-09-04
+**Vendored:** 2026-09-04, re-recorded 2026-09-09
 **Copied via:** the read-only mirror at
 `/opt/connectry/projects/commercial-credit-reinvented/vendor-src/credit-memo-ro/`
 
-**No edits; upstream is read-only for us.** Every file in this directory is byte-identical to the
-file it was copied from. `vendor-manifest.json` records the sha256 of each one, and
+**One deliberate local patch, otherwise no edits; upstream is read-only for us.** Every file in this
+directory is byte-identical to the file it was copied from, with ONE exception recorded here:
+
+- **2026-09-09, founder directive: the word IRIS never appears on a client-facing surface.** It is a
+  Truist-specific system name. Every whole-word `IRIS` in the vendored files (labels, badges,
+  narratives, notes, fixtures, references) reads `AFS` here. Lower-case identifiers (`iris`,
+  `iris_placeholder.json`) are unchanged so the dossier contract is untouched. Upstream
+  `cowork-offering/credit-memo-reinvented` is NOT edited, by the same directive; when a newer
+  upstream commit is vendored, re-apply the rename (`sed -i 's/\bIRIS\b/AFS/g'`) before
+  `--write`, and grep -w IRIS must come back empty. `vendor-manifest.json` records the sha256 of each one, and
 `scripts/memo-vendor-check.mjs` (also run as `src/memo/vendorDrift.test.ts`) fails the suite the
 moment any of them changes, goes missing, or is joined by a file nobody recorded.
 

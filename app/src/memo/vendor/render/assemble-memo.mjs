@@ -200,7 +200,7 @@ if (rr && typeof rr === "object") {
   };
 }
 
-// ---------------------------------------------------------------- IRIS / AFS / peers (synth from the deal — clearly derived)
+// ---------------------------------------------------------------- AFS / peers (synth from the deal — clearly derived)
 const periods = canon.spread.periods;
 const latest = periods.at(-1);
 const rev = canon.spread.incomeStatement.sales_revenue ?? {};
@@ -220,7 +220,7 @@ const ratingArc = [
   { rating: "5", band: "Pass", pdPct: 2.20 }, // Proposed (pro forma this action)
 ];
 const iris = {
-  _source: "IRIS-PLACEHOLDER",
+  _source: "AFS-PLACEHOLDER",
   ratios: [{ period: latest, totalLeverage: lev }],
   riskRatingTrend: { events: qtrs.map((p, i) => ({ period: p, ...(ratingArc[i] ?? ratingArc.at(-1)), proposed: p === "Proposed" })) },
   covenantCompliance: (nc.covenants ?? []).map((c) => {

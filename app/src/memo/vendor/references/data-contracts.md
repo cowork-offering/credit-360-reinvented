@@ -15,13 +15,13 @@ map** that says which MCP/system feeds each module.
 | **nCino** (Salesforce Hosted MCP, user-level) | System of record: Product Package, loans, terms, pricing, purpose, covenant thresholds, collateral, guarantors, NAICS, ownership, narrative fields | `soqlQuery`, `getRelatedRecords`, etc. |
 | **Boom** (`boom-*` MCP) | **Spreading engine** — raw IS/BS/CF line items by `accountCode` | `boom_lookup_company` → `boom_get_spread` / `boom_get_line_items` |
 | **AFS** (`afs-mcp` MCP) | Servicing behavior — revolver usage, payment history, loan summary | `revolver_utilization` / `payment_history` / `loan_summary` (+ `afs_show_summary` widget, `create_workpackage` write) |
-| **IRIS** (placeholder → MCP) | **Analytics layer** — risk-rating trend + PD, covenant actual-vs-required + flags, ratios, sensitivity | reads `${CLAUDE_PLUGIN_ROOT}/assets/iris_placeholder.json`; later the IRIS MCP |
+| **AFS** (placeholder → MCP) | **Analytics layer** — risk-rating trend + PD, covenant actual-vs-required + flags, ratios, sensitivity | reads `${CLAUDE_PLUGIN_ROOT}/assets/iris_placeholder.json`; later the AFS MCP |
 | **CapIQ/IBIS** (placeholder → OOTB MCP) | Peer medians + industry outlook (low priority) | reads `${CLAUDE_PLUGIN_ROOT}/assets/peers_placeholder.json`; later the OOTB MCP |
 
-### Boom ↔ IRIS rule (one writer per field)
-**Boom owns raw line items; IRIS owns derived ratios/ratings/covenant grades** (IRIS consumes Boom).
+### Boom ↔ AFS rule (one writer per field)
+**Boom owns raw line items; AFS owns derived ratios/ratings/covenant grades** (AFS consumes Boom).
 Need a statement figure (revenue, EBITDA line, total debt) → **Boom**. Need a ratio, rating, PD, or
-covenant pass/fail → **IRIS**. Never take a ratio from Boom or a raw line item from IRIS.
+covenant pass/fail → **AFS**. Never take a ratio from Boom or a raw line item from AFS.
 
 ## Module → source → fields
 
@@ -38,22 +38,22 @@ covenant pass/fail → **IRIS**. Never take a ratio from Boom or a raw line item
 | Borrower Description | nCino | History/Ownership/Segments/EndMarkets/Geographic/CustomerConcentration/Management/IndustryContext/Competitive narrative fields |
 | Industry Analysis | CapIQ/IBIS (+ nCino NAICS) | industry outlook, drivers, market size, CAGR; mode 'C' for existing |
 | Management & Ownership | nCino | Management_Description, Ownership_Description, Contacts |
-| Trend → Risk Rating Trends | **IRIS** | last 6 events {period, rating, band, pdPct} + proposed |
-| Trend → Covenant Compliance Trends | **IRIS** (actuals + flags) + nCino (thresholds) | per covenant: trigger, operator, last-6 actuals, perPeriod flags (▲▼/⚠/breach), cushion% |
-| Trend → Spreading Trends | **Boom** (line items) + **IRIS** (ratios) | revenue/EBITDA/margins from Boom; leverage/FCCR/liquidity trend from IRIS |
+| Trend → Risk Rating Trends | **AFS** | last 6 events {period, rating, band, pdPct} + proposed |
+| Trend → Covenant Compliance Trends | **AFS** (actuals + flags) + nCino (thresholds) | per covenant: trigger, operator, last-6 actuals, perPeriod flags (▲▼/⚠/breach), cushion% |
+| Trend → Spreading Trends | **Boom** (line items) + **AFS** (ratios) | revenue/EBITDA/margins from Boom; leverage/FCCR/liquidity trend from AFS |
 | Trend → Revolver Usage | **AFS** | 12-mo utilization, high/low/avg, days-at-zero |
 | Trend → Payment History | **AFS** | buckets 30-60/60-90/90+, events |
-| Financial Model / Sensitivity | **IRIS** | scenarios {name, leverage, fccr, breaches} |
-| Financial Commentary | Boom + IRIS + nCino | period deltas (Boom), ratio context (IRIS), current-event rationale (nCino) |
+| Financial Model / Sensitivity | **AFS** | scenarios {name, leverage, fccr, breaches} |
+| Financial Commentary | Boom + AFS + nCino | period deltas (Boom), ratio context (AFS), current-event rationale (nCino) |
 | Collateral → Blanket Lien / Equipment | nCino | collateral records: type, description, appraised value, lien position, advance rate |
-| Guarantor Profile | nCino (+ Boom/IRIS if spread) | guarantor name/type/guaranty; corporate → narrative-only |
+| Guarantor Profile | nCino (+ Boom/AFS if spread) | guarantor name/type/guaranty; corporate → narrative-only |
 | Forward Looking / Recommendation | synthesis | proposed action, conditions, next review |
 
 ## The deal dossier (orchestrator → memo-writer handoff)
 
 The orchestrator assembles ONE structured object and passes it to `memo-writer`. The writer is
 **data-source-blind** — it only sees the dossier, so it can't re-pull or contradict upstream. Every
-numeric value is a **cited value**: `{ value, source, record, asOf }` (and `derivedFrom[]` for IRIS
+numeric value is a **cited value**: `{ value, source, record, asOf }` (and `derivedFrom[]` for AFS
 ratios). Missing values become `{ value: null, status: "missing" }` → rendered as the gap marker.
 
 ```jsonc
@@ -84,7 +84,7 @@ ratios). Missing values become `{ value: null, status: "missing" }` → rendered
 
 The orchestrator only fills dossier keys whose module is in the render plan; the writer renders only
 those. Citation policy (carried from the Experience MCP write path): **hyperlink** Account / Product Package / Loan;
-**cite by ID inline** for everything else (Boom files, IRIS events, junctions).
+**cite by ID inline** for everything else (Boom files, AFS events, junctions).
 
 > The block above is the **logical/cited view** — how each value is sourced and traced. It is *not*
 > the literal argument the renderer takes. The renderer's executable contract is below.
@@ -115,7 +115,7 @@ no lossy "normalize then re-expand" step where figures could drift.
   "afs":   { "_source", "revolverUsage":{ "commitment","months":[],"utilizationPct":[],
               "highPct","averagePct","lowPct","daysAtZero" },
             "paymentHistory":{ "buckets":{ "d30_60","d60_90","d90_plus" } } },        // AFS MCP
-  "iris":  { "_source", "ratios":[{ "period","totalLeverage",.. }],                   // IRIS (placeholder→MCP)
+  "iris":  { "_source", "ratios":[{ "period","totalLeverage",.. }],                   // AFS (placeholder→MCP)
             "covenantCompliance":[{ "name","type","unit","operator","trigger",
               "quarters":[],"actuals":[],"perPeriod":[{ "value","flag","arrow" }] }],
             "riskRatingTrend":{ "events":[{ "period","rating","band","pdPct","proposed" }] },
@@ -147,7 +147,7 @@ Omit `attestation` entirely and every section renders "AI-drafted · Pending rev
 (the correct freshly-drafted state). See SKILL.md → "Per-section attestation" for the live-updating
 review flow.
 
-Each key maps 1:1 to a data-layer owner: `canon`→nCino, `boom`→Boom MCP, `afs`→AFS MCP, `iris`→IRIS,
+Each key maps 1:1 to a data-layer owner: `canon`→nCino, `boom`→Boom MCP, `afs`→AFS MCP, `iris`→AFS,
 `peers`→CapIQ/IBIS. The renderer derives the **flag set + render plan** from `canon.creditAction`
 (plus any `flagOverrides`), so the agent does **not** pass a `renderPlan` — the engine computes it.
 For the offline demo these are exactly the bundled fixtures in the plugin `assets/` (plus the

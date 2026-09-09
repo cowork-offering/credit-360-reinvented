@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { heroOf } from "../book/hero";
+import { useEffect, useRef, useMemo } from "react";
 import { useApp } from "../state/appState";
 import { readAnchors, type Anchor, type BorrowerBundle } from "../data/contract";
 import { FiledChip } from "./FiledChip";
@@ -223,7 +224,14 @@ export function AccountWorkspace({ bundle }: { bundle: BorrowerBundle }) {
   const sector = [snap?.industry, snap?.naicsCode ? `NAICS ${snap.naicsCode}` : null].filter(Boolean).join(" · ") || "—";
   const grade = snap?.primaryRiskRating ?? null;
 
-  const anchors = readAnchors(bundle);
+  /* THE HERO IS DERIVED FROM THE READS (founder, 2026-09-09: a live relationship
+     opened as a name over an empty strip, because the summary and the chips
+     had only ever been hand-written into the baked snapshot). `heroOf` writes
+     both from the exposure and covenant reads the panes below show; the baked
+     text stands only while the bundle cannot yet say what it carries. */
+  const derived = useMemo(() => heroOf(bundle), [bundle]);
+  const verdict = derived?.verdict ?? bundle.verdict;
+  const anchors = derived ? derived.anchors : readAnchors(bundle);
   const ratingAnchor = anchors.find(isRatingAnchor);
   const rest = anchors.filter((a) => a !== ratingAnchor);
 
@@ -288,7 +296,7 @@ export function AccountWorkspace({ bundle }: { bundle: BorrowerBundle }) {
               <SyncButton accountId={snap.accountId} accountName={name} bundle={bundle} />
             </span>
           </div>
-          {bundle.verdict && <p className="verdict">{bundle.verdict}</p>}
+          {verdict && <p className="verdict">{verdict}</p>}
           <div className="anchors num">
             <GradeCell anchor={ratingAnchor} grade={grade} />
             {rest.map((a) => (

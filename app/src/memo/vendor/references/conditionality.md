@@ -26,7 +26,7 @@ flag is computable from the system of record:
 | `segment` | C&I / CRE / Dealer / Muni / NFP / etc. |
 | `exposure_total` | Sum of proposed loan commitments. |
 | `sbe_threshold_breached` | Single-Borrower-Exposure check. |
-| `has_retained_earnings_adj` | An IRIS-flagged material retained-earnings adjustment exists. |
+| `has_retained_earnings_adj` | An AFS-flagged material retained-earnings adjustment exists. |
 
 For the demo the flag set is derived from the bundled nCino snapshot (`${CLAUDE_PLUGIN_ROOT}/assets/ncino-demo-data.json`); in production it is derived live from nCino.
 

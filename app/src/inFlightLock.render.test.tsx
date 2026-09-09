@@ -446,15 +446,17 @@ describe("a filed modification never moves a booked figure", () => {
     mountCockpit();
     act(() => worklistRow().dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
+    // The hero is derived from the exposure read since 2026-09-09: $57.0M of
+    // open facilities less the $3.0M proposal is the BOOKED $54.0M.
     const anchor = () => document.querySelector<HTMLElement>("#ancExposure")!;
-    expect(text(anchor().querySelector(".v"))).toBe("$46.0M");
+    expect(text(anchor().querySelector(".v"))).toBe("$54.0M");
     expect(document.querySelector("#ancExpFiled")).toBeNull();
 
     act(() => dispatchWriteBack(HARTWELL, DELTA_MM));
 
-    expect(text(anchor().querySelector(".v"))).toBe("$46.0M");
+    expect(text(anchor().querySelector(".v"))).toBe("$54.0M");
     expect(text(document.querySelector("#ancExpFiled"))).toBe("+$5.0M filed · booking pending");
-    expect(text(anchor())).not.toContain("$51");
+    expect(text(anchor())).not.toContain("$59");
   });
 
   it("the exposure pane's committed, and everything derived from it, stay booked", () => {

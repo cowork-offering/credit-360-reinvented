@@ -2,7 +2,7 @@
 
 Every Salesforce + nCino object and field the agent queries when drafting a credit memo. This is the raw material — the agent reads all of it before composing prose, computing ratios, or rendering the template.
 
-What's NOT in nCino comes from MCP servers: **Boom** for spread line items, **IRIS** for risk ratings / covenant actuals / ratios / sensitivity, **AFS** for revolver usage / payment history / balances, **CapIQ/IBIS** for peer + industry data. The agent synthesizes across all sources. (See `data-contracts.md` for the full module → source map.)
+What's NOT in nCino comes from MCP servers: **Boom** for spread line items, **AFS** for risk ratings / covenant actuals / ratios / sensitivity, **AFS** for revolver usage / payment history / balances, **CapIQ/IBIS** for peer + industry data. The agent synthesizes across all sources. (See `data-contracts.md` for the full module → source map.)
 
 ---
 
@@ -22,7 +22,7 @@ What's NOT in nCino comes from MCP servers: **Boom** for spread line items, **IR
 | Pricing grid and tier history | **LLC_BI__Loan_Pricing__c** (or pricing fields on Loan) |
 | Origination and ongoing fees | **LLC_BI__Loan_Fee__c** |
 | Spread line items (IS, BS, CF by accountCode) | **Boom MCP** (`boom_*`) — spreading engine |
-| Risk-rating trend + PD, covenant actual-vs-required, ratios, sensitivity | **IRIS MCP** (placeholder until it lands) |
+| Risk-rating trend + PD, covenant actual-vs-required, ratios, sensitivity | **AFS MCP** (placeholder until it lands) |
 | Revolver usage, payment history, loan summary | **AFS MCP** (`revolver_utilization` / `payment_history` / `loan_summary`) |
 | Peer medians + industry outlook | **CapIQ/IBIS MCP** (placeholder; replaces EDGAR/FRED) |
 
@@ -254,7 +254,7 @@ Reading order, when drafting a memo:
 
 Then it pulls (via MCP):
 - Boom (spread line items)
-- IRIS (risk rating, covenant actuals, ratios, sensitivity — placeholder until it lands)
+- AFS (risk rating, covenant actuals, ratios, sensitivity — placeholder until it lands)
 - AFS (revolver usage, payment history, balances)
 - CapIQ/IBIS (peers + industry — placeholder; replaces EDGAR/FRED)
 

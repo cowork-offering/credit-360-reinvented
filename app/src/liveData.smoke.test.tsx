@@ -272,7 +272,9 @@ describe("no list surface renders raw org row multiplicity", () => {
     openAccount("Piedmont Precision Components, Inc.");
     const button = [...container!.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Relationship Graph")!;
     click(button);
-    const text = container!.textContent ?? "";
+    // The PANE, not the page: the hero above it now states the facility count
+    // for the relationship (derived, 2026-09-09), which is a different claim.
+    const text = container!.querySelector(".pane")?.textContent ?? "";
     expect(text).toContain("Margaret Holloway");
     expect(text).toContain("Personal Guaranty");
     // One facility each: no count is claimed where there is nothing to count.

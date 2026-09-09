@@ -22,7 +22,7 @@
       content. The one thing this builder will not do is produce a number that
       looks sourced and is not.
 
-   The IRIS and peers placeholders ARE carried through from the vendored assets,
+   The AFS and peers placeholders ARE carried through from the vendored assets,
    because that is what the plugin does and the renderer labels every section
    they feed with a dashed "stub" provenance chip. They announce themselves.
    ============================================================================= */
@@ -53,7 +53,7 @@ import {
   type Text,
 } from "./types";
 
-/** The plugin's IRIS stand-in. Carries the account it was written against. */
+/** The plugin's AFS stand-in. Carries the account it was written against. */
 const IRIS_PLACEHOLDER = JSON.parse(irisRaw) as MemoIris & { externalUniqueId?: string };
 /** The plugin's CapIQ/IBIS stand-in: peer set, medians, industry outlook. */
 export const PEERS_PLACEHOLDER = JSON.parse(peersRaw) as MemoPeers;
@@ -582,7 +582,7 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
     iris: {
       ...IRIS_PLACEHOLDER,
       // The org's real covenants replace the placeholder's, because the cockpit
-      // has them. Everything else in IRIS is still the stub, and the renderer
+      // has them. Everything else in AFS is still the stub, and the renderer
       // chips it as one.
       covenantCompliance: covenantCompliance(bundle.covenants?.covenants ?? [], asOf),
       ratios: ratios?.totalLeverage != null ? [{ period: asOf, totalLeverage: ratios.totalLeverage }] : [],

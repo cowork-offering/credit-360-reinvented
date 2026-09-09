@@ -283,7 +283,7 @@ export interface MemoCovenantCompliance {
   actual?: number | null;
 }
 
-/** Ratings, covenant actuals, ratios and sensitivity. A stub until IRIS lands, and the
+/** Ratings, covenant actuals, ratios and sensitivity. A stub until AFS lands, and the
  *  renderer's provenance chips say "stub" on every section it feeds. */
 export interface MemoIris {
   _source?: string;

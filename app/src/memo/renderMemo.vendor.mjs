@@ -90,7 +90,7 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
     ncino: { label: "nCino", color: "#1798C1", i: "n" },
     boom: { label: "Boom", color: "#5B3FA0", i: "B" },
     afs: { label: "AFS", color: "#5B6470", i: "AF" },
-    iris: { label: "IRIS", color: "#0B6BCB", i: "IR" },
+    iris: { label: "AFS", color: "#0B6BCB", i: "IR" },
     snowflake: { label: "Snowflake", color: "#29B5E8", i: "SF" },
     capiq: { label: "S&P Capital IQ", color: "#C8102E", i: "IQ" },
     ibis: { label: "IBISWorld", color: "#00833E", i: "IB" },
@@ -717,7 +717,7 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
   }
 
   // The nCino cm_* fields carry NARRATIVE PROSE ONLY — the figures (exposure/covenant/KPI tables, charts)
-  // live in the systems of record (nCino loans, Snowflake/IRIS), so the narrative field must not duplicate
+  // live in the systems of record (nCino loans, Snowflake/AFS), so the narrative field must not duplicate
   // them. Extract just the [data-editable] narrative blocks from each module before RTE-sanitizing.
   function narrativeOnly(fragment) {
     const out = [];

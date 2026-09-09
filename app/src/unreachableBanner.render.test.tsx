@@ -5,18 +5,21 @@ import { createRoot, type Root } from "react-dom/client";
 import { AppProvider } from "./state/appState";
 import { KpiBand } from "./components/KpiBand";
 import { RETRY_BUDGET_MS } from "./channel/mcp";
+import { PORTFOLIO_REFETCH_MS } from "./channel/useLivePortfolio";
 import type { C360Data } from "./data/contract";
 import sample from "../../artifact/sample-data.json";
 
 /* =============================================================================
    "Customer 360 is briefly unreachable", the banner that used to STICK.
 
-   The idle-expired MCP session fails the first call after a pause, the handler
+   The idle-expired MCP session fails the first call after a pause, the hook
    stored that failure, and with no polling and no retry nothing ever replaced
    it: the banner stood until the view remounted. What is asserted here is the
    banker's side of the fix: the banner appears only after the retry has been
    spent, it quotes the freshness of the data still on screen, it offers a
-   gesture, and the next good event takes it away.
+   gesture, and the next good read takes it away. The read is a `callTool` poll
+   since 2026-09-09 (the platform refuses a watch on this connector's tools), so
+   the failures here arrive on the page's own clock, not through a watch handler.
    ============================================================================= */
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -36,20 +39,18 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const PORTFOLIO = "Customer360Portfolio";
 const envelope = (data: unknown) => ({ content: [{ isSuccess: true, errors: null, outputValues: data }] });
 const BOOK = envelope({ accounts: [{ accountId: "A", tce: 1_000_000, outstanding: 500_000 }] });
 const UNAVAILABLE = { code: "server_unavailable", message: "session expired", retryable: true };
 /** 2026-09-03T14:03:00Z, the clock the banner quotes. */
 const STORED_AT = Date.UTC(2026, 8, 3, 14, 3, 0);
+const GOOD = { payload: BOOK, cache: { storedAt: STORED_AT, revalidating: false } };
 
-function mount(callTool: ReturnType<typeof vi.fn>) {
-  const captured: { handler?: (ev: unknown) => void } = {};
-  const unsub = vi.fn();
-  const watch = vi.fn().mockImplementation((_s, _t, _i, h) => {
-    captured.handler = h as (ev: unknown) => void;
-    return unsub;
-  });
-  w.claude = { mcp: { callTool, watchTool: watch, listTools: vi.fn(), invalidate: vi.fn() } };
+/** The connector: the portfolio answers as the test says, everything else is down. */
+function mount(portfolio: () => Promise<unknown>) {
+  const callTool = vi.fn((_server: string, tool: string) => (tool === PORTFOLIO ? portfolio() : Promise.reject(UNAVAILABLE)));
+  w.claude = { mcp: { callTool, watchTool: vi.fn(), listTools: vi.fn(), invalidate: vi.fn() } };
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -60,25 +61,30 @@ function mount(callTool: ReturnType<typeof vi.fn>) {
       </AppProvider>,
     ),
   );
-  return { captured, watch, unsub };
+  return { callTool, portfolioCalls: () => callTool.mock.calls.filter((c) => c[1] === PORTFOLIO) };
 }
 
+const tick = async (ms = 10) => {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+};
 const band = () => container!.querySelector(".kpi-live");
 const retryButton = () => [...container!.querySelectorAll("button")].find((b) => /Retry/i.test(b.textContent ?? ""));
 
 describe("the unreachable banner", () => {
   it("stays away while the retry runs, then names the fix, the freshness and a gesture", async () => {
     vi.useFakeTimers();
-    const callTool = vi.fn().mockRejectedValue(UNAVAILABLE);
-    const h = mount(callTool);
-
-    act(() => h.captured.handler!({ type: "data", result: { payload: BOOK, cache: { storedAt: STORED_AT, revalidating: false } } }));
-    act(() => h.captured.handler!({ type: "error", error: UNAVAILABLE }));
+    let good = true;
+    mount(() => (good ? Promise.resolve(GOOD) : Promise.reject(UNAVAILABLE)));
+    await tick();
     expect(band()?.textContent ?? "").not.toContain("briefly unreachable");
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
-    });
+    good = false;
+    await tick(PORTFOLIO_REFETCH_MS);
+    expect(band()?.textContent ?? "").not.toContain("briefly unreachable"); // the retry is still running
+
+    await tick(RETRY_BUDGET_MS + 50);
     const text = band()?.textContent ?? "";
     expect(text).toContain("briefly unreachable");
     /* THE DAY RIDES WITH THE CLOCK once the stamp is not today's. The
@@ -89,36 +95,36 @@ describe("the unreachable banner", () => {
     expect(retryButton()).toBeTruthy();
   });
 
-  it("clears on the next good data event, and the figures never blanked", async () => {
+  it("clears on the next good read, and the figures never blanked", async () => {
     vi.useFakeTimers();
-    const callTool = vi.fn().mockRejectedValue(UNAVAILABLE);
-    const h = mount(callTool);
-
-    act(() => h.captured.handler!({ type: "data", result: { payload: BOOK, cache: { storedAt: STORED_AT, revalidating: false } } }));
-    act(() => h.captured.handler!({ type: "error", error: UNAVAILABLE }));
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
-    });
+    let good = true;
+    mount(() => (good ? Promise.resolve(GOOD) : Promise.reject(UNAVAILABLE)));
+    await tick();
+    good = false;
+    await tick(PORTFOLIO_REFETCH_MS + RETRY_BUDGET_MS + 50);
     expect(band()?.textContent).toContain("briefly unreachable");
+    expect(band()?.textContent).toMatch(/14:03 UTC/); // the figures on screen are the last good ones
 
-    act(() => h.captured.handler!({ type: "data", result: { payload: BOOK, cache: { storedAt: STORED_AT, revalidating: false } } }));
+    good = true;
+    await tick(PORTFOLIO_REFETCH_MS);
     expect(band()?.textContent ?? "").not.toContain("briefly unreachable");
     expect(retryButton()).toBeUndefined();
   });
 
-  it("Retry re-registers the watch", async () => {
+  it("Retry reads again now", async () => {
     vi.useFakeTimers();
-    const callTool = vi.fn().mockRejectedValue(UNAVAILABLE);
-    const h = mount(callTool);
-    act(() => h.captured.handler!({ type: "error", error: UNAVAILABLE }));
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
-    });
-    expect(h.watch).toHaveBeenCalledTimes(1);
+    let good = false;
+    const h = mount(() => (good ? Promise.resolve(GOOD) : Promise.reject(UNAVAILABLE)));
+    await tick(RETRY_BUDGET_MS + 50);
+    expect(band()?.textContent).toContain("briefly unreachable");
+    const before = h.portfolioCalls().length;
+    expect(before).toBeGreaterThan(1); // the retry policy was spent first
 
+    good = true;
     act(() => retryButton()!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
-    expect(h.watch).toHaveBeenCalledTimes(2);
-    expect(h.unsub).toHaveBeenCalled();
     expect(retryButton()!.textContent).toContain("Retrying");
+    await tick();
+    expect(h.portfolioCalls().length).toBe(before + 1);
+    expect(band()?.textContent ?? "").not.toContain("briefly unreachable");
   });
 });

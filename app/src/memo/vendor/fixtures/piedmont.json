@@ -382,7 +382,7 @@
     }
   },
   "sensitivity": {
-    "_note": "IRIS-placeholder sensitivity on the binding DSC covenant. Base = FY2024 actual.",
+    "_note": "AFS-placeholder sensitivity on the binding DSC covenant. Base = FY2024 actual.",
     "scenarios": [
       {
         "name": "Base (FY2024 actual)",
@@ -566,7 +566,7 @@
     "financialCommentary": "<p>FY2025 revenue of $64.5M grew ~7.5% year-over-year, but profitability softened: gross margin compressed to ~21.6% and adjusted EBITDA margin declined to ~7.9% ($5.1M, from ~9.7% in FY2024) on elevated direct labor, training, and first-article qualification costs ahead of full-rate production. Total funded debt of $20.2M (pro forma $25.2M including the $5.0M equipment loan) puts leverage at ~3.9x EBITDA (~4.9x pro forma) — elevated for the rating but supported by tangible collateral and a contracted backlog. Management projects EBITDA-margin recovery in FY2026 as the new program reaches full rate and qualification spend rolls off; the margin trajectory is the key monitoring item.</p>",
     "recommendation": "<p><strong>Recommendation.</strong> Approve the $5.0M equipment term loan and the $2.5M increase &amp; renewal of the working-capital revolver (to $7.5M) at a 5 — Pass/Watch risk rating. The credit is supported by tangible collateral, a contracted backlog, the principal's guaranty, and covenant headroom (DSC 1.42x vs 1.25x; liquidity $8.2M vs $5.0M), tempered by softening margins and elevated pro forma leverage.</p><p><strong>Conditions &amp; Monitoring.</strong> Quarterly financial reporting with covenant compliance certificate; annual field exam of working-capital collateral; first-lien UCC on the financed equipment. Watch item: FY2025 EBITDA-margin recovery toward management plan in FY2026; revisit the risk rating if margin softening continues beyond Q2-2026.</p>",
     "guarantorProfile": "<p>Margaret Holloway provides an unlimited continuing guaranty of the Piedmont facilities. As founder and sole shareholder, her interests are fully aligned with the borrower. A current personal financial statement is on file; updated PFS and tax returns are a standard reporting condition.</p>",
-    "globalCashFlow": "<p>On a combined basis, borrower operating cash flow plus guarantor liquidity covers pro forma fixed charges. Global debt-service coverage is supported primarily at the operating-company level, with the guaranty providing secondary support. A formal global cash-flow model will be maintained in IRIS once the connector lands.</p>",
+    "globalCashFlow": "<p>On a combined basis, borrower operating cash flow plus guarantor liquidity covers pro forma fixed charges. Global debt-service coverage is supported primarily at the operating-company level, with the guaranty providing secondary support. A formal global cash-flow model will be maintained in AFS once the connector lands.</p>",
     "collateralBlanket": "<p>The working-capital line is secured by a first-priority blanket lien on all business assets, including accounts receivable and inventory, supported by a borrowing-base certificate and periodic field exams.</p>",
     "collateralEquipment": "<p>The equipment term loan is secured by a first-priority purchase-money security interest in the three financed Mazak INTEGREX CNC machines, plus the borrower's existing late-model machine tools. Orderly-liquidation coverage is supported by the active secondary market for Mazak multi-tasking equipment.</p>"
   },
