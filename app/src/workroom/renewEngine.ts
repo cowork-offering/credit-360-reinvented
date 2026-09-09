@@ -690,6 +690,14 @@ export function createRenewEngine(args: {
   function toResult(outcome: ReturnType<typeof parseModify>, seq: number): IntentResult | null {
     if (outcome.kind === "clarify") return { kind: "unparsed", reply: withCurrent(outcome.question, outcome.awaiting) };
     if (outcome.kind === "none") return null;
+    // KEEP CURRENT — the banker held the term the renewal was waiting on. Say
+    // the current figure back and stop asking; nothing stages, and the caller
+    // clears `awaiting` because this is not a clarify.
+    if (outcome.kind === "hold") {
+      const cur = currentValue(outcome.field, outcome.facility);
+      const at = cur.startsWith("not ") || cur.includes("not staged") ? "unchanged" : `at ${cur}`;
+      return { kind: "unparsed", reply: `Holding ${outcome.field.label.toLowerCase()} ${at}. Nothing changes on it.` };
+    }
 
     const deltas = outcome.amendments.map((a, i) => toDelta(a, seq + i));
     const fileable = deltas.filter((d) => d.fileable).length;

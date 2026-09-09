@@ -1327,6 +1327,15 @@ export function createModifyEngine(args: {
     }
     if (outcome.kind === "none") return null;
 
+    // KEEP CURRENT. The banker held the field the room was waiting on; the room
+    // says the current figure back, stages nothing, and stops asking. Clearing
+    // `awaiting` is the caller's job (an outcome that is not a clarify does it).
+    if (outcome.kind === "hold") {
+      const cur = currentValue(outcome.field, outcome.facility);
+      const at = cur.startsWith("not ") || cur.includes("not staged") ? "unchanged" : `at ${cur}`;
+      return { kind: "unparsed", reply: `Holding ${outcome.field.label.toLowerCase()} ${at}. Nothing changes on it.` };
+    }
+
     // A refusal beats a chip: an ask that belongs to another credit action is
     // answered with the reason rather than staged into this plan. And a refusal
     // that only says no is a dead end, so the WHY and the route out travel with

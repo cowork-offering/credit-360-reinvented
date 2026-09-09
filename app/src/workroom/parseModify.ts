@@ -221,6 +221,11 @@ export type ParseOutcome =
        *  re-parsed like any typed answer. */
       options?: string[];
     }
+  /** KEEP CURRENT. The banker answered a term question with "hold" / "keep it" /
+   *  "no change" / "leave as is": the field does not move. Not a clarify (that
+   *  re-asks and loops) and not an amendment (nothing files); the engine says so
+   *  and stops waiting on the field. */
+  | { kind: "hold"; field: CatalogField; facility: Facility | null }
   | { kind: "none" };
 
 export interface ParseContext {
@@ -1425,6 +1430,17 @@ function inferAmount(lower: string, ctx: ParseContext): ParseOutcome | null {
  * that carries nothing else. Returns null when the answer is not one either —
  * an unreadable answer is still unreadable.
  */
+/**
+ * KEEP-CURRENT WORDS. A banker's way of saying a term does not move: "hold",
+ * "keep", "keep it", "keep current", "keep the same", "no change", "don't change
+ * it", "leave it", "leave as is", "leave unchanged", "unchanged", "same", "as
+ * is", "stet". Anchored at the start, and only ever consulted when the field's
+ * own reader found no value — a line that names a figure ("keep it at 7%") reads
+ * the figure and never reaches this.
+ */
+const KEEP_CURRENT =
+  /^(?:hold|keep(?:\s+(?:it|current|the\s+same|as[-\s]?is|as\s+it\s+is))?|no\s+change|don'?t\s+change(?:\s+it)?|leave\s+(?:it|as[-\s]?is|as\s+it\s+is|unchanged)?|unchanged|same|as[-\s]?is|stet)\b/i;
+
 export function parseAnswer(awaiting: Awaiting, text: string, ctx: ParseContext): ParseOutcome | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
@@ -1542,7 +1558,18 @@ export function parseAnswer(awaiting: Awaiting, text: string, ctx: ParseContext)
 
   const at: CatalogMatch = { field: awaiting.field, matched: "", index: 0 };
   const read = readValue(awaiting.field, trimmed, lower, at, awaiting.facility, ctx);
-  if ("question" in read) return { kind: "clarify", question: read.question, awaiting, options: read.options };
+  if ("question" in read) {
+    // KEEP CURRENT IS AN ANSWER, NOT A NON-ANSWER. "hold" / "keep it" / "no
+    // change" / "leave as is" to a term question means the field does not move,
+    // and re-asking the same question over it is the loop that made the room
+    // feel deaf. Only where the field's own reader found no value (a line naming
+    // a figure is read as the figure and never reaches here) and the line
+    // carries no digit, so "keep it at 7%" is never swallowed.
+    if (KEEP_CURRENT.test(lower) && !/\d/.test(trimmed)) {
+      return { kind: "hold", field: awaiting.field, facility: awaiting.facility };
+    }
+    return { kind: "clarify", question: read.question, awaiting, options: read.options };
+  }
   if (read.value === null) return null;
   return {
     kind: "amendments",

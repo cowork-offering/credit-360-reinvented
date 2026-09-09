@@ -282,6 +282,38 @@ describe("the modify engine reads the real package", () => {
     expect(answered.deltas[0].wire).toEqual({ key: "requestedAmount", value: 20_000_000, facilityId: LINE_ID });
   });
 
+  it("takes 'hold' as keep-current instead of re-asking the same question forever", async () => {
+    const { engine } = engineOn();
+    const asked = await engine.parseIntent("change the rate on the Line of Credit", context);
+    expect(asked.kind).toBe("unparsed");
+    if (asked.kind !== "unparsed") return;
+    expect(asked.reply).toMatch(/what rate should it move to/i);
+
+    // "hold" holds the field at its current figure and does NOT re-emit the
+    // question. This was the loop: an unrecognised answer re-asked itself.
+    const held = await engine.parseIntent("hold", context);
+    expect(held.kind).toBe("unparsed");
+    if (held.kind !== "unparsed") return;
+    expect(held.reply).toMatch(/holding/i);
+    expect(held.reply).toContain("7.6%");
+    expect(held.reply).not.toMatch(/what rate should it move to/i);
+
+    // AND THE QUESTION IS GONE. A bare "8%" would stage a rate ONLY if the room
+    // were still waiting on the rate; with the field held, it is just a number
+    // attached to no field, so it never becomes a rate delta.
+    const after = await engine.parseIntent("8%", context);
+    expect(after.kind).not.toBe("deltas");
+  });
+
+  it("does not read 'keep it at 7%' as hold — the figure is the answer", async () => {
+    const { engine } = engineOn();
+    await engine.parseIntent("change the rate on the Line of Credit", context);
+    const answered = await engine.parseIntent("keep it at 7%", context);
+    expect(answered.kind).toBe("deltas");
+    if (answered.kind !== "deltas") return;
+    expect(answered.deltas[0].wire).toEqual({ key: "requestedRate", value: 7, facilityId: LINE_ID });
+  });
+
   it("will not invent a target figure when no client ask exists", () => {
     const noAsk = bundleWith();
     delete noAsk.requests;
