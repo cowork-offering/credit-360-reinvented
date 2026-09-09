@@ -2,7 +2,7 @@
 
 Fresh session reads this first. Supersedes nothing (SESSION-HANDOFF-20260901.md still holds for
 the shape of the working agreements below), adds today's landing on top. Founder demos the
-Customer 360 cockpit tomorrow evening, 2026-09-03. See knowledge/DEMO-RUNBOOK-20260903.md for the
+Credit 360 cockpit tomorrow evening, 2026-09-03. See knowledge/DEMO-RUNBOOK-20260903.md for the
 phone-readable arc; this file is the state, not the script.
 
 ## 1. Where main stands

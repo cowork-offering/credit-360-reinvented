@@ -1,9 +1,9 @@
 ---
-name: customer-360-cockpit
-description: Open the Customer 360 relationship cockpit, a worklist-first commercial-credit control center. The DEFAULT open is INSTANT: hand the banker the canonical published cockpit named in assets/cockpit.json and let the page refresh itself through the viewer's own connectors. No fetch, no assembler, no publish. The fetch-and-publish path (the 10 read tools of the 28-tool Customer360 MCP server plus Boom-spread financials, composed into C360_DATA and assembled into a prebuilt interactive Cowork artifact: needs-action queue, activity/audit trail, exposure, covenants, relationship graph, whitespace, structural signals, a chat FAB and a Client Actions panel) is the REBUILD path, taken only when a banker asks to rebuild or republish or when no canonical URL can be resolved. This is the read and render skill; the 18 governed write tools run through the guided skills. The page also keeps a COCKPIT STATE document current in the artifact store (open relationship, open room, staged plan, last filed, per-lane health with round-trip durations), and this skill's "READ THE COCKPIT STATE FIRST" section is how a session answers "what am I looking at" from the banker's actual screen rather than from a guess. Trigger on "customer 360", "open the cockpit", "pull up the relationship view", "what needs my attention", "relationship overview for <account>", "what am I looking at", "what's open", "what did I stage", "rebuild the cockpit", "republish the cockpit", or any account-level portfolio question.
+name: credit-360-cockpit
+description: Use when a banker asks to open the Credit 360 cockpit (also said as "the Customer 360", "the cockpit", "pull up the relationship"), the worklist-first commercial-credit control center. The DEFAULT open is INSTANT: hand the banker the canonical published cockpit named in assets/cockpit.json and let the page refresh itself through the viewer's own connectors. No fetch, no assembler, no publish. The fetch-and-publish path (the 10 read tools of the 28-tool Customer360 MCP server plus Boom-spread financials, composed into C360_DATA and assembled into a prebuilt interactive Cowork artifact: needs-action queue, activity/audit trail, exposure, covenants, relationship graph, whitespace, structural signals, a chat FAB and a Client Actions panel) is the REBUILD path, taken only when a banker asks to rebuild or republish or when no canonical URL can be resolved. This is the read and render skill; the 18 governed write tools run through the guided skills. The page also keeps a COCKPIT STATE document current in the artifact store (open relationship, open room, staged plan, last filed, per-lane health with round-trip durations), and this skill's "READ THE COCKPIT STATE FIRST" section is how a session answers "what am I looking at" from the banker's actual screen rather than from a guess. Trigger on "credit 360", "customer 360", "open the cockpit", "pull up the relationship view", "what needs my attention", "relationship overview for <account>", "what am I looking at", "what's open", "what did I stage", "rebuild the cockpit", "republish the cockpit", or any account-level portfolio question.
 ---
 
-# Customer 360 Cockpit (v3)
+# Credit 360 Cockpit (v3)
 
 **Cowork chat is the main interface, so the open has to be instant.** There are TWO paths in this
 skill and the fast one is the default:
@@ -236,7 +236,7 @@ Eight `stage_*` / `execute_*` pairs, one stage-only tool, and one second-hop com
 `stage_relationship_intake` · `execute_relationship_intake` · `stage_renewal`
 
 **This skill renders. It does not write.** Every write runs through a guided skill, under the write
-discipline in `agents/customer-360.md`: stage, present the org's plan and warnings verbatim, the
+discipline in `agents/credit-360.md`: stage, present the org's plan and warnings verbatim, the
 banker confirms in words, execute with the five-field payload, verify by re-query. See the ACTIONS
 section below for the routing.
 

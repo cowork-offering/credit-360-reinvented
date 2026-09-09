@@ -28,8 +28,8 @@ export const BLOCK_NAME = "handoff-routing";
 
 /** The two prose files that must carry an identical routing table. */
 export const TARGET_PATHS = [
-  join(PLUGIN_ROOT, "agents", "customer-360.md"),
-  join(PLUGIN_ROOT, "skills", "customer-360-cockpit", "SKILL.md"),
+  join(PLUGIN_ROOT, "agents", "credit-360.md"),
+  join(PLUGIN_ROOT, "skills", "credit-360-cockpit", "SKILL.md"),
 ];
 
 /** The page's own route contract, for the cross-check below. Outside the shipped plugin folder. */

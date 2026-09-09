@@ -10,12 +10,12 @@ archived observed envelopes and the deployed Apex sources already in this repo.
 
 | Path | What |
 |---|---|
-| `client-360/agents/customer-360.md` | NEW. The orchestrator: identity, sources of truth, the 24-tool surface, the command routing table, the six-step write discipline, nine fences, voice, out of scope |
+| `client-360/agents/credit-360.md` | NEW. The orchestrator: identity, sources of truth, the 24-tool surface, the command routing table, the six-step write discipline, nine fences, voice, out of scope |
 | `client-360/skills/client-request-to-action/SKILL.md` | NEW. Client ask to package-anchored `stage_loan_modification` to execution. The printed Dreamforce beat |
 | `client-360/skills/covenant-review/SKILL.md` | NEW. Package-scoped bulk assessment, Pending rule, `allowNonPending` opt-in, Exception classifier, approval-trap warnings verbatim |
 | `client-360/skills/collateral-valuation/SKILL.md` | NEW. Package-anchored `items[]`, cap 20, `valuationDate` required, all four refusal strings verbatim |
 | `client-360/skills/relationship-actions/SKILL.md` | NEW. Service request, annual review, risk rating review, new facility (two execute invocations), renewal (stage only) |
-| `client-360/skills/customer-360-cockpit/SKILL.md` | EDITED. 24 tools not 8, the write methodology as a pointer, the Exception/Waived semantics table, the ACTIONS section rewritten off its stale "no gated writes exist yet" claim. Fetch sequence, `C360_DATA` contract and assembler invocation untouched |
+| `client-360/skills/credit-360-cockpit/SKILL.md` | EDITED. 24 tools not 8, the write methodology as a pointer, the Exception/Waived semantics table, the ACTIONS section rewritten off its stale "no gated writes exist yet" claim. Fetch sequence, `C360_DATA` contract and assembler invocation untouched |
 | `client-360/.claude-plugin/plugin.json` | 0.4.3 to **0.5.0**, description rewritten for reads plus governed writes plus guided workflows |
 | `.claude-plugin/marketplace.json` | description matched to the plugin |
 | `client-360/RUNBOOK.md` | guided-skill table, the not-yet-wired routes, the two release test suites |
@@ -29,7 +29,7 @@ demo honest.
 
 | Intent | Behavior |
 |---|---|
-| open the cockpit / pull up an account / what needs my attention | `customer-360-cockpit` |
+| open the cockpit / pull up an account / what needs my attention | `credit-360-cockpit` |
 | the client wants the line at 20M / increase the revolver / a forwarded email | `client-request-to-action` |
 | review the covenants of the package | `covenant-review` |
 | value the collateral | `collateral-valuation` |

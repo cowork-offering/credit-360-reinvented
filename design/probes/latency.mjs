@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Customer 360, THE RELAY BUDGET probe.
+/* Credit 360, THE RELAY BUDGET probe.
  *
  * FOUNDER, 2026-09-06: "let's make it award winning, sexy and latency free",
  * and earlier "fast loading also for the plugin when asking in Cowork as that

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Customer 360, the ROOM CENSUS.
+/* Credit 360, the ROOM CENSUS.
  *
  * perf.mjs says a room is slow. This says what is in it.
  *

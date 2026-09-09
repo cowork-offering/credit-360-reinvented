@@ -1,4 +1,4 @@
-# Customer 360 cockpit: the review script for the 2026-09-03 evening demo
+# Credit 360 cockpit: the review script for the 2026-09-03 evening demo
 
 Pinned artifact: https://claude.ai/code/artifact/91b5e835-5536-4f23-950e-4cde7941cf7f
 Reload once after every publish and accept the scope dialog (28 Customer 360 tools).

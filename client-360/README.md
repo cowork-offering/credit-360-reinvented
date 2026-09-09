@@ -1,6 +1,6 @@
-# Client 360 (Customer 360 Reinvented)
+# Credit 360
 Cowork plugin: commercial-credit relationship cockpit over the Salesforce-native Customer 360
-MCP server. See RUNBOOK.md for prerequisites and install. Source repo: cowork-offering/customer-360.
+MCP server. See RUNBOOK.md for prerequisites and install. Source repo: cowork-offering/credit-360.
 
 ## How the cockpit opens
 

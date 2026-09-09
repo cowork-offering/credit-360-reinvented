@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Customer 360, the LOOK GATE for the liquid pass.
+/* Credit 360, the LOOK GATE for the liquid pass.
  *
  * FOUNDER, 2026-09-04 (through the coordinator): the liquid glass itself has to
  * run smooth. Every cheaper filter is a claim that the material is unchanged,

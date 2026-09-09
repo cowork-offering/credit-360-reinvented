@@ -1,4 +1,4 @@
-# Customer 360 Cockpit — Maintenance & Monitoring Surfaces
+# Credit 360 Cockpit — Maintenance & Monitoring Surfaces
 
 *Accenture Commercial Credit Brain · Customer 360 MCP · blueprint stage 06 (Servicing & Monitoring) and stage 05 (Offering & Set-up).*
 *Anchored to `SCHEMA-VERIFIED.md`, `CAPABILITY-MAP.md`, `ROLE-REQUIREMENTS.md`, `VALIDATION-AND-DECISIONS.md`, `PERSONAS.md`. Extends `EXPERIENCE-SPEC.md` sections 3.1 to 3.7; does not regress them.*

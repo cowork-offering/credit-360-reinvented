@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Customer 360, THE ROOM'S ENDING AS A FRAME STRIP.
+/* Credit 360, THE ROOM'S ENDING AS A FRAME STRIP.
  *
  * FOUNDER, 2026-09-06: "make the modification / renewal and loan creation at the
  * end a little bit more cinematic, I liked the rainbow card morphing into this

@@ -1,4 +1,4 @@
-# Commercial Credit Brain — Customer 360 Cockpit: Persona & Use-Case Catalog
+# Commercial Credit Brain — Credit 360 Cockpit: Persona & Use-Case Catalog
 
 The cockpit is the CUSTOMER view, not the deal view. The customer is the obligor / relationship group (operating entity + owners/principals + guarantors + affiliates + subsidiaries + household), assembled from the nCino Connection graph + Legal Entities and enriched by the FSC Household. A single deal (one nCino Product Package) is one facet, a drill-in. Every use case rolls up at the group / obligor grain.
 

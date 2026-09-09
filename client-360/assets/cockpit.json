@@ -1,4 +1,4 @@
 {
-  "_comment": "Plugin configuration for the Customer 360 cockpit. `canonicalArtifactUrl` is the published cockpit a session writes intents to when it did not publish one itself (a chat that never opened the room still has somewhere to hand work to). A session that DID publish this run always uses the URL its own Artifact call returned, never this one. Change this only when the canonical cockpit is republished to a new URL.",
+  "_comment": "Plugin configuration for the Credit 360 cockpit. `canonicalArtifactUrl` is the published cockpit a session writes intents to when it did not publish one itself (a chat that never opened the room still has somewhere to hand work to). A session that DID publish this run always uses the URL its own Artifact call returned, never this one. Change this only when the canonical cockpit is republished to a new URL.",
   "canonicalArtifactUrl": "https://claude.ai/code/artifact/91b5e835-5536-4f23-950e-4cde7941cf7f"
 }

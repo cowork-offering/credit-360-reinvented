@@ -5,7 +5,7 @@ description: Guided workflow. The four relationship-level nCino actions plus ren
 
 # Relationship actions
 
-Five workflows on one governed pattern. Read the **write discipline** in `agents/customer-360.md`
+Five workflows on one governed pattern. Read the **write discipline** in `agents/credit-360.md`
 first: stage, present verbatim, the human confirms, execute with the five-field payload, verify by
 re-query, name the handoff. Everything below is what each action adds on top of it.
 
@@ -20,7 +20,7 @@ runs without a token by design. See that section.
 
 **When a cockpit is reachable, every one of these asks becomes an INTENT, not a staged plan.**
 Compose the lines in the room's grammar and hand them to the room; the banker watches it stage there.
-The routing table is in `agents/customer-360.md` and in the `customer-360-cockpit` skill, which also
+The routing table is in `agents/credit-360.md` and in the `credit-360-cockpit` skill, which also
 carries the intent shape and the `write_db` protocol. These five workflows route:
 
 | Workflow | Room | Route |

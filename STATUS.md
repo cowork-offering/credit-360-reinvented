@@ -1,12 +1,12 @@
-# Customer 360 — Status & Charter (2026-08-14, post-migration)
+# Credit 360 — Status & Charter (2026-08-14, post-migration)
 
-**Read this first.** This repo is the single source for Customer 360: code, plugin packaging,
+**Read this first.** This repo is the single source for Credit 360: code, plugin packaging,
 and the full knowledge tree (`knowledge/`). New sessions start here, then
 `knowledge/HANDOFF-2026-07-27.md` for deep context.
 
 ## Why this matters
 
-Customer 360 is a **component of the Commercial Credit Brain** (alongside the Commercial Credit
+Credit 360 is a **component of the Commercial Credit Brain** (alongside the Commercial Credit
 Memo) and **the showcase for Dreamforce**. The story it carries: a governed, write-capable MCP
 server built entirely Salesforce-native (Apex invocables + McpServerDefinition, no middleware),
 with a product-grade cockpit on top. Deliverable quality bar: spot-on.
@@ -18,7 +18,7 @@ with a product-grade cockpit on top. Deliverable quality bar: spot-on.
 | **Salesforce MCP server** | 24 Apex tools in org `bankinggpt`, `Customer360` McpServerDefinition (23 in artifact manifest). 9 reads + stage/execute write pairs (bulk collateral valuation hardened to a required package anchor + required per-item date + 20 cap, service request, annual + risk-rating reviews, new facility w/ package-first + borrowing structure, package-scoped BULK covenant review) + modification stage/execute pair + stage-only renewal. WS0.5 items 2+3 (2026-08-22) changed those two tool SHAPES; no tool name changed and the McpServerDefinition was not touched. Engine: plan/planHash/single-use decisionToken, write-guard transition allowlist, idempotency, verification re-queries. Apex suite 170/170. Rebuild mirror: `knowledge/sf-build-v2/wp2/`. |
 | **Cockpit (React)** | `app/` — worklist-first client overview (KYC & Onboarding removed from scope 2026-08-27), deal-grammar tickets (package-anchored mod/renewal, bulk collateral picker, review fork), email→action suggestions, sync tiers + persistent overlay, ~1,200 tests. Compiled to `artifact/customer-360-template.html`. |
 | **Published artifact** | claude.ai artifact URLs (main `f7a6006f-…`, copy `95cf2a8d-…`), verified byte-identical to repo HEAD bundle + data. Page calls connectors live via `window.claude.mcp` with viewer credentials. |
-| **Cowork plugin** | `.claude-plugin/` + `skills/customer-360-cockpit` + bundled template + `render/assemble-cockpit.mjs` (agent fetches data → assembler bakes JSON → Cowork artifact). ⚠️ Plugin bundle STALE at commit `6eda1b6` (Jul 26) — pre-deal-grammar. Sync = outstanding item 1. |
+| **Cowork plugin** | `.claude-plugin/` + `skills/credit-360-cockpit` + bundled template + `render/assemble-cockpit.mjs` (agent fetches data → assembler bakes JSON → Cowork artifact). ⚠️ Plugin bundle STALE at commit `6eda1b6` (Jul 26) — pre-deal-grammar. Sync = outstanding item 1. |
 | **Demo data** | Hartwell Industrial Group (91 records, $46MM, 6 booked loans, ids in `knowledge/DEMO-RELATIONSHIP.md`) + Piedmont anchor. Live-observed envelope datasets baked in `artifact/live-data.json`. |
 
 ## Wiring map

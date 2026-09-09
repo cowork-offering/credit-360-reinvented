@@ -18,7 +18,7 @@ anchored on one product package, and every collateral in the batch has to be pro
 
 **When a cockpit is reachable, this ask becomes an INTENT, not a staged batch.** Compose the lines in
 the room's grammar and hand them to the relationship workroom; the banker watches it stage there. The
-routing table is in `agents/customer-360.md` and in the `customer-360-cockpit` skill, which also
+routing table is in `agents/credit-360.md` and in the `credit-360-cockpit` skill, which also
 carries the intent shape and the `write_db` protocol.
 
 Valuing collateral that is **already pledged** is room `relationship`, route `valuation`. Two nearby

@@ -1,4 +1,4 @@
-# Customer 360 Cockpit — Capability Map (Accenture blueprint aligned, 2026-06-28, Fabian)
+# Credit 360 Cockpit — Capability Map (Accenture blueprint aligned, 2026-06-28, Fabian)
 
 The confirmed focus: a **commercial credit** relationship cockpit whose spine is the credit lifecycle
 (originate then maintain/monitor), with **KYC, collateral monitoring, and covenant monitoring first-class**,
@@ -21,7 +21,7 @@ Rollout: the brain proves on **Credit Analysis** (the memo) first; Approval, Off
 & Monitoring come online around it in governed phases; eventually the whole blueprint sits on one brain.
 
 ## How the cockpit relates to the blueprint
-The Customer 360 cockpit is the **relationship-level surface that spans all six stages**; the deal-level credit
+The Credit 360 cockpit is the **relationship-level surface that spans all six stages**; the deal-level credit
 memo is the deep-dive on stages 03 to 04. Both sit on one nCino Product Package spine, Boom is the shared
 spreading system of record. The cockpit concludes per stage and per persona, drills to source, and lets the
 human act inside their lane.

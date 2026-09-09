@@ -1,13 +1,13 @@
 {
-  "name": "client-360-cockpit",
+  "name": "credit-360",
   "owner": {
     "name": "Commercial Credit Reinvented"
   },
   "plugins": [
     {
-      "name": "client-360",
+      "name": "credit-360",
       "source": "./client-360",
-      "description": "Customer 360 relationship cockpit — a worklist-first React artifact plus a natural-chat layer over the Salesforce-hosted Customer360 MCP data plane (24 tools: 9 reads plus 7 governed stage/execute write pairs and one stage-only renewal, per-user OAuth). Needs-action queue, activity audit trail, covenant effective-challenge, page-agnostic AI chat, data-gated Client Actions, and guided workflows for client-request-to-action, package-scoped covenant review, collateral valuation and relationship actions. Every write stages first, shows the org's warnings verbatim, and executes only on a named human's confirmation."
+      "description": "Credit 360 is a relationship-level commercial-credit cockpit for C&I bankers: a worklist-first React artifact, opened from Cowork chat and driven in plain language, over the Salesforce-hosted Customer360 MCP data plane (28 tools: 10 reads, 8 governed stage/execute write pairs, a second-hop completion tool and one stage-only renewal, per-user OAuth). It needs six claude.ai connectors added by name, five of them required. Needs-action queue, activity audit trail, covenant effective-challenge, page-agnostic AI chat, data-gated Client Actions, and guided workflows for client-request-to-action, package-scoped covenant review, collateral valuation and relationship actions. Every write stages first, shows the org's warnings verbatim, and executes only on a named human's confirmation."
     }
   ]
 }

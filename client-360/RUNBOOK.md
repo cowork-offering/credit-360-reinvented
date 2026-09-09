@@ -1,7 +1,7 @@
-# Client 360 plugin: runbook
+# Credit 360 plugin: runbook
 
 ## 1. What this plugin is
-The Customer 360 relationship cockpit for commercial bankers: a worklist-first React cockpit
+The Credit 360 relationship cockpit for commercial bankers: a worklist-first React cockpit
 published as a Cowork artifact and OPENED FROM CHAT BY URL, driven by the org-hosted Customer 360
 Salesforce MCP server
 (28 tools: 10 reads, 8 governed stage/execute write pairs, one stage-only renewal and one
@@ -25,9 +25,13 @@ Register these connectors for the user BEFORE invoking the skill:
 3. IDB Gateway (optional): Boom spreads. Honest gap states if absent.
 
 ## 3. Install
-Add the `cowork-offering/cowork-plugins` marketplace, install `client-360`. The plugin lives in
-the `client-360/` folder of `cowork-offering/customer-360`; the template and data in `assets/`
-are kept byte-identical to the repo's `artifact/` publish staging by `scripts/sync-plugin-assets.mjs`.
+Add the `https://github.com/cowork-offering/credit-360` marketplace, install **Credit 360**. The
+plugin lives in the `client-360/` folder of that repo (the directory name is unchanged on purpose);
+the template and data in `assets/` are kept byte-identical to the repo's `artifact/` publish staging
+by `scripts/sync-plugin-assets.mjs`.
+
+Cowork does not refresh a marketplace it has already added, so a new version arrives as a new
+repository URL from the engagement team, added as a new marketplace.
 
 Two more files in `assets/` are configuration rather than payload:
 
@@ -39,7 +43,7 @@ Two more files in `assets/` are configuration rather than payload:
 ## 4. Invoke
 
 ### The agent
-`agents/customer-360.md` is the orchestrator. It carries the handoff-first doctrine and its routing
+`agents/credit-360.md` is the orchestrator. It carries the handoff-first doctrine and its routing
 table, the command routing table (banker phrase to exactly one behavior), the write discipline
 (stage, present the plan verbatim, the human confirms, execute behind the decision token, verify by
 re-query) and the fences.
@@ -55,14 +59,14 @@ steps as the opt-in path.
 ### The skills
 | Skill | Covers | Trigger phrases |
 |---|---|---|
-| `customer-360-cockpit` | the OPEN (hand over `canonicalArtifactUrl`, no fetch and no publish) and the REBUILD (fetch, compose `C360_DATA`, assemble, publish). Read and render only | open: "open the Customer 360", "pull up the relationship view for &lt;account&gt;", "what needs my attention". Rebuild: "rebuild the cockpit", "republish the cockpit" |
+| `credit-360-cockpit` | the OPEN (hand over `canonicalArtifactUrl`, no fetch and no publish) and the REBUILD (fetch, compose `C360_DATA`, assemble, publish). Read and render only | open: "open the Credit 360" (also said as "the Customer 360"), "pull up the relationship view for &lt;account&gt;", "what needs my attention". Rebuild: "rebuild the cockpit", "republish the cockpit" |
 | `client-request-to-action` | a client ask becomes a package-anchored `stage_loan_modification`, then an execution. The Dreamforce email-to-action beat | "the client wants the line at 20M", "increase the revolver", a forwarded client email |
 | `covenant-review` | package-scoped bulk `stage_covenant_review`: N assessments, one plan, one token. Pending rule and the `allowNonPending` opt-in | "review the covenants", "run the covenant review", "record the quarterly results" |
 | `collateral-valuation` | package-anchored `stage_collateral_valuation`: `items[]` capped at 20, `valuationDate` required | "value the collateral", "the appraisal came in", "the field exam is back" |
 | `relationship-actions` | service request, annual review, risk rating review, new facility (two execute invocations), renewal (stage only) | "raise a service request", "run the annual review", "review the risk rating", "structure a new facility", "start the renewal" |
 
 ### Out of scope and not wired, routed honestly
-- **KYC and onboarding are OUT OF SCOPE** (founder decision, 2026-08-27). Customer 360 covers the
+- **KYC and onboarding are OUT OF SCOPE** (founder decision, 2026-08-27). Credit 360 covers the
   booked book only. No KYC skill ships and none is planned; the agent says so and offers the live
   credit surfaces instead. Never render a KYC cleared state: no source exists.
 - **Policy assessment is WS2** (IDB gateway, decision ledger and policy pack, gate G2). The agent

@@ -9,7 +9,7 @@ This document defines the node inventory, the call graph, the trust seams (run-a
 
 ## 0. Reading the topology in one breath
 
-A reasoning client (Claude / Agentforce) talks to a small number of MCP servers. Inside **one Salesforce org**, a single SF-native **Customer 360 MCP** reads both nCino (`LLC_BI__*`) and FSC (`FinServ__*`) under the *caller's own* OAuth identity — native sharing + FLS, no service account. Outside Salesforce, four source MCPs (Boom, AFS, Snowflake/Snowflake, CapIQ/IBIS) hold the heavy financial and market data. The piece that makes it safe and regulator-defensible is **experience-mcp**: it performs the cross-source **fetch + join server-side** (the regulated number is computed in code and never round-trips through the LLM), and it owns the **decision ledger + audit trail** in Snowflake. Everything keys on one spine: the **Product Package + Account**. Three surfaces render off the joined result — the Live Portfolio Dashboard, the Customer 360 cockpit, and the Credit Memo.
+A reasoning client (Claude / Agentforce) talks to a small number of MCP servers. Inside **one Salesforce org**, a single SF-native **Customer 360 MCP** reads both nCino (`LLC_BI__*`) and FSC (`FinServ__*`) under the *caller's own* OAuth identity — native sharing + FLS, no service account. Outside Salesforce, four source MCPs (Boom, AFS, Snowflake/Snowflake, CapIQ/IBIS) hold the heavy financial and market data. The piece that makes it safe and regulator-defensible is **experience-mcp**: it performs the cross-source **fetch + join server-side** (the regulated number is computed in code and never round-trips through the LLM), and it owns the **decision ledger + audit trail** in Snowflake. Everything keys on one spine: the **Product Package + Account**. Three surfaces render off the joined result — the Live Portfolio Dashboard, the Credit 360 cockpit, and the Credit Memo.
 
 The single most important architectural line: **SR 11-7 deterministic compute happens in experience-mcp / source servers; the LLM only ranks and narrates. No regulated number is produced by the model.**
 
@@ -51,7 +51,7 @@ The single most important architectural line: **SR 11-7 deterministic compute ha
 | id | label | status | note |
 |----|-------|--------|------|
 | `dashboard` | Live Portfolio Dashboard | SHIPPED | Officer/portfolio rollups. |
-| `cockpit` | Customer 360 cockpit | SHIPPED | Account-spine single pane. |
+| `cockpit` | Credit 360 cockpit | SHIPPED | Account-spine single pane. |
 | `credit_memo` | Credit Memo (credit-memo-reinvented) | SHIPPED | Deal-level surface AND a co-resident source: `cm_*` fields, `LLC_BI__Credit_Memo__c`. |
 
 ---
@@ -145,7 +145,7 @@ Edge `kind` legend:
     { "id": "capiq", "label": "CapIQ / IBIS (peer medians)", "band": "off_sf", "status": "SHIPPED" },
 
     { "id": "dashboard", "label": "Live Portfolio Dashboard", "band": "surfaces", "status": "SHIPPED" },
-    { "id": "cockpit", "label": "Customer 360 cockpit", "band": "surfaces", "status": "SHIPPED" },
+    { "id": "cockpit", "label": "Credit 360 cockpit", "band": "surfaces", "status": "SHIPPED" },
     { "id": "credit_memo", "label": "Credit Memo (cm_* / LLC_BI__Credit_Memo__c)", "band": "surfaces", "status": "SHIPPED" }
   ],
   "edges": [

@@ -1,4 +1,4 @@
-# Customer 360 Cockpit — Commercial Banking Persona Reference
+# Credit 360 Cockpit — Commercial Banking Persona Reference
 
 This reference grounds the seven Customer 360 personas in how the job actually works in a US commercial / C&I bank. It is the relationship-level companion to the deal-level credit memo: the cockpit concludes from the whole data fleet (nCino + FSC + Boom spreads + covenant/risk analytics) and lets each role drill and act inside their lane. Personas map to PERSONAS.md 4.1 through 4.7.
 

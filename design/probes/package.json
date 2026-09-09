@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Acceptance probe harness for the Customer 360 Electric Glass mint.",
+  "description": "Acceptance probe harness for the Credit 360 Electric Glass mint.",
   "scripts": {
     "probe": "node probe.mjs",
     "compare": "node compare.mjs"

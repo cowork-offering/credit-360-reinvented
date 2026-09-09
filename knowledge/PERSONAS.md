@@ -7,7 +7,7 @@ Verified against the bankinggpt sandbox data model (2026-06-28). No new objects.
 
 ## 1. Purpose and how to read this
 
-This document defines the baseline persona set for the Customer 360 MCP, the relationship-level twin of the deal-level credit memo. Where the credit memo zooms IN on one nCino Product Package, the Customer 360 cockpit zooms OUT to the whole customer: entities, all facilities, deposits and treasury, risk and covenants, profitability, and whitespace, assembled across FSC and nCino under one Salesforce org identity.
+This document defines the baseline persona set for the Customer 360 MCP, the relationship-level twin of the deal-level credit memo. Where the credit memo zooms IN on one nCino Product Package, the Credit 360 cockpit zooms OUT to the whole customer: entities, all facilities, deposits and treasury, risk and covenants, profitability, and whitespace, assembled across FSC and nCino under one Salesforce org identity.
 
 Three things ground every claim here:
 

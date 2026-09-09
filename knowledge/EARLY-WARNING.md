@@ -1,4 +1,4 @@
-# Customer 360 Cockpit — Early Warning System (EWS)
+# Credit 360 Cockpit — Early Warning System (EWS)
 
 **Status:** framework, first-class credit-risk discipline. Sits alongside the use-case catalog, not under it. The EWS use cases (section 4) fold into `USE-CASE-CATALOG.md`; the taxonomy and playbook (sections 1–3) are the standing reference the cockpit's monitoring surface is built against.
 

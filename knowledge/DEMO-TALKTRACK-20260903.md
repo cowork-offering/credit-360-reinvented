@@ -653,6 +653,6 @@ untouched beside it.
 `knowledge/DEMO-RUNBOOK-20260903.md` (the escape hatches and the two answers) ·
 `knowledge/MOD-NEW-LOAN-DRIVE-20260903.md` (the verbatim lines, the nCino verification table, the
 revert) · `design/proposals/intent-handoff-addendum.md` (the Cowork intent handoff) ·
-`client-360/skills/customer-360-cockpit/SKILL.md` (the tool surface and the write discipline) ·
+`client-360/skills/credit-360-cockpit/SKILL.md` (the tool surface and the write discipline) ·
 `knowledge/research/covenant-testing-20260902.md`, `collateral-valuation-20260902.md`,
 `annual-review-and-risk-rating-20260902.md` (the nCino terms).

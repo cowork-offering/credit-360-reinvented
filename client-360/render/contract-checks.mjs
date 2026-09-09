@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Structural + coverage checks for the Customer 360 cockpit data contract.
+// Structural + coverage checks for the Credit 360 cockpit data contract.
 // SPEC.md §5 (data contract) + §12 v1.1 amendments A6–A8, A10 + Codex round 2 fixes (see inline
 // notes tagged R2-n). Imported by assemble-cockpit.mjs. Split into its own module so the rules
 // are unit-testable in isolation (see contract-checks.test.mjs) without spinning up the whole

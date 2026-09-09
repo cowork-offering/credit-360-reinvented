@@ -4,7 +4,7 @@
 **Built:** 2026-07-26, migration-style, by `fabian.goetzens@accenture.com.bankinggpt` (`005bb00000ftouDAAQ`).
 **Status:** PERMANENT. These records are the deliverable. **Nothing here is to be deleted.**
 
-This relationship is the reference C&I borrower for demos, for the Customer 360 cockpit, and for the
+This relationship is the reference C&I borrower for demos, for the Credit 360 cockpit, and for the
 standing test dataset. It was modelled field-for-field on Piedmont Precision Components, Inc.
 (`001bb00001DLtRMAA1`), which the discovery pass established is the only fully-modelled commercial
 borrower in the org. **No existing record was modified at any point.**

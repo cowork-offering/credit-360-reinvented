@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// VALIDATE the Customer 360 cockpit data — the deterministic "effective challenge" stage (SR 11-7).
+// VALIDATE the Credit 360 cockpit data — the deterministic "effective challenge" stage (SR 11-7).
 //
 // This module recomputes covenant figures from the Boom spread and runs a data-quality sweep. It is
 // the ONLY source of the challenge/dataQuality numbers: LLMs never compute these figures. Everything
@@ -433,7 +433,7 @@ if (isMain) {
     console.log(`OK — wrote ${outPath} · challenge ${challengeCount(data)} covenants · DQ ${data.dataQuality.length} findings`);
   } else {
     const lines = [];
-    lines.push(`Customer 360 validation — anchor ${data.meta && data.meta.anchorAccountId}`);
+    lines.push(`Credit 360 validation — anchor ${data.meta && data.meta.anchorAccountId}`);
     lines.push(`  challenge: ${challengeCount(data)} covenant(s) recomputed`);
     const anchor = data.borrowers && data.meta ? data.borrowers[data.meta.anchorAccountId] : null;
     for (const c of (anchor && anchor.covenantChallenge) || []) {

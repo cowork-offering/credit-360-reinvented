@@ -22,7 +22,7 @@ the workflow has to deliver it exactly.
 
 **When a cockpit is reachable, this ask becomes an INTENT, not a staged plan.** Compose the lines in
 the room's grammar and hand them to the facility workroom; the banker watches it stage there. The
-routing table is in `agents/customer-360.md` and in the `customer-360-cockpit` skill, which also
+routing table is in `agents/credit-360.md` and in the `credit-360-cockpit` skill, which also
 carries the intent shape and the `write_db` protocol. This ask is room `facility`, route `modify`,
 and collateral pledged to one of these facilities belongs on that same route: a pledge versions the
 package, which is a modification.

@@ -1,4 +1,4 @@
-# Customer 360 Cockpit — Experience Specification
+# Credit 360 Cockpit — Experience Specification
 
 *Accenture Commercial Credit Brain · Customer 360 MCP · the single-customer relationship cockpit.*
 *Anchored to the verified bankinggpt sandbox sweep (2026-06-28): `SCHEMA-VERIFIED.md`, `DATA-MODEL-AND-ROLES.md`, `PERSONAS.md`, `VALIDATION-AND-DECISIONS.md`. Locked decisions: run-as-user + gated admin god-mode; ownership graph = nCino `LLC_BI__Connection__c`; wallet = both sources via config, nCino-commercial-first then FSC; covenants = modern `LLC_BI__Covenant2__c`; collateral = modern `LLC_BI__Loan_Collateral2__c`; per-tenant config must support both legacy and modern generations.*
@@ -430,7 +430,7 @@ Adherence is wired into what the cockpit renders, refuses to compute, locks, and
 
 ## 9. Credit memo and spreading integration (zoom out and drill in)
 
-The Customer 360 cockpit and the deal-level credit memo are two surfaces over one spine: the nCino Product Package id. The cockpit is the relationship zoom-out, the memo is the deal zoom-in, and Boom is the spreading system of record feeding both. They are deliberately one product, not two that happen to share data. This is the existing fleet architecture extended outward, on the roadmap by design (`docs/roadmap/data-analyst.md`, `risk-analyst.md`), the Customer 360 being the relationship-level twin that complements the memo, never replaces it.
+The Credit 360 cockpit and the deal-level credit memo are two surfaces over one spine: the nCino Product Package id. The cockpit is the relationship zoom-out, the memo is the deal zoom-in, and Boom is the spreading system of record feeding both. They are deliberately one product, not two that happen to share data. This is the existing fleet architecture extended outward, on the roadmap by design (`docs/roadmap/data-analyst.md`, `risk-analyst.md`), the Customer 360 being the relationship-level twin that complements the memo, never replaces it.
 
 **One spine, two surfaces, no recomputation across the boundary.** The cockpit Exposure and Risk sections key on `LLC_BI__Product_Package__c`; a package cross-links straight into the deal memo via `deal_show_summary` on that same id, and zooming back out from a memo returns to the relationship 360. The covenant grade the memo prints and the grade the cockpit concludes are the same `deal_covenant_grade` output; the exposure rollup is the same package TCE/TBE/TOE; the spread is the same Boom file. One number, one provenance, two views.
 

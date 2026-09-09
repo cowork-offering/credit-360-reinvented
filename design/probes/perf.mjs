@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Customer 360, the FLUIDITY probe.
+/* Credit 360, the FLUIDITY probe.
  *
  * FOUNDER, 2026-09-04: "when I share via video there is latency, stuff gets
  * delayed, the system seems to overload; stabilise it so it runs super smooth,

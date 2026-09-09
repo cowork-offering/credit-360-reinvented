@@ -1,4 +1,4 @@
-# Customer 360 Artifact — Data Mapping Contract (v1, 2026-07-02)
+# Credit 360 Artifact — Data Mapping Contract (v1, 2026-07-02)
 
 **This file is the build contract.** The artifact is the reference mockup
 (`/opt/connectry/Accenture & Truist/Commercial Credit 360.dc.html`) rewired from hardcoded data to a
@@ -50,7 +50,7 @@ Rules:
 - Every tool's `note` field renders as a small provenance caption in its section.
 - All display formatting (currency $x.xM, %, day counts, bar widths, arc offsets) is client-side.
 
-## 2. Per-tab mapping (L2 Customer 360)
+## 2. Per-tab mapping (L2 Credit 360)
 
 ### Verdict bar (sticky header)
 | Element | Source |
@@ -146,7 +146,7 @@ loop: one response carries `accounts[]` (package-rolled, TCE-desc, truncated to 
 | Element | Source |
 |---|---|
 | KPI ribbon (4) | `portfolio.bookTotals`: totalCommitted (Managed Exposure), totalOutstanding (Drawn), utilizationPct, accountCount. Server-computed now (was client-side); still safe to recompute client-side from `accounts[]` as a cross-check. |
-| Account list (replaces work queue) | `portfolio.accounts[]` (already sorted tce desc): accountId, name, industry, naicsCode, annualRevenue, tce, tbe, toe, outstanding, riskRating badge, stage, packageCount. Row click → `sendPrompt("Open Customer 360 for <name> (<accountId>)")` → agent fetches → `update_artifact` |
+| Account list (replaces work queue) | `portfolio.accounts[]` (already sorted tce desc): accountId, name, industry, naicsCode, annualRevenue, tce, tbe, toe, outstanding, riskRating badge, stage, packageCount. Row click → `sendPrompt("Open Credit 360 for <name> (<accountId>)")` → agent fetches → `update_artifact` |
 | BHI rail | **dropped** (no source) |
 | Book concentration | computed client-side: industry × Σtce from `portfolio.accounts[]` |
 | Reviews-due ribbon cell | **NOW AVAILABLE** — `portfolio.signals.covenantsDueSoon[]` (accountId, accountName, covenantType, nextEvaluationDate, daysUntilNextEvaluation, overdue). Capped 25, bounded by `signalWindowDays`. Overdue = past-due but still active (nCino not yet re-evaluated), flagged `overdue:true` with negative day count. (Template wiring is a separate step — not done here.) |
@@ -156,7 +156,7 @@ loop: one response carries `accounts[]` (package-rolled, TCE-desc, truncated to 
 ## 4. Fetch sequence (the skill teaches this)
 1. **L1 Portfolio Home: one `Customer360Portfolio` call** → `accounts[]` + `bookTotals` + `signals`
    (replaces the old SearchAccounts + per-account Snapshot loop). `Customer360SearchAccounts` stays
-   ONLY for name-based lookup ("open Customer 360 for <name>"). `Customer360Snapshot` is now the
+   ONLY for name-based lookup ("open Credit 360 for <name>"). `Customer360Snapshot` is now the
    per-anchor detail tool, not the portfolio driver.
 3. Anchor account: `Snapshot` + `RelationshipGraph` + `Exposure` + `Covenants` + `Opportunities` + `StructuralSignals` (maturityWindowDays 270)
 4. Boom: `boom_get_ratios` + `boom_get_spread` for the borrower

@@ -21,7 +21,7 @@
 ## Two levels
 
 - **Level 1** — Portfolio home (entry). Clicking any borrower row slides to Level 2.
-- **Level 2** — Customer 360 cockpit for that borrower. Back button returns to Level 1.
+- **Level 2** — Credit 360 cockpit for that borrower. Back button returns to Level 1.
 
 ---
 
@@ -81,7 +81,7 @@ Ranked rows. Each row: `rank badge | company name + signal text | animated BHI a
 
 ---
 
-## LEVEL 2 — Customer 360 Cockpit
+## LEVEL 2 — Credit 360 Cockpit
 
 ### Nav (same, back button replaces context)
 `[Accenture logo] | [Reinvention pill] | Commercial Credit 360` · `← Portfolio` button · avatar

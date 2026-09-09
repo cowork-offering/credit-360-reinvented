@@ -26,7 +26,7 @@ import {
 
 export class SkillBlockError extends Error {}
 
-export const SKILL_PATH = join(PLUGIN_ROOT, "skills", "customer-360-cockpit", "SKILL.md");
+export const SKILL_PATH = join(PLUGIN_ROOT, "skills", "credit-360-cockpit", "SKILL.md");
 
 const code = (values) => values.map((v) => `\`${v}\``).join(" · ");
 

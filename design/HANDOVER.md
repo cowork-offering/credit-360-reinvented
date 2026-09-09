@@ -1,4 +1,4 @@
-# Customer 360 — Electric Glass Handover (Design → Wiring/Port)
+# Credit 360 — Electric Glass Handover (Design → Wiring/Port)
 
 **Date:** 2026-08-31 · **From:** design dummy session · **To:** main wiring session
 **Status:** Design contract FROZEN. The wired version must EXACTLY reflect the dummy.

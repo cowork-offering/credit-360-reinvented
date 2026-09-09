@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Customer 360 — Electric Glass acceptance probe harness.
+/* Credit 360 — Electric Glass acceptance probe harness.
  *
  * Runs the HANDOVER §3 acceptance numbers against ANY served URL and emits a
  * machine-comparable JSON report. The dummy is ground truth; the port is gated

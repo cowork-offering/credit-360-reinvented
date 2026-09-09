@@ -212,7 +212,7 @@ brand assets, intentionally-empty .mcp.json + RUNBOOK prerequisites):
 |---|---|---|---|
 | 1 | Isolate plugin into `client-360/` subdir (plugin.json, skills, agents, assets incl. bundled template + live-data, render, README, RUNBOOK); marketplace path → subdir; assemble pipeline copies template into `client-360/assets/`. Stops shipping `app/` + 11MB `knowledge/` to every installer | 0.5 d | Mon Aug 24 (low risk, mechanical) |
 | 2 | `.mcp.json` intentionally empty + RUNBOOK §2 prerequisites (Customer 360 Salesforce MCP connector, Microsoft 365, IDB Gateway, Boom) — same connector-model doctrine as credit memo | 0.25 d | with #1 |
-| 3 | `agents/customer-360.md` — the banker's counterpart: persona, command routing table (open cockpit / client request → action / covenant review / collateral / KYC / policy assessment / credit-memo call-out), fences | 1 d | WS3 |
+| 3 | `agents/credit-360.md` — the banker's counterpart: persona, command routing table (open cockpit / client request → action / covenant review / collateral / KYC / policy assessment / credit-memo call-out), fences | 1 d | WS3 |
 | 4 | Skills split into guided workflows matching the credit-memo pattern: open-cockpit, client-request-to-action, covenant-review (package-scoped), collateral-valuation, kyc-checks, policy-assessment, credit-memo-callout (invokes the credit-memo plugin, never rebuilds) — prose written against OBSERVED tools (after WS0.5) | 2 d | WS3 |
 | 5 | Brand assets reused from credit-memo (accenture-logo.svg, brand-tokens.css) for visual consistency | 0.25 d | polish pass |
 | 6 | Plugin-level smoke test (assemble-cockpit from live-data → validate) like credit-memo `test/` | 0.25 d | WS3 |

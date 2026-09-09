@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ASSEMBLE the Customer 360 cockpit artifact — v2 (Cockpit v3 rebuild, SPEC.md §9 + §12 v1.1 amendments).
+// ASSEMBLE the Credit 360 cockpit artifact — v2 (Cockpit v3 rebuild, SPEC.md §9 + §12 v1.1 amendments).
 //
 // The agent composes C360_DATA (portfolio + anchor borrower + the staged `borrowers` book +
 // `worklist`) and writes it to a small JSON file. This script bakes that JSON into the cockpit

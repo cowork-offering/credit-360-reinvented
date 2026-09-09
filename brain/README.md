@@ -1,7 +1,7 @@
 # brain/ . the Workroom Brain grounding pack
 
 `WORKROOM-BRAIN.md` is the knowledge pack that turns a banker's claude.ai session into a
-commercial-credit expert for the Customer 360 cockpit. It is grounding, not code. Nothing in it
+commercial-credit expert for the Credit 360 cockpit. It is grounding, not code. Nothing in it
 executes, and nothing in it writes.
 
 ## What it is

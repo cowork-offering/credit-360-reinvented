@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Customer 360, the NEVER-STUCK probe.
+/* Credit 360, the NEVER-STUCK probe.
  *
  * FOUNDER, 2026-09-05: "is there anything you would do now for hardening,
  * ideally also for the connectivity, that the workroom don't stuck, the syncs

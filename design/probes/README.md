@@ -1,4 +1,4 @@
-# Acceptance probes — Customer 360 Electric Glass
+# Acceptance probes — Credit 360 Electric Glass
 
 Mechanised form of `design/HANDOVER.md` §3 (the acceptance numbers), §4 (the five
 debugging traps) and the glass census. The suite runs against **any served URL**

@@ -1,6 +1,6 @@
 # Intent handoff, and the dynamic book
 
-Addendum to the Customer 360 cockpit. Two features, one door: a conversation that
+Addendum to the Credit 360 cockpit. Two features, one door: a conversation that
 happened somewhere else becomes work already typed into the right room, and the
 book is no longer the five relationships the snapshot baked.
 

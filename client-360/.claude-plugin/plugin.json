@@ -1,13 +1,14 @@
 {
-  "name": "client-360",
-  "displayName": "Client 360",
-  "version": "0.8.0",
-  "description": "REQUIRES FIVE claude.ai CONNECTORS, added by each viewer under Settings > Connectors with EXACTLY these names: \"Customer 360\" (the Salesforce-hosted Customer360 MCP server, a custom connector with the bank's own OAuth client key and secret), \"IDB Gateway\" (Boom spreads), \"Microsoft 365\" (inbox), \"Experience / nCino\" (the credit-memo writeback and ledger: narrative sections, the nFORMS memo document, the approval submit, the notice, and the decision and audit trail) and \"AFS\" (servicing reads and the servicing workpackage). A SIXTH, \"Salesforce Read Backup\", is OPTIONAL BUT RECOMMENDED: a second hop serving the same ten Customer 360 reads so the cockpit still shows live figures when the artifact-to-connector relay drops its Salesforce session; reads only, and every write stays on \"Customer 360\" under the banker's own identity. The cockpit page calls them by name through the viewer's own grant; a differently named connector is invisible to it. Customer 360 Reinvented: an Accenture accelerator: a worklist-first commercial-credit relationship cockpit for C&I bankers, drivable in natural chat. OPENING IT IS INSTANT: the default open hands the banker the canonical published cockpit named in assets/cockpit.json and the page refreshes itself through the viewer's own connectors, lane by lane, with last-good figures marked by their age until the live ones land and a footer line naming any connector that is stale or unreachable. Fetching, assembling and publishing is the explicit rebuild path. Reads the book live from Salesforce (nCino + FSC) via the org-hosted Customer360 MCP server (28 tools: 10 reads plus 8 governed stage/execute write pairs, a second-hop completion tool and one stage-only renewal, per-user OAuth) plus Boom-spread financials, and renders a full React application as an interactive Cowork artifact: needs-action worklist with reason codes, per-account Activity audit trail, exposure & collateral, covenants with effective-challenge validation, relationship graph, whitespace, structural early-warning signals, a page-agnostic AI chat, and a data-gated Client Actions control center. Governed writes follow one discipline: stage the plan, show the org's warnings verbatim, the banker confirms, execute behind a single-use decision token bound to the running identity, verify by re-query. Guided workflows cover a client request becoming a package-anchored loan modification, package-scoped bulk covenant review, package-anchored collateral valuation, service requests, annual reviews, risk rating reviews, new facilities and renewals. Use when a banker asks to open the Customer 360, pull up the relationship view, work the needs-action queue, or act on a client request.",
+  "name": "credit-360",
+  "displayName": "Credit 360",
+  "version": "0.9.0",
+  "description": "Credit 360 is a relationship-level commercial-credit cockpit for C&I bankers: a worklist-first React application, published as a Cowork artifact and driven from chat in plain language, that shows a borrower's whole relationship live out of Salesforce (nCino and FSC), Boom, AFS and the banker's inbox, and stages every write for a named human to confirm. IT REQUIRES FIVE claude.ai CONNECTORS, added by each viewer under Settings > Connectors with EXACTLY these names: \"Customer 360\" (the Salesforce-hosted Customer360 MCP server, a custom connector with the bank's own OAuth client key and secret), \"IDB Gateway\" (Boom spreads), \"Microsoft 365\" (inbox), \"Experience / nCino\" (the credit-memo writeback and ledger: narrative sections, the nFORMS memo document, the approval submit, the notice, and the decision and audit trail) and \"AFS\" (servicing reads and the servicing workpackage). A SIXTH, \"Salesforce Read Backup\", is OPTIONAL BUT RECOMMENDED: a second hop serving the same ten Customer 360 reads so the cockpit still shows live figures when the artifact-to-connector relay drops its Salesforce session; reads only, and every write stays on \"Customer 360\" under the banker's own identity. The cockpit page calls the connectors by name through the viewer's own grant; a differently named connector is invisible to it. OPENING IT IS INSTANT: the default open hands the banker the canonical published cockpit named in assets/cockpit.json and the page refreshes itself through the viewer's own connectors, lane by lane, with last-good figures marked by their age until the live ones land and a footer line naming any connector that is stale or unreachable. Fetching, assembling and publishing is the explicit rebuild path. Reads the book live from Salesforce (nCino + FSC) via the org-hosted Customer360 MCP server (28 tools: 10 reads plus 8 governed stage/execute write pairs, a second-hop completion tool and one stage-only renewal, per-user OAuth) plus Boom-spread financials, and renders a full React application as an interactive Cowork artifact: needs-action worklist with reason codes, per-account Activity audit trail, exposure & collateral, covenants with effective-challenge validation, relationship graph, whitespace, structural early-warning signals, a page-agnostic AI chat, and a data-gated Client Actions control center. Governed writes follow one discipline: stage the plan, show the org's warnings verbatim, the banker confirms, execute behind a single-use decision token bound to the running identity, verify by re-query. Guided workflows cover a client request becoming a package-anchored loan modification, package-scoped bulk covenant review, package-anchored collateral valuation, service requests, annual reviews, risk rating reviews, new facilities and renewals. Use when a banker asks to open the Credit 360 cockpit (also said as \"the Customer 360\"), pull up the relationship view, work the needs-action queue, or act on a client request.",
   "author": {
     "name": "Fabian Goetzens",
     "url": "https://www.accenture.com"
   },
   "keywords": [
+    "credit-360",
     "customer-360",
     "commercial-banking",
     "relationship-banking",
@@ -20,12 +21,15 @@
     "early-warning",
     "c-and-i"
   ],
-  "homepage": "https://github.com/cowork-offering/client-360-cockpit",
-  "repository": "https://github.com/cowork-offering/client-360-cockpit",
+  "homepage": "https://github.com/cowork-offering/credit-360",
+  "repository": "https://github.com/cowork-offering/credit-360",
   "connectors": [
     {
       "name": "Customer 360",
       "kind": "custom",
+      "required": true,
+      "purpose": "The bank's own data plane: every relationship read and every governed nCino write, run as the signed-in banker.",
+      "setup": "In claude.ai, Settings > Connectors > Add custom connector. Name it exactly \"Customer 360\" and point it at https://api.salesforce.com/platform/mcp/v1/sandbox/custom/Customer360. Auth is OAuth: paste the consumer key AND secret of the org's External Client App, which the engagement team provides. Each viewer adds it under their own Salesforce identity, so the org sees the banker, not a service account.",
       "url": "https://api.salesforce.com/platform/mcp/v1/sandbox/custom/Customer360",
       "auth": "OAuth, the org's External Client App: consumer key and secret, per viewer",
       "tools": 28
@@ -34,27 +38,44 @@
       "name": "Salesforce Read Backup",
       "kind": "custom",
       "optional": true,
+      "required": false,
       "purpose": "A second hop serving the same ten Customer 360 reads, so the cockpit still shows live figures when the relay drops its Salesforce session. Reads only; every write stays on Customer 360.",
+      "setup": "In claude.ai, Settings > Connectors > Add custom connector. Name it exactly \"Salesforce Read Backup\" and point it at https://banksy.claudeeshannon.com/sf-read-backup-c70d4163d3/mcp. No auth to configure: it is a demo-grade read hop the engagement team hosts. Skip it and the cockpit still runs, falling back to its stored last-good figures when Customer 360 is unreachable.",
+      "url": "https://banksy.claudeeshannon.com/sf-read-backup-c70d4163d3/mcp",
+      "auth": "none, demo-grade, reads only",
       "tools": 11
     },
     {
       "name": "IDB Gateway",
       "kind": "custom",
+      "required": true,
+      "purpose": "Boom spreads and ratios, the spreading system of record behind the Financials tab, plus the gateway's own LLM call.",
+      "setup": "In claude.ai, Settings > Connectors > Add custom connector. Name it exactly \"IDB Gateway\"; endpoint provided by the engagement team, along with whatever credential that endpoint expects.",
       "tools": 3
     },
     {
       "name": "Microsoft 365",
       "kind": "first-party",
+      "required": true,
+      "purpose": "The banker's inbox: the client email that becomes an action starts here.",
+      "setup": "In claude.ai, Settings > Connectors, enable the built-in Microsoft 365 connector and sign in with the banker's own work account. It is first-party, so there is no URL to enter and no credential to obtain from the engagement team.",
+      "auth": "the viewer's own Microsoft work account",
       "tools": 1
     },
     {
       "name": "Experience / nCino",
       "kind": "custom",
+      "required": true,
+      "purpose": "The credit memo room's writeback and ledger: narrative sections, the nFORMS memo document, the approval submit, the notice, and the decision and audit trail.",
+      "setup": "In claude.ai, Settings > Connectors > Add custom connector. Name it exactly \"Experience / nCino\", slashes and spaces included; endpoint provided by the engagement team, along with whatever credential that endpoint expects.",
       "tools": 9
     },
     {
       "name": "AFS",
       "kind": "custom",
+      "required": true,
+      "purpose": "Servicing: loan summary, payment history, revolver utilisation, and the workpackage the memo room stages at the end of a publish. Also the rating and PD source.",
+      "setup": "In claude.ai, Settings > Connectors > Add custom connector. Name it exactly \"AFS\"; endpoint provided by the engagement team, along with whatever credential that endpoint expects.",
       "tools": 4
     }
   ]

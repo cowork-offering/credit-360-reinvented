@@ -39,7 +39,7 @@ export function CopyPromptDialog({
   const { channel } = useApp();
   const [copied, setCopied] = useState(false);
   const [sent, setSent] = useState(false);
-  const prompt = promptOverride ?? `Open the Customer 360 cockpit for ${accountName} (${accountId}).`;
+  const prompt = promptOverride ?? `Open the Credit 360 cockpit for ${accountName} (${accountId}).`;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();

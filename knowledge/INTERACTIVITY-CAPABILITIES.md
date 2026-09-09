@@ -1,7 +1,7 @@
 # Interactivity Capabilities — Claude Runtimes, 2026-07-25
 
 **Scope:** what an interactive UI surface can actually DO across Claude's runtimes today, which
-mechanism Noland's shipped work uses, where the Customer 360 cockpit diverged, and the ranked
+mechanism Noland's shipped work uses, where the Credit 360 cockpit diverged, and the ranked
 options to restore full interactivity.
 
 **Trigger:** the 2026-07-25 live Cowork test — `window.sendPrompt` is **absent** from the Cowork
@@ -262,7 +262,7 @@ widget-kit hook prefers is a portability nicety, not the Cowork reality.
 ## 4. Our implementation — what we got right, what we assumed wrong
 
 Reviewed: `customer-360-reinvented/app/src/channel/adapter.ts`,
-`skills/customer-360-cockpit/SKILL.md`, `MAPPING.md`, `README.md`.
+`skills/credit-360-cockpit/SKILL.md`, `MAPPING.md`, `README.md`.
 
 ### Wrong
 

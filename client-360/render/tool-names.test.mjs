@@ -29,9 +29,9 @@ test("a missing manifest fails loudly rather than passing vacuously", () => {
 
 test("the agent and every skill are scanned", () => {
   const files = proseFiles();
-  assert.ok(files.some((f) => f.endsWith("agents/customer-360.md")), "the agent must be scanned");
+  assert.ok(files.some((f) => f.endsWith("agents/credit-360.md")), "the agent must be scanned");
   for (const skill of [
-    "customer-360-cockpit",
+    "credit-360-cockpit",
     "client-request-to-action",
     "covenant-review",
     "collateral-valuation",

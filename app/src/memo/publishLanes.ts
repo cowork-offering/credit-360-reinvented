@@ -255,7 +255,7 @@ export async function publishMemo(draft: MemoDraft, ctx: MemoPublishContext, now
         packageId: ctx.packageId,
         approverEmails: ctx.approverEmails,
         notificationEmails: ctx.notificationEmails,
-        comments: ctx.comments ?? `Credit memo ${draft.memoId} published from the Customer 360 cockpit.`,
+        comments: ctx.comments ?? `Credit memo ${draft.memoId} published from the Credit 360 cockpit.`,
         ...actor,
       });
       if (!payload || payload.ok === false) {
@@ -304,7 +304,7 @@ export async function publishMemo(draft: MemoDraft, ctx: MemoPublishContext, now
       const decision = await ledgerCall<LedgerPayload>(TOOLS.recordDecision, {
         packageId: ctx.packageId,
         decision: "Published the credit memo and submitted the package for credit approval.",
-        rationale: `Memo ${draft.memoId} was published from the Customer 360 cockpit against package ${ctx.packageId}.`,
+        rationale: `Memo ${draft.memoId} was published from the Credit 360 cockpit against package ${ctx.packageId}.`,
         ...actor,
       });
       const audit = await ledgerCall<LedgerPayload>(TOOLS.logAuditEvent, {
