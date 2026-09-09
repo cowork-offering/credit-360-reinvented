@@ -25,7 +25,7 @@ Register these connectors for the user BEFORE invoking the skill:
 3. IDB Gateway (optional): Boom spreads. Honest gap states if absent.
 
 ## 3. Install
-Add the `https://github.com/cowork-offering/credit-360` marketplace, install **Credit 360**. The
+Add the `https://github.com/cowork-offering/credit-360-cockpit` marketplace, install **Credit 360**. The
 plugin lives in the `client-360/` folder of that repo (the directory name is unchanged on purpose);
 the template and data in `assets/` are kept byte-identical to the repo's `artifact/` publish staging
 by `scripts/sync-plugin-assets.mjs`.

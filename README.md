@@ -11,7 +11,7 @@ which is unreachable.
 
 ## Install in Cowork
 
-1. Add the marketplace: `https://github.com/cowork-offering/credit-360`.
+1. Add the marketplace: `https://github.com/cowork-offering/credit-360-cockpit`.
 2. Install the plugin **Credit 360** from it.
 3. Add the connectors below before the first open. The page resolves them by display name, so it
    cannot see them until they exist under the viewer's own account.

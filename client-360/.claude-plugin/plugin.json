@@ -21,8 +21,8 @@
     "early-warning",
     "c-and-i"
   ],
-  "homepage": "https://github.com/cowork-offering/credit-360",
-  "repository": "https://github.com/cowork-offering/credit-360",
+  "homepage": "https://github.com/cowork-offering/credit-360-cockpit",
+  "repository": "https://github.com/cowork-offering/credit-360-cockpit",
   "connectors": [
     {
       "name": "Customer 360",

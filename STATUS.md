@@ -4,6 +4,8 @@
 
 - **0.9.1 (2026-09-09)** The canonical cockpit is republished under a new claude.ai account and
   `client-360/assets/cockpit.json` points at it. No code change; the bundle is the 7f5b399 build.
+  Marketplace moves to `cowork-offering/credit-360-cockpit` (name `credit-360-cockpit`): Cowork never
+  refreshes a marketplace it has fetched, so a hand-over is always a fresh repo and a fresh name.
 - **0.9.0 (2026-09-09)** The product is named Credit 360 everywhere (plugin `credit-360`, skill
   `credit-360-cockpit`, page title, docs); the Salesforce connector keeps its name `Customer 360`.
   Marketplace repo `cowork-offering/credit-360`. Polished README with connector setup.
