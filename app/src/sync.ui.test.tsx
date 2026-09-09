@@ -7,6 +7,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { C360Data } from "./data/contract";
 import { AppProvider } from "./state/appState";
+import { __skipBootForTests } from "./channel/useLivePortfolio";
+// These tests mount the home only to navigate through it into an account; the
+// cold-open skeleton is not what they exercise, so the home opens already
+// settled, the way a returning viewer with a warm cache does. See the seam.
+__skipBootForTests();
 import { AppShell } from "./components/AppShell";
 import { TOOLS } from "./channel/mcp";
 import { prefersReducedMotion } from "./data/motion";

@@ -382,6 +382,65 @@ body.on-client .topnav {
   font-size: 10.5px;
 }
 
+/* ------------------------------------------------------------- the cold-open skeleton
+   What the landing shows on a FRESH open while the org's book is still on its
+   way. A returning viewer never sees this: their last book paints from the
+   store instead (channel/lastGood.ts). It stands in for the samples that used
+   to flash, in the real surfaces' own geometry, so the book settles in place.
+
+   THE SWEEP IS NEUTRAL, ON PURPOSE. Rule 21 keeps purple off the ground; the
+   only violet on this surface is the sanctioned weave. So the wait reads
+   cinematic through motion, not colour: a soft group arrival, a left-to-right
+   wash on each bar, and a gentle settle, all in the wash greys. The bars are
+   visible at rest, so reduced motion loses the sweep and keeps the shape. */
+#view-home .c360-skel {
+  animation: eg-arrive 0.5s var(--ease-out) both;
+}
+#view-home .c360-skb {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--wash-2) 25%, var(--row-divider) 50%, var(--wash-2) 75%);
+  background-size: 200% 100%;
+  animation: c360-skelsweep 1.8s linear infinite;
+}
+/* The value row carries a touch more light than the labels around it, so the
+   band's weight is where the eye lands. Still grey, still within rule 21. */
+#view-home .c360-skb-glint {
+  background: linear-gradient(90deg, var(--wash-2) 20%, #e7e7ee 50%, var(--wash-2) 80%);
+  background-size: 200% 100%;
+}
+#view-home .c360-skb-avatar {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--wash-2) 25%, var(--row-divider) 50%, var(--wash-2) 75%);
+  background-size: 200% 100%;
+  animation: c360-skelsweep 1.8s linear infinite;
+}
+/* A skeleton row is a real `.wlrow` with its life switched off: no hover lift,
+   no pointer, and it rises once on arrival like the rows it stands in for. */
+#view-home .wlrow.c360-skel-row {
+  cursor: default;
+  animation: eg-arrive 0.5s var(--ease-out) both;
+}
+#view-home .wlrow.c360-skel-row:hover {
+  transform: none;
+  box-shadow: var(--shadow-card);
+}
+@keyframes c360-skelsweep {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #view-home .c360-skb,
+  #view-home .c360-skb-avatar {
+    animation: none;
+  }
+}
+
 /* -------------------------------------------------------- status = typography
    A systemNonNegotiable: status is a coloured word with a dot, never a pill. */
 #view-home .st {

@@ -139,3 +139,77 @@ export async function loadLastGood(accountId: string, now: number = Date.now()):
     return {};
   }
 }
+
+/* =============================================================================
+   THE BOOK CACHE: the org's LANDING, kept where the next open can find it.
+
+   The per-account store above keeps the six DETAIL reads for a relationship the
+   banker opened. This keeps the one read the LANDING stands on: the org-wide
+   Customer360Portfolio answer that the KPI band, the briefing line and the
+   queue are all built from.
+
+   THE DEFECT THIS CLOSES. The cockpit ships with a BAKED book of five test
+   relationships, three of them samples, there so a share link with no connector
+   still shows a page. On a real seat the live Portfolio read replaces it, but
+   that read takes a few seconds, so every open painted the five, then swapped
+   to the org's real book under the banker's eye. A returning viewer should see
+   the book they saw last, marked with its age, and the live read should settle
+   over it, identically when nothing moved so nothing on screen jumps.
+
+   ONE DOCUMENT, not a collection. The book is org-wide, not per-account, so it
+   is a single `cache/book` doc, read in one round trip on open beside the
+   account stores. Same screening at the door, same age ceiling, same absolute
+   READS-ONLY rule as everything else in this file, and the same silent no-op
+   when there is no `db` grant.
+   ============================================================================= */
+
+/** `cache/book` — one document, the whole book. `cache` is the same collection
+ *  the per-account stores hang their `accounts` document under, so the book
+ *  sits beside them as a sibling doc rather than in a store of its own. */
+const BOOK_COLLECTION = "cache";
+const BOOK_DOC = "book";
+
+/**
+ * Remember the org's book. Fire-and-forget, exactly like `putLastGood`: the
+ * banker already has the live figures, and a failed cache write is bookkeeping
+ * nobody is waiting on.
+ */
+export async function putBook(
+  tool: string,
+  payload: unknown,
+  storedAt: number = Date.now(),
+  via?: "gateway",
+): Promise<void> {
+  const store = db();
+  if (!store) return;
+  const doc: CachedRead = via ? { storedAt, tool, payload, via } : { storedAt, tool, payload };
+  let serialised: string;
+  try {
+    serialised = JSON.stringify(doc);
+  } catch {
+    return;
+  }
+  if (serialised.length > MAX_DOC_BYTES) return;
+  try {
+    await store.collection(BOOK_COLLECTION).doc(BOOK_DOC).set(doc as unknown as Record<string, unknown>);
+  } catch {
+    // No grant, no quota, no network. The landing is unaffected either way.
+  }
+}
+
+/**
+ * The org's last good book, or null. One document, shape-checked exactly as a
+ * per-account slice is: a malformed or stale document is dropped whole rather
+ * than painted, and an absent `db` grant is null with no error.
+ */
+export async function loadBook(now: number = Date.now()): Promise<CachedRead | null> {
+  const store = db();
+  if (!store) return null;
+  try {
+    const snap = await store.collection(BOOK_COLLECTION).doc(BOOK_DOC).get();
+    if (!snap?.exists) return null;
+    return readCachedDoc(snap.data(), now);
+  } catch {
+    return null;
+  }
+}

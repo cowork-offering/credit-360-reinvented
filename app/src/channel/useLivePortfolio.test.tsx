@@ -2,8 +2,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { PORTFOLIO_REFETCH_MS, useLivePortfolio } from "./useLivePortfolio";
+import { PORTFOLIO_REFETCH_MS, useLivePortfolio, __skipBootForTests } from "./useLivePortfolio";
 import { RETRY_BUDGET_MS, RETRY_MAX_MS } from "./mcp";
+import {
+  __resetDbScreenForTests,
+  __setDbForTests,
+  type DbCollectionReference,
+  type DbDocumentReference,
+  type DbNamespace,
+} from "./dbDoor";
 
 /* =============================================================================
    The book's read is a POLL over `callTool`, not a `watchTool` subscription.
@@ -194,5 +201,152 @@ describe("useLivePortfolio", () => {
     mountHook(false);
     await tick(PORTFOLIO_REFETCH_MS);
     expect(c.portfolioCalls()).toHaveLength(0);
+  });
+});
+
+/* =============================================================================
+   THE COLD-OPEN SKELETON, and the book cache behind it.
+
+   A fresh open with a connector boots through a skeleton (booting = true) until
+   the first book lands, so a viewer never watches the baked test relationships
+   flash before the org's real book arrives. A returning viewer's cached book
+   clears the skeleton before it is ever seen; a share link with no connector
+   never boots at all. And every good read is remembered, so the NEXT open has a
+   book to seed from.
+   ============================================================================= */
+
+/** A stateful namespace: gives back what was set, so a seed and a persist can
+ *  both be asserted. */
+function fakeStore() {
+  const docs = new Map<string, Record<string, unknown>>();
+  const ref = (path: string): DbDocumentReference =>
+    ({
+      id: path.split("/").pop() ?? "",
+      path,
+      get: async () => {
+        const data = docs.get(path);
+        return { id: path, exists: data !== undefined, data: () => data };
+      },
+      set: async (data: Record<string, unknown>) => void docs.set(path, data),
+      update: async (data: Record<string, unknown>) => void docs.set(path, { ...(docs.get(path) ?? {}), ...data }),
+      delete: async () => void docs.delete(path),
+    }) as unknown as DbDocumentReference;
+  const query = (path: string): DbCollectionReference => {
+    const self = {
+      path,
+      doc: (id?: string) => ref(`${path}/${id ?? "auto"}`),
+      where: () => self,
+      orderBy: () => self,
+      limit: () => self,
+      get: async () => ({ docs: [] }),
+      onSnapshot: () => () => {},
+    } as unknown as DbCollectionReference;
+    return self;
+  };
+  const ns: DbNamespace = { doc: ref, collection: query };
+  return { ns, docs };
+}
+
+describe("useLivePortfolio: the cold-open skeleton and the book cache", () => {
+  afterEach(() => {
+    __setDbForTests(undefined);
+    __resetDbScreenForTests();
+    __skipBootForTests(false);
+  });
+
+  it("boots through the skeleton on a fresh open, and the live read clears it", async () => {
+    vi.useFakeTimers();
+    connector(() => Promise.resolve({ payload: BOOK, cache: { storedAt: 555, revalidating: false } }));
+    const h = mountHook();
+    // Synchronously after mount the read is in flight and nothing has landed.
+    expect(h.value.booting).toBe(true);
+    expect(h.value.portfolio).toBeUndefined();
+    await tick();
+    // The org answered: the skeleton is done and the book is live.
+    expect(h.value.booting).toBe(false);
+    expect(h.value.source).toBe("live");
+    expect(h.value.portfolio?.accounts?.[0]?.accountId).toBe("A");
+  });
+
+  it("never boots without a connector, so a share link opens on the baked book", () => {
+    vi.useFakeTimers();
+    const h = mountHook(false);
+    expect(h.value.booting).toBeFalsy();
+  });
+
+  it("the test seam opens the home already settled, as a warm cache does", () => {
+    vi.useFakeTimers();
+    __skipBootForTests(true);
+    connector(() => Promise.resolve({ payload: BOOK }));
+    const h = mountHook();
+    expect(h.value.booting).toBeFalsy();
+  });
+
+  it("a failure ends the skeleton rather than shimmering forever", async () => {
+    vi.useFakeTimers();
+    connector(() => Promise.reject({ code: "not_in_manifest" }));
+    const h = mountHook();
+    expect(h.value.booting).toBe(true);
+    await tick();
+    expect(h.value.booting).toBe(false);
+    expect(h.value.failure).toBeTruthy();
+  });
+
+  it("the backstop clears a wedged skeleton even if the read never answers", async () => {
+    vi.useFakeTimers();
+    // A read that never resolves and never rejects: only the backstop can end it.
+    connector(() => new Promise<never>(() => {}));
+    const h = mountHook();
+    expect(h.value.booting).toBe(true);
+    await tick(20_000);
+    expect(h.value.booting).toBe(false);
+  });
+
+  it("seeds the cached book first, marked as cache, when the live read is slow", async () => {
+    vi.useFakeTimers();
+    const store = fakeStore();
+    __resetDbScreenForTests();
+    __setDbForTests(store.ns);
+    // The cached book is already in the store, stamped recently so it clears the
+    // age gate; the live read never answers, so the only thing that can paint is
+    // the cache.
+    const recent = Date.now() - 1_000;
+    store.docs.set("cache/book", { storedAt: recent, tool: PORTFOLIO, payload: { accounts: [{ accountId: "CACHED" }] } });
+    connector(() => new Promise<never>(() => {}));
+    const h = mountHook();
+    await tick();
+    expect(h.value.source).toBe("cache");
+    expect(h.value.booting).toBe(false);
+    expect(h.value.portfolio?.accounts?.[0]?.accountId).toBe("CACHED");
+  });
+
+  it("remembers every good read, so the next open has a book to seed from", async () => {
+    vi.useFakeTimers();
+    const store = fakeStore();
+    __resetDbScreenForTests();
+    __setDbForTests(store.ns);
+    connector(() => Promise.resolve({ payload: BOOK, cache: { storedAt: 900, revalidating: false } }));
+    mountHook();
+    await tick();
+    const written = store.docs.get("cache/book");
+    expect(written?.storedAt).toBe(900);
+    expect((written?.payload as { accounts?: unknown[] })?.accounts?.length).toBe(1);
+  });
+
+  it("a live read settles over an identical cached book without churning the object", async () => {
+    vi.useFakeTimers();
+    const store = fakeStore();
+    __resetDbScreenForTests();
+    __setDbForTests(store.ns);
+    // Cache and live are the SAME book. The cache paints first; the live read
+    // must keep the object it built, advancing only the stamp and the source.
+    store.docs.set("cache/book", { storedAt: Date.now() - 1_000, tool: PORTFOLIO, payload: BOOK });
+    connector(() => Promise.resolve({ payload: BOOK, cache: { storedAt: 900, revalidating: false } }));
+    const h = mountHook();
+    await tick();
+    const first = h.value.portfolio;
+    await tick(PORTFOLIO_REFETCH_MS);
+    expect(h.value.portfolio).toBe(first); // same reference: nothing reflowed
+    expect(h.value.source).toBe("live");
   });
 });

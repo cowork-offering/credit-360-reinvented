@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SIGNAL_WINDOW_DAYS, type Portfolio } from "../data/contract";
-import { SERVERS, TOOLS, callTool, unwrapInvocableOne, type McpFailure } from "./mcp";
+import { READ_DEADLINE_MS, SERVERS, TOOLS, callTool, unwrapInvocableOne, type McpFailure } from "./mcp";
 import { callGateway, noteServedByBackup, shouldFallBack } from "./gateway/lane";
+import { loadBook, putBook } from "./lastGood";
 import { portfolioSignature } from "../book/livePortfolio";
 
 export interface LivePortfolio {
@@ -16,7 +17,39 @@ export interface LivePortfolio {
   retrying?: boolean;
   /** Read again now: the banker's own gesture on the banner. */
   retry?: () => void;
+  /** TRUE ON A FRESH OPEN while the first book is still on its way, cached or
+   *  live, and no failure has landed yet. The landing surfaces show a skeleton
+   *  in this window rather than the baked test book, so a viewer never watches
+   *  the five samples flash before the org's real book arrives. Never true
+   *  without a connector: a share link opens on the baked book exactly as
+   *  before, with no skeleton. It ends the moment a book arrives, a failure
+   *  lands, or the backstop clock runs out. */
+  booting?: boolean;
+  /** Where the book on screen came from: `cache` is this org's last good book,
+   *  painted from the store and marked with its age; `live` is the org answering
+   *  this session. Absent until a book has landed. */
+  source?: "cache" | "live";
 }
+
+/* TEST SEAM: mount the home already settled, the way a returning viewer with a
+   warm cache does. A fresh open boots through the skeleton until the first book
+   lands (cache or live); a test that mounts the home ONLY to navigate through
+   it into an account does not want to drive the portfolio read first, and this
+   lets it start with `booting` off. Same `__`-prefixed, test-only convention as
+   `__resetOpenBurstForTests`. Never called in the app; the cold-open tests that
+   assert the skeleton leave it alone. */
+let skipBootForTests = false;
+export function __skipBootForTests(v = true): void {
+  skipBootForTests = v;
+}
+
+/** THE SKELETON'S BACKSTOP. A single portfolio read is bounded inside
+ *  `callTool` by READ_DEADLINE_MS, and the failure path ends the skeleton the
+ *  instant the read rejects, so this only ever fires for a read that neither
+ *  answers nor rejects. It sits just past that deadline: long enough never to
+ *  cut a slow-but-live read short, short enough that a wedged open reveals the
+ *  baked book under an honest banner rather than shimmering forever. */
+export const BOOK_BOOT_MAX_MS = READ_DEADLINE_MS + 2_000;
 
 /** The book does not move second to second, so this sits well above the
  *  platform's ~30s polling floor. It exists so an expired MCP session heals
@@ -105,8 +138,18 @@ export function usePageVisible(): boolean {
  *  Failures never blank the band: a transient error keeps the last good data
  *  with a staleness note, and only an authz denial retracts it. */
 export function useLivePortfolio(enabled: boolean): LivePortfolio {
-  const [live, setLive] = useState<LivePortfolio>({});
+  /* BOOTING FROM THE FIRST PAINT, where there is a connector to boot for. The
+     initial value is read once; `enabled` is `mcpAvailable()`, stable for the
+     life of the session, so a share link starts settled on the baked book and a
+     real seat starts on the skeleton. */
+  const [live, setLive] = useState<LivePortfolio>({ booting: enabled && !skipBootForTests });
   const visible = usePageVisible();
+  /* READ AT START, NOT WATCHED. The seed below wants to know whether a book was
+     already on screen when the effect (re)ran, without the effect depending on
+     `live` — a dependency there would tear the poll down and start it again on
+     its own first result. Same discipline as openRefresh's refs. */
+  const hasBookRef = useRef(false);
+  hasBookRef.current = !!live.portfolio;
   // Bumped by the banner's Retry: a new value restarts the poll, and the first
   // read of a restart asks for a fresh execution rather than a cached one.
   const [attempt, setAttempt] = useState(0);
@@ -120,6 +163,16 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
     if (!enabled || !visible) return;
     let dead = false;
     let inFlight = false;
+    /* Once the org itself has answered this session, the cached book is history:
+       a stored document must never paint back over a live one, however fast it
+       arrives from the local store. */
+    let landedLive = false;
+    /* THE CACHE SEED IS A COLD-OPEN THING ONLY. This effect also re-runs on a
+       Retry and on the page coming back into view, and by then a book is
+       already on screen; reseeding the cache there would step a current book
+       back to an older stamp for the instant before the fresh read lands. If
+       there is already a book, the seed is skipped and only the read runs. */
+    const hadBookAtStart = hasBookRef.current;
 
     /* THE SAME BOOK IS THE SAME OBJECT.
        FOUNDER CONDITION ONE, 2026-09-08: no latency, no stuck behaviour. This
@@ -127,15 +180,44 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
        identity decides whether the whole cockpit re-renders. The poll re-reads
        every two minutes and hands back a fresh object whether or not a figure
        moved; a book that did not move keeps the object it had, and only the
-       freshness stamp advances. A real change replaces it, as it always did. */
-    const settle = (portfolio: Portfolio, storedAt: number | undefined) => {
+       freshness stamp advances. A real change replaces it, as it always did.
+
+       AND `booting` ENDS HERE. Whichever book lands first, cached or live, the
+       skeleton is done: the surfaces have a real book to render. When a live
+       read settles over an identical cached book the object is kept, so nothing
+       reflows, and only `storedAt` and `source` advance from the cache's age to
+       the current read. */
+    const settle = (portfolio: Portfolio, storedAt: number | undefined, source: "cache" | "live") => {
       const signature = portfolioSignature(portfolio);
       setLive((prev) =>
         prev.portfolio && prev.signature === signature
-          ? { ...prev, storedAt, failure: undefined, retrying: false }
-          : { portfolio, signature, storedAt, failure: undefined, retrying: false },
+          ? { ...prev, storedAt, failure: undefined, retrying: false, booting: false, source }
+          : { portfolio, signature, storedAt, failure: undefined, retrying: false, booting: false, source },
       );
     };
+
+    /* THE CACHED BOOK, FIRST AND LOCAL. One document, one round trip, painted
+       only if the org has not already beaten it home. A returning viewer sees
+       their own last book instantly, marked with its age; the live read below
+       settles over it. With no `db` grant `loadBook` is null and this is a
+       silent no-op, exactly as before the store existed. */
+    if (!hadBookAtStart) {
+      void (async () => {
+        const cached = await loadBook(Date.now());
+        if (dead || landedLive || !cached) return;
+        const pf = cached.payload as Portfolio | undefined;
+        if (!pf || !(pf.accounts?.length ?? 0)) return;
+        settle(pf, cached.storedAt, "cache");
+      })();
+    }
+
+    /* THE BACKSTOP. If neither the cache nor the org has produced a book by the
+       time this fires, and no failure has either, the skeleton gives way to the
+       baked book: a wedged read is not a reason to shimmer forever. */
+    const bootTimer = setTimeout(() => {
+      if (dead) return;
+      setLive((prev) => (prev.booting ? { ...prev, booting: false } : prev));
+    }, BOOK_BOOT_MAX_MS);
 
     /* THE BACKUP LANE IS A ONE-SHOT. When the primary reports a hop failure the
        band asks the backup ONCE, by hand, and feeds the answer through the same
@@ -148,7 +230,12 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
         const slot = unwrapInvocableOne<Portfolio>(ok.payload);
         if (!slot.ok) return;
         noteServedByBackup(ok.cache?.storedAt);
-        settle(slot.data, ok.cache?.storedAt);
+        const stamp = ok.cache?.storedAt ?? Date.now();
+        landedLive = true;
+        settle(slot.data, stamp, "live");
+        // A backup answer is a good answer, and it is remembered like one; the
+        // stamp records which door it came through, not whether to trust it.
+        void putBook(TOOLS.portfolio, slot.data, stamp, "gateway");
       } catch {
         // Both doors shut. The banner the primary failure raised stands, and it
         // names the lane the banker can actually do something about.
@@ -169,20 +256,32 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
         if (dead) return;
         const slot = unwrapInvocableOne<Portfolio>(ok.payload);
         if (!slot.ok) {
-          setLive((prev) => ({ ...prev, failure: undefined, retrying: false }));
+          // The org answered, even if with nothing to unwrap: the skeleton is
+          // done either way, and the baked book stands under whatever comes next.
+          setLive((prev) => ({ ...prev, failure: undefined, retrying: false, booting: false }));
           return;
         }
         /* A cached answer carries the platform's own stamp. An answer with no
            cache block was EXECUTED for this call (the contract's word), and a
            declared write is never cached, so the moment it arrived is the
            honest "as of": that is the one case Date.now() states a fact. */
-        settle(slot.data, ok.cache?.storedAt ?? Date.now());
+        const stamp = ok.cache?.storedAt ?? Date.now();
+        landedLive = true;
+        settle(slot.data, stamp, "live");
+        // The org's own book, kept where the next open finds it before any
+        // connector answers. Fire-and-forget; a no-op with no `db` grant.
+        void putBook(TOOLS.portfolio, slot.data, stamp);
       } catch (err) {
         if (dead) return;
         const failure = err as McpFailure;
         setLive((prev) =>
           // Authz denial ⇒ retract rendered data. Transient ⇒ keep last good.
-          failure.retract ? { failure, retrying: false } : { ...prev, failure, retrying: false },
+          // Either way the skeleton is over: a failure is a book's worth of
+          // answer, and the baked book plus the banner is more honest than a
+          // shimmer that never resolves.
+          failure.retract
+            ? { failure, retrying: false, booting: false }
+            : { ...prev, failure, retrying: false, booting: false },
         );
         // Only the conditions the lane already encodes: a denial is about WHO
         // asked, and the backup asks as somebody else.
@@ -201,6 +300,7 @@ export function useLivePortfolio(enabled: boolean): LivePortfolio {
     return () => {
       dead = true;
       clearInterval(timer);
+      clearTimeout(bootTimer);
     };
   }, [enabled, attempt, visible]);
 

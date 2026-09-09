@@ -2,6 +2,22 @@
 
 ## Changelog
 
+- **0.9.5 (2026-09-09)** THE COLD OPEN NO LONGER FLASHES THE BAKED TEST BOOK. On a fresh open with a
+  connector the landing showed the five baked relationships (three of them samples) for the few
+  seconds the live Customer360Portfolio read takes, then swapped abruptly to the org's real book.
+  Two changes close it. (1) A BOOK CACHE: every good portfolio read is written to one `cache/book`
+  document (channel/lastGood.ts, putBook/loadBook), and the next open seeds from it, so a returning
+  viewer sees their own last book instantly, marked with its age, and the live read settles over it
+  identically when nothing moved (same object reference, no reflow). (2) A CINEMATIC SKELETON: a
+  truly fresh open with nothing cached shows a shimmer of the real band, briefing and queue geometry
+  (components/HomeSkeleton.tsx, gated by a new `booting` flag on useLivePortfolio) instead of the
+  samples, and the book reconciles in when it lands. Neutral wash sweep, rule-21 clean (no purple on
+  the ground), reduced-motion stills to a flat wash. A share link with no connector never boots and
+  renders the baked book exactly as before; a wedged read reveals the baked book at a backstop
+  (~READ_DEADLINE + 2s) rather than shimmering forever. 17 new tests; probe re-run green except two
+  pre-existing date-drift assertions (sc12 severity order, sc13 "in 153d" now 122d) unrelated to this
+  change. The two probe helpers (`openPage`, `openAccount`) now wait for the settled home, and six
+  navigation-test files open the home pre-settled via the `__skipBootForTests` seam.
 - **0.9.4 (2026-09-09)** A FIRST OPEN ON A NEW SEAT NOW WORKS END TO END. Two defects sat on step 4
   of the open, the path a viewer with no cockpit takes. (1) The shipped five-borrower book,
   `assets/live-data.json`, could not be assembled at all: it was baked in two passes and the clock

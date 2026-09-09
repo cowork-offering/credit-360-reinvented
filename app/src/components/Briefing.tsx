@@ -1,6 +1,7 @@
 import { fmtDate, fmtDays } from "../data/format";
 import type { WorklistRow } from "../data/worklistRows";
 import type { ReasonCode } from "../data/contract";
+import { BriefingSkeleton } from "./HomeSkeleton";
 
 /* =============================================================================
    THE BRIEFING — the landing opens like a morning brief, not a list.
@@ -90,11 +91,17 @@ export function Briefing({
   rows,
   bookSize,
   generatedAt,
+  booting,
 }: {
   rows: WorklistRow[];
   bookSize: number;
   generatedAt: string;
+  /** True on a fresh open while the org's book is still on its way. The lead is
+   *  ASSEMBLED FROM THE BOOK, so narrating it over the baked samples would state
+   *  a count and name relationships the read is about to replace. It waits. */
+  booting?: boolean;
 }) {
+  if (booting) return <BriefingSkeleton />;
   const lines = headlineLines(rows.length);
   let idx = 0;
   return (

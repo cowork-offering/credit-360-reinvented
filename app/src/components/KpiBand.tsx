@@ -4,6 +4,7 @@ import { useCountUp } from "../data/motion";
 import { SERVERS } from "../channel/mcp";
 import { useLaneHealth } from "../channel/laneHealth";
 import { bookTotalsOf } from "../book/livePortfolio";
+import { KpiBandSkeleton } from "./HomeSkeleton";
 
 /* =============================================================================
    THE KPI BAND — the landing's second beat.
@@ -70,6 +71,12 @@ export function KpiBand() {
      the status line disagreeing about the same outage. */
   const lane = useLaneHealth()[SERVERS.customer360];
   const lastGoodAt = live.storedAt ?? lane?.lastGoodAt;
+  /* THE FRESH-OPEN SKELETON. Only ever true with a connector and no book yet,
+     cached or live (see useLivePortfolio). A returning viewer's cached book has
+     already cleared it, and a share link never sets it, so this replaces the
+     old flash of the five baked samples and nothing else. The hooks above all
+     ran first, so this early return keeps their order. */
+  if (live.booting) return <KpiBandSkeleton />;
   /* THE FIGURES COME OFF `data`, THE BANNER OFF `live`, and the split is not
      cosmetic. `live.portfolio` is the read exactly as the org answered it: 115
      rows, 105 of them legacy, a 25-row signal block that is mostly abandoned

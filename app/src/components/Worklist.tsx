@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useApp } from "../state/appState";
+import { useApp, useLivePortfolioResult } from "../state/appState";
 import { queueSentence } from "../data/queue";
 import { buildWorklistRows, type WorklistRow } from "../data/worklistRows";
 import { fmtMoney, fmtDays } from "../data/format";
@@ -13,6 +13,7 @@ import { FiledChip } from "./FiledChip";
 import { mcpAvailable } from "../channel/mcp";
 import { announce, openAccountLive } from "../book/dynamicBook";
 import { CMDK_OPEN_EVENT } from "./CommandPalette";
+import { WorklistSkeleton } from "./HomeSkeleton";
 
 /* =============================================================================
    THE WORKLIST — the landing's third beat.
@@ -185,6 +186,7 @@ function Row({
 
 export function Worklist() {
   const { data, queue, state, dispatch } = useApp();
+  const booting = useLivePortfolioResult().booting;
   const worklist = queue.worklist;
   const rows = useMemo(() => buildWorklistRows(data, worklist), [data, worklist]);
   /* THE REST OF THE BOOK, built through the same row builder with no reasons:
@@ -208,6 +210,13 @@ export function Worklist() {
     for (const r of rows) entered.current.add(r.accountId);
     if (restOpen) for (const r of quietRows) entered.current.add(r.accountId);
   });
+
+  /* THE FRESH-OPEN SKELETON. With a connector and no book yet, the queue is not
+     "empty", it is not read; showing the baked samples' rows here is the flash
+     this replaces. A returning viewer's cached book has already cleared
+     `booting`, so this is the cold open only. Every hook above has run, so the
+     early return leaves their order intact. */
+  if (booting) return <WorklistSkeleton />;
 
   /* THE ROW IS THE ONE DOOR IN. Rule 58: nothing teleports, so opening a
      relationship flies its NAME out of this row and into the hero rather than

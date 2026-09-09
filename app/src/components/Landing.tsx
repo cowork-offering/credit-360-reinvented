@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useApp } from "../state/appState";
+import { useApp, useLivePortfolioResult } from "../state/appState";
 import { buildWorklistRows } from "../data/worklistRows";
 import { Briefing } from "./Briefing";
 import { KpiBand } from "./KpiBand";
@@ -22,6 +22,11 @@ import { Weave } from "./Weave";
 
 export function Landing() {
   const { data, worklist } = useApp();
+  /* THE COLD-OPEN FLAG, from the one read the whole landing stands on. Passed
+     to the briefing so its assembled sentence waits for the org's book rather
+     than narrating the baked samples for a second; the KPI band and the queue
+     read the same flag for themselves. */
+  const booting = !!useLivePortfolioResult().booting;
   const rows = useMemo(() => buildWorklistRows(data, worklist), [data, worklist]);
   const bookSize = data.portfolio?.accounts?.length ?? rows.length;
 
@@ -29,7 +34,7 @@ export function Landing() {
     <>
       <Weave />
       <div className="page" style={{ paddingTop: 40, paddingBottom: 100, position: "relative", zIndex: 1 }}>
-        <Briefing rows={rows} bookSize={bookSize} generatedAt={data.meta?.generatedAt ?? ""} />
+        <Briefing rows={rows} bookSize={bookSize} generatedAt={data.meta?.generatedAt ?? ""} booting={booting} />
         <KpiBand />
         <Worklist />
       </div>

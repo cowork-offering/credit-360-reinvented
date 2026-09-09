@@ -106,7 +106,15 @@ async function openPage(browser, prepare) {
   await page.addInitScript(stub);
   if (prepare) await page.addInitScript(prepare);
   await page.goto(URL_TARGET, { waitUntil: "load" });
-  await page.waitForSelector("#kpiband", { timeout: 20_000 });
+  /* WAIT FOR THE HOME TO SETTLE, not merely to mount. Since 2026-09-09 a fresh
+     open with a connector boots through a cinematic skeleton (KpiBandSkeleton et
+     al.) until the first book lands, cached or live, or the read plainly fails.
+     The skeleton band carries `#kpiband` too, so waiting on the bare id would
+     return mid-shimmer and every navigation below would click a row that is not
+     there yet. The real band alone lacks `[data-skeleton]`; that is the settled
+     landing. A hung read reveals the baked book at the boot backstop (~17s), so
+     the budget clears it. */
+  await page.waitForSelector("#kpiband:not([data-skeleton])", { timeout: 25_000 });
   return page;
 }
 
@@ -177,6 +185,10 @@ const firstCallAt = (page, tool) =>
   page.evaluate((t) => (window.__LANES.calls.find((c) => c.tool === t) ?? {}).at ?? null, tool);
 
 const openAccount = async (page) => {
+  // The row is there once the home has settled (openPage waits for that), but a
+  // background refresh can restack the queue for an instant; wait for the row
+  // rather than clicking into a gap.
+  await page.waitForSelector(`[data-open="${ACCOUNT}"]`, { timeout: 12_000 });
   await page.evaluate((id) => document.querySelector(`[data-open="${id}"]`)?.click(), ACCOUNT);
   await page.waitForSelector(".hero", { timeout: 10_000 });
   await page.evaluate(() => {
