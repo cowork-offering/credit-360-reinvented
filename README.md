@@ -120,7 +120,7 @@ relationship, so a run can be picked up where it was left and compared against t
 ## Versioning
 
 The plugin carries a semantic version in `client-360/.claude-plugin/plugin.json`. Current version:
-**0.9.0**. What changed, what is outstanding and what is gated by design is in
+**0.9.1**. What changed, what is outstanding and what is gated by design is in
 [STATUS.md](STATUS.md).
 
 ## For engineers
