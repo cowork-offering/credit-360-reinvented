@@ -4,9 +4,21 @@ MCP server. See RUNBOOK.md for prerequisites and install. Source repo: cowork-of
 
 ## How the cockpit opens
 
-**The default open is one file read.** "Open the cockpit", "pull up <account>", "what needs my
-attention": the skill reads `canonicalArtifactUrl` from `assets/cockpit.json` and hands the banker
-that URL. No connector fetch, no assembler run, no publish, nothing uploaded.
+**One cockpit per organization, resolved per viewer.** The cockpit declares runtime capabilities
+(the connectors and its store), and a page that declares them is organization-internal by the host's
+rule: it can be shared inside its own claude.ai organization and never by public link. A URL
+published from one organization therefore answers "artifact not found" for every seat outside it, so
+no single URL can serve every viewer. `assets/cockpit.json` names one such page, as a fallback.
+
+**The default open resolves that per viewer, and it stays instant.** "Open the cockpit", "pull up
+<account>", "what needs my attention": the skill takes (1) the URL this session's own publish
+returned, else (2) the most recently updated artifact titled `Credit 360 · Relationship Cockpit`
+(the older `Customer 360 · Relationship Cockpit` counts too) that the viewer owns or is shared,
+found with one `list` call over `scope: "all"` and verified with one `read`, else (3) the
+`canonicalArtifactUrl` from `assets/cockpit.json`, and only if that reads. Steps 1 to 3 cost one
+listing call and one read: no connector fetch, no assembler run, no publish, nothing uploaded. If
+none of them resolves, the viewer has no cockpit yet, so the skill publishes one on the rebuild path
+and tells them they can share it to their organization from the page's own Share control.
 
 The page then refreshes ITSELF. Landing on a relationship reads it live through the viewer's own
 Customer 360 connector, one lane per module. Until a lane answers, the figures on screen are the
@@ -35,8 +47,11 @@ debounced, under 8 KB, through the same guarded door every other store write pas
 "READ THE COCKPIT STATE FIRST" section of the cockpit skill.
 
 **Fetching, assembling and publishing is the REBUILD path**, taken only when a banker asks for it or
-when no canonical URL can be resolved. A rebuild does not move the canonical cockpit:
-`assets/cockpit.json` is hand-edited once, when a founder blesses a new URL.
+when no cockpit resolves for this viewer. A rebuild does not move the canonical cockpit:
+`assets/cockpit.json` is hand-edited once, when a founder blesses a new URL. What it does give the
+viewer is a cockpit in their own organization, which is the only kind that opens for them. Every
+publish passes `assets/capabilities.json` whole and keeps the page's favicon and title stable; no
+passcode, token or secret is ever written into the page.
 
 ## Connectors this plugin needs (names must match exactly)
 

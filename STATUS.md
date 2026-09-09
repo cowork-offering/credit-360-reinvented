@@ -2,6 +2,18 @@
 
 ## Changelog
 
+- **0.9.3 (2026-09-09)** The cockpit resolves PER VIEWER, because a single canonical URL cannot serve
+  more than one organization. An artifact declaring runtime capabilities is organization-internal and
+  never opens by public link, so the pinned `canonicalArtifactUrl` (published 13:24 from an account in
+  a different claude.ai organization) answered "artifact not found" for every other seat. The open now
+  takes, in order: the URL this session's own publish returned; the most recently updated artifact
+  titled "Credit 360 · Relationship Cockpit" (or the older "Customer 360 · Relationship Cockpit") the
+  viewer owns or is shared, found with `list` over `scope: "all"` and verified with `read`; the
+  canonical URL, only if `read` succeeds for it; otherwise a fresh publish on the rebuild path, with
+  one line telling the viewer to share it to their organization from the page's Share control. Steps 1
+  to 3 stay instant: one listing call and one read, no fetch and no assembler. "One URL for everyone"
+  is retired everywhere in favour of "one cockpit per organization, resolved per viewer". Skill, agent,
+  README, RUNBOOK, `cockpit.json` `_comment` and the plugin description. No code change.
 - **0.9.2 (2026-09-09)** Marketplace `cowork-offering/credit-360-reinvented` (name `credit-360-reinvented`,
   owner Fabian Goetzens); the two same-day predecessors `credit-360` and `credit-360-cockpit` are deleted.
 - **0.9.1 (2026-09-09)** The canonical cockpit is republished under a new claude.ai account and

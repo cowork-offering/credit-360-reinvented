@@ -1,6 +1,6 @@
 ---
 name: credit-360-cockpit
-description: Use when a banker asks to open the Credit 360 cockpit (also said as "the Customer 360", "the cockpit", "pull up the relationship"), the worklist-first commercial-credit control center. The DEFAULT open is INSTANT: hand the banker the canonical published cockpit named in assets/cockpit.json and let the page refresh itself through the viewer's own connectors. No fetch, no assembler, no publish. The fetch-and-publish path (the 10 read tools of the 28-tool Customer360 MCP server plus Boom-spread financials, composed into C360_DATA and assembled into a prebuilt interactive Cowork artifact: needs-action queue, activity/audit trail, exposure, covenants, relationship graph, whitespace, structural signals, a chat FAB and a Client Actions panel) is the REBUILD path, taken only when a banker asks to rebuild or republish or when no canonical URL can be resolved. This is the read and render skill; the 18 governed write tools run through the guided skills. The page also keeps a COCKPIT STATE document current in the artifact store (open relationship, open room, staged plan, last filed, per-lane health with round-trip durations), and this skill's "READ THE COCKPIT STATE FIRST" section is how a session answers "what am I looking at" from the banker's actual screen rather than from a guess. Trigger on "credit 360", "customer 360", "open the cockpit", "pull up the relationship view", "what needs my attention", "relationship overview for <account>", "what am I looking at", "what's open", "what did I stage", "rebuild the cockpit", "republish the cockpit", or any account-level portfolio question.
+description: Use when a banker asks to open the Credit 360 cockpit (also said as "the Customer 360", "the cockpit", "pull up the relationship"), the worklist-first commercial-credit control center. The DEFAULT open is INSTANT and PER VIEWER: resolve the cockpit THIS viewer can open (the URL this session published, then the newest cockpit they own or are shared, then the canonical URL in assets/cockpit.json if it reads) and let the page refresh itself through the viewer's own connectors. One cockpit per organization, resolved per viewer: a capability-declaring artifact never opens outside the organization it was published in, so no single URL serves every seat. At most one listing call and one read: no fetch, no assembler, no publish. The fetch-and-publish path (the 10 read tools of the 28-tool Customer360 MCP server plus Boom-spread financials, composed into C360_DATA and assembled into a prebuilt interactive Cowork artifact: needs-action queue, activity/audit trail, exposure, covenants, relationship graph, whitespace, structural signals, a chat FAB and a Client Actions panel) is the REBUILD path, taken only when a banker asks to rebuild or republish or when no cockpit resolves for this viewer. This is the read and render skill; the 18 governed write tools run through the guided skills. The page also keeps a COCKPIT STATE document current in the artifact store (open relationship, open room, staged plan, last filed, per-lane health with round-trip durations), and this skill's "READ THE COCKPIT STATE FIRST" section is how a session answers "what am I looking at" from the banker's actual screen rather than from a guess. Trigger on "credit 360", "customer 360", "open the cockpit", "pull up the relationship view", "what needs my attention", "relationship overview for <account>", "what am I looking at", "what's open", "what did I stage", "rebuild the cockpit", "republish the cockpit", or any account-level portfolio question.
 ---
 
 # Credit 360 Cockpit (v3)
@@ -10,8 +10,8 @@ skill and the fast one is the default:
 
 | Path | When | What it costs |
 |---|---|---|
-| **OPEN** (default) | "open the cockpit", "pull up <account>", "what needs my attention" | one file read. No connector calls, no assembler run, no publish, nothing uploaded |
-| **REBUILD** | "rebuild the cockpit", "republish", or no canonical URL can be resolved | the whole fetch sequence, the assembler, and a ~1.9 MB publish |
+| **OPEN** (default) | "open the cockpit", "pull up <account>", "what needs my attention" | at most one listing call and one read. No connector calls, no assembler run, no publish, nothing uploaded |
+| **REBUILD** | "rebuild the cockpit", "republish", or no cockpit resolves for this viewer | the whole fetch sequence, the assembler, and a ~1.9 MB publish |
 
 **Demo anchor:** Piedmont Precision Components, Inc. · Account `001bb00001DLtRMAA1` · org `bankinggpt`.
 
@@ -21,16 +21,45 @@ one assembler command.
 
 ---
 
-## THE OPEN: the default, and it is one file read
+## THE OPEN: resolve the cockpit for THIS viewer
 
-1. **Read `<pluginRoot>/assets/cockpit.json`** and take `canonicalArtifactUrl`.
-2. **Hand the banker that URL in one line.** That is the whole open.
+**One cockpit per organization, resolved per viewer.** There is no one URL for everyone and there
+cannot be. This cockpit declares runtime capabilities (the connectors and the store), and a page
+that declares them can be shared INSIDE its own claude.ai organization and never by public link. So
+a URL published from one organization opens for the seats in that organization and answers
+"artifact not found" for every seat outside it. `canonicalArtifactUrl` names ONE such page, from one
+organization. Resolve the viewer's cockpit; never assume a URL travels.
 
-**Do NOT fetch, do NOT compose `C360_DATA`, do NOT run the assembler, do NOT publish, and do NOT
-pass a capabilities manifest.** The pinned cockpit already carries the grant from its last publish,
-and the connector prompts the viewer answered on it are still answered. Publishing a fresh 1.9 MB
-artifact to answer "open the cockpit" is the slow open the founder feels, and it buys nothing the
-page cannot get for itself in seconds.
+**The open is still instant.** Steps 1 to 3 cost at most ONE listing call and ONE read. No fetch, no
+`C360_DATA`, no assembler, no publish, nothing uploaded. Publishing a fresh 1.9 MB artifact to
+answer "open the cockpit" is the slow open the founder named, and a page that already opens for this
+viewer buys them nothing by being rebuilt.
+
+Resolve in this order and STOP at the first that answers:
+
+1. **The URL this session's own Artifact publish returned.** If this session published a cockpit,
+   that is the room the banker is looking at. Use it, and do not list or read anything.
+
+2. **The newest cockpit this viewer owns or has been shared.** Artifact tool, `action: "list"`,
+   `scope: "all"`. Keep the rows titled `Credit 360 · Relationship Cockpit`, and accept the older
+   title `Customer 360 · Relationship Cockpit` too. Take the MOST RECENTLY UPDATED of those, then
+   **verify it with `action: "read"` before you hand it over**: a row in a listing is not proof the
+   page opens. If that read succeeds, that is the cockpit.
+
+3. **The canonical URL in `<pluginRoot>/assets/cockpit.json`**, and only if `action: "read"`
+   succeeds for it. That URL was published from ONE organization, so for a viewer outside it the
+   read fails and the URL is worthless. Never hand it over unread.
+
+4. **Nothing resolved: this viewer has no cockpit yet, so publish them one.** Take the REBUILD path
+   below. It is the existing publish path, unchanged: the capabilities manifest whole from
+   `assets/capabilities.json`, the favicon rule, the title stable. Then tell the banker in ONE line
+   that the page can be shared to their organization from its own Share control, so colleagues open
+   this cockpit instead of each publishing another. Use the URL that publish returned for the rest
+   of the session: it is this session's step 1 from now on, the target of every intent, and the
+   store the cockpit state is read from.
+
+**Hand over exactly one URL, in one line.** Do not offer the banker a choice of cockpits and do not
+list the ones you rejected.
 
 **Why this is not a stale page.** The cockpit REFRESHES ITSELF. The moment a banker lands on a
 relationship the page reads that relationship live through the viewer's own Customer 360 connector,
@@ -48,11 +77,12 @@ open it from the cockpit's own search (cmd-K): the page resolves it through
 one relationship.
 
 **An actionable ask is not an open.** "The client wants the line at 20M" is an INTENT written to the
-canonical cockpit, never a republish. See "Intent handoff" at the foot of this page.
+cockpit resolved above, never a republish. See "Intent handoff" at the foot of this page.
 
-**Verify before you promise.** If `assets/cockpit.json` is missing, unreadable, or carries no
-`canonicalArtifactUrl`, say so and take the REBUILD path. Never type a cockpit URL from memory and
-never carry one forward from an older transcript.
+**Verify before you promise.** A URL you have not read this session is a guess. Never type a cockpit
+URL from memory and never carry one forward from an older transcript. If step 2 finds nothing and
+step 3's read fails, say so in half a sentence and go to step 4 rather than handing over a URL that
+will not open.
 
 ---
 
@@ -67,8 +97,8 @@ not asking them to describe it.
 
 ```
 action:     read_db
-url:        the canonicalArtifactUrl from <pluginRoot>/assets/cockpit.json
-            (or the URL this session published, if it published one)
+url:        the cockpit URL resolved by THE OPEN above, for this viewer
+            (this session's own publish, else the one listed and read, else canonical)
 db_op:      get
 collection: state
 doc_id:     cockpit
@@ -150,7 +180,9 @@ Take this path ONLY when one of these is true:
 
 - the banker asked for it: "rebuild the cockpit", "republish", "publish a fresh cockpit", "the baked
   snapshot is too old, rebuild it";
-- `assets/cockpit.json` carries no usable `canonicalArtifactUrl`;
+- THE OPEN resolved nothing for this viewer: this session published none, the listing turned up no
+  cockpit they can open, and `assets/cockpit.json` either carries no `canonicalArtifactUrl` or its
+  read fails because that page belongs to another organization;
 - a founder has said the canonical cockpit is to be replaced.
 
 Everything from STEP 0 to the end of the RENDER section describes THAT path, and none of its rules
@@ -158,8 +190,15 @@ may be relaxed to make a rebuild faster: no fallback data sources, the capabilit
 every publish, and the read-only execute path warning whenever `meta.userId` cannot be read.
 
 **A rebuild does not move the canonical cockpit.** `assets/cockpit.json` is hand-edited, once, when a
-founder blesses a new canonical URL; until then the fast open still points at the pinned page. Say
-which one you published and whether it is the canonical one.
+founder blesses a new canonical URL. What a rebuild DOES do is give this viewer a cockpit of their
+own, in their own organization, which is the only kind that opens for them. Say which one you
+published, whether it is the canonical one, and that they can share it to their organization from
+the page's Share control.
+
+**Never put a passcode, a token, an OAuth secret or any other credential into the page, into
+`C360_DATA`, into `cockpit.json` or into the reply that hands over the URL.** The cockpit holds no
+shared credential by design: every viewer answers the connector prompts themselves and the page
+calls the org as them. A secret written into a published artifact is a secret published.
 
 ---
 
@@ -643,9 +682,10 @@ HTML inline. Do NOT open a Chrome tab or call any other widget/HTML builder.
 
 ### CAPABILITIES: pass the manifest on EVERY publish (rebuild path)
 
-A publish is the ONLY thing that needs this. The fast open publishes nothing, so it passes nothing,
-and the pinned cockpit keeps the grant its own last publish gave it. Passing a manifest is not a way
-to "refresh" a grant on a page you did not publish, and there is no publish-free way to change one.
+A publish is the ONLY thing that needs this. Steps 1 to 3 of THE OPEN publish nothing, so they pass
+nothing, and a resolved cockpit keeps the grant its own last publish gave it. Passing a manifest is
+not a way to "refresh" a grant on a page you did not publish, and there is no publish-free way to
+change one. Step 4 of THE OPEN IS a publish, so it passes the manifest whole like any other.
 
 
 The cockpit is a compiled page that calls the **banker's own** connectors. That only works if the
@@ -686,7 +726,20 @@ identity, which is the point: nothing in the page holds a shared credential.
 
 **A page carrying an mcp grant cannot be shared publicly.** It stays organization-internal, by the
 host's rule and not by ours. Never offer a public link to a cockpit, and never promise a client or
-anyone outside the org a look at one: the link will simply not open for them.
+anyone outside the organization a look at one: the link will simply not open for them.
+
+**That rule is also why there is no one URL for everyone.** Organization-internal cuts both ways: a
+cockpit published in organization A is invisible to organization B, whatever the plugin pins. One
+cockpit per organization, resolved per viewer, is the shape the host imposes. Within an
+organization the sharing IS available, from the published page's own Share control, so the right
+advice to a banker who just had one published is "share it to your organization" rather than "wait
+for a canonical URL".
+
+**Keep `favicon` and `title` stable across redeploys** (`app/PUBLISH.md` §6.5). Pass a favicon on
+the FIRST publish of a new cockpit and never change it afterwards: a redeploy omits it and keeps
+the icon the artifact has, because bankers find the tab by its icon and a changed one reads as a
+different page. The title is `Credit 360 · Relationship Cockpit` and it is what THE OPEN's listing
+step matches on, so renaming a published cockpit makes it unresolvable for its own viewer.
 
 **Updates are full-replace only:** rebuild the whole `C360_DATA`, re-run the assembler to a fresh
 `--out`, and `update_artifact` by file path. Never edit rendered HTML or inject JSON by hand.
@@ -786,11 +839,18 @@ single worst failure mode in this skill.
 
 ## STALE-INSTRUCTION GUARDS
 
-- **NEVER publish an artifact to answer "open the cockpit".** The default open is the canonical URL
-  from `assets/cockpit.json` and nothing else. Fetching the book, running the assembler and uploading
-  ~1.9 MB to answer an open is the slow open the founder named on 2026-09-05; the page refreshes
-  itself, so the work buys the banker nothing and costs them the wait.
-- **Never pass `capabilities` on the open path.** There is nothing being published to carry it.
+- **NEVER publish an artifact to answer "open the cockpit" while one still resolves.** Steps 1 to 3
+  of THE OPEN cost one listing call and one read; only step 4, where the viewer has no cockpit at
+  all, publishes. Fetching the book, running the assembler and uploading ~1.9 MB over a page that
+  already opens is the slow open the founder named on 2026-09-05; the page refreshes itself, so the
+  work buys the banker nothing and costs them the wait.
+- **Never promise "one URL for everyone".** A capability-declaring artifact is organization-internal
+  and never opens for a seat outside the organization it was published in. One cockpit per
+  organization, resolved per viewer.
+- **Never hand over a URL you have not read this session** unless this session published it.
+- **Never pass `capabilities` on steps 1 to 3.** There is nothing being published to carry it. Step
+  4 passes `assets/capabilities.json` whole, like every other publish.
+- **Never write a passcode, token or secret** into the page, the data, `cockpit.json` or the reply.
 - **Never hand-author or model-generate the artifact HTML.** It is a compiled React bundle; emitting
   a document token-by-token is the slow path bankers feel as "the artifact takes ages to load".
 - **Never inject the JSON yourself.** The assembler owns the data slot and asserts it exactly once.
@@ -826,8 +886,7 @@ single worst failure mode in this skill.
 ## Intent handoff: open a workroom from this chat
 
 **Handoff first.** Anything actionable a banker says in this chat goes to the room that owns it, as
-an INTENT, whenever a cockpit is reachable: this session published one, or `assets/cockpit.json`
-names the canonical one. Do NOT describe the steps back, and do NOT call a `stage_*` or `execute_*`
+an INTENT, whenever a cockpit is reachable: THE OPEN resolved one for this viewer. Do NOT describe the steps back, and do NOT call a `stage_*` or `execute_*`
 tool from chat to get ahead of the room. Write the intent and the open cockpit reacts live (a
 whisper, then Open flies to the account, binds the route and feeds the lines through the room's own
 staging, pausing only where a decision is the banker's). Direct staging from chat is the explicit
@@ -877,14 +936,16 @@ The two collateral rows are the pair most easily confused. Collateral pledged TO
    Never invent a figure the source did not state; leave it out and the room will ask.
 3. Pick the room and the route from the routing table above, by what the ask CHANGES. A route the
    room does not bind refuses the whole document.
-4. **Resolve the target artifact FIRST.** An intent is written to one specific published cockpit,
-   and writing it to the wrong one is a silent no-op: the banker's room never whispers.
+4. **Resolve the target artifact FIRST, by THE OPEN's order.** An intent is written to one specific
+   published cockpit, and writing it to the wrong one is a silent no-op: the banker's room never
+   whispers. A cockpit in another organization is exactly such a wrong one.
    - **If this session published a cockpit**, the target is the URL **the Artifact tool returned on
      that publish**. Always. That is the room the banker is looking at.
-   - **If this session did not publish one**, read `canonicalArtifactUrl` from
-     `<pluginRoot>/assets/cockpit.json` and use that. Read the file; never type a URL from memory
-     and never carry one forward from an older transcript.
-   - If the file is unreadable and you did not publish, **stop and say so**. Do not guess a URL.
+   - **Otherwise the cockpit THE OPEN resolved for this viewer**: the listed one it read
+     (step 2), else the canonical URL from `<pluginRoot>/assets/cockpit.json` whose read succeeded
+     (step 3). Never type a URL from memory and never carry one forward from an older transcript.
+   - If nothing resolves, **stop and say so**, or publish one first (step 4) and write the intent
+     there. Do not guess a URL.
 5. Write the document with the Artifact tool: action write_db, db_op set,
    url = the URL resolved in step 4, collection `intents`,
    doc_id `int-<yyyymmdd>-<slug>-<nn>`, data:
