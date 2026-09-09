@@ -14,6 +14,8 @@ import { ActionPanel } from "./ActionPanel";
 import { suggestActions, type Suggestion } from "../actions/suggest";
 import { ACTIONS_BY_ID } from "../actions/registry";
 import { BrandGlyph } from "./brand";
+import { BugCopyButton } from "./BugCopyButton";
+import { chatToMarkdown } from "./transcript";
 import { GooFilter, LiquidMark } from "./workroom/Liquid";
 
 type SendState = "idle" | "sending" | "handedOff" | "answered" | "error";
@@ -391,6 +393,21 @@ export function ChatPanelBody() {
       )}
 
       <SuggestionChips suggestions={suggestions} disabled={!available || sending} onPick={(s) => void sendSuggestion(s)} />
+
+      {/* THE BUG BUTTON. One click copies the whole chat for feedback, the same
+          control the workrooms carry. Only where there is something to copy. */}
+      {messages.length > 0 && (
+        <div className="chatfoot">
+          <BugCopyButton
+            build={() =>
+              chatToMarkdown(messages, {
+                surface: `Cockpit chat${account?.name ? ` — ${account.name}` : ""}`,
+                bookAsOf: data.meta?.generatedAt,
+              })
+            }
+          />
+        </div>
+      )}
 
       {/* THE COMPOSER. One pill, the field inside it, the send riding on the
           right. Rule 27: the send is INK, never violet. Rule 47: the PILL takes

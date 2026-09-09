@@ -181,6 +181,55 @@ body.wk-open #root {
 .wk-icobtn:hover {
   color: var(--ink);
 }
+/* THE BUG BUTTON — the same quiet control in every workroom header and in the
+   chat, one click to copy the whole conversation for feedback. Icon only at
+   rest (rule 21: no colour on the ground); it says "Copied" for a beat after a
+   copy, in the positive ink, and "Copy failed" in the critical one. */
+.bugcopy {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  color: var(--ink-faint);
+  border-radius: 7px;
+  transition: color var(--dur-fast, 140ms) var(--ease-out, ease);
+}
+.bugcopy:hover {
+  color: var(--ink-muted);
+}
+.bugcopy svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+.bugcopy .bugcopy-say {
+  display: none;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.bugcopy.ok {
+  color: var(--positive);
+}
+.bugcopy.fail {
+  color: var(--critical);
+}
+/* The word appears only in the moment after a click, so the rest state stays a
+   single glyph on the slim header line. */
+.bugcopy.ok .bugcopy-say,
+.bugcopy.fail .bugcopy-say {
+  display: inline;
+}
+/* In the chat, the control sits on its own quiet row, right-aligned above the
+   composer. */
+.chatfoot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 2px 0;
+}
 /* A SCRIPTED room says so, and says it quietly. */
 .wk-badge {
   font-size: 9.5px;

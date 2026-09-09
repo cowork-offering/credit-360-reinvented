@@ -247,6 +247,8 @@ import { intentFor, intentMailNote } from "../../intent/open";
 import { carriedMailFor } from "../../actions/mailCarry";
 import { sourcePhrase } from "../../intent/contract";
 import { ComposerPlus } from "../composer/ComposerPlus";
+import { BugCopyButton } from "../BugCopyButton";
+import { threadToMarkdown } from "../transcript";
 import "../../styles/workroom.css";
 import "../../styles/package-anchor.css";
 import { ManifestRail } from "../rail/ManifestRail";
@@ -5895,6 +5897,14 @@ export function Workroom({
                 />
               ))}
             </span>
+            <BugCopyButton
+              build={() =>
+                threadToMarkdown(items, {
+                  surface: `${roomWord} — ${context.accountName}`,
+                  bookAsOf: reads?.generatedAt,
+                })
+              }
+            />
             <button type="button" className="wk-icobtn" onClick={onClose} aria-label="Close the workroom">
               ×
             </button>
