@@ -67,6 +67,45 @@ those inputs already chosen, so the banker lands mid-flow, not at step one.
    to the right flow); probe: a scenario clicking each KPI and asserting the
    popup lists the right set and the CTA opens the right workroom.
 
+## The two principles Fabian pressed (2026-09-10) — these are the point
+### 1. The popup must be INSIGHTFUL, not a filtered list
+Every row carries a READ, the "so what", in the banker's terms, off the account's
+own figures: not "Sunbelt Hospitality — covenant test", but "Sunbelt — DSCR test
+23 days overdue; last DSCR 1.18x against a 1.20x floor, so it is a real miss, not
+a timing gap." The count at the top is a one-line triage sentence, same voice as
+the briefing. The popup answers "what needs me and why" before it offers a button.
+
+### 2. The handoff must be SPECIFIC — the workroom opens knowing EXACTLY what it needs
+A vague ask is the failure mode ("please provide collateral information" helps
+nobody). Every action declares its REQUIRED INPUTS up front, named against the
+account, and BOTH surfaces speak from that one declaration:
+- The popup row states it: "Needs a current valuation record for the resort real
+  estate (appraisal on file: $23.5MM, Aug 2026)."
+- The workroom opens PRE-SEEDED to that exact ask, leading with the current figure,
+  offering the real options, recommending one (see the modification guidance work).
+
+So each action has an ACTION REQUIREMENT: `{ what it will file, the record/figure
+it needs from the banker, the current value of that record on the account, the
+options, a recommendation }`. This is the SAME declaration the modification flow's
+guidance layer needs (lead with the current figure, offer options, recommend, and
+accept "hold/keep"). Build it once, in the domain layer, and both the popup's
+handoff and the in-workroom elicit read from it. Examples:
+- Collateral valuation -> needs a current appraisal/valuation record for asset X;
+  states the on-file appraisal + date; option: use on-file, or file a new valuation.
+- Covenant review -> needs the covenant's current test result vs threshold; states
+  both; option: waive/exception, cure, or record the breach.
+- Loan modification -> needs the new rate/payment/commitment; states the CURRENT
+  value first; options include "keep" as a first-class answer; recommends one.
+- Annual review -> needs the reviewed risk rating + the financials as-of; states the
+  current rating + last spread date.
+
+This is why the popup and the modification-guidance fix are ONE iteration, not two:
+they share the ACTION REQUIREMENT declaration. Do not ship an unspecific handoff.
+
 ## Status
-Parked to the next iteration at Fabian's call (2026-09-10). This is additive to
-0.9.5 (cold-open skeleton); no dependency between them.
+Parked, then re-activated for the current iteration at Fabian's call (2026-09-10):
+build the KPI fast-actions popup TOGETHER with the workroom guidance/specificity
+layer, since they share the ACTION REQUIREMENT declaration. Sequencing: the
+modification-flow investigation (running) pins the exact workroom entry points and
+each flow's required inputs; the popup's handoff is built on that so it is specific,
+not vague. Additive to 0.9.5 (cold-open skeleton); no dependency on it.
