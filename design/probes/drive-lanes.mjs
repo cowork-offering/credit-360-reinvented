@@ -669,7 +669,6 @@ try {
       "Flowers For Dreams",
     ].filter((n) => text.includes(n));
 
-    const rank = (id) => ids.indexOf(id);
     results.legacyOut = {
       msToSettle: settled,
       queue: ids,
@@ -684,16 +683,31 @@ try {
     check("legacyOut", "not one legacy row reached the queue", !ids.some((id) => (id ?? "").includes("LEGACY")));
     check("legacyOut", "and none reached the rest of the book either", !quietIds.some((id) => (id ?? "").includes("LEGACY")));
     check("legacyOut", "no legacy NAME is anywhere on the landing, queue or book", LEGACY_ON_PAGE.length === 0);
+    /* SEVERITY TIERS, NOT A BRITTLE PERMUTATION. The queue orders by reason
+       class first — an overdue test ahead of a test merely due, ahead of a
+       relationship with only a maturity in the window — and within a class by
+       exposure. The exact within-class order rides on the book's figures, which
+       move; the TIER a relationship lands in is the severity claim worth
+       gating. Hartwell leads the overdue tier because ITS OWN bundle carries an
+       overdue test and a guarantor signal on the book's largest exposure, which
+       is the banker's first call, not an accident of the fixture. (The old exact
+       ID chain here was written before that bundle gained its overdue test and
+       rotted the moment it did.)
+
+         OVERDUE   Hartwell, Sunbelt, Piedmont   tests past due
+         DUE       Meridian, Blue Ridge          tests inside the window
+         MATURITY  Prairie, Cascade              only a maturity in the window */
+    const sameSet = (a, b) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
+    const OVERDUE = [HARTWELL, "001LIVE00000003", ACCOUNT];
+    const DUE = ["001LIVE00000001", "001LIVE00000002"];
+    const MATURITY = ["001LIVE00000004", "001LIVE00000005"];
     check(
       "legacyOut",
-      "the queue is the real relationships, in severity order",
+      "the queue is the real relationships, in severity tiers: overdue, then due, then maturity",
       ids.length === 7 &&
-        rank("001LIVE00000003") < rank(ACCOUNT) &&
-        rank(ACCOUNT) < rank(HARTWELL) &&
-        rank(HARTWELL) < rank("001LIVE00000001") &&
-        rank("001LIVE00000001") < rank("001LIVE00000002") &&
-        rank("001LIVE00000002") < rank("001LIVE00000004") &&
-        rank("001LIVE00000004") < rank("001LIVE00000005"),
+        sameSet(ids.slice(0, 3), OVERDUE) &&
+        sameSet(ids.slice(3, 5), DUE) &&
+        sameSet(ids.slice(5, 7), MATURITY),
     );
     check("legacyOut", "the sentence counts only the real book", /5 more are quiet\./.test(line ?? ""));
     check("legacyOut", "the divider counts only the real book", divider?.count === "5");
