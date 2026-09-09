@@ -6,6 +6,39 @@
 
    Nothing here ships. */
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+/* THE FIXTURE'S CLOCK IS THE PAGE'S CLOCK, AND THAT IS `meta.generatedAt`.
+
+   Every day count on the landing is measured against the injected snapshot's
+   own stamp, never the wall clock, so a fixture date written as a fixed ISO
+   string drifts the moment the snapshot is re-stamped. That is exactly what
+   happened: `generatedAt` moved from 2026-07-25 to 2026-08-25 (0.9.4, the A10
+   clock fix), the fixture's dates stayed put, and Prairie Ag's "in 153d" read
+   "in 122d" while the queue's severity order slid with it (sc12, sc13).
+
+   So the dates below are written as OFFSETS from the same stamp the build
+   carries, read out of the artifact the probe actually assembles. Re-stamp the
+   snapshot and the fixture tracks it; the counts the page derives stay put. */
+const GENERATED_AT = (() => {
+  try {
+    const data = JSON.parse(readFileSync(resolve(HERE, "../../../artifact/live-data.json"), "utf8"));
+    const t = Date.parse(data?.meta?.generatedAt);
+    if (Number.isFinite(t)) return t;
+  } catch {
+    /* fall through to the known build stamp */
+  }
+  return Date.parse("2026-08-25T04:55:34Z");
+})();
+
+/** An ISO date `n` days off the snapshot's clock, so a count the page derives
+ *  against `meta.generatedAt` comes out to exactly `n`. */
+const genPlus = (n) => new Date(GENERATED_AT + n * 86_400_000).toISOString().slice(0, 10);
+
 /* ----------------------------------------------------- the live queue's book
 
    TWELVE PACKAGED ACCOUNTS, which is a book, not a demo set: the two real
@@ -36,9 +69,10 @@ const LIVE_ACCOUNTS = [
   { accountId: "001LIVE00000010", name: "Cedar Grove Property Trust", industry: "Real Estate", tce: 4100000, outstanding: 1900000, riskRating: "4" },
 ];
 
-/** The book's clock is the SNAPSHOT's (`meta.generatedAt`, 2026-07-25), which is
- *  what every day count on the page measures against. These dates are written
- *  around it on purpose. */
+/** The book's clock is the SNAPSHOT's (`meta.generatedAt`), which is what every
+ *  day count on the page measures against. Every date here is written as an
+ *  offset from it (`genPlus`), so the counts the page derives are exactly the
+ *  `daysUntil*` numbers beside them, whatever day the snapshot is stamped. */
 export const LIVE_PORTFOLIO = {
   accounts: LIVE_ACCOUNTS,
   bookTotals: { totalCommitted: 205200000, totalOutstanding: 118050000, accountCount: 12, utilizationPct: 57.5 },
@@ -46,16 +80,16 @@ export const LIVE_PORTFOLIO = {
     breachedCount: 2,
     covenantsDueSoon: [
       // Two already past due, and the org says so.
-      { accountId: "001LIVE00000003", accountName: "Sunbelt Hospitality Group", covenantType: "Debt Service Coverage Ratio", nextEvaluationDate: "2026-07-02", daysUntilNextEvaluation: -23, overdue: true },
-      { accountId: PIEDMONT, accountName: "Piedmont Precision Components, Inc.", covenantType: "Minimum Liquidity", nextEvaluationDate: "2026-07-11", daysUntilNextEvaluation: -14, overdue: true },
+      { accountId: "001LIVE00000003", accountName: "Sunbelt Hospitality Group", covenantType: "Debt Service Coverage Ratio", nextEvaluationDate: genPlus(-23), daysUntilNextEvaluation: -23, overdue: true },
+      { accountId: PIEDMONT, accountName: "Piedmont Precision Components, Inc.", covenantType: "Minimum Liquidity", nextEvaluationDate: genPlus(-14), daysUntilNextEvaluation: -14, overdue: true },
       // Three merely due inside the org's own window.
-      { accountId: "001LIVE00000001", accountName: "Meridian Coastal Logistics", covenantType: "Fixed Charge Coverage", nextEvaluationDate: "2026-09-30", daysUntilNextEvaluation: 67, overdue: false },
-      { accountId: "001LIVE00000002", accountName: "Blue Ridge Orthopedic Partners", covenantType: "Maximum Leverage", nextEvaluationDate: "2026-10-05", daysUntilNextEvaluation: 72, overdue: false },
-      { accountId: HARTWELL, accountName: "Hartwell Precision Manufacturing LLC", covenantType: "Minimum Liquidity", nextEvaluationDate: "2026-10-12", daysUntilNextEvaluation: 79, overdue: false },
+      { accountId: "001LIVE00000001", accountName: "Meridian Coastal Logistics", covenantType: "Fixed Charge Coverage", nextEvaluationDate: genPlus(67), daysUntilNextEvaluation: 67, overdue: false },
+      { accountId: "001LIVE00000002", accountName: "Blue Ridge Orthopedic Partners", covenantType: "Maximum Leverage", nextEvaluationDate: genPlus(72), daysUntilNextEvaluation: 72, overdue: false },
+      { accountId: HARTWELL, accountName: "Hartwell Precision Manufacturing LLC", covenantType: "Minimum Liquidity", nextEvaluationDate: genPlus(79), daysUntilNextEvaluation: 79, overdue: false },
     ],
     maturitiesSoon: [
-      { loanId: "a1XLIVE0000004", loanName: "Prairie Ag Term Loan", accountId: "001LIVE00000004", accountName: "Prairie Ag Holdings", maturityDate: "2026-09-20", daysUntilMaturity: 57 },
-      { loanId: "a1XLIVE0000005", loanName: "Cascade Revolver", accountId: "001LIVE00000005", accountName: "Cascade Software Solutions", maturityDate: "2026-10-18", daysUntilMaturity: 85 },
+      { loanId: "a1XLIVE0000004", loanName: "Prairie Ag Term Loan", accountId: "001LIVE00000004", accountName: "Prairie Ag Holdings", maturityDate: genPlus(57), daysUntilMaturity: 57 },
+      { loanId: "a1XLIVE0000005", loanName: "Cascade Revolver", accountId: "001LIVE00000005", accountName: "Cascade Software Solutions", maturityDate: genPlus(85), daysUntilMaturity: 85 },
     ],
   },
 };
@@ -120,15 +154,16 @@ const ANCIENT_SIGNALS = [
 ];
 
 /** Prairie Ag's seasonal revolver, at the distance it actually matures.
- *  153 days off the snapshot's 2026-07-25 is 2026-12-25, which is OUTSIDE the
- *  tool's 90-day default and inside the 180 the page now asks for. This row is
- *  the whole reason the window moved. */
+ *  153 days off the snapshot's clock is OUTSIDE the tool's 90-day default and
+ *  inside the 180 the page now asks for. This row is the whole reason the
+ *  window moved, and the assertion reads its distance literally ("in 153d"), so
+ *  the date is pinned to `generatedAt + 153` rather than a fixed December. */
 export const PRAIRIE_MATURITY_153 = {
   loanId: "a1XLIVE0000004",
   loanName: "Prairie Ag Seasonal Revolver",
   accountId: "001LIVE00000004",
   accountName: "Prairie Ag Holdings",
-  maturityDate: "2026-12-25",
+  maturityDate: genPlus(153),
   daysUntilMaturity: 153,
 };
 
