@@ -2,6 +2,21 @@
 
 ## Changelog
 
+- **0.9.10 (2026-09-10)** KPI FAST-ACTIONS POPOVER — the landing's actionable
+  numbers now open. Clicking **Needs action**, **Reviews due** or **EWS active**
+  (the totals stay plain — no action attaches to a sum) drops an anchored popover
+  from the cell. Each row states the account's own "so what" (a breach reads
+  "23d overdue, a real miss to record against threshold"; a maturity reads
+  "matures in 18d") and offers two doors: a primary CTA that opens the workroom
+  named for the concern (Start covenant review / Start renewal / Open the request)
+  and a quiet "Copy prompt" that drops the account-specific instruction into the
+  composer for the chat-native banker. Both the read and the prompt come from ONE
+  ACTION REQUIREMENT declaration (`kpiActions.ts`), so they never drift. Reuses
+  the queue's own rows and the proven open path (flyName / openAccountLive); the
+  popover only routes. New `components/kpiActions.ts` + `KpiActionSheet.tsx`, 6
+  derivation/routing tests; full suite 4170 green; register-clean (one --brand
+  accent on the primary CTA, hairlines, rule-13 no meters).
+
 - **0.9.9 (2026-09-10)** SHIPPED-TEMPLATE FIX, the reason 0.9.2 through 0.9.8
   "showed no change" for viewers. The release steps bumped `plugin.json` and
   promoted the fresh build to `artifact/customer-360-template.html`, but never ran

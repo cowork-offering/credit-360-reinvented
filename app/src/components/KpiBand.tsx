@@ -1,10 +1,16 @@
+import { useMemo, useState } from "react";
 import { useApp, useLivePortfolioResult } from "../state/appState";
 import { fmtAsOf, fmtMoney, fmtPct, fmtRelative } from "../data/format";
 import { useCountUp } from "../data/motion";
-import { SERVERS } from "../channel/mcp";
+import { SERVERS, mcpAvailable } from "../channel/mcp";
 import { useLaneHealth } from "../channel/laneHealth";
 import { bookTotalsOf } from "../book/livePortfolio";
 import { KpiBandSkeleton } from "./HomeSkeleton";
+import { buildWorklistRows } from "../data/worklistRows";
+import { openAccountLive, announce } from "../book/dynamicBook";
+import { flyName } from "./nameFlight";
+import { buildActionBucket, type ActionRow, type BucketId } from "./kpiActions";
+import { KpiActionSheet } from "./KpiActionSheet";
 
 /* =============================================================================
    THE KPI BAND — the landing's second beat.
@@ -28,6 +34,9 @@ interface Kpi {
   format: (n: number) => string;
   sub: string;
   tone?: Tone;
+  /** Actionable cells carry the bucket they open. A total has no action, so it
+   *  stays a plain figure; Needs action / Reviews due / EWS become buttons. */
+  bucket?: BucketId;
 }
 
 const asCount = (n: number) => String(Math.round(n));
@@ -41,23 +50,55 @@ function splitUnit(s: string): [string, string] {
 
 /** One cell — counts its figure up on mount (A25.4). Resolves to the final
  *  value immediately under reduced motion / jsdom (see data/motion.ts). */
-function KpiCell({ kpi }: { kpi: Kpi }) {
+function KpiCell({ kpi, onActivate }: { kpi: Kpi; onActivate?: (anchor: DOMRect) => void }) {
   const animated = useCountUp(kpi.raw ?? 0);
   const [figure, unit] = kpi.raw == null ? ["—", ""] : splitUnit(kpi.format(animated));
+  /* AN ACTIONABLE CELL IS A BUTTON. A total is not: no action attaches to a sum,
+     so only Needs action / Reviews due / EWS take the affordance, and only when
+     they carry something (raw > 0). The figure and its layout are untouched; the
+     cell gains role, focus and a click that hands up its own rect to anchor the
+     popover (KPI-FAST-ACTIONS-SPEC.md). */
+  const actionable = onActivate != null && (kpi.raw ?? 0) > 0;
+  const fire = (el: HTMLElement) => onActivate?.(el.getBoundingClientRect());
   return (
-    <div className="kpi">
+    <div
+      className={`kpi${actionable ? " kpi-actionable" : ""}`}
+      {...(actionable
+        ? {
+            role: "button" as const,
+            tabIndex: 0,
+            "aria-haspopup": "dialog" as const,
+            onClick: (e: React.MouseEvent<HTMLDivElement>) => fire(e.currentTarget),
+            onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fire(e.currentTarget);
+              }
+            },
+          }
+        : {})}
+    >
       <div className="l">{kpi.label}</div>
       <div className={`v${kpi.tone === "warning" ? " warn" : kpi.tone === "critical" ? " bad" : ""}`}>
         {figure}
         {unit && <span className="u">{unit}</span>}
       </div>
       <div className="s">{kpi.sub}</div>
+      {actionable && <span className="kpi-go" aria-hidden="true">→</span>}
     </div>
   );
 }
 
 export function KpiBand() {
-  const { data, worklist } = useApp();
+  const { data, worklist, dispatch } = useApp();
+  /* THE FAST-ACTIONS POPOVER. Which bucket is open, and the rect of the cell it
+     dropped from (so it anchors under the number the banker clicked). */
+  const [openBucket, setOpenBucket] = useState<{ id: BucketId; anchor: DOMRect } | null>(null);
+  /* THE BUCKETS COME OFF THE SAME ROWS THE QUEUE STANDS ON, so the popover and
+     the worklist read identically and every row carries an id + exposure for its
+     CTA. Memoised HERE, above every early return (the skeleton, below), so the
+     hook count never changes between a booting paint and a settled one. */
+  const actionRows = useMemo(() => buildWorklistRows(data, worklist), [data, worklist]);
   /* THE SAME READ THE QUEUE STANDS ON. Registered once, in the provider: this
      band used to own the watch, and since 2026-09-08 the landing's membership
      comes off the same result, so one subscription serves both rather than the
@@ -127,6 +168,7 @@ export function KpiBand() {
       format: asCount,
       sub: "On the queue",
       tone: worklist.accountIds.length > 0 ? "warning" : "neutral",
+      bucket: "needs-action",
     },
     {
       label: "Reviews due",
@@ -134,6 +176,7 @@ export function KpiBand() {
       format: asCount,
       sub: overdue > 0 ? `${overdue} overdue` : "None overdue",
       tone: overdue > 0 ? "warning" : "neutral",
+      bucket: "reviews-due",
     },
     {
       label: "EWS active",
@@ -144,14 +187,71 @@ export function KpiBand() {
           .filter(Boolean)
           .join(" · ") || "None in window",
       tone: breached > 0 ? "critical" : maturities > 0 ? "warning" : "neutral",
+      bucket: "ews",
     },
   ];
+
+  /* The open bucket is sliced from the memoised rows above (kpiActions.ts). Not a
+     hook, so it stays below the early returns with the rest of the derivation. */
+  const bucket = openBucket ? buildActionBucket(openBucket.id, actionRows) : null;
+
+  /* PRIMARY CTA — the one door in, reused. Staged rows fly their name into the
+     hero (rule 58); a row the session has not booked is read live, exactly as
+     the queue and palette open it. Either way the popover closes. */
+  function openFromSheet(row: ActionRow, nameEl: HTMLElement | null) {
+    setOpenBucket(null);
+    const open = () => dispatch({ type: "OPEN_ACCOUNT", accountId: row.accountId });
+    if (row.staged) {
+      if (nameEl) flyName(nameEl, open);
+      else open();
+      return;
+    }
+    if (mcpAvailable()) {
+      void openAccountLive({
+        accountId: row.accountId,
+        name: row.name,
+        match: {
+          accountId: row.accountId,
+          name: row.name,
+          industry: row.industry === "—" ? undefined : row.industry,
+          naicsCode: row.naicsCode ?? undefined,
+        },
+      }).then((ok) => {
+        if (ok) dispatch({ type: "OPEN_ACCOUNT", accountId: row.accountId });
+        else announce(`the org had nothing to read for ${row.name}. Nothing was opened.`);
+      });
+      return;
+    }
+    open();
+  }
+
+  /* SECONDARY — the chat-native handoff. The pre-typed, account-specific
+     instruction lands in the composer draft; the banker stays on the landing and
+     sends it. Same ACTION REQUIREMENT declaration as the row's read. */
+  function copyPromptFromSheet(row: ActionRow) {
+    setOpenBucket(null);
+    dispatch({ type: "SET_DRAFT", draft: row.prompt });
+    announce(`Prompt ready in the composer for ${row.name}.`);
+  }
 
   return (
     <div className="card kpis num" id="kpiband">
       {kpis.map((k) => (
-        <KpiCell key={k.label} kpi={k} />
+        <KpiCell
+          key={k.label}
+          kpi={k}
+          onActivate={k.bucket ? (anchor) => setOpenBucket({ id: k.bucket!, anchor }) : undefined}
+        />
       ))}
+      {bucket && openBucket && (
+        <KpiActionSheet
+          bucket={bucket}
+          anchor={openBucket.anchor}
+          onClose={() => setOpenBucket(null)}
+          onOpen={openFromSheet}
+          onCopyPrompt={copyPromptFromSheet}
+        />
+      )}
       {(live.storedAt != null || live.failure) && (
         <div className="kpi-live">
           {live.storedAt != null && !live.failure && (

@@ -371,6 +371,206 @@ body.on-client .topnav {
   color: var(--ink-muted);
   margin-top: 3px;
 }
+
+/* =============================================================================
+   KPI FAST ACTIONS — the actionable cell + its anchored popover.
+   Rule 13/21: no meter on the cell; the affordance is a quiet corner arrow that
+   warms on hover, and ONE --brand accent, on the primary CTA alone.
+   ============================================================================= */
+#view-home .kpi-actionable {
+  position: relative;
+  cursor: pointer;
+  transition: background var(--dur-mid) var(--ease-out);
+}
+#view-home .kpi-actionable:hover,
+#view-home .kpi-actionable:focus-visible {
+  background: var(--wash-2);
+  outline: none;
+}
+#view-home .kpi-actionable .kpi-go {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ink-faint);
+  opacity: 0;
+  transform: translateX(-3px);
+  transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out),
+    color var(--dur-mid) var(--ease-out);
+}
+#view-home .kpi-actionable:hover .kpi-go,
+#view-home .kpi-actionable:focus-visible .kpi-go {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--brand);
+}
+
+.kpi-sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+.kpi-sheet {
+  background: var(--surface-raised);
+  border: 1px solid var(--glass-hairline);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card-hover);
+  max-height: min(72vh, 560px);
+  overflow-y: auto;
+  padding: 14px 14px 10px;
+  transform-origin: top left;
+  animation: kpiSheetIn 180ms var(--ease-settle) both;
+}
+@keyframes kpiSheetIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kpi-sheet {
+    animation: none;
+  }
+}
+.kpi-sheet-head {
+  padding: 2px 4px 10px;
+  border-bottom: 1px solid var(--row-divider);
+}
+.kpi-sheet-title {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.kpi-sheet-triage {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--ink-strong);
+  line-height: 1.35;
+}
+.kpi-sheet-empty {
+  padding: 16px 4px;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+.kpi-sheet-rows {
+  display: flex;
+  flex-direction: column;
+}
+.kpi-sheet-row {
+  display: flex;
+  gap: 11px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--row-divider);
+  border-radius: 8px;
+  transition: transform var(--dur-mid) var(--ease-out), box-shadow var(--dur-mid) var(--ease-out),
+    background var(--dur-mid) var(--ease-out);
+}
+.kpi-sheet-row:last-child {
+  border-bottom: 0;
+}
+.kpi-sheet-row:hover {
+  background: var(--wash-2);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+.kpi-sheet-ava {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  background: var(--wash-2);
+  border: 1px solid var(--glass-hairline);
+}
+.kpi-sheet-row.bad .kpi-sheet-ava {
+  color: var(--critical);
+}
+.kpi-sheet-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.kpi-sheet-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.kpi-sheet-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kpi-sheet-amt {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.kpi-sheet-read {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+.kpi-sheet-row.bad .kpi-sheet-read {
+  color: var(--ink);
+}
+.kpi-sheet-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 9px;
+}
+.kpi-sheet-cta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-inverse);
+  background: var(--brand);
+  border: 0;
+  border-radius: 7px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: filter var(--dur-mid) var(--ease-out);
+}
+.kpi-sheet-cta:hover,
+.kpi-sheet-cta:focus-visible {
+  filter: brightness(1.08);
+  outline: none;
+}
+.kpi-sheet-cta:focus-visible {
+  box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 3.5px var(--brand);
+}
+.kpi-sheet-copy {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  background: transparent;
+  border: 0;
+  padding: 6px 2px;
+  cursor: pointer;
+  transition: color var(--dur-mid) var(--ease-out);
+}
+.kpi-sheet-copy:hover,
+.kpi-sheet-copy:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
 /* The freshness line spans the band rather than becoming an eighth cell. */
 #view-home .kpi-live {
   flex: 0 0 100%;
