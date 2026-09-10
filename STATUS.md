@@ -2,6 +2,16 @@
 
 ## Changelog
 
+- **0.9.11 (2026-09-10)** FILED-FINALE BUTTONS, MADE GLASS. The two doors
+  ("Draft the credit memo" / "Back to <account>") were still reading too dark:
+  the primary sat on a near-black ink pill against the cream sheet. Both are now
+  the sheet's OWN material — translucent white, hairline, the same backdrop blur
+  as the card — so they belong to the finale instead of sitting on top of it.
+  The primary is a touch more opaque and warms to the brand violet on hover; the
+  secondary is lighter and quieter. Also fixed the button FONT: a bare <button>
+  had fallen back to the browser's UI font, so the labels were off; both now
+  inherit the card's --font-sans. CSS only.
+
 - **0.9.10 (2026-09-10)** KPI FAST-ACTIONS POPOVER — the landing's actionable
   numbers now open. Clicking **Needs action**, **Reviews due** or **EWS active**
   (the totals stay plain — no action attaches to a sum) drops an anchored popover

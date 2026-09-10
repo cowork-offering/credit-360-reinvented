@@ -3654,46 +3654,52 @@ body.wk-open #root {
   padding-top: 14px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
-.wk-sheet-go {
+/* BOTH DOORS ARE GLASS, the sheet's own material (founder: "make them glass
+   like the card itself"). Same translucent white, hairline and blur as
+   .wk-sheet — no dark pill, no flat violet. They also inherit the card's
+   --font-sans: a bare <button> had fallen back to the browser button font,
+   which is the "off" font that was showing. Primary reads as primary by being
+   a touch more opaque and warming to the brand on hover; secondary is lighter
+   and quieter. */
+.wk-sheet-go,
+.wk-sheet-back {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 10px 20px;
   border-radius: 999px;
-  border: 1px solid transparent;
-  /* THE ROOM'S OWN PRIMARY LANGUAGE (matches .wk-send): the dark ink pill at
-     rest, the brand violet on hover. No always-on purple halo under a black
-     button — that read as a second, louder button weight the room never uses. */
-  background: var(--ink-pill);
-  color: var(--ink-inverse);
+  font-family: var(--font-sans);
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: 0 8px 22px -14px rgba(20, 19, 24, 0.5), var(--glass-rim);
-  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out),
+  border: 1px solid var(--glass-hairline);
+  /* autoprefixer: ignore next */
+  -webkit-backdrop-filter: blur(var(--blur-workroom)) saturate(1.6);
+  backdrop-filter: blur(var(--blur-workroom)) saturate(1.6);
+  box-shadow: var(--glass-rim);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out),
     box-shadow var(--dur-fast) var(--ease-out);
 }
+.wk-sheet-go {
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink-strong);
+}
 .wk-sheet-go:hover {
-  background: var(--brand);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--brand);
+  border-color: var(--accent-hairline);
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px -14px rgba(20, 19, 24, 0.5), var(--glass-rim);
+  box-shadow: var(--glass-rim), 0 10px 24px -16px rgba(0, 0, 0, 0.3);
 }
 .wk-sheet-back {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   padding: 10px 18px;
-  border-radius: 999px;
-  border: 1px solid var(--glass-hairline);
-  background: transparent;
+  background: rgba(255, 255, 255, 0.5);
   color: var(--ink-muted);
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 .wk-sheet-back:hover {
+  background: rgba(255, 255, 255, 0.72);
   color: var(--ink);
   border-color: var(--ink-faint);
 }
