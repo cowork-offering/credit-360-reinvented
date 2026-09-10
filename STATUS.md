@@ -2,6 +2,14 @@
 
 ## Changelog
 
+- **0.9.14 (2026-09-10)** FEEDBACK PILL EXTENDED to the RelationshipRoom — covenant
+  review, collateral valuation, annual review and the other relationship flows now
+  carry the same Feedback control in their header (left of close), building the
+  transcript from the room's own thread. MemoRoom still has none: it is
+  section-based (no conversation thread) and its only close is the finale
+  afterglow, so it needs a bespoke serializer + a slot — deferred. Full suite 4177
+  green.
+
 - **0.9.13 (2026-09-10)** FEEDBACK BUCKET — the pill now opens a report form, not
   a silent copy. Pick what went wrong (multi-select: inaccurate information, loop,
   repeating, wrong action, missing data, UI, slow, crash, other), add a note, and

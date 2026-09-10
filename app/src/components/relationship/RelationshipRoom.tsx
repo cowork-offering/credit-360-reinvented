@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Portal } from "../Portal";
+import { BugCopyButton } from "../BugCopyButton";
+import { threadToMarkdown } from "../transcript";
 import { isTopmost, pushModal } from "../modalStack";
 import { prefersReducedMotion } from "../../data/motion";
 import { fmtMoney } from "../../data/format";
@@ -2182,6 +2184,17 @@ export function RelationshipRoom({
                 />
               ))}
             </span>
+            <BugCopyButton
+              build={() =>
+                threadToMarkdown(items, {
+                  surface: `Relationship — ${ctx.accountName}`,
+                  bookAsOf: ctx.asOf ?? undefined,
+                })
+              }
+              surface={`Relationship — ${ctx.accountName}`}
+              accountName={ctx.accountName}
+              bookAsOf={ctx.asOf ?? undefined}
+            />
             <button type="button" className="wk-icobtn" onClick={onClose} aria-label="Close the relationship room">
               ×
             </button>
