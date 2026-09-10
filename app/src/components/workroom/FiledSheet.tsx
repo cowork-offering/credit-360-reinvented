@@ -53,6 +53,15 @@ export const FiledSheet = forwardRef<HTMLDivElement, FiledSheetProps>(function F
       <div className="wk-sheet-h">
         <h3 className="wk-sheet-t">{sheet.title}</h3>
         <div className="wk-sheet-s">{sheet.stamp}</div>
+        {/* THE DOOR TO THE NEW VERSION. The filing created a package; this is
+            the banker's deep link to it in nCino. Only where the org returned an
+            id and the view carries an instance URL — never a dead link. */}
+        {sheet.packageHref && (
+          <a className="wk-sheet-link" href={sheet.packageHref} target="_blank" rel="noreferrer">
+            Open the new package in nCino
+            <span aria-hidden="true"> ↗</span>
+          </a>
+        )}
       </div>
 
       <div className="wk-sheet-sec" data-block="filed">

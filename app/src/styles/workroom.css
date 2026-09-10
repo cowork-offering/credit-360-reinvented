@@ -3655,20 +3655,23 @@ body.wk-open #root {
   padding: 10px 20px;
   border-radius: 999px;
   border: 1px solid transparent;
-  background: var(--ink);
-  color: var(--paper);
+  /* THE ROOM'S OWN PRIMARY LANGUAGE (matches .wk-send): the dark ink pill at
+     rest, the brand violet on hover. No always-on purple halo under a black
+     button — that read as a second, louder button weight the room never uses. */
+  background: var(--ink-pill);
+  color: var(--ink-inverse);
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
   cursor: pointer;
-  /* THE SAME SOFT GLOW THE ROOM USES ON ITS OWN PRIMARY, and no brighter: a
-     finale is not the place to invent a second button weight. */
-  box-shadow: 0 10px 26px -12px rgba(161, 0, 255, 0.55), var(--glass-rim);
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  box-shadow: 0 8px 22px -14px rgba(20, 19, 24, 0.5), var(--glass-rim);
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 .wk-sheet-go:hover {
+  background: var(--brand);
   transform: translateY(-1px);
-  box-shadow: 0 14px 32px -12px rgba(161, 0, 255, 0.68), var(--glass-rim);
+  box-shadow: 0 12px 28px -14px rgba(20, 19, 24, 0.5), var(--glass-rim);
 }
 .wk-sheet-back {
   display: inline-flex;
@@ -3687,6 +3690,22 @@ body.wk-open #root {
 .wk-sheet-back:hover {
   color: var(--ink);
   border-color: var(--ink-faint);
+}
+/* THE DOOR TO THE NEW VERSION, as a quiet accent link in the header — not a
+   third button competing with the two doors below. */
+.wk-sheet-link {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.wk-sheet-link:hover {
+  text-decoration: underline;
 }
 
 /* ---- WHAT ARRIVES AFTER THE GROWTH, and what was already there.

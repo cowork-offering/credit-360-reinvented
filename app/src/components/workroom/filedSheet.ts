@@ -232,6 +232,12 @@ export interface FiledSheetModel {
   next: string | null;
   /** The account, for the door that goes back to it. */
   accountName: string;
+  /** The nCino deep link to the package the filing CREATED, where the org
+   *  returned its id and the view carries an instance URL. The banker's door to
+   *  the new version in Salesforce; null where either is absent (a share link,
+   *  or a scripted room), and the sheet then shows no link rather than a dead
+   *  one. */
+  packageHref?: string | null;
   /** The org has not answered inside the room's budget. */
   unconfirmed: boolean;
 }

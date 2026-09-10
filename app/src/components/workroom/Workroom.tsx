@@ -1451,6 +1451,8 @@ export function Workroom({
      *  the package the plan was composed against. */
     packageName: string | null;
     version: string | null;
+    /** The nCino deep link to the package the filing created. */
+    packageHref: string | null;
     queue: string | null;
     stagingId: string | null;
   } | null>(null);
@@ -1865,6 +1867,7 @@ export function Workroom({
       coverage: sheetCoverage(itemsRef.current.flatMap((i) => (i.kind === "challenge" ? [i.challenge] : []))),
       next: whoActsNext(filedMeta.queue, execution.handoff),
       accountName: context.accountName,
+      packageHref: filedMeta.packageHref,
       unconfirmed: confirmation === "unconfirmed",
     };
   }, [
@@ -5387,6 +5390,10 @@ export function Workroom({
         at: new Date(),
         packageName: openedName,
         version: result.outputPackageId ?? null,
+        // THE DOOR TO THE NEW VERSION. The filing created a package; this is the
+        // banker's deep link to it in nCino, built from the org's own id and the
+        // view's instance URL, and null where either is absent.
+        packageHref: packageDeepLink(instanceUrl, result.outputPackageId ?? context.productPackageId ?? undefined),
         queue: typeof extras.approvalQueue === "string" ? extras.approvalQueue : null,
         stagingId: engine.scripted ? null : staging.stagingId,
       });
