@@ -2,6 +2,17 @@
 
 ## Changelog
 
+- **0.9.12 (2026-09-10)** FEEDBACK (BUG) BUTTON, MADE FINDABLE. It was there all
+  along in the workroom header and the chat, but painted --ink-faint, icon-only,
+  on the near-white header — invisible and impossible to aim at next to close
+  (founder: "hovered the area and only close was there"). Now a small hairline
+  pill in muted ink with an always-on "Feedback" label, so it reads as a button
+  and has a real hit area; the label still swaps to "Copied" / "Copy failed" for
+  a beat after a click. CSS + one label word. KNOWN GAP (not this release): the
+  button is mounted only in the modify/renew Workroom and the chat, NOT in the
+  RelationshipRoom (covenant review, collateral valuation) or MemoRoom — those
+  room shells never got it.
+
 - **0.9.11 (2026-09-10)** FILED-FINALE BUTTONS, MADE GLASS. The two doors
   ("Draft the credit memo" / "Back to <account>") were still reading too dark:
   the primary sat on a near-black ink pill against the cream sheet. Both are now

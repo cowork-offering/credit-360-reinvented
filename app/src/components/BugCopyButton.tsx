@@ -72,7 +72,7 @@ export function BugCopyButton({
         </svg>
       )}
       <span className="bugcopy-say" aria-hidden="true">
-        {state === "ok" ? "Copied" : state === "fail" ? "Copy failed" : "Copy chat"}
+        {state === "ok" ? "Copied" : state === "fail" ? "Copy failed" : "Feedback"}
       </span>
     </button>
   );

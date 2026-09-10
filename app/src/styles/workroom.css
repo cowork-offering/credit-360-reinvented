@@ -185,43 +185,49 @@ body.wk-open #root {
    chat, one click to copy the whole conversation for feedback. Icon only at
    rest (rule 21: no colour on the ground); it says "Copied" for a beat after a
    copy, in the positive ink, and "Copy failed" in the critical one. */
+/* A FINDABLE CONTROL, not an invisible glyph. It used to paint --ink-faint,
+   icon-only, on the near-white header — genuinely impossible to see or aim at
+   next to the close button (founder: "hovered the area and only close was
+   there"). Now a small hairline pill in muted ink, its "Feedback" label ALWAYS
+   showing, so it reads as a button and has a real hit area. Rule 21 still holds:
+   no colour on the ground, only the positive tick after a copy. */
 .bugcopy {
-  border: 0;
-  background: none;
+  border: 1px solid var(--glass-hairline);
+  background: rgba(255, 255, 255, 0.55);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 6px;
-  color: var(--ink-faint);
-  border-radius: 7px;
-  transition: color var(--dur-fast, 140ms) var(--ease-out, ease);
+  padding: 4px 10px 4px 8px;
+  color: var(--ink-muted);
+  border-radius: 999px;
+  transition: color var(--dur-fast, 140ms) var(--ease-out, ease),
+    background var(--dur-fast, 140ms) var(--ease-out, ease),
+    border-color var(--dur-fast, 140ms) var(--ease-out, ease);
 }
 .bugcopy:hover {
-  color: var(--ink-muted);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.85);
+  border-color: var(--ink-faint);
 }
 .bugcopy svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   display: block;
 }
 .bugcopy .bugcopy-say {
-  display: none;
+  display: inline;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.01em;
 }
 .bugcopy.ok {
   color: var(--positive);
+  border-color: var(--positive);
 }
 .bugcopy.fail {
   color: var(--critical);
-}
-/* The word appears only in the moment after a click, so the rest state stays a
-   single glyph on the slim header line. */
-.bugcopy.ok .bugcopy-say,
-.bugcopy.fail .bugcopy-say {
-  display: inline;
+  border-color: var(--critical);
 }
 /* In the chat, the control sits on its own quiet row, right-aligned above the
    composer. */
