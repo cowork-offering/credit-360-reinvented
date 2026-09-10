@@ -2,6 +2,20 @@
 
 ## Changelog
 
+- **0.9.6 (2026-09-10)** TWO WORKROOM IMPROVEMENTS, shipped together with the 0.9.5
+  cold-open work. (1) A BUG / COPY-TRANSCRIPT BUTTON: a quiet ink glyph in every
+  workroom header and in the chat copies the whole conversation to the clipboard
+  as markdown (agent lines, typed answers, clicked chips, settled receipts), so a
+  tester or banker can paste the exact end-to-end back for feedback. Read-only,
+  reads each surface's own already-complete state. (2) "HOLD" NO LONGER LOOPS:
+  answering a rate / amount / term / maturity question with "hold" / "keep it" /
+  "no change" / "leave as is" / "unchanged" / "same" now holds the field at its
+  current figure and moves on, instead of re-asking the same question forever
+  (parseModify keep-current, shared by modification and renewal). Recognised only
+  where the field's own reader found no value and the line carries no digit, so
+  "keep it at 7%" still stages 7%. KNOWN, NOT YET FIXED: the pricing-gate rate
+  CHIP ("Hold 7.60%") and the create/collateral asset-kind loop are separate
+  paths and land next. Full suite 4161 green.
 - **0.9.5 (2026-09-09)** THE COLD OPEN NO LONGER FLASHES THE BAKED TEST BOOK. On a fresh open with a
   connector the landing showed the five baked relationships (three of them samples) for the few
   seconds the live Customer360Portfolio read takes, then swapped abruptly to the org's real book.
