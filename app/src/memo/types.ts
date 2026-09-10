@@ -8,7 +8,7 @@
    shape IS the seam between the cockpit and the memo.
 
      renderMemo({ manifest, shell, ...dossier })
-     dossier = { canon, boom, afs, iris, peers, flagOverrides?, attestation?, chartVariants? }
+     dossier = { canon, boom, afs, ic, peers, flagOverrides?, attestation?, chartVariants? }
 
    Fields are optional here wherever the renderer tolerates their absence, and
    required wherever it dereferences them without a guard (`canon.borrower.name`,
@@ -216,7 +216,7 @@ export interface MemoCanon {
 }
 
 /* -----------------------------------------------------------------------------
-   boom / afs / iris / peers — the other four dossier inputs
+   boom / afs / ic / peers — the other four dossier inputs
    ----------------------------------------------------------------------------- */
 
 /**
@@ -285,7 +285,7 @@ export interface MemoCovenantCompliance {
 
 /** Ratings, covenant actuals, ratios and sensitivity. A stub until AFS lands, and the
  *  renderer's provenance chips say "stub" on every section it feeds. */
-export interface MemoIris {
+export interface MemoIc {
   _source?: string;
   ratios?: Array<{ period: string; totalLeverage?: number | null; [k: string]: unknown }>;
   riskRatingTrend?: { events: Array<{ period: string; rating: string; band?: string; pdPct?: number; proposed?: boolean }> };
@@ -328,7 +328,7 @@ export interface MemoDossier {
   canon: MemoCanon;
   boom: MemoBoom;
   afs: MemoAfs;
-  iris: MemoIris;
+  ic: MemoIc;
   peers: MemoPeers;
   /** Flip a flag to prove the conditionality engine. Not a production path. */
   flagOverrides?: Partial<MemoFlags>;

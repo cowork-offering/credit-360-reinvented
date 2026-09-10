@@ -225,7 +225,7 @@ function figuresBlock(dossier: MemoDossier): string {
     );
   }
 
-  for (const cov of dossier.iris.covenantCompliance ?? []) {
+  for (const cov of dossier.ic.covenantCompliance ?? []) {
     lines.push(
       [
         `Covenant ${cov.name}`,

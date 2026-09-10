@@ -22,7 +22,7 @@ import type { MemoDossier } from "./types";
 import canonRaw from "./vendor/fixtures/piedmont.json?raw";
 import boomRaw from "./vendor/fixtures/boom_spread.json?raw";
 import afsRaw from "./vendor/fixtures/piedmont_afs.json?raw";
-import irisRaw from "./vendor/plugin-assets/iris_placeholder.json?raw";
+import icRaw from "./vendor/plugin-assets/ic_placeholder.json?raw";
 import peersRaw from "./vendor/plugin-assets/peers_placeholder.json?raw";
 import golden from "./golden/piedmont-memo.golden.html?raw";
 
@@ -32,7 +32,7 @@ const pluginFixtureDossier = (): MemoDossier =>
     canon: JSON.parse(canonRaw),
     boom: JSON.parse(boomRaw),
     afs: JSON.parse(afsRaw),
-    iris: JSON.parse(irisRaw),
+    ic: JSON.parse(icRaw),
     peers: JSON.parse(peersRaw),
   }) as MemoDossier;
 

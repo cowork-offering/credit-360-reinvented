@@ -15,7 +15,7 @@ map** that says which MCP/system feeds each module.
 | **nCino** (Salesforce Hosted MCP, user-level) | System of record: Product Package, loans, terms, pricing, purpose, covenant thresholds, collateral, guarantors, NAICS, ownership, narrative fields | `soqlQuery`, `getRelatedRecords`, etc. |
 | **Boom** (`boom-*` MCP) | **Spreading engine** — raw IS/BS/CF line items by `accountCode` | `boom_lookup_company` → `boom_get_spread` / `boom_get_line_items` |
 | **AFS** (`afs-mcp` MCP) | Servicing behavior — revolver usage, payment history, loan summary | `revolver_utilization` / `payment_history` / `loan_summary` (+ `afs_show_summary` widget, `create_workpackage` write) |
-| **AFS** (placeholder → MCP) | **Analytics layer** — risk-rating trend + PD, covenant actual-vs-required + flags, ratios, sensitivity | reads `${CLAUDE_PLUGIN_ROOT}/assets/iris_placeholder.json`; later the AFS MCP |
+| **AFS** (placeholder → MCP) | **Analytics layer** — risk-rating trend + PD, covenant actual-vs-required + flags, ratios, sensitivity | reads `${CLAUDE_PLUGIN_ROOT}/assets/ic_placeholder.json`; later the AFS MCP |
 | **CapIQ/IBIS** (placeholder → OOTB MCP) | Peer medians + industry outlook (low priority) | reads `${CLAUDE_PLUGIN_ROOT}/assets/peers_placeholder.json`; later the OOTB MCP |
 
 ### Boom ↔ AFS rule (one writer per field)
@@ -115,7 +115,7 @@ no lossy "normalize then re-expand" step where figures could drift.
   "afs":   { "_source", "revolverUsage":{ "commitment","months":[],"utilizationPct":[],
               "highPct","averagePct","lowPct","daysAtZero" },
             "paymentHistory":{ "buckets":{ "d30_60","d60_90","d90_plus" } } },        // AFS MCP
-  "iris":  { "_source", "ratios":[{ "period","totalLeverage",.. }],                   // AFS (placeholder→MCP)
+  "ic":  { "_source", "ratios":[{ "period","totalLeverage",.. }],                   // AFS (placeholder→MCP)
             "covenantCompliance":[{ "name","type","unit","operator","trigger",
               "quarters":[],"actuals":[],"perPeriod":[{ "value","flag","arrow" }] }],
             "riskRatingTrend":{ "events":[{ "period","rating","band","pdPct","proposed" }] },
@@ -147,7 +147,7 @@ Omit `attestation` entirely and every section renders "AI-drafted · Pending rev
 (the correct freshly-drafted state). See SKILL.md → "Per-section attestation" for the live-updating
 review flow.
 
-Each key maps 1:1 to a data-layer owner: `canon`→nCino, `boom`→Boom MCP, `afs`→AFS MCP, `iris`→AFS,
+Each key maps 1:1 to a data-layer owner: `canon`→nCino, `boom`→Boom MCP, `afs`→AFS MCP, `ic`→AFS,
 `peers`→CapIQ/IBIS. The renderer derives the **flag set + render plan** from `canon.creditAction`
 (plus any `flagOverrides`), so the agent does **not** pass a `renderPlan` — the engine computes it.
 For the offline demo these are exactly the bundled fixtures in the plugin `assets/` (plus the

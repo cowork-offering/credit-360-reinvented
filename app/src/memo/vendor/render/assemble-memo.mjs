@@ -219,7 +219,7 @@ const ratingArc = [
   { rating: "5", band: "Pass", pdPct: 1.95 },
   { rating: "5", band: "Pass", pdPct: 2.20 }, // Proposed (pro forma this action)
 ];
-const iris = {
+const ic = {
   _source: "AFS-PLACEHOLDER",
   ratios: [{ period: latest, totalLeverage: lev }],
   riskRatingTrend: { events: qtrs.map((p, i) => ({ period: p, ...(ratingArc[i] ?? ratingArc.at(-1)), proposed: p === "Proposed" })) },
@@ -299,7 +299,7 @@ const shell = readFileSync(join(SKILL, "assets", "memo-shell.html"), "utf8");
 const chartVariants = {};
 if (arg("--chart")) for (const kv of arg("--chart").split(",")) { const [k, v] = kv.split(":"); if (k && v) chartVariants[k.trim()] = v.trim(); }
 
-const { html, plan, suppressed, rteSections } = renderMemo({ manifest, shell, canon, boom, afs, iris, peers, chartVariants });
+const { html, plan, suppressed, rteSections } = renderMemo({ manifest, shell, canon, boom, afs, ic, peers, chartVariants });
 
 let outHtml = html;
 if (process.argv.includes("--review")) {

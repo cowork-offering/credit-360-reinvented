@@ -8,17 +8,17 @@
 // same `renderMemo` so the verification harness and the live agent can never drift.
 //
 // As a library:   import { renderMemo } from ".../render-memo.mjs"
-//                  const { html, plan, suppressed, flags } = renderMemo({ manifest, shell, canon, boom, afs, iris, peers, flagOverrides })
+//                  const { html, plan, suppressed, flags } = renderMemo({ manifest, shell, canon, boom, afs, ic, peers, flagOverrides })
 //
 // As a CLI:        node render-memo.mjs --dossier <dossier.json> [--out <out.html>]
-//                  dossier.json = { canon, boom, afs, iris, peers, flagOverrides? }
+//                  dossier.json = { canon, boom, afs, ic, peers, flagOverrides? }
 //                  (manifest + shell are loaded from this skill's own folder)
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, flagOverrides, attestation, chartVariants }) {
+export function renderMemo({ manifest, shell, canon, boom, afs, ic, peers, flagOverrides, attestation, chartVariants }) {
   const cv = chartVariants || {};
   // ---------------------------------------------------- flags
   const flags = structuredClone(canon.creditAction.flags);
@@ -79,7 +79,7 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
     ncino: { label: "nCino", color: "#1798C1", i: "n" },
     boom: { label: "Boom", color: "#5B3FA0", i: "B" },
     afs: { label: "AFS", color: "#5B6470", i: "AF" },
-    iris: { label: "AFS", color: "#0B6BCB", i: "IR" },
+    ic: { label: "AFS", color: "#0B6BCB", i: "AF" },
     snowflake: { label: "Snowflake", color: "#29B5E8", i: "SF" },
     capiq: { label: "S&P Capital IQ", color: "#C8102E", i: "IQ" },
     ibis: { label: "IBISWorld", color: "#00833E", i: "IB" },
@@ -201,8 +201,8 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
   const placeholder = (label) => `<p class="gap">[${label} — pending; complete in the per-section review.]</p>`;
   const periodsArr = canon.spread?.periods ?? [];
   const latestPeriod = periodsArr[periodsArr.length - 1];
-  const ratioAt = (p) => (iris.ratios ?? []).find((r) => r.period === p) ?? (iris.ratios ?? []).at(-1) ?? {};
-  const covByRole = (re) => (iris.covenantCompliance ?? []).find((c) => re.test(c.name || ""));
+  const ratioAt = (p) => (ic.ratios ?? []).find((r) => r.period === p) ?? (ic.ratios ?? []).at(-1) ?? {};
+  const covByRole = (re) => (ic.covenantCompliance ?? []).find((c) => re.test(c.name || ""));
   const covLatestVal = (c) => {
     if (!c) return null;
     if (Array.isArray(c.perPeriod)) { const v = [...c.perPeriod].reverse().find((p) => p && p.value != null); if (v) return v.value; }
@@ -270,7 +270,7 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
       ${has("compliance_due_diligence") ? `<div><div class="subhead">Compliance &amp; Due Diligence</div><table><tbody><tr><td>CSG Feedback Complete?</td><td>${ca.csgFeedbackComplete ? '<span class="badge badge-pass">Yes</span>' : "No"}</td></tr><tr><td>CSG Flags?</td><td>${ca.csgFlags ? '<span class="badge badge-breach">Yes</span>' : '<span class="badge badge-pass">None</span>'}</td></tr></tbody></table></div>` : ""}
     </div>
     ${has("commentary") ? `<div class="subhead">Executive Summary Commentary</div>${narr("execSummary", placeholder("Executive summary commentary"))}` : ""}
-    ${prov([{ v: "ncino", status: "live", href: sfBase }, { v: "boom", status: "live", href: "https://app.boom.build" }, { v: "iris", status: "stub" }])}`;
+    ${prov([{ v: "ncino", status: "live", href: sfBase }, { v: "boom", status: "live", href: "https://app.boom.build" }, { v: "ic", status: "stub" }])}`;
   };
 
   R.request_details = () => {
@@ -327,7 +327,7 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
   // belong beside the covenant package they're conditioning, not the recommendation narrative).
   R.covenant_conditions = (comps) => {
     const has = (id) => comps.some((c) => c.id === id);
-    const covs = iris.covenantCompliance ?? [];
+    const covs = ic.covenantCompliance ?? [];
     const cushionPct = (c, actual) => {
       if (actual == null || !c.trigger) return null;
       const gte = String(c.operator ?? ">=").includes(">");
@@ -345,14 +345,14 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
     ${has("covenant_compliance_table") ? `<div class="subhead">Covenant Compliance</div>${covs.length ? `<table><thead><tr><th>Covenant</th><th>Trigger</th><th class="numeric">Actual</th><th class="numeric">Cushion</th><th>Flag</th></tr></thead><tbody>${rows}</tbody></table>` : placeholder("Covenant compliance table")}` : ""}
     ${narr("covenantConditions", placeholder("Covenant terms &amp; headroom commentary"))}
     ${has("conditions_and_monitoring") ? `<div class="subhead">Conditions &amp; Monitoring</div>${narr("conditionsMonitoring", placeholder("Conditions &amp; monitoring"))}` : ""}
-    ${prov([{ v: "ncino", status: "live", href: sfBase }, { v: "iris", status: "stub" }])}`;
+    ${prov([{ v: "ncino", status: "live", href: sfBase }, { v: "ic", status: "stub" }])}`;
   };
 
   // ---- Risk Rating (internal) (new 2026-08-21): current/proposed grade, the rating-factor grid,
   // the rating trend (moved here from the old Trend Reporting module), and the rationale narrative.
   R.risk_rating_internal = () => {
     const rating = canon.borrower.currentRiskRating ?? "—";
-    const trend = iris.riskRatingTrend?.events ?? [];
+    const trend = ic.riskRatingTrend?.events ?? [];
     const trendRows = trend.map((e) => `<tr><td>${esc(e.period)}</td><td>${esc(e.rating)}${e.band ? ` — ${esc(e.band)}` : ""}${e.proposed ? " (Proposed)" : ""}</td><td class="numeric">${e.pdPct != null ? e.pdPct.toFixed(2) + "%" : "—"}</td></tr>`).join("");
     const factors = canon.riskRatingFactors ?? [
       { factor: "Financial strength", grade: "Watch" },
@@ -374,7 +374,7 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
     <table><thead><tr><th>Factor</th><th>Assessment</th></tr></thead><tbody>${factorRows}</tbody></table>
     <div class="subhead">Rating Rationale</div>
     ${narr("riskRatingRationale", placeholder("Risk rating rationale"))}
-    ${prov([{ v: "ncino", status: "live", href: sfBase }, { v: "iris", status: "stub" }, { v: "moodys", status: "stub" }])}`;
+    ${prov([{ v: "ncino", status: "live", href: sfBase }, { v: "ic", status: "stub" }, { v: "moodys", status: "stub" }])}`;
   };
 
   // ---- Financial Analysis (restructured 2026-08-21, formerly "Financial Commentary"): Current
@@ -449,7 +449,7 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
 
     const sensitivityBlock = () => {
       if (!has("sensitivity_analysis")) return "";
-      const scen = iris.sensitivity?.scenarios ?? [];
+      const scen = ic.sensitivity?.scenarios ?? [];
       if (!scen.length) return "";
       const TRIG = 1.25; // DSC covenant floor
       const rows = scen.map((s) => {
@@ -491,7 +491,7 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
     ${narr("financialFutureOutlook", placeholder("Future outlook"))}
     ${sensitivityBlock()}
     ${cashFlowBlock()}
-    ${prov([{ v: "boom", status: "live", href: "https://app.boom.build" }, { v: "iris", status: "stub" }])}`;
+    ${prov([{ v: "boom", status: "live", href: "https://app.boom.build" }, { v: "ic", status: "stub" }])}`;
   };
 
   R.collateral = (comps) => {
@@ -553,7 +553,7 @@ export function renderMemo({ manifest, shell, canon, boom, afs, iris, peers, fla
 
   R.forward_looking_recommendation = () => `
     ${narr("recommendation", placeholder("Recommendation &amp; proposed risk rating"))}
-    ${prov([{ v: "ncino", status: "live", href: sfBase }, { v: "boom", status: "live", href: "https://app.boom.build" }, { v: "iris", status: "stub" }, { v: "afs", status: "stub" }])}`;
+    ${prov([{ v: "ncino", status: "live", href: sfBase }, { v: "boom", status: "live", href: "https://app.boom.build" }, { v: "ic", status: "stub" }, { v: "afs", status: "stub" }])}`;
 
   R.leading_indicators = (comps) => {
     const has = (id) => comps.some((c) => c.id === id);
@@ -756,7 +756,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const dossierPath = arg("--dossier");
   if (!dossierPath) {
     console.error("Usage: node render-memo.mjs --dossier <dossier.json> [--out <out.html>]");
-    console.error("  dossier.json = { canon, boom, afs, iris, peers, flagOverrides? }");
+    console.error("  dossier.json = { canon, boom, afs, ic, peers, flagOverrides? }");
     process.exit(1);
   }
   const outPath = arg("--out") ?? join(here, "memo.html");

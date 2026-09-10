@@ -28,7 +28,7 @@
    ============================================================================= */
 
 import type { BorrowerBundle, Covenant, Facility } from "../data/contract";
-import irisRaw from "./vendor/plugin-assets/iris_placeholder.json?raw";
+import icRaw from "./vendor/plugin-assets/ic_placeholder.json?raw";
 import peersRaw from "./vendor/plugin-assets/peers_placeholder.json?raw";
 import narrativesRaw from "./vendor/plugin-assets/piedmont-narratives.json?raw";
 import {
@@ -43,7 +43,7 @@ import {
   type MemoDossier,
   type MemoFlags,
   type MemoGuarantor,
-  type MemoIris,
+  type MemoIc,
   type MemoLoan,
   type MemoNarratives,
   type MemoPeers,
@@ -54,14 +54,14 @@ import {
 } from "./types";
 
 /** The plugin's AFS stand-in. Carries the account it was written against. */
-const IRIS_PLACEHOLDER = JSON.parse(irisRaw) as MemoIris & { externalUniqueId?: string };
+const IC_PLACEHOLDER = JSON.parse(icRaw) as MemoIc & { externalUniqueId?: string };
 /** The plugin's CapIQ/IBIS stand-in: peer set, medians, industry outlook. */
 export const PEERS_PLACEHOLDER = JSON.parse(peersRaw) as MemoPeers;
 /**
  * The plugin's written analyst prose.
  *
  * PROSE ABOUT ONE BORROWER. It is applied only to the account the plugin wrote
- * it for — `IRIS_PLACEHOLDER.externalUniqueId`, which is the same Salesforce
+ * it for — `IC_PLACEHOLDER.externalUniqueId`, which is the same Salesforce
  * account id the cockpit stages — and to every other relationship the narrative
  * keys are simply absent, so the renderer prints its own "pending; complete in
  * the per-section review" gaps. Borrowing one borrower's write-up for another is
@@ -523,7 +523,7 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
   // The vendored prose belongs to ONE borrower. Applied only to that borrower.
   const narratives =
     options.narratives ??
-    (snapshot.accountId && snapshot.accountId === IRIS_PLACEHOLDER.externalUniqueId ? VENDORED_NARRATIVES : {});
+    (snapshot.accountId && snapshot.accountId === IC_PLACEHOLDER.externalUniqueId ? VENDORED_NARRATIVES : {});
 
   return {
     canon: {
@@ -579,8 +579,8 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
     // usage block does not render at all, which is the honest gap: the memo
     // shows no servicing trend rather than a modelled one.
     afs: { _source: "AFS-NOT-CONNECTED" } satisfies MemoAfs,
-    iris: {
-      ...IRIS_PLACEHOLDER,
+    ic: {
+      ...IC_PLACEHOLDER,
       // The org's real covenants replace the placeholder's, because the cockpit
       // has them. Everything else in AFS is still the stub, and the renderer
       // chips it as one.

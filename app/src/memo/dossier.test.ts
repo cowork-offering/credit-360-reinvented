@@ -60,7 +60,7 @@ describe("buildMemoDossier over a live cockpit bundle", () => {
     const d = build(CHANGES);
     const facilities = bundle.exposure?.facilities ?? [];
     expect(d.canon.loans.map((l) => l.ncinoId)).toEqual(facilities.map((f) => f.loanId));
-    expect(d.iris.covenantCompliance).toHaveLength(bundle.covenants?.covenants?.length ?? 0);
+    expect(d.ic.covenantCompliance).toHaveLength(bundle.covenants?.covenants?.length ?? 0);
     expect(d.canon.borrower.instanceUrl).toBe(instanceUrl);
     expect(d.canon.borrower.salesforceAccountId).toBe(bundle.snapshot.accountId);
 

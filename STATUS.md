@@ -2,6 +2,22 @@
 
 ## Changelog
 
+- **0.9.15 (2026-09-10)** IRIS PURGED FROM THE BUILD. "IRIS" is a Truist-specific
+  system name and must never appear in a Credit 360 surface (founder rule,
+  2026-09-09); the rating / PD / covenant-grade source is AFS. The rendered memo
+  already showed "AFS" (0 visible "IRIS"), but the internal dossier key and
+  provenance strings were still `iris`, and the rating source's badge monogram
+  read "IR" (IRIS's initials). Renamed the dossier input `iris` -> the neutral
+  `ic` across the whole memo layer (dossier.ts, types.ts, narrative.ts, the
+  vendored render `render-memo.mjs` which DERIVES renderMemo.vendor.mjs, the
+  assembler, the seed file iris_placeholder.json -> ic_placeholder.json, and the
+  vendor manifest re-recorded), and the badge "IR" -> "AF" to match its "AFS"
+  label. Golden parity fixture updated to the compliant output (a deliberate,
+  documented divergence from the upstream credit-memo plugin, whose own rename was
+  reverted and which is off-limits to edit). GATE: `grep -i iris` on the shipped
+  template = 0 (both "iris" and "IRIS"). Full suite 4177 green; vendor-check clean.
+  DIRECTIVE: run `grep -i iris` on the built template before every C360 release.
+
 - **0.9.14 (2026-09-10)** FEEDBACK PILL EXTENDED to the RelationshipRoom — covenant
   review, collateral valuation, annual review and the other relationship flows now
   carry the same Feedback control in their header (left of close), building the
