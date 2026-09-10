@@ -2,6 +2,19 @@
 
 ## Changelog
 
+- **0.9.9 (2026-09-10)** SHIPPED-TEMPLATE FIX, the reason 0.9.2 through 0.9.8
+  "showed no change" for viewers. The release steps bumped `plugin.json` and
+  promoted the fresh build to `artifact/customer-360-template.html`, but never ran
+  `scripts/sync-plugin-assets.mjs`, so the plugin's OWN payload template
+  (`client-360/assets/customer-360-template.html`, which the rebuild path and
+  every fresh publish actually read) stayed frozen at the 0.9.1 build. The
+  cinematic boot skeleton, the guidance chips, the finale restyle and the new-PP
+  link were all in the repo but never reached a rebuilt cockpit. Synced the plugin
+  payload to the 0.9.8 build (byte-identical, drift check clean) so a rebuild now
+  serves the skeleton (no more raw five-relationship flash) and every shipped fix.
+  DIRECTIVE: every release MUST run `node scripts/sync-plugin-assets.mjs` (or its
+  `--check`) before commit — a version bump without the sync ships a stale plugin.
+
 - **0.9.8 (2026-09-10)** The shared read card (covenant review, structure,
   collateral) no longer stretches in the wider relationship room: it was capped
   at 86% of the column, which ballooned it and opened a canyon between each label
