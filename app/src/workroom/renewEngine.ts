@@ -248,6 +248,27 @@ function currentValue(field: CatalogField, facility: Facility | null): string {
   }
 }
 
+/** The term fields a banker moves to a value, so can hold at the current one. */
+const SCALAR_TERM_TYPES = new Set(["currency", "percent", "months", "date"]);
+
+/** The chips under a renewal term question: a one-click "Keep <current>" first
+ *  (it rides the keep-current parser, same as a typed "hold"), then any org
+ *  picklist values, capped. Mirrors the modify engine so a renewal reads the
+ *  same as a modification. */
+function clarifyChips(
+  awaiting: Awaiting | undefined,
+  options: string[] | undefined,
+): Array<{ label: string; say: string }> | undefined {
+  const chips: Array<{ label: string; say: string }> = [];
+  if (awaiting && SCALAR_TERM_TYPES.has(awaiting.field.type)) {
+    const cur = currentValue(awaiting.field, awaiting.facility);
+    const known = !cur.startsWith("not ") && !cur.includes("not staged");
+    chips.push({ label: known ? `Keep ${cur}` : "Keep as booked", say: "keep it" });
+  }
+  for (const v of (options ?? []).slice(0, 10)) chips.push({ label: v, say: v });
+  return chips.length ? chips : undefined;
+}
+
 export function createRenewEngine(args: {
   context: WorkroomContext;
   data: C360Data;
@@ -688,7 +709,12 @@ export function createRenewEngine(args: {
   }
 
   function toResult(outcome: ReturnType<typeof parseModify>, seq: number): IntentResult | null {
-    if (outcome.kind === "clarify") return { kind: "unparsed", reply: withCurrent(outcome.question, outcome.awaiting) };
+    if (outcome.kind === "clarify")
+      return {
+        kind: "unparsed",
+        reply: withCurrent(outcome.question, outcome.awaiting),
+        options: clarifyChips(outcome.awaiting, outcome.options),
+      };
     if (outcome.kind === "none") return null;
     // KEEP CURRENT — the banker held the term the renewal was waiting on. Say
     // the current figure back and stop asking; nothing stages, and the caller

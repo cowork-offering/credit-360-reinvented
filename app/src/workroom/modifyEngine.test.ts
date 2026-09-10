@@ -288,6 +288,8 @@ describe("the modify engine reads the real package", () => {
     expect(asked.kind).toBe("unparsed");
     if (asked.kind !== "unparsed") return;
     expect(asked.reply).toMatch(/what rate should it move to/i);
+    // GUIDANCE: the question offers a one-click way to keep the current figure.
+    expect(asked.options?.some((o) => /^Keep 7\.6%$/.test(o.label))).toBe(true);
 
     // "hold" holds the field at its current figure and does NOT re-emit the
     // question. This was the loop: an unrecognised answer re-asked itself.

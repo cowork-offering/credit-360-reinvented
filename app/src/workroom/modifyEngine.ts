@@ -291,10 +291,35 @@ function currentValue(field: CatalogField, facility: Facility | null): string {
     case "loan.maturityDate":
       return facility.maturityDate ? fmtDate(facility.maturityDate) : "not staged";
     case "loan.termMonths":
-      return "not staged in this read";
+      return typeof facility.termMonths === "number" ? `${facility.termMonths} months` : "not staged in this read";
     default:
       return "today's value is not staged in this read";
   }
+}
+
+/** The term fields a banker moves to a value, and so can hold at the current
+ *  one. Party / fee / pledge / exception / picklist answers are not a "keep":
+ *  they add or name a thing, so a keep chip there would be nonsense. */
+const SCALAR_TERM_TYPES = new Set(["currency", "percent", "months", "date"]);
+
+/**
+ * THE CHIPS UNDER A TERM QUESTION (guidance). A one-click "Keep <current>"
+ * first, so the banker can leave a field alone without knowing the word for it;
+ * its say rides the same keep-current parser a typed "hold" does. Then the org's
+ * own picklist values, capped so a long list is not a wall of buttons.
+ */
+function clarifyChips(
+  awaiting: Awaiting | undefined,
+  options: string[] | undefined,
+): Array<{ label: string; say: string }> | undefined {
+  const chips: Array<{ label: string; say: string }> = [];
+  if (awaiting && SCALAR_TERM_TYPES.has(awaiting.field.type)) {
+    const cur = currentValue(awaiting.field, awaiting.facility);
+    const known = !cur.startsWith("not ") && !cur.includes("not staged");
+    chips.push({ label: known ? `Keep ${cur}` : "Keep as booked", say: "keep it" });
+  }
+  for (const v of (options ?? []).slice(0, 10)) chips.push({ label: v, say: v });
+  return chips.length ? chips : undefined;
 }
 
 const WIRE_VALUE: Record<WireKey, (v: ParsedValue) => number | string | null> = {
@@ -1320,9 +1345,14 @@ export function createModifyEngine(args: {
       return {
         kind: "unparsed",
         reply: withCurrent(outcome.question, outcome.awaiting),
-        // Cap the chip row where the org's list is long; the reply names the
-        // full set either way, and a wall of forty buttons is not a proposal.
-        options: outcome.options?.slice(0, 10).map((v) => ({ label: v, say: v })),
+        // GUIDANCE: the way out comes first. Every term question offers a
+        // one-click "Keep <current>" that holds the field where it is, so
+        // keep-current is a chip and not only a typed word — and the banker
+        // never has to know the word to leave a field alone. The chip's say
+        // rides the same keep-current parser a typed "hold" does. Then the
+        // org's own picklist values, capped so a long list is not a wall of
+        // forty buttons.
+        options: clarifyChips(outcome.awaiting, outcome.options),
       };
     }
     if (outcome.kind === "none") return null;
