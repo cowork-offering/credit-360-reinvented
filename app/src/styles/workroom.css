@@ -1385,7 +1385,13 @@ body.wk-open #root {
    a proposal, so it carries no Confirm and no fill that would suggest one. */
 .wk-read {
   align-self: flex-start;
-  max-width: 86%;
+  /* CAPPED, NOT JUST A PERCENTAGE. The card is a label-and-value list, and the
+     value is pushed to the right edge (`margin-left: auto`); at 86% of the
+     relationship room's WIDER column that opened a canyon between each label and
+     its figure, which read as stretched and unformatted. A fixed reading width
+     keeps the figure a comfortable glance from its label in either room, and the
+     percentage still governs a genuinely narrow column. */
+  max-width: min(86%, 560px);
   min-width: 320px;
   display: flex;
   flex-direction: column;
