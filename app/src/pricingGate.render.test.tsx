@@ -391,3 +391,44 @@ describe("the manifest says which changes were requested and which were derived"
     expect(room.querySelector(".wk-ent .wk-derived")).toBeFalsy();
   });
 });
+
+
+
+describe("the forced rate ask takes a typed keep-current, not only the chip", () => {
+  const lastByText = (re: RegExp) => [...document.body.querySelectorAll("button")].reverse().find((b) => re.test((b.textContent ?? "").trim()));
+  /** Drive amount -> amortisation -> first payment, landing on the rate ask. */
+  async function toRateAsk(room: HTMLElement) {
+    await moveTheLine(room);
+    await click(lastByText(/^240 months$/));
+    await click(lastByText(/^Confirm$/));
+    await click(lastByText(/^1 August 2026$/));
+    await click(lastByText(/^Confirm$/));
+  }
+
+  it("holds the rate from its chip", async () => {
+    const room = open();
+    await toRateAsk(room);
+    expect(said(room)).toContain("What rate should the $15.0MM Line of Credit carry?");
+    await click(lastByText(/^Hold 6\.58%$/));
+    expect(said(room)).toContain("keeps 6.58%");
+  });
+
+  it("holds the rate from a typed 'hold' — the ask is forced, so a word must work too", async () => {
+    const room = open();
+    await toRateAsk(room);
+    expect(said(room)).toContain("What rate should the $15.0MM Line of Credit carry?");
+    await typeInto(room, "hold");
+    // The typed word holds the rate, exactly as the chip does.
+    expect(said(room)).toContain("keeps 6.58%");
+    // And it did NOT fall through to "one decision at a time" or re-ask.
+    expect(said(room)).not.toContain("One decision at a time");
+  });
+
+  it("still reads a typed figure as the new rate (keep-word does not swallow a number)", async () => {
+    const room = open();
+    await toRateAsk(room);
+    await typeInto(room, "7.25%");
+    expect(said(room)).toMatch(/7\.25%/);
+    expect(said(room)).not.toContain("keeps 6.58%");
+  });
+});

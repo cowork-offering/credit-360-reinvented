@@ -230,6 +230,22 @@ export function readRateHold(line: string, members: ElicitMember[]): string | nu
   return hit ? (matchLabel(members, hit[1])?.id ?? null) : null;
 }
 
+/**
+ * A BARE KEEP-CURRENT WORD, at a rate ask that already knows its member. The
+ * chip says the whole sentence ("hold the rate on the …"), but the rate gate is
+ * FORCED — the banker must answer it — so a banker who simply types "hold" or
+ * "keep it" must be understood too, or they are stuck with no way out but the
+ * chip. The member is the gate's; only the intent is read here. "keep it at 7%"
+ * carries a figure and is read as the figure elsewhere, so a digit disqualifies.
+ */
+export function readRateKeepWord(line: string): boolean {
+  const t = (line ?? "").trim();
+  if (!t || /\d/.test(t)) return false;
+  return /^(?:hold|keep(?:\s+(?:it|current|the\s+same|as[-\s]?is|as\s+it\s+is))?|no\s+change|don'?t\s+change(?:\s+it)?|leave\s+(?:it|as[-\s]?is|as\s+it\s+is|unchanged)?|unchanged|same|as[-\s]?is|stet)\b/i.test(
+    t,
+  );
+}
+
 /** "Set the rate on the $15.0MM Line of Credit myself". */
 export function readRateNew(line: string, members: ElicitMember[]): string | null {
   const hit = /^set the rate on the (.+?) myself$/i.exec((line ?? "").trim());

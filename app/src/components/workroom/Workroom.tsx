@@ -191,6 +191,7 @@ import {
   rateSay,
   readRateFreeText,
   readRateHold,
+  readRateKeepWord,
   readRateIndexOpen,
   readRateIndexPick,
   readRateNew,
@@ -3558,6 +3559,7 @@ export function Workroom({
         openGate?.slot === "rate" &&
         (readRateFreeText(trimmed, { onFile: rateOnFile(facilityRead.get(openGate.memberId))?.pct ?? null }) !== null ||
           readRateHold(trimmed, elicitMembers) !== null ||
+          readRateKeepWord(trimmed) ||
           readRateNew(trimmed, elicitMembers) !== null ||
           readRateIndexOpen(trimmed, elicitMembers) !== null ||
           readRateIndexPick(trimmed, elicitMembers) !== null ||
@@ -4063,7 +4065,10 @@ export function Workroom({
           answer({ kind: "agent", id: nextId("agent"), text: rateFigureAsk(on ?? elicitMembers[0], figure.index) });
           return;
         }
-        const held = readRateHold(instruction, elicitMembers);
+        // The chip says the whole sentence; a banker who just types "hold" or
+        // "keep it" at this FORCED ask means the same, on the member the gate is
+        // already standing on. Both land here, so a word and a click agree.
+        const held = readRateHold(instruction, elicitMembers) ?? (readRateKeepWord(instruction) ? gate.memberId : null);
         if (held) {
           setRateHeld((prev) => new Set([...prev, held]));
           setPricingPending(null);
