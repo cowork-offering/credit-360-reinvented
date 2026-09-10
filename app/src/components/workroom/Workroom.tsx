@@ -5916,6 +5916,9 @@ export function Workroom({
                   bookAsOf: reads?.generatedAt,
                 })
               }
+              surface={`${roomWord} — ${context.accountName}`}
+              accountName={context.accountName}
+              bookAsOf={reads?.generatedAt}
             />
             <button type="button" className="wk-icobtn" onClick={onClose} aria-label="Close the workroom">
               ×

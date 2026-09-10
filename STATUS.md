@@ -2,6 +2,24 @@
 
 ## Changelog
 
+- **0.9.13 (2026-09-10)** FEEDBACK BUCKET — the pill now opens a report form, not
+  a silent copy. Pick what went wrong (multi-select: inaccurate information, loop,
+  repeating, wrong action, missing data, UI, slow, crash, other), add a note, and
+  the conversation rides along; Submit writes ONE document to the `bugs`
+  collection in the artifact's SHARED store — the same guarded door the cockpit
+  uses for its book cache and state — so every viewer's reports land in one bucket
+  a session reads back with `read_db` and triages (status open -> fixed ->
+  closed). No external server (the artifact CSP blocks that anyway), and no store
+  = it copies to the clipboard so nothing is lost. The store's door rejects any
+  field over 32 KB or carrying a markup-shaped token, so the transcript is
+  byte-clipped and neutralised (zero-width spaces break `<script` / `javascript:`
+  / inline-handlers) BEFORE the write — no silent refusal. Glass modal in the
+  cockpit register, one --brand accent on Send. New components/bugReport.ts +
+  BugReportSheet.tsx, 7 tests (sanitiser, byte-cap, store-vs-clipboard routing);
+  full suite 4177 green. STILL: mounted in the modify/renew Workroom + chat only,
+  not yet the RelationshipRoom or MemoRoom.
+  HOW TO READ THE BUCKET: `read_db` on the cockpit URL, collection `bugs`.
+
 - **0.9.12 (2026-09-10)** FEEDBACK (BUG) BUTTON, MADE FINDABLE. It was there all
   along in the workroom header and the chat, but painted --ink-faint, icon-only,
   on the near-white header — invisible and impossible to aim at next to close

@@ -1049,3 +1049,239 @@ body.on-client .topnav {
 #view-home .wl-quiet {
   margin-top: 4px;
 }
+
+/* =============================================================================
+   THE FEEDBACK SHEET — a small glass modal the Feedback pill opens.
+   Cockpit register: the sheet's own translucent material, hairlines, ink type,
+   ONE --brand accent on Send. Category chips are quiet hairline toggles that
+   take a brand tint when picked; no pill soup, no colour on the ground.
+   ============================================================================= */
+.bugsheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 19, 24, 0.28);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: bugsheetFade 140ms var(--ease-out, ease) both;
+}
+.bugsheet {
+  width: 100%;
+  max-width: 440px;
+  max-height: min(86vh, 640px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 20px 18px;
+  border-radius: 16px;
+  font-family: var(--font-sans);
+  color: var(--ink-body);
+  border: 1px solid var(--glass-hairline);
+  background: rgba(255, 255, 255, 0.9);
+  /* autoprefixer: ignore next */
+  -webkit-backdrop-filter: blur(var(--blur-workroom)) saturate(1.7);
+  backdrop-filter: blur(var(--blur-workroom)) saturate(1.7);
+  box-shadow: var(--glass-rim), 0 24px 60px -22px rgba(0, 0, 0, 0.4);
+  animation: bugsheetIn 200ms var(--ease-settle, cubic-bezier(0.2, 0.7, 0.2, 1)) both;
+}
+@keyframes bugsheetFade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes bugsheetIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bugsheet-layer,
+  .bugsheet {
+    animation: none;
+  }
+}
+.bugsheet-h {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bugsheet-t {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.bugsheet-s {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bugsheet-lbl {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+.bugsheet-opt {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-faint);
+}
+.bugsheet-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.bugsheet-cat {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--glass-hairline);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.bugsheet-cat:hover {
+  color: var(--ink);
+  border-color: var(--ink-faint);
+}
+.bugsheet-cat.on {
+  color: var(--brand);
+  background: var(--accent-wash, rgba(161, 0, 255, 0.08));
+  border-color: var(--accent-hairline);
+  font-weight: 600;
+}
+.bugsheet-cat:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 3.5px var(--accent-hairline);
+}
+.bugsheet-note {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink-body);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--glass-hairline);
+  border-radius: 10px;
+  padding: 9px 11px;
+  resize: vertical;
+  min-height: 62px;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.bugsheet-note:focus {
+  outline: none;
+  border-color: var(--accent-hairline);
+}
+.bugsheet-note::placeholder {
+  color: var(--ink-faint);
+}
+.bugsheet-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--row-divider);
+}
+.bugsheet-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.bugsheet-attach svg {
+  width: 13px;
+  height: 13px;
+}
+.bugsheet-acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.bugsheet-cancel {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  background: transparent;
+  border: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.bugsheet-cancel:hover {
+  color: var(--ink);
+}
+.bugsheet-cancel:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.bugsheet-send {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-inverse);
+  background: var(--brand);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+}
+.bugsheet-send:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.bugsheet-send:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.bugsheet-send:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 3.5px var(--brand);
+}
+.bugsheet-err {
+  font-size: 11.5px;
+  color: var(--critical);
+}
+/* THE SENT STATE — one calm line, the copy path names itself. */
+.bugsheet-sent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 18px 8px 12px;
+}
+.bugsheet-tick {
+  width: 34px;
+  height: 34px;
+  color: var(--positive);
+}
+.bugsheet-sent[data-outcome="copied"] .bugsheet-tick {
+  color: var(--brand);
+}
+.bugsheet-sent-t {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.bugsheet-sent-s {
+  font-size: 12px;
+  color: var(--ink-muted);
+}

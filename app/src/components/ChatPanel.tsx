@@ -405,6 +405,9 @@ export function ChatPanelBody() {
                 bookAsOf: data.meta?.generatedAt,
               })
             }
+            surface={`Cockpit chat${account?.name ? ` — ${account.name}` : ""}`}
+            accountName={account?.name}
+            bookAsOf={data.meta?.generatedAt}
           />
         </div>
       )}
