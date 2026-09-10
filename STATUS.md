@@ -2,6 +2,12 @@
 
 ## Changelog
 
+- **0.9.8 (2026-09-10)** The shared read card (covenant review, structure,
+  collateral) no longer stretches in the wider relationship room: it was capped
+  at 86% of the column, which ballooned it and opened a canyon between each label
+  and its figure. Capped to min(86%, 560px) so the figure stays a glance from its
+  label in either room. CSS only; full suite 4164 green.
+
 - **0.9.7 (2026-09-10)** MODIFICATION, MADE GUIDING AND ROBUST FOR THE DEMO. (1) A
   one-click "Keep <current>" chip on every rate / amount / term / maturity
   question (modify + renew), so keep-current is a click, never a typed word you
