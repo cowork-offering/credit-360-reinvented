@@ -2,6 +2,17 @@
 
 ## Changelog
 
+- **0.9.7 (2026-09-10)** MODIFICATION, MADE GUIDING AND ROBUST FOR THE DEMO. (1) A
+  one-click "Keep <current>" chip on every rate / amount / term / maturity
+  question (modify + renew), so keep-current is a click, never a typed word you
+  must know. (2) The FORCED rate ask now takes a typed "hold" / "keep it" too, not
+  only its chip — a banker who types it at the ask they cannot skip is no longer
+  stuck. (3) The filed finale speaks the room's own button language (ink pill,
+  brand violet on hover; the dark-plus-purple-halo look is gone) and LINKS to the
+  package the filing created ("Open the new package in nCino"). Full suite 4164
+  green. Known next: collateral loop, new facility, covenant review + collateral
+  valuation (relationship room).
+
 - **0.9.6 (2026-09-10)** TWO WORKROOM IMPROVEMENTS, shipped together with the 0.9.5
   cold-open work. (1) A BUG / COPY-TRANSCRIPT BUTTON: a quiet ink glyph in every
   workroom header and in the chat copies the whole conversation to the clipboard
