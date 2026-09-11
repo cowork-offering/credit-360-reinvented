@@ -14,6 +14,9 @@ Raw intake = the cockpit **Feedback bucket** (`bugs` collection in each cockpit'
 |---|-----|------|------|--------|
 | 1 | **P1 (weekend, pre-Dreamforce)** | Modification | In-flight & post-booking package/exposure lifecycle — lock the original as "Modification in Progress", in-flight editable until approval, booked → old archived + exposure = new set only. Spec: `PACKAGE-LIFECYCLE-SPEC.md`. | Spec'd |
 | 2 | P3 | Feedback | Transcript capture reflects click-time; early clicks capture empty. Consider capturing from room mount, or a hint. | Noted |
+| 3 | P1 | Modification | **"Weird back-and-forth" / re-ask loop + "connect IDB Gateway" prompt** (bug `bug-1789112493629`). Root cause: the engines' `restate` assist called IDB Gateway DIRECTLY (not session-first); each parser miss waited up to 12s on the flaky bridge and often returned null → the room re-asked. | **FIXED 0.9.16** — restate now session-Claude-first, gateway fallback. Needs a FRESH publish from 0.9.16 to reach a viewer (artifact code is frozen at publish). Re-test: Fabian. |
+| 4 | P2 | Modification | Filing reported "failed" (07:41 run) with Customer 360 connected: reached the cockpit's staging (plan + token) but the nCino EXECUTE write never landed (0 packages/loans created that day). NOT the version conflict (clone already removed). Exact cause unknown — the room's message was generic. Re-test on the now-clean state; if it fails again capture the room's verbatim reason. | Open — re-test |
+| 5 | P3 | Modification | Brain-narrated option chips (e.g. "$15.0MM Line of Credit") arrive as free text and can miss the deterministic parser, forcing the restate assist at all. Chips the room offers should carry a canonical, deterministically-parseable `say`. Design improvement, adjacent to P1. | Noted |
 
 ## Stress-test script — run these, report each detail
 
