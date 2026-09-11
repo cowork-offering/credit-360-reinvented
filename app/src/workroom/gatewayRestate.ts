@@ -1,4 +1,5 @@
 import { callTool, SERVERS, TOOLS, unwrapLlm } from "../channel/mcp";
+import { sampleAvailable, askSession } from "../channel/sampleDoor";
 
 /* =============================================================================
    THE VOCABULARY ASSIST.
@@ -33,13 +34,28 @@ export const gatewayRestate: Restate = async (line, vocabulary) => {
     "Rewrite this banker instruction using only these words, keeping every number, name and date exactly as written. " +
     "Reply with the rewritten instruction and nothing else. If it is not an instruction about a loan or a credit package, reply NONE.\n" +
     `Words: ${vocabulary.join(", ")}\nInstruction: ${line}`;
+  const clean = (t: string): string | null => (!t || /^none$/i.test(t) ? null : t);
+  // THE SESSION DOOR FIRST (channel/sampleDoor.ts): the banker's own Claude, fast
+  // and needing NO connector. Where it is in the view and answers, the gateway
+  // beneath it is never reached — so the assist is quick and no IDB Gateway
+  // consent is raised for a phrasing the deterministic parser missed.
+  if (sampleAvailable()) {
+    try {
+      const text = await Promise.race([
+        askSession(prompt, { tier: "quick" }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("the session did not answer in time")), RESTATE_TIMEOUT_MS)),
+      ]);
+      return clean(text.trim());
+    } catch {
+      // Absence, never an error on the glass: take the next rung down.
+    }
+  }
   try {
     const res = await Promise.race([
       callTool(SERVERS.gateway, TOOLS.llm, { prompt }, { read: true }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error("the gateway did not answer in time")), RESTATE_TIMEOUT_MS)),
     ]);
-    const text = unwrapLlm(res.payload).text.trim();
-    return !text || /^none$/i.test(text) ? null : text;
+    return clean(unwrapLlm(res.payload).text.trim());
   } catch {
     // A gateway that is down is not a parse failure the banker should read as
     // one: the deterministic path already answered, and this was the assist.

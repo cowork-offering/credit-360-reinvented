@@ -2,6 +2,25 @@
 
 ## Changelog
 
+- **0.9.16 (2026-09-11)** RESTATE ASSIST, SESSION-FIRST — fixes the "connect to IDB
+  Gateway" prompt in the workrooms AND the slow / re-asking loop in modifications
+  (feedback bugs `bug-1789112493629` + the gateway-prompt report). The room's
+  narration already ran session-first (brainLane.doorFor), but the engines'
+  `restate` — the deterministic-parser ASSIST fired when a banker's phrasing
+  misses the parser — called `SERVERS.gateway` (IDB Gateway / Bedrock) DIRECTLY in
+  modifyEngine's inline copy and in the shared `gatewayRestate` (renew + create).
+  Reaching for an unconnected connector raised the platform's consent prompt, and
+  the gateway bridge is the slow, flaky path ("structured tripped at ask 2… a read
+  retry can hold the conversation open indefinitely"), which is the re-ask loop.
+  Both now try the SESSION DOOR first (`sampleAvailable()` → `askSession(prompt,
+  {tier:"quick"})`, the banker's own Claude, no connector), gateway only as the
+  rung beneath. Each engine's prompt is unchanged — channel only. Test env has no
+  session door so the gateway path is what the suite exercises; 4177 green.
+  NOTE (not a bug): a filing reported "failed" with Customer 360 connected means
+  the org REJECTED the write — on 2026-09-11 07:41 Hartwell still carried an
+  in-flight Qualification clone (since deleted), so a second modification hit the
+  version-chain conflict. That is the P1 lifecycle item (PACKAGE-LIFECYCLE-SPEC).
+
 - **0.9.15 (2026-09-10)** IRIS PURGED FROM THE BUILD. "IRIS" is a Truist-specific
   system name and must never appear in a Credit 360 surface (founder rule,
   2026-09-09); the rating / PD / covenant-grade source is AFS. The rendered memo

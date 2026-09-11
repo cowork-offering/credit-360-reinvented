@@ -1,5 +1,6 @@
 import { newRequestId } from "../channel/adapter";
 import { mcpAvailable, SERVERS, TOOLS, callTool, unwrapLlm } from "../channel/mcp";
+import { sampleAvailable, askSession } from "../channel/sampleDoor";
 import {
   executeAction,
   executionFailed,
@@ -709,6 +710,23 @@ const defaultDeps: Required<Omit<ModifyEngineDeps, "restate">> & Pick<ModifyEngi
       "Rewrite this banker instruction using only these amendment words, keeping every number, name and date exactly as written. " +
       "Reply with the rewritten instruction and nothing else. If it is not an amendment to a loan or a package, reply NONE.\n" +
       `Words: ${vocabulary.join(", ")}\nInstruction: ${line}`;
+    const clean = (t: string): string | null => (!t || /^none$/i.test(t) ? null : t);
+    // THE SESSION DOOR FIRST (the recorded decision, channel/sampleDoor.ts): the
+    // banker's own Claude, fast and needing NO connector. Where it is in the view
+    // and answers, the gateway beneath it is never reached — which is why the
+    // assist is quick and why a phrasing the deterministic parser missed no
+    // longer raises an IDB Gateway consent prompt mid-modification.
+    if (sampleAvailable()) {
+      try {
+        const text = await Promise.race([
+          askSession(prompt, { tier: "quick" }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("the session did not answer in time")), RESTATE_TIMEOUT_MS)),
+        ]);
+        return clean(text.trim());
+      } catch {
+        // Absence, never an error on the glass: take the next rung down.
+      }
+    }
     try {
       // A GATEWAY THAT NEVER ANSWERS IS SILENCE, and silence is the one thing
       // this room may not do. The deterministic parse has already missed, so
@@ -721,8 +739,7 @@ const defaultDeps: Required<Omit<ModifyEngineDeps, "restate">> & Pick<ModifyEngi
         callTool(SERVERS.gateway, TOOLS.llm, { prompt }, { read: true }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("the gateway did not answer in time")), RESTATE_TIMEOUT_MS)),
       ]);
-      const text = unwrapLlm(res.payload).text.trim();
-      return !text || /^none$/i.test(text) ? null : text;
+      return clean(unwrapLlm(res.payload).text.trim());
     } catch {
       // A gateway that is down is not a parse failure the banker should read as
       // one: the deterministic path already answered, and this was the assist.
