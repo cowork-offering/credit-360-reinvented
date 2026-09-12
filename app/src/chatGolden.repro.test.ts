@@ -9,14 +9,15 @@ import {
 import { ALWAYS_BLOCK_IDS, DOCTRINE_BLOCKS, composeDoctrine } from "./channel/doctrine";
 import { toolsCovering } from "./channel/ladder";
 import { buildReadBlocks } from "./components/workroom/readBlocks";
-import { toReadCardModel } from "./components/workroom/brainRoute";
+import { buildEnvelope, toReadCardModel } from "./components/workroom/brainRoute";
+import type { PackageMember } from "./workroom/types";
 import { FACILITY_HANDOFF } from "./components/relationship/relRoute";
 import { CREATE_GAPS, nextStep, relContextFor } from "./components/relationship/reviewFlows";
 import { REL_ROUTE_WORDS } from "./components/relationship/relBrain";
 import { SKIPPED } from "./components/relationship/relStep";
 import { NO_COMPLIANCE_ROW } from "./components/relationship/relBook";
-import { whyChecked } from "./workroom/explain";
-import { deskContext } from "./channel/deskAsk";
+import { NO_PACKAGE_REFUSAL, whyChecked, whyRefused } from "./workroom/explain";
+import { DESK_RULES, deskContext, deskThread } from "./channel/deskAsk";
 import type { C360Data } from "./data/contract";
 import live from "../../artifact/live-data.json";
 
@@ -66,6 +67,40 @@ const readsFor = () => {
  *  the desk can reach is a fact somewhere in here. */
 const readsText = () => JSON.stringify(readsFor());
 
+/** THE WHOLE FACILITY ENVELOPE, as the room hands it over on this relationship:
+ *  the deepest book, every member of the anchored package, a staged entry and a
+ *  live exchange. This is what is measured against the cap. */
+const hartwellEnvelope = () => {
+  const b = bundle();
+  const members: PackageMember[] = (b.exposure?.facilities ?? [])
+    .filter((f) => f.productPackageId === PACKAGE)
+    .map((f) => ({
+      id: f.loanId!,
+      key: f.productType ?? "Facility",
+      short: f.productType ?? "Facility",
+      tag: f.stage ?? "",
+      product: f.productType ?? "",
+      amount: `$${((f.committed ?? 0) / 1_000_000).toFixed(1)}M`,
+      detail: f.name ?? "",
+    }));
+  return buildEnvelope({
+    line: "what is this covenant doing",
+    mode: "modify",
+    accountName: b.snapshot!.name!,
+    packageName: "Hartwell Industrial C&I Credit Package",
+    productPackageId: PACKAGE,
+    members,
+    eligible: () => true,
+    focused: members[0],
+    entries: [],
+    reads: { bundle: b, accountName: b.snapshot!.name!, productPackageId: PACKAGE, generatedAt: "2026-09-03T08:00:00.000Z" },
+    thread: [
+      { who: "banker", text: "what is this covenant doing" },
+      { who: "agent", text: "Debt Service Coverage of Borrower tests 1.38x against a 1.25x floor, next measured Sep 30, 2026." },
+    ],
+  });
+};
+
 /* ========================================================== RULE 1 — the book
 
    "It knows the FULL input of the relationship ... and including the DOWNSTREAM
@@ -84,55 +119,52 @@ describe("rule 1: the book holds the obligor group and the envelope drops it", (
     expect(named).toContain("Hartwell Logistics LLC");
   });
 
-  it("REPRO: the STRUCTURE never travels, and it is not refused by name either", () => {
-    const text = readsText();
-    // `buildReadBlocks` reads `graph.legalEntities` and never `graph.connections`
-    // (readBlocks.ts:120). So a party reaches the desk only where the org wrote
-    // it an INVOLVEMENT on a loan, and it arrives as a role on a facility with
-    // no structural relationship attached to it at all.
+  it("FIXED: the STRUCTURE travels, on top of the deal's own involvement rows", () => {
+    // `buildReadBlocks` read `graph.legalEntities` and never `graph.connections`,
+    // so a party reached the desk only where the org wrote it an INVOLVEMENT on a
+    // loan: a role on a facility, with no structural relationship attached. That
+    // block is unchanged and still says who is on the DEAL...
     const rows = readsFor().involvements!;
-    // The affiliate is here, and reads as a role on one facility, not as an
-    // affiliate of the borrower.
     expect(rows.find((r) => r.name === "Hartwell Logistics LLC")).toMatchObject({
       role: "Related Entity",
       scope: "Construction",
     });
-    // The parent is here, and reads as a guarantor. Nothing says it owns 100%.
     expect(rows.find((r) => r.name === "Hartwell Industrial Holdings LLC")!.role).toBe("Guarantor");
-    // The two natural-person owners are here, and their ownership is dropped:
-    // `detail` prefers the guaranty type and suppresses the percentage
-    // (readBlocks.ts:136-139).
-    expect(rows.find((r) => r.name === "James Hartwell")!.detail).toBe("Unlimited guaranty");
-    expect(
-      bundle().graph!.connections!.find((c) => c.counterpartyName === "James Hartwell" && c.role === "Owner")!
-        .totalOwnershipPercent,
-    ).toBe(60);
-    // And no structural word travels at all.
-    expect(text).not.toMatch(/affiliate\b/i);
-    expect(text).not.toMatch(/\bparent\b/i);
-    expect(text).not.toMatch(/subsidiar/i);
-    expect(text).not.toMatch(/cross-?default/i);
-    expect(text).not.toMatch(/cross-?collateral/i);
-    expect(text).not.toMatch(/household/i);
-    // AND NOT REFUSED BY NAME EITHER, which is the sharper half. `notCarried`
-    // exists so an absent block is refusable rather than reported as silence;
-    // the obligor group is absent from both sides of that contract.
+    // ...and `group` now says who the borrower IS, downstream, in the org's own
+    // roles and with the ownership the involvement block suppresses.
+    const group = readsFor().group!;
+    expect(group).toEqual([
+      { name: "Hartwell Industrial Holdings LLC", relation: "parent", role: undefined, ownership: "100%", grade: "4" },
+      { name: "Hartwell Logistics LLC", relation: "affiliate", role: "Affiliated Company", ownership: undefined, grade: undefined },
+      { name: "James Hartwell", relation: "owner", role: undefined, ownership: "60%", grade: undefined },
+      { name: "Elena Hartwell", relation: "owner", role: "Co-Owner", ownership: "40%", grade: undefined },
+    ]);
+    const text = readsText();
+    expect(text).toMatch(/affiliate/i);
+    expect(text).toMatch(/\bparent\b/i);
+    // What is STILL not carried is refused by name now, which is the other half
+    // of the contract: an absent block must never be reported as an empty fact.
     const notCarried = readsFor().notCarried.join(" ");
-    expect(notCarried).not.toMatch(/affiliate|parent|subsidiar|obligor|household|cross-?default/i);
+    expect(notCarried).toMatch(/cross-default/i);
+    expect(notCarried).toMatch(/OWN exposure and facilities/);
+    // The household and cross-collateral remain outside this cockpit's reads.
+    expect(text).not.toMatch(/household/i);
   });
 
-  it("REPRO: the guarantors travel with no exposure and no grade of their own", () => {
+  it("the guarantors travel with their own grade, and their own book is refused by name", () => {
     const guarantors = readsFor().involvements!.filter((i) => /guarantor/i.test(i.role));
     expect(guarantors.map((g) => g.name)).toContain("Hartwell Industrial Holdings LLC");
-    // The org's own read carries a grade on that guarantor.
+    // The org's own read carries a grade on that guarantor, and it now travels
+    // on the group row rather than being dropped.
     const signals = bundle().signals?.guarantorSignals ?? [];
     expect(signals.some((s) => s.guarantorName === "Hartwell Industrial Holdings LLC" && s.highestRiskGrade === "4")).toBe(
       true,
     );
-    // The envelope carries neither the grade nor any exposure figure for them.
-    for (const g of guarantors) {
-      expect(JSON.stringify(g)).not.toMatch(/grade|exposure|committed|outstanding/i);
-    }
+    expect(readsFor().group!.find((g) => g.name === "Hartwell Industrial Holdings LLC")!.grade).toBe("4");
+    // Their own EXPOSURE is still nowhere, because no read on this cockpit opens
+    // another relationship's book. Said by name instead of reported as silence.
+    for (const g of guarantors) expect(JSON.stringify(g)).not.toMatch(/exposure|committed|outstanding/i);
+    expect(readsFor().notCarried.join(" ")).toMatch(/a guarantor's, parent's or affiliate's OWN exposure/);
   });
 
   it("REPRO: nCino's own obligor exposure is on the snapshot and not on the envelope", () => {
@@ -187,35 +219,113 @@ describe("rule 1: the book holds the obligor group and the envelope drops it", (
       drawn: "$31.03M",
       available: "$17.97M",
       facilities: 7,
+      scope: "on this package",
     });
   });
 
-  it("REPRO: the ladder can route no line to a tool about an affiliate, a parent or a version in flight", () => {
-    // The rung-3 coverage mirrors the two exposed read doors and nothing else,
-    // so a downstream question cannot reach a call-out either.
-    expect(toolsCovering("what is Hartwell Industrial Holdings' own exposure")).toEqual([]);
+  it("the ladder routes a downstream question to the connected party's book; the version chain needs no call-out", () => {
+    /* CHANGED 2026-09-12 (rule 1 completion). This was the repro of a defect:
+       the rung-3 coverage mirrored the two exposed read doors and nothing else,
+       so no downstream question could reach a call-out. Now:
+       - a party's OWN book routes to `connectedPartyBook` (ladder.ts), bounded
+         to the anchored graph;
+       - the version in flight travels IN the envelope (`reads.inFlight`), so
+         that line is answered from context and correctly needs no tool;
+       - cross-default links are still carried by no read and are refused by
+         name in `notCarried` — an honest gap, not a routing miss. */
+    expect(toolsCovering("what is Hartwell Industrial Holdings' own exposure")).toContain("connectedPartyBook");
+    expect(toolsCovering("what does the affiliate carry")).toContain("connectedPartyBook");
     expect(toolsCovering("is there a modification version in flight on this package")).toEqual([]);
-    expect(toolsCovering("what does the affiliate carry")).toEqual([]);
     expect(toolsCovering("which facilities cross-default off this one")).toEqual([]);
   });
 
-  it("the envelope has room for what is missing: it fits well inside its own cap", () => {
-    // 6,119 bytes of read blocks on the deepest relationship in the book,
-    // against a 10,000 byte cap. The rule-1 additions have to be budgeted, not
-    // invented room for.
-    expect(readsText().length).toBeLessThan(6_500);
+  /* THE BUDGET, MEASURED RATHER THAN ASSUMED. The additions above were costed
+     against the deepest relationship in the book: 6,119 bytes of read blocks
+     and a 7,436-byte facility envelope before, 6,738 and 8,055 after, against
+     the 10,000-byte cap. Roughly 1.9 KB of headroom is left for the rest. */
+  it("the envelope carries the additions and still fits inside its own cap", () => {
     expect(ENVELOPE_CAP_BYTES).toBe(10_000);
+    expect(readsText().length).toBeLessThan(7_000);
+    const envelope = hartwellEnvelope();
+    expect(JSON.stringify(envelope).length).toBeLessThan(ENVELOPE_CAP_BYTES);
+    // Nothing was given up to get there: a capped envelope names what it dropped.
+    expect(envelope.omitted).toBeUndefined();
+    expect(envelope.reads?.group?.length).toBe(4);
   });
 
-  it.todo("the envelope carries the obligor group: parent, affiliates, owners, with their own grade where the read holds one");
-  it.todo("the envelope names the downstream relationship in notCarried wherever the cockpit cannot carry it");
-  it.todo("the envelope carries the in-flight package version the room is already locked by (book/packages.ts computes it)");
+  it("the envelope carries the obligor group: parent, affiliates, owners, with their own grade where the read holds one", () => {
+    const group = readsFor().group!;
+    expect(group.map((g) => `${g.relation}:${g.name}`)).toEqual([
+      "parent:Hartwell Industrial Holdings LLC",
+      "affiliate:Hartwell Logistics LLC",
+      "owner:James Hartwell",
+      "owner:Elena Hartwell",
+    ]);
+    expect(group.find((g) => g.relation === "parent")).toMatchObject({ ownership: "100%", grade: "4" });
+    expect(group.filter((g) => g.relation === "owner").map((g) => g.ownership)).toEqual(["60%", "40%"]);
+  });
+
+  it("the envelope names the downstream relationship in notCarried wherever the cockpit cannot carry it", () => {
+    const said = readsFor().notCarried.join(" ");
+    // The two honest refusals: another party's own book, and the links between
+    // facilities that no read on this cockpit carries.
+    expect(said).toMatch(/a guarantor's, parent's or affiliate's OWN exposure and facilities/);
+    expect(said).toMatch(/cross-default links between these facilities/);
+    expect(said).toMatch(/any facility elsewhere that depends on one of them/);
+    // And where the read stages no graph at all, the group itself is refused by
+    // name rather than being silently absent.
+    const b = bundle();
+    const noGraph = buildReadBlocks({
+      bundle: { ...b, graph: { legalEntities: b.graph?.legalEntities } },
+      accountName: b.snapshot!.name!,
+      productPackageId: PACKAGE,
+    })!;
+    expect(noGraph.group).toBeUndefined();
+    expect(noGraph.notCarried.join(" ")).toMatch(/the obligor group - parent, affiliates, subsidiaries and owners/);
+  });
+
+  it("the envelope carries the in-flight package version the room is already locked by (book/packages.ts computes it)", () => {
+    // Hartwell's own live fork, at the cockpit's contract: two Booked members on
+    // the source package, the same two copied onto an unbooked version.
+    const SOURCE = "a5Fbb000000J6BNEA0";
+    const VERSION = "a5Fbb000000JFzREAW";
+    const member = (over: Record<string, unknown>) => ({ status: "Open", productPackageId: SOURCE, stage: "Booked", ...over });
+    const forked = {
+      snapshot: { accountId: HARTWELL, name: "Hartwell Precision Manufacturing LLC" },
+      exposure: {
+        facilities: [
+          member({ loanId: "a4Zbb000002ICnyEAG", name: "Hartwell - Equipment - $1,500,000.00", committed: 1_500_000 }),
+          member({ loanId: "a4Zbb000002ICnxEAG", name: "Hartwell - Purchase - $6,500,000.00", committed: 6_500_000 }),
+          member({ loanId: "a4Zbb000002KFD3EAO", name: "Hartwell - Equipment - $1,500,000.00", committed: 1_500_000, productPackageId: VERSION, stage: "Qualification" }),
+          member({ loanId: "a4Zbb000002KFD4EAO", name: "Hartwell - Purchase - $12,000,000.00", committed: 12_000_000, productPackageId: VERSION, stage: "Qualification" }),
+        ],
+      },
+    } as unknown as ReturnType<typeof bundle>;
+    const locked = buildReadBlocks({ bundle: forked, accountName: "Hartwell", productPackageId: SOURCE })!;
+    // WHY the room refuses, in the words the picker uses, rather than a blind no.
+    expect(locked.inFlight).toMatchObject({ hasInFlightModification: true, versionId: VERSION });
+    expect(locked.inFlight!.reason).toContain("a version of this package is unbooked with the org");
+    const inside = buildReadBlocks({ bundle: forked, accountName: "Hartwell", productPackageId: VERSION })!;
+    expect(inside.inFlight).toMatchObject({ version: true, editable: true });
+  });
+
   it.todo("the envelope carries the plan's own pro-forma package total, so 'what does this do to exposure' is read and not derived");
   it.todo("the envelope carries the relationship's own flags (deriveReasonsForBundle), so 'why is this flagged' is answered in the glass's words");
-  it.todo("every new read block is added to ENVELOPE_BLOCK_DROP_ORDER, so nothing is dropped silently");
 
-  it("REPRO: the drop order knows only the five blocks that exist today", () => {
-    expect([...ENVELOPE_BLOCK_DROP_ORDER]).toEqual(["pricing", "collateral", "involvements", "covenants", "exposure"]);
+  it("every new read block is added to ENVELOPE_BLOCK_DROP_ORDER, so nothing is dropped silently", () => {
+    expect([...ENVELOPE_BLOCK_DROP_ORDER]).toEqual([
+      "pricing",
+      "collateral",
+      "involvements",
+      "group",
+      "inFlight",
+      "covenants",
+      "exposure",
+    ]);
+    // Every block the builder can emit is in that list, or the cap could never
+    // give it up and it would be the one thing that breaks the budget.
+    const emitted = Object.keys(readsFor()).filter((k) => k !== "notCarried");
+    for (const key of emitted) expect(ENVELOPE_BLOCK_DROP_ORDER).toContain(key);
   });
 });
 
@@ -229,18 +339,23 @@ describe("rule 1: the book holds the obligor group and the envelope drops it", (
 describe("rule 1: the cockpit chat carries a different, thinner book", () => {
   const deskText = () => deskContext(bundle(), bundle().snapshot!.name!);
 
-  it("REPRO: it states a covenant's current value and never its threshold", () => {
+  /* FIXED (finding B3). `deskContext` read `actualValue` and never
+     `thresholdValue`, so the surface a founder demo opens on stated a figure
+     with nothing to measure it against and "what is this covenant doing" was
+     unanswerable on it. */
+  it("the cockpit chat carries the covenant thresholds, so it can say what a covenant is doing", () => {
     const text = deskText();
-    // The test value travels.
-    expect(text).toContain("Debt Service Coverage of Borrower");
-    expect(text).toContain("last 1.38");
-    // The threshold does not. `deskContext` reads `actualValue` and never
-    // `thresholdValue` (deskAsk.ts:72-82), so "what is this covenant doing" is
-    // unanswerable on this surface: a figure with nothing to measure it against.
-    expect(text).not.toContain("1.25");
-    expect(text).not.toMatch(/threshold/i);
-    // Where the workroom envelope carries both.
+    // What it measures, what it is measured against, and where it stands: the
+    // operator and the unit are the org's own, through the same formatter the
+    // workroom envelope and the covenant card use.
+    expect(text).toContain("Debt Service Coverage of Borrower, Pending, tests ≥ 1.25×, last 1.38×, Quarterly, next test Sep 30, 2026.");
+    expect(text).toContain("Maximum Debt to Worth");
+    expect(text).toContain("tests ≤ 3.00×");
+    // The three surfaces write one test one way.
     expect(readsFor().covenants!.find((c) => c.name === "Debt Service Coverage of Borrower")!.threshold).toBe("≥ 1.25×");
+    // A test the org carries no threshold for says so rather than reading as a
+    // covenant with nothing to clear.
+    expect(text).toContain("no threshold carried on this read");
   });
 
   it("REPRO: no collateral figures, no parties, no coverage and no honesty list travel", () => {
@@ -251,21 +366,27 @@ describe("rule 1: the cockpit chat carries a different, thinner book", () => {
     expect(text).not.toMatch(/guarantor|guaranty|borrower type|\bowner\b/i);
     expect(text).not.toMatch(/coverage ratio|collateral coverage|shortfall/i);
     expect(text).not.toContain("1.09");
-    // No `notCarried`: the context simply stops at 7,000 characters
-    // (deskAsk.ts:101), so a truncated book and a book with nothing in it read
-    // the same to the model.
+    // Still no standing `notCarried` list naming the collateral, the parties
+    // and the coverage. What HAS gone is the silent stop at 7,000 characters:
+    // a context that is cut now names the parts of the book that did not
+    // travel (`deskAsk.test.ts`, "the context names what it had to cut"), and
+    // Hartwell, the deepest book, does not reach the cut at all.
     expect(text).not.toMatch(/not carried|does not carry/i);
+    expect(text.length).toBeLessThan(7_000);
   });
 
-  it("REPRO: the two surfaces report DIFFERENT committed totals for one relationship", () => {
+  /* FIXED. Both surfaces still total a different book, which is correct: the
+     desk answers about the relationship and the room works one package. What
+     changed is that each says which, in the same breath as the figure. */
+  it("the two surfaces still total different books, and each states its scope", () => {
     // The desk sums every ACTIVE facility on the relationship, across both
-    // packages (deskAsk.ts:63-67).
-    expect(deskText()).toContain("$57M committed");
-    // The workroom envelope sums the facilities of the ANCHORED package
-    // (readBlocks.ts:48-52, 168-179).
-    expect(readsFor().exposure!.committed).toBe("$49M");
-    // Both are honest about their own scope and neither says which scope it is.
-    // A banker who asks the chat and then opens the room reads two figures.
+    // packages, and says so with the figure.
+    expect(deskText()).toContain("Facilities across the relationship, every package included: $57M committed");
+    // The workroom envelope sums the facilities of the ANCHORED package.
+    expect(readsFor().exposure).toMatchObject({ committed: "$49M", facilities: 7, scope: "on this package" });
+    // And the model composing the chat answer is told the scope it is holding.
+    expect(DESK_RULES).toMatch(/Every total in this context is the WHOLE RELATIONSHIP/);
+    expect(DESK_RULES).toMatch(/a workroom quotes the anchored package/);
   });
 
   it("REPRO: the desk carries per-facility figures the workroom envelope drops, and the other way round", () => {
@@ -278,18 +399,46 @@ describe("rule 1: the cockpit chat carries a different, thinner book", () => {
     expect(readsText()).not.toContain("Mar 15, 2027");
   });
 
-  it("REPRO: the cockpit chat is stateless: no conversation travels with the question", () => {
-    // `askDesk` takes one `question` and no thread (deskAsk.ts:110-120), and
-    // `ChatPanel.send` passes none (ChatPanel.tsx:259-264). The envelope's own
-    // `thread` field exists precisely because "this is one conversation".
-    const prompt = `${deskText()}`;
-    expect(prompt).not.toMatch(/earlier|previously|you said|conversation so far/i);
+  /* FIXED, 2026-09-12 (finding I8). `askDesk` took one question and no thread,
+     so every follow-up was answered as if it were the first. The CONTEXT is
+     still the book and nothing else, which is the contract; the conversation
+     now travels beside it, through the rooms' own `threadDigest`. */
+  it("the book is the book, and the conversation travels beside it", () => {
+    // The context itself is still purely the relationship: it is what figures
+    // are read from, and a conversation inside it would be a second source.
+    expect(deskText()).not.toMatch(/earlier|previously|you said|conversation so far/i);
+    // The thread is its own block, oldest first, and it says what rule 5 asks.
+    const said = deskThread([
+      { who: "banker", text: "what is the exposure" },
+      { who: "agent", text: "$57M committed across the relationship." },
+    ]);
+    expect(said).toMatch(/The conversation so far, oldest first/);
+    expect(said).toMatch(/never answer the same input twice/);
+    expect(said).toContain("Banker: what is the exposure");
+  });
+
+  /* FIXED, 2026-09-12 (finding B5). The room was locked by a version the chat
+     knew nothing about. Proved on Hartwell's own fork in
+     `channel/deskAsk.test.ts`; pinned here as the fact, not the prose. */
+  it("the cockpit chat carries the version chain that locks a room", () => {
+    const forked = {
+      snapshot: { accountId: HARTWELL, name: "Hartwell Precision Manufacturing LLC" },
+      exposure: {
+        facilities: [
+          { loanId: "a4Zbb000002ICnyEAG", status: "Open", stage: "Booked", productPackageId: "a5Fbb000000J6BNEA0", name: "Hartwell - Equipment - $1,500,000.00", committed: 1_500_000 },
+          { loanId: "a4Zbb000002ICnxEAG", status: "Open", stage: "Booked", productPackageId: "a5Fbb000000J6BNEA0", name: "Hartwell - Purchase - $6,500,000.00", committed: 6_500_000 },
+          { loanId: "a4Zbb000002KFD3EAO", status: "Open", stage: "Qualification", productPackageId: "a5Fbb000000JFzREAW", name: "Hartwell - Equipment - $1,500,000.00", committed: 1_500_000 },
+          { loanId: "a4Zbb000002KFD4EAO", status: "Open", stage: "Qualification", productPackageId: "a5Fbb000000JFzREAW", name: "Hartwell - Purchase - $12,000,000.00", committed: 12_000_000 },
+        ],
+      },
+    } as unknown as ReturnType<typeof bundle>;
+    const said = deskContext(forked, "Hartwell Precision Manufacturing LLC");
+    expect(said).toContain("Modification in Progress");
+    expect(said).toContain("a version of it is unbooked with the org");
+    expect(said).toContain("IS the unbooked modification version of another package");
   });
 
   it.todo("the cockpit chat and the workrooms compose their context through ONE builder over the same bundle");
-  it.todo("the cockpit chat carries the covenant thresholds, so it can say what a covenant is doing");
-  it.todo("the cockpit chat carries the last turns of its own conversation");
-  it.todo("the cockpit chat names what it does not carry, rather than truncating silently at 7,000 characters");
 });
 
 /* ================================================= RULE 2 — guide and advise
@@ -394,7 +543,11 @@ describe("rules 2, 5 and 6: the relationship room's steps", () => {
     return { ctx, ids: picker.options!.slice(0, 2).map((o) => o.value) };
   };
 
-  it("REPRO (rule 2): the valuation asks for the figure cold, one turn after printing it", () => {
+  /* FIXED, 2026-09-12 (audit finding 2). This was the REPRO for "the valuation
+     asks for the figure cold, one turn after printing it". The ask is now built
+     from the same `BookAsset` the chooser chip was, and the figure on file is
+     OFFERED rather than written. Kept live as the regression cover. */
+  it("the valuation figure step leads with the value on file and offers it as a chip", () => {
     const { ctx, ids } = pickedAssets();
     const picker = nextStep("valuation", ctx, {})!;
     // The chip the banker just read carries the asset's value and its lendable
@@ -404,11 +557,13 @@ describe("rules 2, 5 and 6: the relationship room's steps", () => {
 
     const ask = nextStep("valuation", ctx, { records: ids })!;
     expect(ask.key).toBe(`recordValues.${ids[0]}`);
-    // And the ask that follows carries no figure, no option and no escape.
-    expect(ask.ask).toMatch(/^What value are we filing for /);
-    expect(ask.options).toBeUndefined();
+    // And the ask that follows carries that same figure, and the way to take it.
+    expect(ask.ask).toMatch(/carries \$/);
+    expect(ask.ask).toContain("File that figure, or give me the new one.");
+    expect(ask.options!.length).toBe(1);
+    expect(Number(ask.options![0].value)).toBeGreaterThan(0);
+    // It is still the banker's answer: the proposal is an option, never a default.
     expect(ask.optional).toBeUndefined();
-    expect(ask.placeholder).toBe("The figure, in dollars.");
   });
 
   it("REPRO (rule 5): 'keep the figure on file' is not an answer to a number step", () => {
@@ -427,12 +582,13 @@ describe("rules 2, 5 and 6: the relationship room's steps", () => {
     expect(ask.optional).toBeUndefined();
   });
 
-  it("REPRO (rule 6): the valuation's own step counter runs away on the figure step", () => {
-    // `plannedStepCount` (RelationshipRoom.tsx:449-462) walks the machine on a
-    // copy, writing the SKIPPED sentinel into each step it passes. SKIPPED is a
-    // STRING (relStep.ts:56); `recordValues` gates on
-    // `typeof values[id] === "number"` (reviewFlows.ts:718). So the walk never
-    // gets past the first asset and spends its whole 64-step guard there.
+  /* FIXED, 2026-09-12 (audit finding 1). `recordValues` gated on
+     `typeof values[id] === "number"` while the probe writes the SKIPPED
+     sentinel, so the walk never cleared the first asset and burned its whole
+     64-step guard there: "Step 2 of 65" on a seven-step review. The step now
+     reads `answered(values, id)`, the way `covenantStep` already read its own
+     observed figure. */
+  it("the valuation's step counter walks the review it is going to ask", () => {
     const { ctx, ids } = pickedAssets();
     const probe: Record<string, unknown> = { records: ids };
     const keys: string[] = [];
@@ -451,15 +607,22 @@ describe("rules 2, 5 and 6: the relationship room's steps", () => {
         probe[head] = map;
       }
     }
-    // Every one of the 64 probe steps is the SAME question.
-    expect(keys).toHaveLength(64);
-    expect(new Set(keys).size).toBe(1);
+    // The walk settles, and every question on it is asked once.
+    expect(keys.length).toBeLessThan(64);
+    expect(new Set(keys).size).toBe(keys.length);
     expect(keys[0]).toBe(`recordValues.${ids[0]}`);
-    // Which is what the kicker counts against: "Step 1 of 66" on a seven-step
-    // review (RelationshipRoom.tsx:920).
+    expect(keys).toContain("valuationDate");
+    expect(keys[keys.length - 1]).toBe("description");
   });
 
-  it("REPRO (rule 6): the rating route asks four blank figures in a row", () => {
+  /* FIXED, 2026-09-12. Four blank boxes in a row became four questions that say
+     what the read does and does not carry: the scored factor leads with the
+     closest figure the book holds, NAMED as the covenant's own and offered
+     rather than written, and the first unscored factor carries
+     SCORED_VS_STORED so the banker knows the next three are stored and not
+     weighed. No read on this cockpit carries these four as rating inputs, so
+     nothing is defaulted. */
+  it("the rating route says what the read carries on each of its four figures", () => {
     const ctx = relCtx();
     const answers: Record<string, unknown> = {};
     const asks: Array<{ key: string; ask: string; options?: unknown }> = [];
@@ -474,10 +637,16 @@ describe("rules 2, 5 and 6: the relationship room's steps", () => {
       "managementExperience",
       "creditScore",
     ]);
-    // Four turns, no figure on file quoted on any of them, no options on any.
-    for (const a of asks) {
+    // The scored factor leads with the covenant that measures the same thing,
+    // named as the covenant's figure and offered as the one option.
+    expect(asks[0].ask).toContain("The closest figure the read carries is the Debt Service Coverage of Borrower test at");
+    expect(asks[0].options).toHaveLength(1);
+    // The first UNSCORED factor is where the template's own limit is stated.
+    expect(asks[1].ask).toContain("This org's rating template scores cash-flow coverage and nothing else");
+    // And the three the read carries nothing for say so, with no figure invented.
+    for (const a of asks.slice(1)) {
       expect(a.options).toBeUndefined();
-      expect(a.ask).not.toMatch(/\d/);
+      expect(a.ask).toContain("No read on this cockpit carries it");
     }
   });
 
@@ -524,8 +693,10 @@ describe("rules 2, 5 and 6: the relationship room's steps", () => {
     expect(CREATE_GAPS.collateral.line).not.toMatch(/intake|Add a covenant or an asset/i);
   });
 
-  it("REPRO (rule 7, factual): the handoff says five reviews and the room takes six", () => {
-    expect(FACILITY_HANDOFF).toContain("This room takes the five reviews.");
+  /* FIXED, 2026-09-12. The handoff counted five reviews after the intake made
+     six, and the count and the room now agree. */
+  it("the handoff counts the reviews this room actually takes", () => {
+    expect(FACILITY_HANDOFF).toContain("This room takes the six reviews.");
     expect(REL_ROUTE_WORDS.size).toBe(6);
   });
 
@@ -584,9 +755,16 @@ describe("rule 7: the voice rule binds the model and not the room", () => {
     expect(always).toContain("No em dashes.");
   });
 
-  it("REPRO: the room's own deterministic explanation uses them", () => {
-    const said = whyChecked({ lendable: 12_000_000, covers: true });
-    expect(said).toContain("—");
+  it("the room's deterministic sentences obey the same no-em-dash rule the doctrine imposes on the model", () => {
+    // The explanation layer, the advisories and the create parser wrote them
+    // freely while `narrate.ts` stripped them out of every model reply.
+    expect(whyChecked({ lendable: 12_000_000, covers: true })).not.toContain("—");
+    expect(whyChecked({ lendable: 12_000_000, covers: true })).toContain("The pledged pool does not grow with the commitment.");
+    for (const id of ["covenant.complianceStatus", "collateral.valuation", "loan.stage"]) {
+      expect(whyRefused(id)).not.toContain("—");
+    }
+    expect(NO_PACKAGE_REFUSAL).not.toContain("—");
+    expect(NO_PACKAGE_REFUSAL).toContain("until the deal is on a package. Open the relationship");
   });
 
   it("REPRO: the golden rule bans exclamation points and emoji, and the doctrine names neither", () => {
@@ -595,5 +773,4 @@ describe("rule 7: the voice rule binds the model and not the room", () => {
   });
 
   it.todo("the doctrine carries the golden rule's voice line in full: no marketing, no exclamation points, no emoji");
-  it.todo("the room's deterministic sentences obey the same no-em-dash rule the doctrine imposes on the model");
 });

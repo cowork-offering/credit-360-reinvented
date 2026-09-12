@@ -66,6 +66,38 @@ describe("the always blocks travel on every line", () => {
     expect(text).toMatch(/Do NOT call a tool for anything already here/);
   });
 
+  /* THE BLOCKS THE STANDING INSTRUCTION NEVER NAMED (golden rule 1, 2026-09-12).
+     `group` and `inFlight` travel on every envelope and `exposure.scope` has
+     been there since the two surfaces were found totalling different books.
+     Nothing told the model what any of them WAS, and a block the doctrine does
+     not name is a block the model reads as noise. */
+  it("names every read block the envelope carries, and what each one answers", () => {
+    for (const line of lines) {
+      const text = composeDoctrine(line).lines.join("\n");
+      // The obligor group: the relation vocabulary, the ownership and the
+      // counterparty's own grade.
+      expect(text).toContain("CONTEXT.reads.group is the OBLIGOR GROUP");
+      expect(text).toMatch(/parent, subsidiary, affiliate, owner, guarantor/);
+      expect(text).toMatch(/ownership on file/);
+      expect(text).toMatch(/that party's OWN grade/);
+      // The version chain, and the instruction to say WHY rather than refuse.
+      expect(text).toContain("CONTEXT.reads.inFlight is the VERSION CHAIN");
+      expect(text).toMatch(/editable/);
+      expect(text).toMatch(/Approval \/ Loan Committee/);
+      expect(text).toMatch(/Asked why a package is locked, say that rather than refusing blind/);
+      // The scope, repeated with every total.
+      expect(text).toContain("CONTEXT.reads.exposure.scope");
+      expect(text).toMatch(/on this package or across the relationship/);
+      expect(text).toMatch(/Quote that scope with every total/);
+      // The third call-out, and when to reach for it.
+      expect(text).toContain("connectedPartyBook");
+      expect(text).toMatch(/what the guarantor owes elsewhere, or whether the affiliate is in breach/);
+      expect(text).toMatch(/refuses any party the group does not name/);
+      // Sober voice: the rule the doctrine imposes on the model it also keeps.
+      expect(text).not.toMatch(/[—–!]/);
+    }
+  });
+
   it("names the fence and the route beside it, never a bare refusal", () => {
     const text = composeDoctrine("anything at all").lines.join("\n");
     expect(text).toMatch(/Fenced, deliberately/);

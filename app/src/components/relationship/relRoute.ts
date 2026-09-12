@@ -368,16 +368,37 @@ function isRouteNaming(text: string): boolean {
  */
 const DOCUMENT_AMENDMENT = /\bamended\s+and\s+restated\b|\bas\s+amended\b/gi;
 
-/** TRUE where the line asks for FACILITY work this room does not do. The room
- *  answers with the handoff rather than routing it into the nearest review. */
-export function asksForFacilityWork(text: string): boolean {
+/**
+ * THE FACILITY THE WORK WOULD BE DONE TO.
+ *
+ * Over an OPEN TEXT STEP the verb on its own is not a request. "Renew at
+ * current terms." IS the annual review's recommendation, "Amend the covenant
+ * package at renewal." IS its narrative, and both were thrown away and answered
+ * with the facility handoff while the step stayed live. A banker asking this
+ * room for facility work names the thing to be worked on.
+ */
+const FACILITY_OBJECT = /\b(facilit(?:y|ies)|loans?|lines?|notes?|collateral|security|liens?|pledges?|assets?)\b/i;
+
+/**
+ * TRUE where the line asks for FACILITY work this room does not do. The room
+ * answers with the handoff rather than routing it into the nearest review.
+ *
+ * `openTextStep` is the same guard `readRelRouteSwitch` takes and for the same
+ * reason: a question that asked for a sentence owns the sentence it gets. Over
+ * one, the handoff fires only on a SHORT line that also names the facility or
+ * the security it would act on.
+ */
+export function asksForFacilityWork(text: string, opts: { openTextStep?: boolean } = {}): boolean {
   const line = text.trim();
   if (!line) return false;
-  return FACILITY_WORK.test(line.replace(DOCUMENT_AMENDMENT, " "));
+  const stripped = line.replace(DOCUMENT_AMENDMENT, " ");
+  if (!FACILITY_WORK.test(stripped)) return false;
+  if (!opts.openTextStep) return true;
+  return isRouteNaming(line) && FACILITY_OBJECT.test(stripped);
 }
 
 /** The one-line handoff, in the room's own register. Facility-context creation
  *  (a covenant on a clone, create-then-pledge) stays in the facility room; this
  *  room says where it lives rather than half-doing it. */
 export const FACILITY_HANDOFF =
-  "That is facility work. Pledging security, cloning a covenant onto a renewal and reshaping a booked facility all run in Facility Actions on this relationship. This room takes the five reviews.";
+  "That is facility work. Pledging security, cloning a covenant onto a renewal and reshaping a booked facility all run in Facility Actions on this relationship. This room takes the six reviews.";

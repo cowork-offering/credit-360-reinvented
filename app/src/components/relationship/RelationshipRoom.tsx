@@ -110,6 +110,7 @@ import {
   type RelFlowSpec,
   type RelFlowDeps,
   type RelStep,
+  type StepOption,
   type StagedRelPlan,
 } from "./reviewFlows";
 import { intakeRows } from "./intakeFlows";
@@ -456,9 +457,59 @@ function plannedStepCount(route: RelRoute, ctx: RelContext, answers: Answers): n
     const step = nextStep(route, ctx, probe);
     if (!step) break;
     n += 1;
-    assign(probe, step.key, step.kind === "multi" ? [] : SKIPPED);
+    /* A MULTI STEP GATES A PER-RECORD LOOP, so probing it with an EMPTY set
+       counts a ritual nobody runs: the valuation's figure per asset and the
+       covenant's verdict per test all hang off the pick, and a count that
+       assumes nothing was picked promises a shorter review than it asks. The
+       probe stands in the banker's shoes with ONE record, which is the smallest
+       answer the step takes. */
+    assign(probe, step.key, step.kind === "multi" ? probePick(step) : SKIPPED);
   }
   return Math.max(n, 1);
+}
+
+/** How many of a step's own answers the second miss names back. */
+const MISS_NAME_CAP = 4;
+
+/**
+ * A HOLD IS AN ANSWER, in the words a banker uses for one.
+ *
+ * The same set `workroom/parseModify.ts` reads on the facility side, kept in
+ * step with it deliberately: one room taking "no change" and the other calling
+ * it unreadable is the kind of split a banker notices in a demo.
+ */
+const KEEP_CURRENT =
+  /^(?:hold|keep(?:\s+(?:it|current|the\s+same|as[-\s]?is|as\s+it\s+is))?|no\s+change|don'?t\s+change(?:\s+it)?|leave\s+(?:it|as[-\s]?is|as\s+it\s+is|unchanged)?|unchanged|same|as[-\s]?is|stet)\b/i;
+
+/** A keep that also names something else to record. The room asks which rather
+ *  than taking one half of a line that says both. */
+function keepContradiction(step: RelStep, line: string): string | null {
+  const other = (step.options ?? [])
+    .filter((o) => !o.disabled && !o.onFile)
+    .find((o) => line.toLowerCase().includes(o.label.toLowerCase()));
+  const figure = step.kind === "number" && /\d/.test(line);
+  if (!other && !figure) return null;
+  const second = other ? `record ${other.label}` : "file a new figure";
+  return `That line says two things: keep what is on file, and ${second}. I will not choose between them, because either one is what gets filed. Which is it?`;
+}
+
+/** Mash, punctuation and the words people type to get past a box. Read only on
+ *  a step that declares itself `substantive`, never on free narrative. */
+const KEYBOARD_MASH = /^(?:asdf\w*|asdfgh\w*|qwerty\w*|lkj\w*|test|testing|tbd|todo|n\/?a|none|xxx+|zzz+|aaa+|abc|abcd|[a-z]{1,3})$/i;
+
+function readsAsJunk(line: string): boolean {
+  const said = line.trim();
+  if (!said) return true;
+  // "!!!", "...", "???" - nothing in it that reads as a word or a figure.
+  if (!/[a-z0-9]/i.test(said)) return true;
+  const words = said.split(/\s+/).filter(Boolean);
+  return words.length === 1 && KEYBOARD_MASH.test(words[0]);
+}
+
+/** The smallest answer a multi step takes: its first selectable option. */
+function probePick(step: RelStep): string[] {
+  const first = (step.options ?? []).find((o) => !o.disabled);
+  return first ? [first.value] : [];
 }
 
 /** Write an answer, honouring the `group.id` key form the per-record steps use. */
@@ -802,6 +853,10 @@ export function RelationshipRoom({
 
   /* ---- derived. Nothing below is stored twice. */
   const live = useMemo(() => (route ? nextStep(route, ctx, answers) : null), [route, ctx, answers]);
+  /** The live step, read by the callbacks that must not take it as a dependency
+   *  (the desk lane re-binds on every answer otherwise). */
+  const liveRef = useRef<RelStep | null>(null);
+  liveRef.current = live;
   /* THE ROUTE CANNOT RUN AT ALL. Non-null where the review's own preconditions
      fail on the read the room is holding, and it is the reason there is no
      first question. A blocked route never reaches `ready`: offering "Review &
@@ -1016,6 +1071,25 @@ export function RelationshipRoom({
     [settleItems],
   );
 
+  /** THE LINE IS NOT RECORDED AND THE QUESTION STAYS LIVE. One shape for every
+   *  refusal a step makes: the reason, then the step's own answers under it. */
+  const refuse = useCallback((target: RelStep, why: string, id: string) => {
+    setItems((prev) => [
+      ...prev,
+      {
+        kind: "agent",
+        id: nextId(id),
+        step: prev.length ? prev[prev.length - 1].step : 0,
+        text: why,
+        options: optionsFor(target),
+      },
+    ]);
+  }, []);
+
+  /** Consecutive lines ONE question could not read. The second miss names what
+   *  was heard rather than repeating the first refusal word for word. */
+  const missRef = useRef<{ key: string; count: number }>({ key: "", count: 0 });
+
   /** RECORD AN ANSWER. Every answer starts a STEP (rule 31): the banker line
    *  lands, the steps before it collapse, and the machine asks the next one. */
   const record = useCallback(
@@ -1031,6 +1105,9 @@ export function RelationshipRoom({
       /* THE ROW IS THE RECEIPT, so the banker's echo under it would be the
          answer printed twice, eight pixels apart. It is dropped where a row
          landed and kept where none did (a room with no thread yet). */
+      // A RECORDED ANSWER CLEARS THE MISS COUNT. The escalation is about one
+      // question being missed twice in a row, not about the room's whole ritual.
+      missRef.current = { key: "", count: 0 };
       const receipted = settleStep(rowForStep(liveKickerRef.current, said), mine);
       if (!receipted) setItems((prev) => [...prev, { kind: "banker", id: nextId("banker"), step: mine, text: said }]);
       setAnswers((prev) => {
@@ -1090,12 +1167,64 @@ export function RelationshipRoom({
         if (text === SKIP_LABEL || text.toLowerCase() === "skip") {
           if (!live.optional) {
             setThinking(false);
-            unreadable(live);
+            unreadable(live, text);
             return;
           }
           record(live.key, live.kind === "multi" ? [] : SKIPPED, SKIP_LABEL);
           return;
         }
+
+        /* A KEEP IS AN ANSWER (golden rule 5). "no change", "hold", "leave it",
+           "as-is" are what a banker says when what is on file is the answer,
+           and every one of them used to come back as "I could not read that".
+           The words are `parseModify.ts`'s KEEP_CURRENT, so the two rooms read
+           a hold the same way.
+
+           AN OPEN TEXT STEP IS EXEMPT. It asked for a sentence, and a narrative
+           that opens "No change to the position" is that sentence. */
+        if (live.kind !== "text" && KEEP_CURRENT.test(text)) {
+          /* TWO ANSWERS IN ONE LINE IS NOT AN ANSWER. "keep it but mark it
+             compliant" says hold and says record, and choosing between them
+             here would be the room deciding a governance record. */
+          const both = keepContradiction(live, text);
+          if (both) {
+            setThinking(false);
+            refuse(live, both, "keep");
+            return;
+          }
+          // THE STEP THAT OFFERS THE FIGURE ON FILE TAKES THE KEEP AS THAT FIGURE.
+          const onFile = (live.options ?? []).find((o) => o.onFile && !o.disabled);
+          if (onFile) {
+            record(live.key, live.kind === "number" ? Number(onFile.value) : onFile.value, onFile.label);
+            return;
+          }
+          if (live.optional) {
+            record(live.key, live.kind === "multi" ? [] : SKIPPED, SKIP_LABEL);
+            return;
+          }
+          setThinking(false);
+          refuse(
+            live,
+            `The read carries nothing on file for this one to keep, and the review cannot be staged without it. ${live.ask}`,
+            "keep",
+          );
+          return;
+        }
+
+        /* A GOVERNANCE RECORD NOBODY CAN READ IS NOT AN ANSWER. The case
+           subject and the case body are worked by people who were not in this
+           room, and "!!!" or "asdf" is a box being got past. Challenged once,
+           with the question restated; a banker who means it can say it in words. */
+        if (live.kind === "text" && live.substantive && readsAsJunk(text)) {
+          setThinking(false);
+          refuse(
+            live,
+            `"${text}" is not something the servicing team could act on, and this answer is filed on the case. ${live.ask}`,
+            "junk",
+          );
+          return;
+        }
+
         if (live.kind === "multi") {
           // A MULTI STEP TAKES A SET. A chip contributes one id; a typed line
           // is matched against the options by name, and a line that matches
@@ -1104,7 +1233,7 @@ export function RelationshipRoom({
           const matched = matchOptions(live, text);
           if (!matched.length) {
             setThinking(false);
-            unreadable(live);
+            unreadable(live, text);
             return;
           }
           record(live.key, matched, shown);
@@ -1114,7 +1243,7 @@ export function RelationshipRoom({
           const n = Number(text.replace(/[$,\s]/g, ""));
           if (!Number.isFinite(n)) {
             setThinking(false);
-            unreadable(live);
+            unreadable(live, text);
             return;
           }
           /* A FIGURE OFF A REAL SCALE IS REFUSED BY NAME, not re-asked as
@@ -1129,13 +1258,21 @@ export function RelationshipRoom({
           record(live.key, n, shown);
           return;
         }
-        if (live.options?.length) {
-          const hit = live.options.find((o) => o.value.toLowerCase() === text.toLowerCase());
-          if (!hit && live.kind === "chips") {
+        /* A CHIPS STEP IS CLOSED, INCLUDING WHEN IT IS EMPTY. An empty option
+           set used to fall through to the free-text record below, which is how
+           a type nobody could name still landed on the wire. */
+        if (live.kind === "chips") {
+          const hit = (live.options ?? []).find((o) => o.value.toLowerCase() === text.toLowerCase());
+          if (!hit) {
             setThinking(false);
-            unreadable(live);
+            unreadable(live, text);
             return;
           }
+          record(live.key, hit.value, shown);
+          return;
+        }
+        if (live.options?.length) {
+          const hit = live.options.find((o) => o.value.toLowerCase() === text.toLowerCase());
           record(live.key, hit ? hit.value : text, shown);
           return;
         }
@@ -1145,48 +1282,51 @@ export function RelationshipRoom({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [beat, live, record],
+    [beat, live, record, refuse],
   );
 
 
   /** THE FIGURE IS OFF THE STEP'S SCALE. Refused with the scale in words, and
    *  the question left standing. */
-  const offScale = useCallback(
-    (target: RelStep) => {
-      setItems((prev) => {
-        const mine = prev.length ? prev[prev.length - 1].step : 0;
-        return [
-          ...prev,
-          { kind: "agent", id: nextId("scale"), step: mine, text: target.bounds!.refusal, options: optionsFor(target) },
-        ];
-      });
-    },
-    [],
-  );
+  const offScale = useCallback((target: RelStep) => refuse(target, target.bounds!.refusal, "scale"), [refuse]);
 
   /** THE ROOM COULD NOT READ THAT. It re-asks with the legal answers rather
-   *  than guessing, because guessing here writes a governance record. */
+   *  than guessing, because guessing here writes a governance record.
+   *
+   *  AND THE SECOND MISS IS NOT THE FIRST ONE AGAIN. A banker who has just been
+   *  told "I could not read that" and reads the identical sentence a second time
+   *  has learned nothing about why; the second one names what was heard and
+   *  narrows to what the question can take. */
   const unreadable = useCallback(
-    (target: RelStep) => {
-      setItems((prev) => {
-        const mine = prev.length ? prev[prev.length - 1].step : 0;
-        return [
-          ...prev,
-          {
-            kind: "agent",
-            id: nextId("again"),
-            step: mine,
-            text: target.options?.length
-              ? "I could not read that as one of the values above. Pick one, or say it exactly as it reads."
-              : target.kind === "number"
-                ? "I need a figure for that one. A number, or skip it."
-                : "I could not read that. Say it again.",
-            options: optionsFor(target),
-          },
-        ];
-      });
+    (target: RelStep, heard?: string) => {
+      const seen = missRef.current.key === target.key ? missRef.current.count + 1 : 1;
+      missRef.current = { key: target.key, count: seen };
+      const legal = (target.options ?? []).filter((o) => !o.disabled);
+      const named = legal.slice(0, MISS_NAME_CAP).map((o) => o.label);
+      const said = heard?.trim();
+      const again =
+        seen > 1 && said
+          ? legal.length
+            ? `I heard "${said}", and it is not one of the ${legal.length} ${
+                legal.length === 1 ? "answer" : "answers"
+              } this question takes. ${
+                named.length === legal.length ? `They are ${named.join(", ")}.` : `The first ${named.length} are ${named.join(", ")}.`
+              } Pick one, or say it exactly as it reads.`
+            : target.kind === "number"
+              ? `I heard "${said}", and this question files a figure. Give me the number on its own${
+                  target.optional ? ", or skip it" : ""
+                }.`
+              : `I heard "${said}", and I still cannot place it against this question. Say it another way${
+                  target.optional ? ", or skip it" : ""
+                }.`
+          : legal.length
+            ? "I could not read that as one of the values above. Pick one, or say it exactly as it reads."
+            : target.kind === "number"
+              ? "I need a figure for that one. A number, or skip it."
+              : "I could not read that. Say it again.";
+      refuse(target, again, "again");
     },
-    [],
+    [refuse],
   );
 
   /* ==================================================== THE SECOND LANE, HERE
@@ -1359,7 +1499,13 @@ export function RelationshipRoom({
         return;
       }
       if (reply.type === "read-card") {
-        answer({ kind: "read", id: nextId("read"), card: toReadCardModel(reply) });
+        /* THE HAND-BACK IS THIS ROOM'S, NOT THE FACILITY ROOM'S. The shared
+           fallback is "What should change on this package?", which is the one
+           thing this room answers with the facility handoff. */
+        const back = liveRef.current;
+        answer({ kind: "read", id: nextId("read"), card: toReadCardModel(reply, back?.ask ?? NEUTRAL_QUESTION) });
+        // AND BACK TO THE FLOW, where the room is standing on a question.
+        if (back) answer({ kind: "agent", id: nextId("back"), text: back.ask, options: optionsFor(back) });
         return;
       }
       if (reply.type === "clarify") {
@@ -1441,11 +1587,13 @@ export function RelationshipRoom({
       if (ask && router) {
         const preTopic = readTopic(text);
         const preRelTopic = preTopic === null ? readRelTopic(text) : null;
+        /* NO ROUTE IS BOUND, so the hand-back is the room's front door and
+           never the facility room's "what should change on this package". */
         const preCard =
           preTopic !== null
-            ? buildReadCard(preTopic, reads, { role: readRole(text) ?? undefined })
+            ? buildReadCard(preTopic, reads, { role: readRole(text) ?? undefined, followUp: NEUTRAL_QUESTION })
             : preRelTopic
-              ? buildRelReadCard(preRelTopic, ctx)
+              ? buildRelReadCard(preRelTopic, ctx, NEUTRAL_QUESTION)
               : null;
         /* A READ DOES NOT PICK A REVIEW, and that holds for this room's own
            three as well: "what is the risk rating" is a question about the
@@ -1547,6 +1695,36 @@ export function RelationshipRoom({
         ]);
       };
 
+      /* AND A READ ANSWERED MID-REVIEW ENDS ON THE LIVE QUESTION (golden rule
+         3: brief, specific, THEN BACK TO THE FLOW). The card used to be the last
+         thing on the glass, so a banker three questions into a covenant review
+         had to scroll back to find what they were being asked, and the only
+         thing under the card was the facility room's own invitation. */
+      const answerAndReturn = (item: NewRelItem) => {
+        setStep(mine);
+        setHistOpen(false);
+        setItems((prev) => [
+          ...prev,
+          relBankerLine(mine, (said ?? heard).trim(), opts?.fed),
+          { ...item, step: mine } as RelItem,
+          ...(live
+            ? [
+                {
+                  kind: "agent",
+                  id: nextId("back"),
+                  step: mine,
+                  text: live.ask,
+                  options: optionsFor(live),
+                } as RelItem,
+              ]
+            : []),
+        ]);
+      };
+
+      /** WHERE THIS ROOM GOES NEXT, in its own words. Never the facility
+       *  room's, which is what every shared card ends on. */
+      const roomFollowUp = live ? live.ask : NEUTRAL_QUESTION;
+
       /* READS ARE LOCAL, AND THEY ARE FIRST (F1). A topic the bundle answers is
          answered from the bundle, before anything else in this room can act on
          the line. It binds nothing, switches nothing and advances nothing:
@@ -1557,9 +1735,12 @@ export function RelationshipRoom({
          the relationship rather than on a package, so it names no facility, but
          the ROLE it asks about is in the words either way. */
       const topic = readTopic(text);
-      const card = topic !== null ? buildReadCard(topic, reads, { role: readRole(text) ?? undefined }) : null;
+      const card =
+        topic !== null
+          ? buildReadCard(topic, reads, { role: readRole(text) ?? undefined, followUp: roomFollowUp })
+          : null;
       if (card) {
-        answer({ kind: "read", id: nextId("read"), card });
+        answerAndReturn({ kind: "read", id: nextId("read"), card });
         return;
       }
 
@@ -1571,8 +1752,8 @@ export function RelationshipRoom({
          reaches the desk today with a card, and that room is the demo. */
       const relTopic = topic === null ? readRelTopic(text) : null;
       if (relTopic) {
-        const relCard = buildRelReadCard(relTopic, ctx);
-        answer(
+        const relCard = buildRelReadCard(relTopic, ctx, roomFollowUp);
+        answerAndReturn(
           relCard
             ? { kind: "read", id: nextId("read"), card: relCard }
             : { kind: "agent", id: nextId("agent"), text: relReadGap(relTopic, ctx) },
@@ -1582,7 +1763,10 @@ export function RelationshipRoom({
 
       /* FACILITY WORK LIVES NEXT DOOR, and the room says so in one line rather
          than routing a pledge into the nearest review. */
-      if (asksForFacilityWork(text)) {
+      /* AND THE OPEN TEXT STEP KEEPS ITS OWN SENTENCE. "Renew at current
+         terms." is the annual review's recommendation and was being handed to
+         the facility room while the question stayed live. */
+      if (asksForFacilityWork(text, { openTextStep: live?.kind === "text" })) {
         answer({ kind: "agent", id: nextId("agent"), text: FACILITY_HANDOFF });
         return;
       }
@@ -1706,7 +1890,7 @@ export function RelationshipRoom({
       setStep(mine);
       setHistOpen(false);
       setItems((prev) => [...prev, relBankerLine(mine, (said ?? heard).trim(), opts?.fed)]);
-      await runRelBrain(text, mine, { degrade: () => unreadable(live) });
+      await runRelBrain(text, mine, { degrade: () => unreadable(live, text) });
     },
     [answerLive, ask, awake, book, brain, ctx, live, order.length, reads, route, routeBlock, router, runRelBrain, step, unreadable],
   );
@@ -2569,10 +2753,20 @@ function stepAccepts(step: RelStep, text: string): boolean {
   if (!line) return false;
   // The skip is read before the kind, exactly as `answerLive` reads it.
   if (line === SKIP_LABEL || line.toLowerCase() === "skip") return step.optional === true;
+  /* AND SO IS THE KEEP. A hold the step can act on belongs to the step; sending
+     it to the desk would spend the line on a round trip and come back as the
+     same question. */
+  if (step.kind !== "text" && KEEP_CURRENT.test(line)) {
+    return step.optional === true || (step.options ?? []).some((o) => o.onFile && !o.disabled) || Boolean(keepContradiction(step, line));
+  }
   if (step.kind === "multi") return matchOptions(step, line).length > 0;
   if (step.kind === "number") return Number.isFinite(Number(line.replace(/[$,\s]/g, "")));
-  if (step.options?.length && step.kind === "chips") {
-    return step.options.some((o) => o.value.toLowerCase() === line.toLowerCase());
+  /* A CHIPS STEP WITH NO OPTIONS ACCEPTS NOTHING. It used to fall past this
+     test and record whatever was typed, so an intake whose catalog read came
+     back empty advanced to "another asset?" carrying no type at all. A closed
+     question with an empty answer set is a refusal, never a free-text field. */
+  if (step.kind === "chips") {
+    return (step.options ?? []).some((o) => !o.disabled && o.value.toLowerCase() === line.toLowerCase());
   }
   return true;
 }
@@ -2584,11 +2778,19 @@ function matchOptions(step: RelStep, text: string): string[] {
   const opts = (step.options ?? []).filter((o) => !o.disabled);
   const line = text.trim().toLowerCase();
   if (!line) return [];
-  if (/^(all|all of them|everything|the lot)$/.test(line)) return opts.map((o) => o.value);
-  const exact = opts.filter((o) => o.value.toLowerCase() === line || o.label.toLowerCase() === line);
+  if (TAKE_THEM_ALL.test(line)) return opts.map((o) => o.value);
+  /* THE BANK'S OWN NAMES FOR THE ROW COUNT AS ITS NAME. `synonyms` carries the
+     collateral autonumber and the org's type beside the label, so the name on
+     the collateral pane answers the chooser instead of being re-asked. */
+  const names = (o: StepOption): string[] => [o.value, o.label, ...(o.synonyms ?? [])].map((n) => n.toLowerCase());
+  const exact = opts.filter((o) => names(o).some((n) => n === line));
   if (exact.length) return exact.map((o) => o.value);
-  return opts.filter((o) => line.includes(o.label.toLowerCase())).map((o) => o.value);
+  return opts.filter((o) => names(o).some((n) => n.length > 2 && line.includes(n))).map((o) => o.value);
 }
+
+/** "all", and the longer ways a banker says it over a survey of the whole list. */
+const TAKE_THEM_ALL =
+  /^(?:all|all of them|all of them on the list|everything|the lot|assess them all|value them all|do them all|take them all|all of the above)$/;
 
 /* ----------------------------------------------------------- thread blocks */
 

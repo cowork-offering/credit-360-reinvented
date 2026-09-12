@@ -486,7 +486,63 @@ export interface Draft {
    * catalog cannot resolve.
    */
   typeFamily?: { word: string; values: string[] };
+  /**
+   * CONSECUTIVE LINES THAT DID NOT SETTLE THE SLOT THE ROOM IS ASKING FOR.
+   *
+   * WORKROOM-ITERATION-SPEC section 2 is explicit about this machine: "an
+   * UNRECOGNIZED answer must not re-emit the identical question". It did.
+   * "a solar array" / "photovoltaic panels" / "solar" all fall through the
+   * catalog and the six shell words, and the asset-kind question came back
+   * verbatim every time, with no escalation and no sign that anything had been
+   * read. The value question did the same, including on "first lien", which it
+   * had ALREADY ACTED ON.
+   *
+   * `settled` is what that line DID move, so the re-ask can say so; `count`
+   * escalates the ask that settled nothing at all.
+   */
+  missed?: { slot: SlotId; signature: string; count: number; heard: string; settled: string | null };
 }
+
+/** The slot `collateralAsk` is standing on, and the shape of the question it
+ *  would put. A line that moved the FAMILY changed the question, so the family
+ *  is part of the signature and never counts as a miss. */
+function pendingCollateralSlot(draft: Draft): SlotId | null {
+  if (draft.surface !== "collateral") return null;
+  const s = draft.slots;
+  if (!s.isNew && !s.assetId) return "asset";
+  if (s.isNew) {
+    if (!s.assetKind) return "assetKind";
+    if (!s.assetDescription) return "assetDescription";
+    if (s.assetValue === undefined) return "assetValue";
+    if (s.advanceRate === undefined) return "advanceRate";
+  }
+  return s.lien ? null : "lien";
+}
+
+function pendingSignature(draft: Draft): string | null {
+  const slot = pendingCollateralSlot(draft);
+  return slot ? `${slot}|${draft.typeFamily?.word ?? ""}` : null;
+}
+
+/** The slots a line can settle, in the words the room says them back in. */
+const SETTLED_WORDS: Array<{ key: keyof Slots; word: string }> = [
+  { key: "lien", word: "lien position" },
+  { key: "assetKind", word: "collateral type" },
+  { key: "assetDescription", word: "description" },
+  { key: "assetValue", word: "value" },
+  { key: "advanceRate", word: "advance rate" },
+];
+
+/** What this line moved that the room had not held before, or null. */
+function settledPhrase(before: Slots, after: Slots): string | null {
+  const moved = SETTLED_WORDS.filter((s) => before[s.key] === undefined && after[s.key] !== undefined).map((s) => s.word);
+  return moved.length ? sentenceList(moved) : null;
+}
+
+/** A line that settled nothing escalates on the SECOND miss. One that settled
+ *  something else says so at once: the room acted on it and must not claim it
+ *  read nothing. */
+const MISS_ESCALATION = 2;
 
 export interface Ask {
   slot: SlotId;
@@ -1199,8 +1255,10 @@ const ORG_REAL_ESTATE_TYPES = [
 ];
 
 /** The shell's own collateral-type list. THE MIRROR, and it stands only where
- *  `Customer360Catalog` carries nothing. */
-const ASSET_KIND_OPTIONS = [
+ *  `Customer360Catalog` carries nothing. Exported so the relationship intake
+ *  stands on the SAME mirror rather than refusing every name with an empty chip
+ *  set the moment the catalog read comes back empty. */
+export const ASSET_KIND_OPTIONS = [
   ...ORG_REAL_ESTATE_TYPES,
   "Equipment",
   "Inventory",
@@ -1406,7 +1464,7 @@ const lienPositions = (ctx: ElicitContext): string[] => chipSet(ctx.catalog, "li
  * one mirror on this surface that is honest, because what it mirrors is this
  * client's own vocabulary and not the org's data.
  */
-const FILEABLE_COVENANT_TYPES = [
+export const FILEABLE_COVENANT_TYPES = [
   "Leverage",
   "Minimum Liquidity",
   "Debt Service Coverage of Borrower",
@@ -1675,6 +1733,24 @@ export function readInto(draft: Draft, line: string, ctx: ElicitContext, opts: {
     }
     const lien = LIEN_WORDS.find((l) => l.match.test(text));
     if (lien) next.slots.lien = lien.word;
+  }
+
+  /* ---- WHAT THIS LINE DID NOT ANSWER, counted. The room may ask again; it may
+          not ask again in the same words as if nothing had been said. */
+  if (next.surface === "collateral" && !opts.opening) {
+    const before = pendingSignature(draft);
+    const after = pendingSignature(next);
+    if (after && after === before) {
+      next.missed = {
+        slot: pendingCollateralSlot(next)!,
+        signature: after,
+        count: draft.missed?.signature === after ? draft.missed.count + 1 : 1,
+        heard: text,
+        settled: settledPhrase(draft.slots, next.slots),
+      };
+    } else if (next.missed) {
+      delete next.missed;
+    }
   }
 
   /* ---- the scope, LAST, so the create's own figures cannot be mistaken for a
@@ -2020,6 +2096,24 @@ function collateralAsk(draft: Draft, ctx: ElicitContext): Ask | null {
          does not carry needs to see what it does carry, not be asked the same
          question again. */
       const kinds = assetKinds(ctx);
+      /* AND THE SECOND MISS IS NOT THE FIRST QUESTION AGAIN. What was heard,
+         that the catalog does not carry it, and the two families closest to it.
+         A line that settled something ELSE says so at once: the room acted on
+         it, so claiming it read nothing is worse than asking again. */
+      const missed = draft.missed;
+      if (missed?.slot === "assetKind" && (missed.count >= MISS_ESCALATION || missed.settled)) {
+        const closest = kinds.chips.slice(0, 2);
+        return {
+          slot: "assetKind",
+          text:
+            (missed.settled ? `That line settled the ${missed.settled}. ` : "") +
+            `I cannot place "${missed.heard}" in the bank's collateral catalog and I will not invent a type for it. ` +
+            (closest.length === 2
+              ? `The closest families it carries are ${closest[0]} and ${closest[1]}. Pick one and I will name the types inside it, or type an exact name.`
+              : "Pick a family below and I will name the types inside it, or type an exact name."),
+          options: kinds.chips.map((k) => ({ label: k, say: `a new ${k.toLowerCase()} asset` })),
+        };
+      }
       return {
         slot: "assetKind",
         text:
@@ -2048,6 +2142,19 @@ function collateralAsk(draft: Draft, ctx: ElicitContext): Ask | null {
       };
     }
     if (s.assetValue === undefined) {
+      /* THE SAME RULE, ONE SLOT ON. "first lien" settled the lien and the value
+         question came back verbatim, so the room had acted on the line and
+         still claimed not to have read it. */
+      const missed = draft.missed;
+      if (missed?.slot === "assetValue" && (missed.count >= MISS_ESCALATION || missed.settled)) {
+        return {
+          slot: "assetValue",
+          text:
+            (missed.settled ? `That line settled the ${missed.settled}. ` : "") +
+            `What is still open is the value. "${missed.heard}" carries no amount I can read as money, so give me the figure on its own: $2,000,000 or 2 million.`,
+          options: [],
+        };
+      }
       return {
         slot: "assetValue",
         text: "What is it worth? Say it in full, $2,000,000 or 2 million; I will not read a bare number as money.",

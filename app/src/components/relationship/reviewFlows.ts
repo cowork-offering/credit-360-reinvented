@@ -551,7 +551,7 @@ function covenantStep(ctx: RelContext, a: Answers): RelStep | null {
         : `What figure was tested on the ${covenantLabel(cov ?? {})}?`,
       kind: "number",
       optional: true,
-      options: proposed ? [{ label: proposed, value: proposed, detail: "the figure on the read" }] : undefined,
+      options: proposed ? [{ label: proposed, value: proposed, detail: "the figure on the read", onFile: true }] : undefined,
       placeholder: "The tested figure, or skip it.",
       /* THE TOOL WRITES `LLC_BI__Historic_Financial_Indicator__c`. This peek
          used to name `LLC_BI__Observed_Value__c`, which the tool does not
@@ -699,6 +699,12 @@ function valuationStep(ctx: RelContext, a: Answers): RelStep | null {
         return {
           label: collateralLabel(c),
           value: c.collateralId!,
+          /* THE ORG'S OWN NAMES FOR THE ASSET ARE ANSWERS TOO. The option's
+             VALUE is a Salesforce record id and its LABEL is the long
+             description, so COL-000762 - the autonumber printed on the
+             collateral pane and in nCino - used to be met with the identical
+             re-ask. The bank's own vocabulary for a row is not a miss. */
+          synonyms: [c.collateralName, c.collateralType].filter((x): x is string => Boolean(x && x.trim())),
           detail: [
             c.collateralType,
             typeof c.collateralValue === "number" ? fmtMoney(c.collateralValue) : null,
@@ -715,14 +721,35 @@ function valuationStep(ctx: RelContext, a: Answers): RelStep | null {
   }
   const picked = pickedList(a, "records");
   const values = perRecord(a, "recordValues");
+  const held = new Map(relBookFor(ctx).assets.map((x) => [x.collateralId, x]));
   for (const id of picked) {
-    if (typeof values[id] === "number") continue;
+    /* ANSWERED, NOT "A NUMBER". `covenantStep` already reads its observed
+       figure this way, and the two must agree: the step counter walks this
+       machine writing the SKIPPED sentinel, so a predicate that only accepts a
+       number never clears this step and the counter burned its whole guard.
+       "Step 2 of 65" on a seven-step ritual came from exactly this line. */
+    if (answered(values, id)) continue;
     const asset = assets.find((c) => c.collateralId === id);
+    const label = collateralLabel(asset ?? {});
+    const book = held.get(id);
+    /* THE FIGURE ON FILE LEADS, AND ITS DATE WITH IT. The chooser chip the
+       banker just took already printed both; asking "what value are we filing"
+       cold underneath it is the blank form the golden rule refuses. The on-file
+       figure is OFFERED as an option, exactly as the covenant observed figure
+       is, and it is never written on the banker's behalf. */
+    const onFile = book?.value ?? null;
+    const raw = typeof asset?.collateralValue === "number" ? String(asset.collateralValue) : null;
+    const standing = onFile
+      ? `${label} carries ${onFile} on the book${
+          book?.lastValued ? `, last valued ${book.lastValued}` : ", with no valuation on file"
+        }${book?.lendable ? `, ${book.lendable} lendable` : ""}.`
+      : null;
     return {
       key: `recordValues.${id}`,
-      ask: `What value are we filing for ${collateralLabel(asset ?? {})}?`,
+      ask: standing ? `${standing} File that figure, or give me the new one.` : `What value are we filing for ${label}?`,
       kind: "number",
-      placeholder: "The figure, in dollars.",
+      options: onFile && raw ? [{ label: onFile, value: raw, detail: "the figure on the book", onFile: true }] : undefined,
+      placeholder: onFile ? `The figure, in dollars, or take the ${onFile} on file.` : "The figure, in dollars.",
       target: { object: "LLC_BI__Collateral_Valuation__c", field: "LLC_BI__Value__c" },
     };
   }
@@ -796,9 +823,20 @@ function valuationStep(ctx: RelContext, a: Answers): RelStep | null {
  * not agree, and the panel schema records the same mismatch. The room names the
  * object the plan actually writes.
  */
-const RATING_FACTORS: Array<{ key: string; label: string; ask: string; field: string }> = [
-  { key: "cashFlowCoverage", label: "cash-flow coverage", ask: "What is cash-flow coverage on this borrower?", field: "cashFlowCoverageActual" },
-  { key: "revenueGrowth", label: "revenue growth", ask: "And revenue growth?", field: "revenueGrowthActual" },
+/** `from` is the TEST on the book that measures the same thing. No read on this
+ *  cockpit carries these four as rating inputs; where the relationship runs a
+ *  covenant over the same quantity, the room shows that figure and names it as
+ *  the covenant's rather than asking cold beside it. Nothing is derived and
+ *  nothing is defaulted: the figure is offered and the banker answers. */
+const RATING_FACTORS: Array<{ key: string; label: string; ask: string; field: string; from?: RegExp }> = [
+  {
+    key: "cashFlowCoverage",
+    label: "cash-flow coverage",
+    ask: "What is cash-flow coverage on this borrower?",
+    field: "cashFlowCoverageActual",
+    from: /\b(coverage|debt\s*service|dscr|fixed\s*charge)\b/i,
+  },
+  { key: "revenueGrowth", label: "revenue growth", ask: "And revenue growth?", field: "revenueGrowthActual", from: /\brevenue\b/i },
   { key: "managementExperience", label: "management experience", ask: "Management experience, in years?", field: "managementExperienceActual" },
   { key: "creditScore", label: "credit score", ask: "And the credit score?", field: "creditScoreActual" },
 ];
@@ -808,16 +846,43 @@ const RATING_FACTORS: Array<{ key: string; label: string; ask: string; field: st
  *  so the room says which is which rather than implying a model. */
 const SCORED_FACTOR = "cashFlowCoverage";
 
+/** WHERE THE BANKER LEARNS THAT THREE OF THE FOUR ARE STORED AND NOT WEIGHED:
+ *  the first question that asks for one of them. Said over the scored factor it
+ *  would tell them nothing about the three still coming. */
+const FIRST_STORED_FACTOR = RATING_FACTORS.find((f) => f.key !== SCORED_FACTOR)!.key;
+
 const RATING_OBJECT = "LLC_BI__Annual_Review__c";
 
 function ratingStep(ctx: RelContext, a: Answers): RelStep | null {
+  const covenants = reviewableCovenants(ctx);
+  const rails = new Map(relBookFor(ctx).covenants.map((c) => [c.covenantId, c.rail]));
   for (const factor of RATING_FACTORS) {
     if (answered(a, factor.key)) continue;
+    const held = factor.from
+      ? covenants.find((c) => typeof c.actualValue === "number" && factor.from!.test(covenantLabel(c)))
+      : undefined;
+    const rail = held ? (rails.get(held.covenantId as string) ?? String(held.actualValue)) : null;
+    const note = factor.key === FIRST_STORED_FACTOR ? ` ${SCORED_VS_STORED}` : "";
     return {
       key: factor.key,
-      ask: factor.ask,
+      /* THE READ'S CLOSEST FIGURE LEADS, NAMED FOR WHAT IT IS. It is the
+         covenant's figure and the sentence says so, so nobody reads it as the
+         rating input already on file. Where the read carries nothing at all the
+         question says that too, rather than standing there as a blank box. */
+      ask: held
+        ? `${factor.ask} The closest figure the read carries is the ${covenantLabel(held)} test at ${rail}.${note}`
+        : `${factor.ask} No read on this cockpit carries it, so the figure is yours or the question is skipped.${note}`,
       kind: "number",
       optional: true,
+      options: held
+        ? [
+            {
+              label: String(held.actualValue),
+              value: String(held.actualValue),
+              detail: `the ${covenantLabel(held)} test's own figure`,
+            },
+          ]
+        : undefined,
       placeholder: "The figure, or skip it.",
       target: { object: RATING_OBJECT, field: factor.field },
     };
@@ -1038,6 +1103,9 @@ function serviceStep(ctx: RelContext, a: Answers): RelStep | null {
         ? [{ label: inbound.slice(0, 120), value: inbound.slice(0, 120), detail: "from the client's request" }]
         : undefined,
       placeholder: "The ask, in one line.",
+      // THIS LINE IS THE CASE SUBJECT. A subject nobody can action is a case
+      // nobody can defend at audit, so the room challenges it once.
+      substantive: true,
       target: { object: "Case", field: "Subject" },
     };
   }
@@ -1051,23 +1119,25 @@ function serviceStep(ctx: RelContext, a: Answers): RelStep | null {
          route was bound from the field exam offer or typed straight in. */
       options: fieldExamBodyOption(a.requestType),
       placeholder: "The request, in full.",
+      // AND THIS ONE IS THE CASE BODY, which the servicing team works from.
+      substantive: true,
       target: { object: "Case", field: "Description" },
     };
   }
   if (!answered(a, "detail")) {
-    /* THE DETAIL RIDES `rationale`, NOT A `description` KEY. The Case request
-       class carries ONE free-text field on the wire (`summary`, which lands on
-       Subject); the panel's own Description control is a fallback for it and
-       never a second field. So the detail is folded into the audit rationale,
-       which IS on the wire, and the room says nothing about a Description it
-       cannot write. */
+    /* THE DETAIL RIDES `rationale`, AND THE PEEK NOW SAYS SO.
+       `buildStagePayload` folds `a.detail` into `typed`, which becomes the
+       plan's `rationale`; it puts no `detail` on the wire and it never has.
+       The step nonetheless claimed {Case, Description}, which `summary` already
+       owns and actually writes, so the founder was reading a peek that named a
+       field this answer does not reach. A step with no target claims nothing:
+       the ask itself says where the words go. */
     return {
       key: "detail",
-      ask: "Anything further for the audit record?",
+      ask: "Anything further for the audit record? It rides the plan's rationale, not the case body.",
       kind: "text",
       optional: true,
       placeholder: "Further detail, or skip it.",
-      target: { object: "Case", field: "Description" },
     };
   }
   return null;

@@ -1060,8 +1060,13 @@ describe("the line that named the review is not an answer to its first question"
       say: "add a relationship covenant: minimum liquidity of 5M tested quarterly",
     });
     await settle();
-    // Past the first question, which the line itself answered.
-    expect(liveAsk()).toContain("Which test is this covenant?");
+    /* Past every question the line itself answered: which of the two it is, the
+       test, the threshold and the schedule. The room asks the next thing it does
+       NOT hold, which is the date the schedule is anchored on. (Before audit
+       finding 6 the type could not resolve at all with no catalog in hand, so
+       the room asked "Which test is this covenant?" over a line that said it.) */
+    expect(liveAsk()).toContain("From what date");
+    expect(liveAsk()).toContain("Minimum Liquidity");
     expect(room.textContent).toContain("add a relationship covenant: minimum liquidity of 5M tested quarterly");
   });
 

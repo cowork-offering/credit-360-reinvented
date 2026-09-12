@@ -886,20 +886,31 @@ describe("the room says what it files and what it does not", () => {
 
 /* ------------------------------------------------------- the empty catalog */
 
-describe("with no catalog the room asks rather than inventing a list", () => {
-  it("offers no chips and says the name has to be the org's", () => {
+/* CHANGED 2026-09-12 (audit finding 6). Reading the type names off the live org
+   ONLY left an empty catalog refusing every name the banker typed, with an empty
+   chip set under the refusal and no way past it. The fallback is the SHELL'S OWN
+   MIRROR, which `elicit.ts` has resolved a typed name against since the facility
+   room shipped (`assetTypeUniverse`, `covenantTypeChips`), so it is the same
+   list the rest of this client already stands on rather than a list made up
+   here. A name neither the org nor the mirror carries is still refused. */
+describe("with no catalog the room stands on the shell's own mirror", () => {
+  it("offers the mirror's names rather than an empty chip set", () => {
     const ctx = ctxFor({ catalog: null });
     const step = nextStep("intake", ctx, { intakeKind: "covenant" })!;
-    expect(step.options).toBeUndefined();
-    expect(step.placeholder).toContain("exactly as the org holds it");
+    expect(step.options?.map((o) => o.value)).toContain("Minimum Liquidity");
+    expect(step.placeholder).toContain("Pick one");
   });
 
-  it("never resolves a type it could not have read", () => {
+  it("resolves a name the mirror carries, and refuses one it does not", () => {
     const ctx = ctxFor({ catalog: null });
     const a: Answers = { intakeKind: "covenant" };
     answer(a, "covTest.0", "Minimum Liquidity");
-    expect(covenantDrafts(ctx, a)[0].typeName).toBeNull();
-    expect(nextStep("intake", ctx, a)!.key).toBe("covPick.0");
+    expect(covenantDrafts(ctx, a)[0].typeName).toBe("Minimum Liquidity");
+
+    const b: Answers = { intakeKind: "covenant" };
+    answer(b, "covTest.0", "Interest Coverage");
+    expect(covenantDrafts(ctx, b)[0].typeName).toBeNull();
+    expect(nextStep("intake", ctx, b)!.key).toBe("covPick.0");
   });
 });
 

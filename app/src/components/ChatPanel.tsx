@@ -84,11 +84,39 @@ function ConnectionDetails() {
   );
 }
 
-/** Merge injected threads + session-local messages, dedupe by id (A15). */
-function mergeMessages(threads: AiMessage[], local: AiMessage[]): AiMessage[] {
+/** How far apart a local message and the agent's own written-back copy of it
+ *  may sit and still be the same exchange. The two clocks are different
+ *  machines, so it is a window and not an equality. */
+const ECHO_WINDOW_MS = 120_000;
+
+/**
+ * Merge injected threads + session-local messages, dedupe by id (A15).
+ *
+ * AND BY THE EXCHANGE ITSELF (golden rule 5, finding I8). Dedupe by id alone let
+ * a locally rendered question and the agent's written-back copy of it BOTH
+ * render: two identical bubbles, one answer said twice, on the surface a founder
+ * demo opens on. The ids differ by construction, so nothing on the id could ever
+ * have caught it.
+ *
+ * THE LOCAL COPY IS THE ONE THAT SURVIVES, always: it is the bubble the banker
+ * already watched arrive, and it carries the id the word cadence is keyed on.
+ * The match is only ever made ACROSS the two sources, so a banker who genuinely
+ * asks the same thing twice in one session still sees both.
+ */
+export function mergeMessages(threads: AiMessage[], local: AiMessage[]): AiMessage[] {
+  const at = (m: AiMessage) => Date.parse(m.ts ?? "") || 0;
+  const echoedLocally = (m: AiMessage) =>
+    local.some(
+      (l) =>
+        l.id !== m.id &&
+        l.role === m.role &&
+        l.text.trim() === m.text.trim() &&
+        (!at(l) || !at(m) || Math.abs(at(l) - at(m)) <= ECHO_WINDOW_MS),
+    );
+
   const seen = new Set<string>();
   const out: AiMessage[] = [];
-  for (const m of [...threads, ...local]) {
+  for (const m of [...threads.filter((m) => !echoedLocally(m)), ...local]) {
     if (seen.has(m.id)) continue;
     seen.add(m.id);
     out.push(m);
@@ -229,21 +257,42 @@ export function ChatPanelBody() {
     await send(s.prompt);
   }
 
-  async function send(text: string) {
+  /**
+   * SEND, WITH THE CONVERSATION SO FAR.
+   *
+   * `echo: false` is the RETRY (golden rule 5). "Ask again" used to re-post the
+   * question as a second user bubble, so a banker who retried a failed call read
+   * their own question twice and the thread claimed they had asked it twice.
+   * The question is already in the thread; only the ask is repeated.
+   */
+  async function send(text: string, opts: { echo?: boolean } = {}) {
     const prompt = text.trim();
     if (!prompt || !available || sending) return;
+    const echo = opts.echo !== false;
+
+    /* THE CONVERSATION SO FAR, READ BEFORE THE ECHO IS PUSHED. This is what
+       makes the desk a conversation rather than a series of first questions
+       (finding I8). The banker's own words travel verbatim; `deskThread` clips
+       and budgets it exactly as the rooms' envelope does. */
+    const history = messages.map((m) => ({ who: m.role === "user" ? ("banker" as const) : ("agent" as const), text: m.text }));
+    // ON A RETRY the question is already the last thing in the thread, and a
+    // question asked twice in one prompt is the double input rule 5 forbids.
+    const last = history[history.length - 1];
+    const thread = !echo && last?.who === "banker" && last.text === prompt ? history.slice(0, -1) : history;
 
     const requestId = newRequestId();
-    dispatch({
-      type: "PUSH_MESSAGE",
-      message: {
-        id: requestId,
-        role: "user",
-        text: prompt,
-        ts: new Date().toISOString(),
-        context: { accountId: account?.accountId, tab: tabLabel ?? undefined },
-      },
-    });
+    if (echo) {
+      dispatch({
+        type: "PUSH_MESSAGE",
+        message: {
+          id: requestId,
+          role: "user",
+          text: prompt,
+          ts: new Date().toISOString(),
+          context: { accountId: account?.accountId, tab: tabLabel ?? undefined },
+        },
+      });
+    }
     dispatch({ type: "SET_DRAFT", draft: "" });
     setSendState("sending");
     setFailure(null);
@@ -261,6 +310,7 @@ export function ChatPanelBody() {
             bundle,
             accountName: account.name ?? "this relationship",
             question: prompt,
+            thread,
           });
           dispatch({
             type: "PUSH_MESSAGE",
@@ -375,8 +425,14 @@ export function ChatPanelBody() {
           {/* Branch on the error CODE — never one catch-all banner (it would
               hide the single action that fixes the page). */}
           {failure ? failure.fix : "Could not reach the desk. Try again from an agent-connected session."}
+          {/* The question is already in the thread. Repeating the ASK must not
+              repeat the banker's own bubble (golden rule 5). */}
           {lastQuestion && (
-            <button type="button" onClick={() => void send(lastQuestion)} className="chatchip c360-press mt-1.5 block">
+            <button
+              type="button"
+              onClick={() => void send(lastQuestion, { echo: false })}
+              className="chatchip c360-press mt-1.5 block"
+            >
               Ask again
             </button>
           )}
@@ -401,11 +457,11 @@ export function ChatPanelBody() {
           <BugCopyButton
             build={() =>
               chatToMarkdown(messages, {
-                surface: `Cockpit chat${account?.name ? ` — ${account.name}` : ""}`,
+                surface: `Cockpit chat${account?.name ? `: ${account.name}` : ""}`,
                 bookAsOf: data.meta?.generatedAt,
               })
             }
-            surface={`Cockpit chat${account?.name ? ` — ${account.name}` : ""}`}
+            surface={`Cockpit chat${account?.name ? `: ${account.name}` : ""}`}
             accountName={account?.name}
             bookAsOf={data.meta?.generatedAt}
           />

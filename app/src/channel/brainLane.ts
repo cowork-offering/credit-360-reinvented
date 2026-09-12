@@ -101,7 +101,54 @@ export interface BrainReadBlocks {
      *  valuation on file" where the read stages none. */
     valuation?: string;
   }>;
-  exposure?: { committed: string; drawn: string; available?: string; facilities: number };
+  /**
+   * THE OBLIGOR GROUP, DOWNSTREAM OF THE BORROWER IN VIEW.
+   *
+   * `involvements` is who is on the DEAL; this is who the borrower IS connected
+   * to — the parent that owns it, the affiliates beside it, the principals who
+   * own it and by how much. The read carries both and only the first travelled,
+   * so a parent reached the desk as a guarantor and two owners lost their 60/40
+   * altogether. Rule 1 names the obligor group explicitly.
+   */
+  group?: Array<{
+    name: string;
+    /** Normalised from the org's own role word, never guessed from a name. */
+    relation: "parent" | "subsidiary" | "affiliate" | "owner" | "guarantor";
+    /** The org's own word where it says more than the relation does
+     *  ("Co-Owner", "Affiliated Company"). Absent where it says the same. */
+    role?: string;
+    /** Total ownership as the org carries it, direct or indirect. */
+    ownership?: string;
+    /** The counterparty's OWN highest risk grade, where the structural signals
+     *  carry one. Never their exposure: no read on this cockpit carries it, and
+     *  `notCarried` says so by name. */
+    grade?: string;
+  }>;
+  /**
+   * THE VERSION CHAIN, as `book/packages.ts` already computes it for the glass.
+   *
+   * nCino files a modification as a new package VERSION whose members start
+   * unbooked, and the room refuses a second fork off a package that has one in
+   * flight. That refusal reached the banker with the chat knowing nothing about
+   * it, so "why can't I modify this" was answered blind. Absent where the
+   * roster names no version on either side of this package.
+   */
+  inFlight?: {
+    /** This package IS the unbooked version. */
+    version?: true;
+    /** A version forked from this package is unbooked with the org. */
+    hasInFlightModification?: true;
+    /** The version's own package id, where the roster links one. */
+    versionId?: string;
+    /** Still the banker's to shape, or already at Approval / Loan Committee. */
+    editable?: boolean;
+    /** The roster's own one-line account of it. */
+    reason?: string;
+  };
+  /** The package's own totals. `scope` says WHICH book they are over, because
+   *  the cockpit chat totals the whole relationship and these two figures
+   *  differ on any relationship carrying more than one package. */
+  exposure?: { committed: string; drawn: string; available?: string; facilities: number; scope: string };
   /** Pricing AS STORED. Rate only: this org stores no index name (see the
    *  prompt's prohibition) and no read on this cockpit carries a spread. */
   pricing?: Array<{ facility: string; rate: string }>;
@@ -247,8 +294,18 @@ export interface BrainEnvelope {
 export const ENVELOPE_CAP_BYTES = 10_000;
 
 /** Read blocks in the order they are given up. Exposure is last: it is four
- *  figures and it grounds nearly every question a banker asks. */
-export const ENVELOPE_BLOCK_DROP_ORDER = ["pricing", "collateral", "involvements", "covenants", "exposure"] as const;
+ *  figures and it grounds nearly every question a banker asks. The obligor
+ *  group goes after the deal's own parties, and the version chain after it:
+ *  both are small, and both answer questions nothing else in the envelope can. */
+export const ENVELOPE_BLOCK_DROP_ORDER = [
+  "pricing",
+  "collateral",
+  "involvements",
+  "group",
+  "inFlight",
+  "covenants",
+  "exposure",
+] as const;
 
 const sizeOf = (envelope: BrainEnvelope): number => JSON.stringify(envelope).length;
 
@@ -831,7 +888,8 @@ export function composeBrainPrompt(envelope: BrainEnvelope): string {
        The envelope is no longer blind, so an answer that ignores it is now a
        worse failure than one that refuses. */
     "GROUNDING FACTS. CONTEXT.reads carries what this room has already read:",
-    "covenants, involvements, collateral, exposure and pricing, formatted as the glass prints them.",
+    "covenants, involvements, the obligor group, the package's version chain, collateral, exposure and pricing,",
+    "formatted as the glass prints them.",
     "Answer READS from those blocks and state the figures as they stand there.",
     "CONTEXT.reads.notCarried names what no read on this cockpit holds, and CONTEXT.omitted names",
     "what was dropped to fit. Refuse those BY NAME. An absent block is never an empty fact.",

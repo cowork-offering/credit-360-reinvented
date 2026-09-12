@@ -232,7 +232,7 @@ describe("AUDIT — collateral valuation", () => {
      (`assign(probe, step.key, step.kind === "multi" ? [] : step.kind === "number" ? 0 : SKIPPED)`),
      or make `valuationStep` test `answered(values, id)` the way `covenantStep`
      already tests its observed figure. */
-  it.skip("counts the steps it is going to ask, not 65 of them", async () => {
+  it("counts the steps it is going to ask, not 65 of them", async () => {
     const room = open("valuation");
     await settle();
     chip(/CNC machining line/);
@@ -252,7 +252,7 @@ describe("AUDIT — collateral valuation", () => {
      the appraisal date and the lendable figure, and offer the on-file figure as
      an option chip the way the covenant observed-value step does
      (reviewFlows.ts:546-555). */
-  it.skip("leads the value question with the appraisal on file and its date", async () => {
+  it("leads the value question with the appraisal on file and its date", async () => {
     const room = open("valuation");
     await settle();
     chip(/CNC machining line/);
@@ -275,7 +275,7 @@ describe("AUDIT — collateral valuation", () => {
      synonyms on `StepOption`, matched by `matchOptions` alongside label and
      value), and make the second consecutive miss name what CAN be said rather
      than repeating the sentence. */
-  it.skip("takes the asset's own autonumber as an answer", async () => {
+  it("takes the asset's own autonumber as an answer", async () => {
     const room = open("valuation");
     await settle();
     await type(room, "COL-000762");
@@ -295,7 +295,7 @@ describe("AUDIT — annual review", () => {
      facility-work test the way `readRelRouteSwitch` already takes it, and skip
      the handoff while the live step is an open `text` step that is not itself a
      request (i.e. only hand off on a SHORT, route-naming line). */
-  it.skip("takes 'Renew at current terms.' as the recommendation, not as facility work", async () => {
+  it("takes 'Renew at current terms.' as the recommendation, not as facility work", async () => {
     const room = open("annual");
     await settle();
     chip(/^Annual/);
@@ -320,7 +320,7 @@ describe("AUDIT — relationship intake", () => {
      more than the disambiguation itself — require it to survive stripping the
      kind words ("a covenant" / "an asset" / "collateral"), not merely to
      contain a space. */
-  it.skip("does not file the word 'an asset' as the asset's description", async () => {
+  it("does not file the word 'an asset' as the asset's description", async () => {
     const room = open("intake", CATALOG);
     await settle();
     await type(room, "an asset");
@@ -346,7 +346,7 @@ describe("AUDIT — relationship intake", () => {
      (`ASSET_KIND_OPTIONS`, elicit.ts:1203-1210, and `FILEABLE_COVENANT_TYPES`,
      elicit.ts:1409-1419) as the fallback when the catalog is empty, exactly as
      `assetTypeUniverse` (elicit.ts:1336-1341) does. */
-  it.skip("still offers collateral types when the catalog read came back empty", async () => {
+  it("still offers collateral types when the catalog read came back empty", async () => {
     const room = open("intake", null);
     await settle();
     await type(room, "an asset");
@@ -370,7 +370,7 @@ describe("AUDIT — reads inside a bound review", () => {
      (RelationshipRoom.tsx:1561-1581), re-emit the live step's question, and
      give `buildRelReadCard`/`buildReadCard` a room-aware follow-up rather than
      the facility room's. */
-  it.skip("returns to the live question after answering a read", async () => {
+  it("returns to the live question after answering a read", async () => {
     const room = open("covenant");
     await settle();
     chip(/Debt Service Coverage/);
@@ -415,7 +415,7 @@ describe("AUDIT — the create stepper (elicit.ts), the named soft spot", () => 
      narrow to the chips ("I cannot place 'solar array' in the bank's catalog.
      The closest families are Equipment and Real Estate; pick one and I will
      name the types inside it"), rather than repeating the question. */
-  it.skip("does not re-emit the identical asset-kind question on a word the catalog misses", async () => {
+  it("does not re-emit the identical asset-kind question on a word the catalog misses", async () => {
     const { advance, openCreate, readInto, EMPTY_BOOK } = await import("./components/workroom/elicit");
     const m = { id: "0Cb1", key: "0Cb1", label: "Term Loan", orgName: "Term Loan", shortName: "Term", product: "Term", committed: 8_000_000 };
     const ectx = { members: [m], book: EMPTY_BOOK, focused: m, catalog: null } as never;
@@ -438,7 +438,7 @@ describe("AUDIT — the create stepper (elicit.ts), the named soft spot", () => 
      silently, so the room acted on the line and still claimed not to have read
      it. MINIMAL FIX: same counter; on a repeat miss, say what the line DID
      settle and re-ask only for the figure. */
-  it.skip("does not re-emit the identical value question on a line it has already acted on", async () => {
+  it("does not re-emit the identical value question on a line it has already acted on", async () => {
     const { advance, openCreate, readInto, EMPTY_BOOK } = await import("./components/workroom/elicit");
     const m = { id: "0Cb1", key: "0Cb1", label: "Equipment Loan", orgName: "Equipment Loan", shortName: "Equipment", product: "Equipment", committed: 8_000_000 };
     const ectx = { members: [m], book: EMPTY_BOOK, focused: m, catalog: null } as never;

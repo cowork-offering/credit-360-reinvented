@@ -158,7 +158,14 @@ function requestsCard(ctx: RelContext): ReadCardModel | null {
   };
 }
 
-export function buildRelReadCard(topic: RelReadTopic, ctx: RelContext): ReadCardModel | null {
+export function buildRelReadCard(topic: RelReadTopic, ctx: RelContext, followUp?: string): ReadCardModel | null {
+  const card = relCardFor(topic, ctx);
+  /* THE LIVE QUESTION WINS WHERE THERE IS ONE. A read answered three questions
+     into a review hands back to the review, not to the room's front door. */
+  return card && followUp ? { ...card, followUp } : card;
+}
+
+function relCardFor(topic: RelReadTopic, ctx: RelContext): ReadCardModel | null {
   if (topic === "rating") return ratingCard(ctx);
   if (topic === "requests") return requestsCard(ctx);
   /* REVIEWS ARE NEVER A CARD, because no read on this cockpit carries

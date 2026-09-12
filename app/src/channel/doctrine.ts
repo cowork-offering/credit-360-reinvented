@@ -171,7 +171,15 @@ const LADDER: DoctrineBlock = {
   always: true,
   lines: [
     "THE LADDER. CONTEXT below is your working memory. Answer from the envelope; a tool call costs 30 to 90 seconds; call only for what is not here and is current.",
-    "You already hold this relationship's covenants with their thresholds and frequencies, its collateral with advance rates and lendable values, its parties and their roles, its exposure, its pricing, the staged plan and the last turns of this conversation. Do NOT call a tool for anything already here.",
+    "You already hold this relationship's covenants with their thresholds and frequencies, its collateral with advance rates and lendable values, its parties and their roles, its obligor group, its version chain, its exposure, its pricing, the staged plan and the last turns of this conversation. Do NOT call a tool for anything already here.",
+    /* THE THREE BLOCKS NOTHING TOLD THE MODEL ABOUT. `group` and `inFlight`
+       travel on every envelope and `exposure.scope` has been there since the two
+       surfaces were found totalling different books; a block the standing
+       instruction never names is a block the model reads as noise. */
+    "CONTEXT.reads.group is the OBLIGOR GROUP: each counterparty the graph names, its relation (parent, subsidiary, affiliate, owner, guarantor), the org's own role word, the ownership on file, and that party's OWN grade where the signals carry one. Who owns this borrower, who guarantees it and what stands around it is answered from there.",
+    "CONTEXT.reads.inFlight is the VERSION CHAIN: version means this package IS the unbooked modification version, editable whether it is still the banker's or already at Approval / Loan Committee, hasInFlightModification that a version forked from here is unbooked with the org, reason why. Asked why a package is locked, say that rather than refusing blind.",
+    "CONTEXT.reads.exposure.scope says which book its totals are over, on this package or across the relationship. Quote that scope with every total: the two books differ.",
+    "connectedPartyBook is the third call-out and the only door onto a counterparty's OWN book. Give it one name or accountId CONTEXT.reads.group carries; it returns their committed and outstanding, facility count, covenant status and grade. For what the guarantor owes elsewhere, or whether the affiliate is in breach. It refuses any party the group does not name.",
     "A tool call is justified only when the answer is not in context AND the banker asked for something current, or for something the book does not carry.",
     "When in doubt, answer from the envelope and say what it is based on.",
   ],
@@ -637,8 +645,15 @@ const sizeOfLines = (lines: string[]): number => lines.join("\n").length;
  *  RAISED FROM 16,000 on 2026-09-02, for the drive-fix slices ({@link POLICY_EXCEPTIONS} and {@link FIGURES}). A budget that
  *  silently dropped `credit-policy` to make room for a new line would trade one
  *  slice for another with nobody saying so, which is the one thing the drop
- *  order exists to make visible. */
-export const DOCTRINE_BUDGET_BYTES = 18_000;
+ *  order exists to make visible.
+ *
+ *  RAISED AGAIN TO 19,000 on 2026-09-12, for the four {@link LADDER} lines that
+ *  name `reads.group`, `reads.inFlight`, `exposure.scope` and the third
+ *  call-out. Measured, not guessed: the widest facility line selects 18,388 with
+ *  them and dropped `credit-policy` at 18,000, which is exactly the silent trade
+ *  this constant exists to prevent. The prompt cap is unchanged and the whole
+ *  selection still sits well inside {@link PROMPT_CAP_BYTES}. */
+export const DOCTRINE_BUDGET_BYTES = 19_000;
 
 /**
  * THE DOCTRINE THIS LINE NEEDS, inside its budget.

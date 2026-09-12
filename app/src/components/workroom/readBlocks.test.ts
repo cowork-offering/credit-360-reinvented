@@ -115,6 +115,55 @@ describe("what the room read travels with the line", () => {
     for (const row of blocks.pricing ?? []) expect(row.rate).toMatch(/%$/);
   });
 
+  /* THE TOTAL SAYS WHICH BOOK IT IS OVER. The cockpit chat sums every active
+     facility on the relationship ($57M / 9 on Hartwell) and this sums the
+     anchored package ($49M / 7). Both are honest; neither said which, so one
+     deal read as two figures depending on which surface the banker asked. */
+  it("names the scope of its own totals, because the chat totals a different book", () => {
+    const anchored = buildReadBlocks({ ...src, productPackageId: "a5Fbb000000IHFJEA4" })!;
+    expect(anchored.exposure).toEqual({ committed: "$49M", drawn: "$31.03M", available: "$17.97M", facilities: 7, scope: "on this package" });
+    // Unanchored, the same builder is reading the whole relationship, and says so.
+    expect(blocks.exposure).toMatchObject({ committed: "$57M", facilities: 9, scope: "across the relationship" });
+  });
+
+  /* THE OBLIGOR GROUP (golden rule 1, finding B4). `graph.legalEntities` says
+     who is on the DEAL; `graph.connections` says who the borrower IS connected
+     to, and only the first travelled. The parent read as a guarantor, the
+     affiliate as a role on one loan, and the 60/40 between the two owners was
+     dropped outright by the involvement block's own detail rule. */
+  it("carries the obligor group: the parent, the affiliate and the owners with their ownership", () => {
+    expect(blocks.group).toEqual([
+      { name: "Hartwell Industrial Holdings LLC", relation: "parent", role: undefined, ownership: "100%", grade: "4" },
+      { name: "Hartwell Logistics LLC", relation: "affiliate", role: "Affiliated Company", ownership: undefined, grade: undefined },
+      // "Owner" says exactly what the relation says, so it does not travel twice.
+      { name: "James Hartwell", relation: "owner", role: undefined, ownership: "60%", grade: undefined },
+      { name: "Elena Hartwell", relation: "owner", role: "Co-Owner", ownership: "40%", grade: undefined },
+    ]);
+  });
+
+  it("keeps the side of a two-ended link that says the most, never the 0% reverse row", () => {
+    // The graph writes the parent twice: `Parent` inbound at 100% and `Child`
+    // outbound at 0%. One counterparty, one row, and it is the one that reads.
+    const names = blocks.group!.map((g) => g.name);
+    expect(new Set(names).size).toBe(names.length);
+    expect(blocks.group!.every((g) => g.relation !== "subsidiary")).toBe(true);
+  });
+
+  it("refuses the downstream book BY NAME, because no read on this cockpit opens it", () => {
+    const said = blocks.notCarried.join(" ");
+    expect(said).toMatch(/a guarantor's, parent's or affiliate's OWN exposure/);
+    expect(said).toMatch(/cross-default/);
+    expect(said).toMatch(/depends on one of them/);
+  });
+
+  it("names the obligor group itself where the read stages no graph for it", () => {
+    const noGraph = buildReadBlocks({ ...src, bundle: { ...bundle, graph: { legalEntities: bundle.graph?.legalEntities } } })!;
+    expect(noGraph.group).toBeUndefined();
+    expect(noGraph.notCarried.join(" ")).toMatch(/the obligor group - parent, affiliates, subsidiaries and owners/);
+    // And it is NOT said where the group actually travels.
+    expect(blocks.notCarried.join(" ")).not.toMatch(/the obligor group - parent/);
+  });
+
   it("NEVER carries an index name, because the org does not store one", () => {
     expect(JSON.stringify(blocks)).not.toMatch(/SOFR|LIBOR|Prime rate/i);
     expect(blocks.notCarried.join(" ")).toMatch(/index name/);
@@ -139,6 +188,57 @@ describe("what the room read travels with the line", () => {
   it("is absent altogether where the room stands on no read", () => {
     expect(buildReadBlocks(undefined)).toBeUndefined();
     expect(buildReadBlocks({ bundle: null, accountName: "x", productPackageId: null })).toBeUndefined();
+  });
+});
+
+/* =============================================================================
+   WHY THE ROOM IS LOCKED (golden rule 1, finding B5).
+
+   `book/packages.ts` already computes the version chain for the pickers, and the
+   room already enforces it. The envelope carried none of it, so a banker asking
+   "why can I not modify this" was answered by a model that had never been told a
+   version of this package is sitting unbooked with the org. The fixture is
+   Hartwell's own live fork, the same shape `book/packages.test.ts` pins.
+   ============================================================================= */
+
+describe("the version in flight travels with the read", () => {
+  const SOURCE = "a5Fbb000000J6BNEA0";
+  const VERSION = "a5Fbb000000JFzREAW";
+  const loan = (over: Record<string, unknown>) => ({ status: "Open", productPackageId: SOURCE, stage: "Booked", ...over });
+  const forked = (stage = "Qualification") => ({
+    snapshot: { accountId: "001bb00001I7FPNAA3", name: "Hartwell Precision Manufacturing LLC" },
+    exposure: {
+      facilities: [
+        loan({ loanId: "a4Zbb000002ICnyEAG", name: "Hartwell - Equipment - $1,500,000.00", committed: 1_500_000 }),
+        loan({ loanId: "a4Zbb000002ICnxEAG", name: "Hartwell - Purchase - $6,500,000.00", committed: 6_500_000 }),
+        loan({ loanId: "a4Zbb000002KFD3EAO", name: "Hartwell - Equipment - $1,500,000.00", committed: 1_500_000, productPackageId: VERSION, stage }),
+        loan({ loanId: "a4Zbb000002KFD4EAO", name: "Hartwell - Purchase - $12,000,000.00", committed: 12_000_000, productPackageId: VERSION, stage }),
+      ],
+    },
+  }) as unknown as typeof bundle;
+
+  it("says the source package is locked, and why, in the words the picker uses", () => {
+    const blocks = buildReadBlocks({ bundle: forked(), accountName: "Hartwell", productPackageId: SOURCE })!;
+    expect(blocks.inFlight).toEqual({
+      version: undefined,
+      hasInFlightModification: true,
+      versionId: VERSION,
+      editable: undefined,
+      reason: "Modification in Progress - a version of this package is unbooked with the org, and a second one would fork the version chain",
+    });
+  });
+
+  it("says the room is standing IN the version, and whether it is still the banker's", () => {
+    const open = buildReadBlocks({ bundle: forked(), accountName: "Hartwell", productPackageId: VERSION })!;
+    expect(open.inFlight).toMatchObject({ version: true, editable: true });
+    expect(open.inFlight!.reason).toContain("editable until approval");
+    const taken = buildReadBlocks({ bundle: forked("Approval / Loan Committee"), accountName: "Hartwell", productPackageId: VERSION })!;
+    expect(taken.inFlight).toMatchObject({ version: true, editable: false });
+    expect(taken.inFlight!.reason).toContain("in approval");
+  });
+
+  it("is absent where the roster names no version on either side", () => {
+    expect(buildReadBlocks(src)!.inFlight).toBeUndefined();
   });
 });
 

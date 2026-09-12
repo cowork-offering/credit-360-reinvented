@@ -5,7 +5,7 @@ import { observedOptions } from "../../actions/observedPicklists";
 import { orgAccepted, orgValues } from "../../channel/catalog";
 import type { StagePayloads } from "../../channel/writeTools";
 import { collateralAssets, shortAssetTitle, type CollateralAsset } from "../../domain/collateralAssets";
-import { clipTitle } from "../workroom/elicit";
+import { ASSET_KIND_OPTIONS, FILEABLE_COVENANT_TYPES, clipTitle } from "../workroom/elicit";
 import { FACILITY_HANDOFF } from "./relRoute";
 import type { IconKind } from "../workroom/TypeIcon";
 import {
@@ -178,11 +178,20 @@ const CHIP_CAP = 10;
    that path resolves a TYPE ID client-side. Here the org does the resolving, so
    narrowing to nine would hide 62 types the tool would have accepted. */
 
-/** Every covenant type name this relationship can file, org first, mirror never:
- *  with no catalog in hand the room says it cannot offer the list rather than
- *  offering a list it made up. */
+/**
+ * Every covenant type name this relationship can file: the ORG's own list where
+ * the catalog read carries one, and the shell's mirror where it does not.
+ *
+ * THE MIRROR IS NOT AN INVENTION, it is the one `elicit.ts` has stood on since
+ * the facility room shipped, and `assetTypeUniverse` reads its collateral twin
+ * the same way. Reading the org only left a null catalog refusing EVERY typed
+ * name with an empty chip set under it, which is the channel-none doctrine
+ * applied backwards: with no connector the room asks the banker to write the
+ * name, it does not refuse the name they write.
+ */
 export function covenantTypeNames(ctx: RelContext): string[] {
-  return [...new Set(orgValues(ctx.catalog, "covenantType"))];
+  const live = orgValues(ctx.catalog, "covenantType");
+  return live.length ? [...new Set(live)] : [...FILEABLE_COVENANT_TYPES];
 }
 
 /** The types this relationship already tests, in the order the book carries
@@ -235,7 +244,11 @@ export function familyRoot(value: string): string {
  *  Advance_Rate_should_not_be_null rule on the insert, and a chip that ends in
  *  a refusal is worse than no chip. */
 export function collateralTypeNames(ctx: RelContext): string[] {
-  return [...new Set(orgAccepted(ctx.catalog, "collateralType"))];
+  /* AND THE MIRROR BEHIND IT, exactly as `assetTypeUniverse` reads it. An empty
+     catalog used to leave `colPick` with no chips at all, so every typed type
+     was refused with nothing under the refusal to pick. */
+  const live = orgAccepted(ctx.catalog, "collateralType");
+  return live.length ? [...new Set(live)] : [...ASSET_KIND_OPTIONS];
 }
 
 /** The families this relationship already holds, so they lead the chip set. */
@@ -496,12 +509,24 @@ export function intakeKindOf(a: Answers): IntakeKind | null {
  *  Only ever read for the FIRST entry: a banker's opening sentence is about the
  *  first thing they are filing, and carrying it onto the second would be the
  *  room filling in an answer nobody gave. */
+/** The words the disambiguation itself is made of. A line that is only these is
+ *  the banker choosing WHICH of the two, and says nothing about the thing. */
+const KIND_WORDS = /\b(an?|the|is|it|its|this|new|please|file|add|put|create|record|register)\b|\b(covenants?|tests?|ratios?|collateral|securit(?:y|ies)|assets?)\b/gi;
+
 function seedLine(a: Answers): string {
   const said = text(a.intakeKind) ?? "";
   /* A CHIP LABEL IS NOT A SENTENCE. "covenant" and "collateral" are what the two
      chips write, and reading a description or a threshold out of one is the room
-     inventing an answer nobody gave. Only a line with words in it is a seed. */
-  return /\s/.test(said) ? said : "";
+     inventing an answer nobody gave.
+     AND NEITHER IS THE DISAMBIGUATION SAID IN WORDS. "an asset" carries a space,
+     so it used to count as the banker's opening sentence: `collateralDrafts`
+     read the asset's DESCRIPTION out of it and filed the record under the words
+     "an asset", which is the only readable identity a collateral row carries,
+     then suppressed "How is the asset described?" and asked "What is an asset
+     worth?". A line seeds only where something survives the kind words. */
+  if (!/\s/.test(said)) return "";
+  const rest = said.replace(KIND_WORDS, " ").replace(/[^a-z0-9]+/gi, " ").trim();
+  return rest ? said : "";
 }
 
 export function covenantDrafts(ctx: RelContext, a: Answers): CovenantDraft[] {

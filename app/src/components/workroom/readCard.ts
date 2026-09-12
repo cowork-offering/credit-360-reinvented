@@ -73,6 +73,17 @@ export interface ReadOptions {
    * different question.
    */
   loanIds?: string[];
+  /**
+   * THE ROOM'S OWN NEXT MOVE, where the room asking has one.
+   *
+   * Every card below ends on the FACILITY room's work: "I can also add one to a
+   * facility", "What should be pledged, and to which facility?". Offered to a
+   * banker three questions into a covenant review, that is a door this room
+   * refuses to open and a dead end in the golden rule's terms. A caller that
+   * knows what it is standing on hands its own line in; the facility room passes
+   * nothing and the cards read as they always have.
+   */
+  followUp?: string;
 }
 
 export interface ReadSource {
@@ -379,6 +390,12 @@ export function readGap(topic: ReadTopic, relationship: string): string {
  * only one of them is useful.
  */
 export function buildReadCard(topic: ReadTopic, src: ReadSource, opts: ReadOptions = {}): ReadCardModel | null {
+  const card = cardFor(topic, src, opts);
+  // THE CALLER'S OWN NEXT MOVE WINS. See `ReadOptions.followUp`.
+  return card && opts.followUp ? { ...card, followUp: opts.followUp } : card;
+}
+
+function cardFor(topic: ReadTopic, src: ReadSource, opts: ReadOptions): ReadCardModel | null {
   switch (topic) {
     case "structure":
       return structureCard(src, opts);

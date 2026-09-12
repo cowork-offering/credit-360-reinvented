@@ -30,16 +30,37 @@ const graphPayload = {
 
 const stub = (payload: unknown): BrainToolCall => vi.fn(async () => ({ payload }));
 
-describe("the list is exactly two, each narrow", () => {
-  it("builds those two tools and no others", () => {
+describe("the list is exactly three, each narrow", () => {
+  it("builds those three tools and no others", () => {
     const tools = buildBrainTools({ anchor: ANCHOR, call: stub({}) });
     expect(tools.map((t) => t.name)).toEqual([...BRAIN_TOOL_NAMES]);
   });
 
-  it("takes no argument, so a tool cannot be pointed at another borrower", () => {
-    for (const tool of buildBrainTools({ anchor: ANCHOR, call: stub({}) })) {
-      expect(tool.inputSchema).toBeUndefined();
-    }
+  it("offers the counterparty door ONLY where the room named an account", () => {
+    // No anchor account is no bound relationship, and a downstream read with
+    // nothing to bound it against is the free wander this module refuses.
+    const loose = buildBrainTools({ anchor: { accountId: null, company: "Hartwell" }, call: stub({}) });
+    expect(loose.map((t) => t.name)).toEqual(["currentBoomRatios", "liveInvolvements"]);
+  });
+
+  it("binds the two relationship tools to the room, and the third to the anchored graph", () => {
+    const [boom, parties, connected] = buildBrainTools({ anchor: ANCHOR, call: stub({}) });
+    // Neither of the first two takes an argument, so neither can be pointed at
+    // another borrower at all.
+    expect(boom.inputSchema).toBeUndefined();
+    expect(parties.inputSchema).toBeUndefined();
+    // The third takes exactly ONE, and its bound is enforced in `execute`
+    // against the anchored graph's own connections (see the refusal below).
+    expect(connected.inputSchema).toEqual({
+      type: "object",
+      properties: {
+        accountId: {
+          type: "string",
+          description: "The counterparty's account id, or its name exactly as CONTEXT.reads.group carries it.",
+        },
+      },
+      required: ["accountId"],
+    });
   });
 
   it("names the cheaper source in every description, because models over-call", () => {
@@ -53,8 +74,11 @@ describe("the list is exactly two, each narrow", () => {
 });
 
 describe("the write fence is absolute", () => {
-  it("allows exactly the two read doors", () => {
-    expect([...READ_DOORS].sort()).toEqual([TOOLS.boomRatios, TOOLS.graph].sort());
+  it("allows exactly the four read doors, and every one of them is a read", () => {
+    // The two the relationship's own tools open, and the two `connectedPartyBook`
+    // points at a counterparty the anchored graph already connects. Nothing is
+    // added here without the fence being re-argued.
+    expect([...READ_DOORS].sort()).toEqual([TOOLS.boomRatios, TOOLS.graph, TOOLS.exposure, TOOLS.covenants].sort());
   });
 
   it("admits no stage or execute door to the allow-list", () => {
@@ -210,5 +234,132 @@ describe("liveInvolvements is the N4 gap, read live", () => {
       reads: { involvements: [{ name: "Holdings", role: "Guarantor", scope: "all 6" }], notCarried: [] },
     })[1];
     expect(held.heldAlready?.()).toBe(true);
+  });
+});
+
+/* =============================================================================
+   connectedPartyBook — RULE 1'S LAST MILE, AND ITS FENCE.
+
+   The envelope's `group` block says who stands around this borrower and
+   `notCarried` refuses their own lending BY NAME, because no read on this
+   cockpit opens another relationship's book. This tool is that read. Its whole
+   safety is one check: the id must be a counterparty the ANCHORED graph
+   connects, verified live before a single figure is fetched.
+   ============================================================================= */
+
+const HOLDINGS = "001bb00001HOLDINGS";
+const connectionsPayload = {
+  content: [
+    {
+      isSuccess: true,
+      outputValues: {
+        connections: [
+          { counterpartyId: HOLDINGS, counterpartyName: "Hartwell Industrial Holdings LLC", role: "Parent", totalOwnershipPercent: 100 },
+          { counterpartyId: "001bb00001LOGISTIC", counterpartyName: "Hartwell Logistics LLC", role: "Affiliated Company" },
+          { counterpartyName: "Elena Hartwell", role: "Co-Owner" },
+        ],
+      },
+    },
+  ],
+};
+
+const holdingsExposure = {
+  content: [
+    {
+      isSuccess: true,
+      outputValues: {
+        totalCommitted: 24_000_000,
+        totalOutstanding: 18_400_000,
+        facilities: [{ loanId: "L1" }, { loanId: "L2" }, { loanId: "L3" }],
+      },
+    },
+  ],
+};
+
+const holdingsCovenants = {
+  content: [
+    {
+      isSuccess: true,
+      outputValues: {
+        covenants: [
+          { covenantType: "Minimum Debt Service Coverage", thresholdValue: 1.25, actualValue: 1.02, covenantStatus: "Breached" },
+          { covenantType: "Maximum Debt to Worth", thresholdValue: 3, actualValue: 2.1, covenantStatus: "Compliant" },
+        ],
+      },
+    },
+  ],
+};
+
+/** A door-aware stub: the graph answers the bound check, the other two answer
+ *  the counterparty's own read. */
+const bookCall = (): BrainToolCall & { mock: { calls: unknown[][] } } =>
+  vi.fn(async (_server: string, tool: string) => {
+    if (tool === TOOLS.graph) return { payload: connectionsPayload };
+    if (tool === TOOLS.exposure) return { payload: holdingsExposure };
+    if (tool === TOOLS.covenants) return { payload: holdingsCovenants };
+    return { payload: {} };
+  }) as unknown as BrainToolCall & { mock: { calls: unknown[][] } };
+
+const bookTool = (call: BrainToolCall, reads?: Parameters<typeof buildBrainTools>[0]["reads"]) =>
+  buildBrainTools({ anchor: ANCHOR, call, reads })[2];
+
+describe("connectedPartyBook is bound to the anchored graph", () => {
+  it("refuses BY NAME any party the graph does not connect, and never opens their book", async () => {
+    const call = bookCall();
+    const out = await bookTool(call).execute({ accountId: "001bb00001STRANGER" }, ctx);
+    expect(out).toBe(
+      "001bb00001STRANGER is not connected to this relationship, so its book is not readable from this room." +
+        " The graph connects Hartwell Industrial Holdings LLC, Hartwell Logistics LLC, Elena Hartwell.",
+    );
+    // The graph was read to CHECK. Neither of the two book doors was touched.
+    const doors = (call.mock.calls as unknown as Array<[string, string]>).map(([, tool]) => tool);
+    expect(doors).toEqual([TOOLS.graph]);
+  });
+
+  it("reads the counterparty's own committed, outstanding, facilities, covenants and grade", async () => {
+    const call = bookCall();
+    const reads = {
+      group: [{ name: "Hartwell Industrial Holdings LLC", relation: "parent" as const, ownership: "100%", grade: "4" }],
+      notCarried: [],
+    };
+    const out = await bookTool(call, reads).execute({ accountId: HOLDINGS }, ctx);
+    expect(out).toEqual({
+      party: "Hartwell Industrial Holdings LLC",
+      relation: "Parent",
+      committed: "$24M",
+      outstanding: "$18.40M",
+      facilities: 3,
+      covenants: "2 on file, 1 in breach: Breached, Compliant",
+      // Off the envelope's own group row: no third door is opened for a grade
+      // this cockpit already carries.
+      grade: "4",
+      scope: "this counterparty's own book, not the relationship in view",
+    });
+    const doors = (call.mock.calls as unknown as Array<[string, string, unknown]>).map(([, tool]) => tool);
+    expect(doors).toEqual([TOOLS.graph, TOOLS.exposure, TOOLS.covenants]);
+    // Every book read is pointed at the COUNTERPARTY, never at the anchor.
+    for (const [, tool, input] of call.mock.calls as unknown as Array<[string, string, { inputs: Array<{ accountId: string }> }]>) {
+      if (tool === TOOLS.graph) expect(input.inputs[0].accountId).toBe(ANCHOR.accountId);
+      else expect(input.inputs[0].accountId).toBe(HOLDINGS);
+    }
+  });
+
+  it("takes the name the group block carries, because that is what the model holds", async () => {
+    const out = (await bookTool(bookCall()).execute({ accountId: "hartwell industrial holdings llc" }, ctx)) as {
+      party: string;
+    };
+    expect(out.party).toBe("Hartwell Industrial Holdings LLC");
+  });
+
+  it("says so where the graph names a party but carries no account id for them", async () => {
+    const call = bookCall();
+    expect(await bookTool(call).execute({ accountId: "Elena Hartwell" }, ctx)).toMatch(
+      /carries no account id for them, so no read can be pointed at their book/,
+    );
+    expect((call.mock.calls as unknown as Array<[string, string]>).map(([, t]) => t)).toEqual([TOOLS.graph]);
+  });
+
+  it("is never an over-call: no read on this cockpit carries another party's book", () => {
+    expect(bookTool(bookCall()).heldAlready?.()).toBe(false);
   });
 });

@@ -78,6 +78,15 @@ export const RUNG3_COVERAGE: Array<{ tool: string; match: RegExp }> = [
     match:
       /\b(guarantors?|guarantee\w*|guaranty|borrowers?|co-?borrowers?|involvements?|parties|party|obligors?|related entit\w+|who is on|who guarantees)\b/i,
   },
+  {
+    // THE CONNECTED PARTY'S OWN BOOK (golden rule 1, downstream). "What is the
+    // guarantor's own exposure" carries no CURRENT word, so without this entry
+    // the line never reached rung 3 and the tool was never offered for the one
+    // question it exists to answer. The subject words name the party or the
+    // book; the tool itself is still bounded to the anchored graph.
+    tool: "connectedPartyBook",
+    match: /\b(affiliates?|parent|holding|subsidiar\w*|obligor group|counterpart(?:y|ies)|own (?:book|exposure|covenants?|facilities))\b/i,
+  },
 ];
 
 /** The tools whose subject this line touches. Empty means no call-out could

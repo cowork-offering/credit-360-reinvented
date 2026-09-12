@@ -253,7 +253,7 @@ function headingFor(topic: string): string {
 }
 
 /** A brain read-card as the room's own card model. */
-export function toReadCardModel(card: BrainReadCard): ReadCardModel {
+export function toReadCardModel(card: BrainReadCard, followUp?: string): ReadCardModel {
   const rows: ReadRow[] = card.rows.map((r) => ({
     icon: ICONS[r.icon] ?? "package",
     label: r.label,
@@ -270,6 +270,11 @@ export function toReadCardModel(card: BrainReadCard): ReadCardModel {
     groups,
     // A card the brain ended without a follow-up still hands the conversation
     // back: an answer that stops dead is an answer the banker has to restart.
-    followUp: card.followUp ?? "What should change on this package?",
+    /* AND THE ROOM SUPPLIES THAT HAND-BACK. "What should change on this
+       package?" is the FACILITY room's work, and this function is shared: in
+       the relationship room it offered the one thing that room answers with the
+       facility handoff. A caller that knows what it is standing on passes its
+       own next step; the facility room passes nothing and reads as it did. */
+    followUp: card.followUp ?? followUp ?? "What should change on this package?",
   };
 }

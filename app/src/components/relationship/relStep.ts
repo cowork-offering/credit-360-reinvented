@@ -19,6 +19,16 @@ export interface StepOption {
   value: string;
   /** A second line under the label, where the org has one worth reading. */
   detail?: string;
+  /** OTHER NAMES THE BANK ITSELF USES FOR THIS ROW, matched alongside the label
+   *  and the value. An option whose value is a Salesforce record id and whose
+   *  label is a long description is otherwise unreachable by the name printed on
+   *  the org's own pane (COL-000762), and the room refused the bank's own
+   *  vocabulary. Never rendered; only ever read. */
+  synonyms?: string[];
+  /** THIS OPTION IS THE FIGURE ALREADY ON FILE. A banker who answers "keep" or
+   *  "no change" is naming it, and the room records it rather than reading a
+   *  perfectly good answer as an unreadable line. */
+  onFile?: boolean;
   /** THE OPTION STAYS, DISABLED, CARRYING ITS REASON (A27.3). A choice the org
    *  will not accept is shown and refused by name; hiding it would take the map
    *  of what exists away from the banker. */
@@ -45,6 +55,10 @@ export interface RelStep {
    *  scale exists in the org and a number off it would be a governance record
    *  nobody could read. */
   bounds?: { min: number; max: number; whole: boolean; refusal: string };
+  /** THE ANSWER IS A GOVERNANCE RECORD SOMEBODY DOWNSTREAM HAS TO READ. A case
+   *  subject of "!!!" or a body of "asdf" is a box being got past, and this room
+   *  challenges it once rather than filing it under the bank's name. */
+  substantive?: boolean;
 }
 
 /** Everything the banker has answered, keyed by step. Multi-answers are arrays;
