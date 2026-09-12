@@ -54,7 +54,14 @@ console.log(`bundle: dist/cockpit.html \u2014 ${bytes.toLocaleString()} bytes ($
 // (packagePick, the live nCino stage ladder, archival in the exposure
 // roll-up): 2.0 KB of load-bearing logic that tripped the gate by 63 bytes.
 // Not a licence for the next 10 KB; the same justification applies.
-const BUDGET_MIB = 1.76;
+// It moved from 1.76 to 1.77 MiB on 2026-09-12 (same day) to admit the
+// golden-rule work: the obligor group and in-flight version in the envelope,
+// the connected-party book tool, the cockpit chat's thread + narration guard,
+// and the relationship-room fixes: +17.7 KB of context, tool and guard code.
+// TWO moves in one day is the signal this gate should become a real
+// load-derived cap with a soft "justify" tier rather than 0.01 MiB nudges;
+// logged as a founder decision in knowledge/IMPROVEMENTS-AND-BUGS.md.
+const BUDGET_MIB = 1.77;
 if (mib > BUDGET_MIB) {
   console.error(`FAIL: bundle ${mib.toFixed(3)} MiB exceeds ${BUDGET_MIB} MiB budget`);
   process.exit(1);

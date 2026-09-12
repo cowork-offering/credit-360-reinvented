@@ -30,11 +30,16 @@ not state a covenant threshold. On demand (rung 3) the model can pull only `curr
 
 | # | Pri | Item | Status |
 |---|-----|------|--------|
-| 7 | P1 (0.9.18, in flight) | Obligor group into the envelope + `notCarried`; covenant threshold + operator + current value into the chat; in-flight version into the envelope; scope stated when quoting totals. | Fixer running |
-| 8 | P1 (next, after 0.9.18) | **Connected-party book on demand**: a rung-3 tool that reads the exposure/covenants of an account the anchored relationship's graph names (guarantor's own exposure, affiliate's breach) — bounded to the graph, never a free wander. Makes "what is the guarantor's own exposure?" answerable. | Spec'd here |
+| 7 | P1 | Obligor group into the envelope + `notCarried`; covenant threshold + operator + current value into the chat; in-flight version into the envelope AND the cockpit chat; scope stated when quoting totals; doctrine names each fact. | **FIXED 0.9.18** |
+| 8 | P1 | **Connected-party book on demand** — `connectedPartyBook` rung-3 tool: exposure + covenants of a party the anchored graph names, refuses others by name; ladder entry so "the guarantor's own exposure" reaches it. | **FIXED 0.9.18** |
 | 9 | P1 (next, after 0.9.18) | **One context builder**: unify the workroom envelope, the cockpit chat context and the relationship-room context into one builder so no two surfaces ever disagree on the same relationship, and every surface gets the full picture (budget-aware). | Spec'd here |
 | 10 | P2 | Recommendation doctrine = **C (founder 2026-09-12)**: recommend only when grounded (on file / doctrine band), never invented. Follow-up pass after 0.9.18 adds the grounded chip/sentence (valuation on-file appraisal, covenant current value, rating bands, renewal tenor). | Decided — follow-up pass |
 | 11 | P3 (later) | Salesforce platform + FSC (households, relationship groups, financial accounts) awareness in the envelope/doctrine. | Founder: "not dramatic right now" |
+| 12 | Founder confirm | **Design reversal shipped in 0.9.18**: intake falls back to the bundled type mirror (`FILEABLE_COVENANT_TYPES` / `ASSET_KIND_OPTIONS`) when the live catalog read is EMPTY — overturns "org first, mirror never". Rationale: matches elicit's existing `assetTypeUniverse`; required for a connector-less room; the write still verifies at the org. Tests rewritten with dated comments (intakeFlows.test.ts:889). | **Keep** (recommended) / revert — founder |
+| 13 | P2 (part 2) | Permanent test cover for the relationship fixer's items 8 (rating asks), 9 (service-request peek), 11 (polish) — verified with a deleted harness only. | Open |
+| 14 | P2 (part 2) | Cockpit chat: a standing `notCarried` list (today it names gaps only via the cut notice); ids on the `reads.group` rows so the model can address `connectedPartyBook` by id, not only by name (~80 B on Hartwell). | Open |
+| 15 | P2 (part 2) | Grounded-recommendation WORDING per doctrine C where a figure is on file or a doctrine band exists (valuation appraisal, covenant current value, renewal tenor); the on-file CHIPS already ship in 0.9.18 — this is the "use it" sentence. | Open |
+| 16 | Founder decision | **Bundle-size gate**: moved twice on 2026-09-12 (1.75 → 1.76 → 1.77 MiB) for legitimate feature growth. Proposal: replace 0.01-MiB nudges with a real load-derived HARD cap (e.g. 2.0 MiB, "still a page over a hotel connection") plus a SOFT "justify" tier at +50 KB per release, so the gate catches bloat without taxing every feature. | Decide |
 
 ## Stress-test script — run these, report each detail
 

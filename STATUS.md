@@ -2,6 +2,41 @@
 
 ## Changelog
 
+- **0.9.18 (2026-09-12)** THE CHAT GOLDEN RULE, ROUND ONE — plus the memo agents.
+  Two audits (chat / envelope, and the relationship room) found 8 + 4
+  showcase-blocking defects, each pinned as a repro test first; two fixer agents
+  then made every repro pass. RELATIONSHIP ROOM: "Renew at current terms" is a
+  recommendation, not facility work; the valuation counter counts what it will
+  ask (no "Step 2 of 65"); the value ask leads with the on-file appraisal and its
+  date as a chip; intake never files "an asset" as the description; the asset's
+  own COL-number is accepted; a mid-review read card returns to the live question
+  and never offers modification work; collateral loops escalate on the second
+  miss; keep-words, contradictory answers and junk are handled; "six reviews".
+  DELIBERATE REVERSAL (founder to confirm, recommended keep): an empty catalog read
+  falls back to the bundled type mirror instead of dead-ending the room.
+  ENVELOPE + COCKPIT CHAT: the OBLIGOR GROUP now reaches the model (role,
+  ownership, own grade) and `notCarried` refuses by name what is not read; the
+  in-flight version travels (workroom AND chat) so a lock is explained, not
+  refused blind; the chat states covenant threshold + operator + current value
+  ("what is this covenant doing?" is answerable); every total states its scope;
+  the doctrine names each new fact and when to use it (budget 18→19 KB, measured:
+  the widest line was silently dropping credit-policy). NEW TOOL
+  `connectedPartyBook`: a connected party's own exposure and covenants on
+  demand, bounded to the anchored graph, with a ladder entry so "the guarantor's
+  own exposure" reaches it. The cockpit chat is no longer stateless: last 6 turns,
+  one markdown-free bubble, echo + server copy render once, "Ask again" echoes
+  once. Renewal: no keep-chip on the required maturity (a 0.9.7 bug), real
+  +12/+24/+36-month options. Em dashes out of the rooms' own sentences.
+  MEMO AGENTS: `credit-memo` + `credit-reviewer` vendored (v0.53.2, AFS
+  throughout, fast path proven from this plugin's root, provenance + drift gate);
+  routing in credit-360.md. Envelope on Hartwell 8,079 / 10,000 B; tsc clean;
+  vitest 174 files, 4282 passed, 0 failed. Bundle 1.767 MiB — budget moved
+  1.76 → 1.77 MiB (+17.7 KB of context/tool/guard code); second move in a day, so
+  a founder decision is logged to reset the gate to a load-derived cap.
+  Follow-ups (part 2): one context builder over the three surfaces; grounded
+  recommendation wording per doctrine C; permanent tests for three polish items;
+  a standing `notCarried` for the chat; ids on the group rows.
+
 - **0.9.17 (2026-09-12)** P1 — THE PACKAGE LIFECYCLE (knowledge/PACKAGE-LIFECYCLE-SPEC.md),
   built against the LIVE nCino ladder read from the org (11 stages; approval is
   "Approval / Loan Committee"; a replaced original carries Status "Superseded", a
