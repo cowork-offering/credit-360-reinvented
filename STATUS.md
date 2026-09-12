@@ -2,6 +2,31 @@
 
 ## Changelog
 
+- **0.9.17 (2026-09-12)** P1 — THE PACKAGE LIFECYCLE (knowledge/PACKAGE-LIFECYCLE-SPEC.md),
+  built against the LIVE nCino ladder read from the org (11 stages; approval is
+  "Approval / Loan Committee"; a replaced original carries Status "Superseded", a
+  discarded modification "Withdrawn"). (1) One `packagePick(entry, ask)` decides the
+  lock for ALL THREE package pickers — the bound modify picker, the header
+  switch-peek (which had NO lock before: a banker could walk the room onto an
+  unbooked version), and the relationship room. In the modification flow the booked
+  source of an in-flight version is hard-blocked as **"Modification in Progress · a
+  version of this package is unbooked with the org"**; a room standing IN a version
+  refuses Modify/Renew. (2) `inFlightEditable`: the version stays workable until one
+  member reaches approval, then the whole version locks ("editable until approval"
+  → "in approval · locked"). (3) Archival + exposure = the live set only — and a
+  LIVE DOUBLE-COUNT the spec did not name: the hero subtracted only
+  /proposal|application/, so a version at Qualification (Hartwell's real fork)
+  counted as BOOKED ($67.5M shown vs $54.0M true). Pending is now ladder position
+  below Booked; archived = Superseded/Withdrawn/Declined; committed = gross −
+  pending − archived, fixed once in hero.ts. +13 packages tests, +2 room tests;
+  tsc clean; 4229 passed, 0 failed. CAVEAT (honest): post-booking archival is
+  INFERRED from what the org writes on a replaced original — no modification has
+  ever BOOKED in bankinggpt-at; one real booked modification is needed to confirm.
+  Bundle budget nudged 1.75 → 1.76 MiB (63 bytes over on +2.0 KB of lifecycle
+  logic; justified in rename-bundle.mjs). Also in this release as findings-only:
+  the chat golden-rule audit (CHAT-TUNING-PROPOSAL.md, 33 repros) and the
+  relationship-room audit (9 it.skip repros) — fixes follow in 0.9.18.
+
 - **0.9.16 (2026-09-11)** RESTATE ASSIST, SESSION-FIRST — fixes the "connect to IDB
   Gateway" prompt in the workrooms AND the slow / re-asking loop in modifications
   (feedback bugs `bug-1789112493629` + the gateway-prompt report). The room's

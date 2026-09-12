@@ -50,7 +50,11 @@ console.log(`bundle: dist/cockpit.html \u2014 ${bytes.toLocaleString()} bytes ($
 // 2026-09-04 to admit the credit memo renderer (110 KB of vendored code, shell
 // and manifest) that the memo room renders from. Anything that asks for the
 // next 250 KB has to justify itself the same way this did.
-const BUDGET_MIB = 1.75;
+// It moved from 1.75 to 1.76 MiB on 2026-09-12 to admit the package lifecycle
+// (packagePick, the live nCino stage ladder, archival in the exposure
+// roll-up): 2.0 KB of load-bearing logic that tripped the gate by 63 bytes.
+// Not a licence for the next 10 KB; the same justification applies.
+const BUDGET_MIB = 1.76;
 if (mib > BUDGET_MIB) {
   console.error(`FAIL: bundle ${mib.toFixed(3)} MiB exceeds ${BUDGET_MIB} MiB budget`);
   process.exit(1);
