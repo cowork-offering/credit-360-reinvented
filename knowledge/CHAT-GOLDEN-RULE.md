@@ -26,6 +26,15 @@ request and credit-memo rooms. The chat "takes the banker's hand and guides them
 2. **It guides and advises wherever it can.** It leads. Every question it asks leads with the
    current figure, offers the real options, and recommends one. It does not put a blank form in
    front of the banker.
+   **THE RECOMMENDATION RULE — founder decision 2026-09-12 ("C, the middle path").** This
+   reconciles the earlier doctrine "I will not take that default for you" with rule 2: the room
+   recommends **only when the recommendation is already grounded** — a figure on file (the on-file
+   appraisal and its date, the read's current covenant value, the current rate/maturity/commitment)
+   or a doctrine band (a policy range for this grade, a standard tenor for this product). It says
+   which it is: "the on-file appraisal is $23.5M (Aug 2026): use it, or file a new valuation." It
+   **never invents a number or a default** it cannot trace to the book or to doctrine; where nothing
+   is grounded it states the current figure and the options and stays silent on preference. The
+   banker always chooses; a grounded recommendation is a chip, never a pre-filled answer.
 
 3. **It explains, briefly, on demand.** "What is this covenant doing?" → a short, plain answer:
    what it measures, the current value against its threshold, why it matters, what a breach would
