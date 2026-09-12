@@ -164,7 +164,10 @@ describe("reading an in-flight modification version", () => {
     const version = packageRoster(bundle).find((p) => p.id === VERSION)!;
     // 46.0M booked, with the revolver up 5.0M on the copy.
     expect(version.committed).toBe(51_000_000);
-    expect(version.reason).toBe("Modification in flight · booking pending · 6 facilities · $51M");
+    // Every member is at Qualification, which is below the approval rung, so
+    // the version is still the banker's to shape.
+    expect(version.inFlightEditable).toBe(true);
+    expect(version.reason).toBe("Modification in flight · editable until approval · 6 facilities · $51M");
   });
 
   it("does NOT read a package of a different size as a fork: a first draft is not a version", () => {
@@ -230,7 +233,15 @@ interface Opened {
   bound: WorkroomMode[];
 }
 
-function openRoom(args: { data: C360Data; productPackageId?: string | null; history?: ActionHistoryRow[] }): Opened {
+function openRoom(args: {
+  data: C360Data;
+  productPackageId?: string | null;
+  history?: ActionHistoryRow[];
+  /** Open the room ALREADY BOUND to its route, the way the cockpit opens a
+   *  modification the banker asked for by name. No neutral question, so the
+   *  package ask is a FORK question and the lock is first-class on it. */
+  bound?: boolean;
+}): Opened {
   const bundle = args.data.borrowers![HARTWELL];
   const context = workroomContextFor({
     mode: "modify",
@@ -241,12 +252,14 @@ function openRoom(args: { data: C360Data; productPackageId?: string | null; hist
     productPackageId: args.productPackageId ?? null,
   });
   const bound: WorkroomMode[] = [];
-  const router: WorkroomRouter = {
-    question: neutralAsk(),
-    say: null,
-    onBind: (route) => bound.push(route),
-    onRestart: () => {},
-  };
+  const router: WorkroomRouter | null = args.bound
+    ? null
+    : {
+        question: neutralAsk(),
+        say: null,
+        onBind: (route) => bound.push(route),
+        onRestart: () => {},
+      };
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -255,7 +268,7 @@ function openRoom(args: { data: C360Data; productPackageId?: string | null; hist
       <Workroom
         context={context}
         engine={createModifyEngine({ context, data: args.data, bundle })}
-        router={router}
+        router={router ?? undefined}
         reads={{
           bundle,
           accountName: HARTWELL_NAME,
@@ -302,7 +315,7 @@ describe("the room refuses a second modification", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it("lists the version in the package ask, visible and disabled, with the reason on it", async () => {
+  it("lists the version in the package ask, with what the banker can still do to it", async () => {
     const { room } = openRoom({ data: forked, productPackageId: null });
     await settle();
 
@@ -311,15 +324,58 @@ describe("the room refuses a second modification", () => {
     const version = cards.find((c) => c.dataset.pkg === VERSION)!;
     const source = cards.find((c) => c.dataset.pkg === SOURCE)!;
 
+    /* THE ASK IS ROUTE-NEUTRAL, so neither row is closed here: the version is
+       pre-approval and still the banker's to shape, and the source keeps the
+       new-facility route rule 2 deliberately leaves open. What each one IS is
+       said on it, and the route chips refuse Modify and Renew by name. */
+    expect(version.disabled).toBe(false);
+    expect(text(version)).toContain("Modification in flight · editable until approval · 6 facilities · $51M");
+
+    expect(source.disabled).toBe(false);
+    expect(text(source)).toContain("Modification in Progress");
+    expect(source.querySelector(".wk-go")).toBeTruthy();
+  });
+
+  /* ---------------------------------------------------------------- gap 1
+     THE FIRST-CLASS LOCK, IN THE MODIFICATION FLOW ITSELF (founder, 2026-09-11).
+
+     The room above is UNBOUND — it is still asking which of the three routes
+     this is, so it closes no door. This one is a modification the banker asked
+     for by name, so the package ask IS the modification's own target list, and
+     a booked package with a version already in flight is not on it. */
+  it("hard-blocks the booked source in the MODIFICATION picker, named 'Modification in Progress'", async () => {
+    const { room } = openRoom({ data: forked, productPackageId: null, bound: true, history: [modRow()] });
+    await settle();
+
+    const cards = [...room.querySelectorAll<HTMLButtonElement>(".wk-pkgask .wk-pkg")];
+    const source = cards.find((c) => c.dataset.pkg === SOURCE)!;
+    const version = cards.find((c) => c.dataset.pkg === VERSION)!;
+
+    expect(source.disabled).toBe(true);
+    expect(source.dataset.inflight).toBe("1");
+    expect(text(source)).toContain("Modification in Progress");
+    // Not a faint disabled row carrying its figures: the state replaces them.
+    expect(text(source)).not.toContain("$46M");
+    expect(source.querySelector(".wk-go")).toBeNull();
+
+    // And the version is no more a fresh target than its source is.
+    expect(version.disabled).toBe(true);
+    expect(version.querySelector(".wk-go")).toBeNull();
+  });
+
+  it("locks the header's package SWITCH the same way, which had no lock at all", async () => {
+    const { room } = openRoom({ data: forked, productPackageId: SOURCE, bound: true });
+    await settle();
+
+    act(() => room.querySelector<HTMLElement>(".wk-pkgline")!.click());
+    await settle();
+
+    const rows = [...document.querySelectorAll<HTMLButtonElement>("[data-pkgrow]")];
+    expect(rows.length).toBeGreaterThan(1);
+    const version = rows.find((r) => r.dataset.pkgrow === VERSION)!;
     expect(version.disabled).toBe(true);
     expect(version.dataset.inflight).toBe("1");
-    expect(text(version)).toContain("Modification in flight · booking pending · 6 facilities · $51M");
-    // No arrow on a row that goes nowhere.
     expect(version.querySelector(".wk-go")).toBeNull();
-
-    // The source is still a room the banker can walk into.
-    expect(source.disabled).toBe(false);
-    expect(source.querySelector(".wk-go")).toBeTruthy();
   });
 
   it("refuses Modify on the locked source, in one sentence, with the version's Salesforce link", async () => {

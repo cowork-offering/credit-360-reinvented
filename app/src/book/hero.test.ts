@@ -53,9 +53,9 @@ describe("heroOf", () => {
     expect(heroOf({ snapshot: { accountId: "X", name: "X Co" } })).toBeNull();
   });
 
-  it("writes the position from the exposure read, states the BOOKED committed, and names the proposal apart", () => {
+  it("writes the position from the exposure read, states the BOOKED committed, and names the unbooked apart", () => {
     const h = heroOf(hartwell, NOW)!;
-    expect(h.verdict).toContain("Booked at Grade 4, Hartwell carries $54.0M committed across 2 facilities with $38.7M drawn and $15.3M of headroom, plus $3.0M proposed;");
+    expect(h.verdict).toContain("Booked at Grade 4, Hartwell carries $54.0M committed across 2 facilities with $38.7M drawn and $15.3M of headroom, plus $3.0M unbooked;");
     expect(h.verdict).toContain("4 of 5 covenants test compliant (FCC 1.22×, DSC 1.38×).");
   });
 

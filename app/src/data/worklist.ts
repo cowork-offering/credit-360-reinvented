@@ -74,6 +74,19 @@ export const SEVERITY: ReasonCode[] = [
  *
  * Everything else stays inactive on purpose: Paid Off, Closed, Withdrawn and
  * Hold are all real states, and none of them is a facility you can act on.
+ *
+ * ARCHIVED AFTER A BOOKING, and this is the one place it is decided (2026-09-12).
+ * When a modification version supersedes what it replaced, nCino leaves the
+ * original's `LLC_BI__Status__c` as `Superseded` — read off the live org, on
+ * `a4Zbb000000xU0eEAE` (Stage `Complete`, Status `Superseded`) and on
+ * `a4Zbb000001iY8fEAE` (a version a later revision replaced); a discarded
+ * modification carries `Withdrawn` instead. Neither is in the field's active
+ * picklist, so both arrive as free text and both must be read as archived.
+ * `Customer360Exposure.cls` filters only `Status != 'Closed'`, so these rows DO
+ * reach the cockpit and it is this allow-list that drops them — which is why it
+ * is an allow-list and not a deny-list. Every roll-up in the app filters through
+ * here (`packageRecords`, `packageRoster`, the deal ticket, collateral, the
+ * worklist), so an archived facility leaves all of them at once.
  */
 export function isActiveFacility(f: { status?: string }): boolean {
   const s = (f.status ?? "").trim().toLowerCase();

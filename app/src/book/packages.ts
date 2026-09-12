@@ -1,6 +1,6 @@
 import { packageRecords } from "../actions/schemas";
 import type { ActionHistoryRow, BorrowerBundle, Facility } from "../data/contract";
-import { BOOKED } from "../data/facilityStage";
+import { atOrPastApproval, BOOKED } from "../data/facilityStage";
 import { fmtMoney } from "../data/format";
 import { isActiveFacility } from "../data/worklist";
 
@@ -59,6 +59,19 @@ export interface PackageEntry {
    * it is, and refuses to run in it.
    */
   inFlightVersion: boolean;
+  /**
+   * THE VERSION IS STILL THE BANKER'S (founder, 2026-09-11).
+   *
+   * A forked version is not frozen the moment it exists. nCino leaves it
+   * workable — loans added, figures moved — until it climbs to
+   * `Approval / Loan Committee`, and from that rung up it is the org's. So
+   * `inFlightVersion` alone was one boolean doing two jobs: this is the second,
+   * and it is keyed on the ladder in `data/facilityStage.ts` rather than on a
+   * stage name anyone assumed.
+   *
+   * False on every package that is not a version at all.
+   */
+  inFlightEditable: boolean;
   /** The in-flight version forked FROM this package, where the read links one.
    *  Null on the version itself and on a package with none. */
   inFlightVersionId: string | null;
@@ -185,6 +198,7 @@ export function packageRoster(
       // commitment last, because that is the figure the eye lands on.
       line: [status, count, committed > 0 ? `${fmtMoney(committed)} committed` : null].filter(Boolean).join(" · "),
       inFlightVersion: false,
+      inFlightEditable: false,
       inFlightVersionId: null,
       hasInFlightModification: false,
       reason: null,
@@ -203,7 +217,16 @@ export function packageRoster(
     if (!source) continue;
     const count = `${version.members.length} ${version.members.length === 1 ? "facility" : "facilities"}`;
     version.inFlightVersion = true;
-    version.reason = ["Modification in flight", "booking pending", count, fmtMoney(version.committed)].join(" · ");
+    /* EDITABLE UNTIL APPROVAL. One member at `Approval / Loan Committee` or
+       above takes the whole version out of the banker's hands — the org
+       approves a version, not a loan — so the test is `some`, not `every`. */
+    version.inFlightEditable = !version.members.some(atOrPastApproval);
+    version.reason = [
+      "Modification in flight",
+      version.inFlightEditable ? "editable until approval" : "in approval · locked",
+      count,
+      fmtMoney(version.committed),
+    ].join(" · ");
     source.hasInFlightModification = true;
     source.inFlightVersionId = version.id;
   }
@@ -239,9 +262,110 @@ export function lockedSourcePackage(
   return entry?.hasInFlightModification ? entry : null;
 }
 
+/**
+ * The room is standing IN an in-flight version, where a fork route was asked for.
+ *
+ * The other half of rule 2, and it was missing: `lockedSourcePackage` refuses a
+ * SECOND fork off a booked package, but a banker who walked the room onto the
+ * version itself met no refusal at all — and nCino takes a credit action only
+ * against a booked loan, of which a version holds none. Null everywhere else.
+ */
+export function forkTargetVersion(
+  roster: readonly PackageEntry[],
+  productPackageId: string | null,
+): PackageEntry | null {
+  const entry = roster.find((e) => e.id === productPackageId);
+  return entry?.inFlightVersion ? entry : null;
+}
+
+/**
+ * The in-flight version the room is STANDING IN, once the org has taken it.
+ *
+ * The mirror image of `lockedSourcePackage`: that one refuses a second fork off
+ * a booked package, this one refuses work inside a version that has climbed to
+ * `Approval / Loan Committee`. Null while the version is still the banker's,
+ * and null on every package that is not a version.
+ */
+export function lockedInFlightVersion(
+  roster: readonly PackageEntry[],
+  productPackageId: string | null,
+): PackageEntry | null {
+  const entry = roster.find((e) => e.id === productPackageId);
+  return entry?.inFlightVersion && !entry.inFlightEditable ? entry : null;
+}
+
+/* -----------------------------------------------------------------------------
+   ONE LOCK, THREE PICKERS (founder, 2026-09-11).
+
+   The rule-2 lock used to be wired into the JSX of each package picker, and
+   there are three of them: the facility room's own ask, the relationship room's
+   review ask, and the room header's switch peek. The switch peek had no lock at
+   all — a banker could walk the room onto an unbooked version through it. That
+   is the failure mode of a rule that lives in markup, so it lives here now and
+   the pickers render what it returns.
+
+   WHAT THE PICK WOULD START IS PART OF THE QUESTION, and there are three kinds:
+
+     "fork"     The route is settled on MODIFICATION or RENEWAL. These are the
+                two that version a package, and they are what rule 2 refuses.
+     "review"   A relationship review. It writes no version, so a package with a
+                modification in flight is fine — but an UNBOOKED version holds
+                nothing to review, so it is never a room either.
+     "open"     The route is not settled: the facility room's own ask, before the
+                banker has said which of the three this is. Nothing is refused
+                that a later route would allow, because the route chips refuse
+                Modify and Renew by name when it comes to it.
+   ----------------------------------------------------------------------------- */
+
+/** The first-class state the founder asked for by name (2026-09-11). */
+export const MODIFICATION_IN_PROGRESS = "Modification in Progress";
+
+export type PackageAsk = "fork" | "review" | "open";
+
+export interface PackagePick {
+  /** Hard-blocked: the row is disabled, unclickable, and carries no arrow. */
+  blocked: boolean;
+  /** The one line under the package's name. Never a figure where the row is
+   *  blocked — a commitment the banker cannot act on is noise. */
+  line: string;
+}
+
+/** May this package be picked here, and what does its row say? */
+export function packagePick(entry: PackageEntry, ask: PackageAsk): PackagePick {
+  /* THE VERSION ITSELF. Never a fresh modification target at any stage — nCino
+     takes a credit action only against a booked loan and a version holds none —
+     and never a review either. What it IS, until it reaches approval, is the
+     banker's own draft: the facility room's open ask lets them back into it to
+     add a loan or move a figure, and the moment it climbs to
+     `Approval / Loan Committee` even that closes. */
+  if (entry.inFlightVersion) {
+    return { blocked: ask !== "open" || !entry.inFlightEditable, line: entry.reason ?? entry.line };
+  }
+  /* THE ORIGINAL, WITH A FORK ALREADY OPEN. First-class, named, and hard: a
+     second fork off one booked package is a version chain nobody reconciles. */
+  if (entry.hasInFlightModification) {
+    return ask === "fork"
+      ? { blocked: true, line: `${MODIFICATION_IN_PROGRESS} · a version of this package is unbooked with the org` }
+      : { blocked: false, line: `${MODIFICATION_IN_PROGRESS} · ${entry.line}` };
+  }
+  return { blocked: false, line: entry.reason ?? entry.line };
+}
+
 /** THE ONE SENTENCE THE ROOM REFUSES WITH (founder, 2026-09-03). */
 export const IN_FLIGHT_REFUSAL =
   "A modification of this package is already in flight and unbooked. Book or discard it in Salesforce first; a second one would fork the version chain.";
+
+/** THE SENTENCE FOR A ROOM STANDING IN THE VERSION ITSELF. A version holds no
+ *  booked loan, so there is nothing here for a modification or a renewal to act
+ *  against; the change belongs in the version the banker is already in. */
+export const VERSION_TARGET_REFUSAL =
+  "This package is the unbooked modification version itself, so it carries no booked facility to modify or renew. Change the figures in this version, or book it in Salesforce first.";
+
+/** THE SENTENCE FOR A VERSION THE ORG HAS TAKEN (founder, 2026-09-11). The
+ *  version was the banker's to shape right up to this rung; it is not any more,
+ *  and the door is the approval, not a second version. */
+export const IN_APPROVAL_REFUSAL =
+  "This version is at Approval / Loan Committee, so it is no longer editable. Work it through approval in Salesforce, or send it back a stage there before changing it.";
 
 /** The facilities of ONE package, or all of them where nothing is anchored. */
 export function facilitiesInPackage(facilities: Facility[], productPackageId: string | null): Facility[] {

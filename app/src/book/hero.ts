@@ -18,6 +18,7 @@
  */
 import type { Anchor, BorrowerBundle, Covenant, Facility } from "../data/contract";
 import { fmtMoney } from "../data/format";
+import { BOOKED, stageRung } from "../data/facilityStage";
 
 /** Millions the way the hero has always said them: "$46.0M", "$38.7M", "$27.75M".
  *  One decimal, a second only when it carries a figure; below a million, the
@@ -131,16 +132,56 @@ const TIGHT = 0.1;
 
 /* ---------------------------------------------------------------- hero */
 
-function isActive(f: Facility): boolean {
-  const stage = (f.stage ?? "").toLowerCase();
-  const status = (f.status ?? "").toLowerCase();
-  if (/proposal|application|withdrawn|declined|cancel/.test(stage)) return false;
-  if (/closed|paid|cancel/.test(status)) return false;
-  return (f.committed ?? 0) > 0;
+/* -----------------------------------------------------------------------------
+   BOOKED IS THE ONLY COMMITTED, AND EVERY UNBOOKED RUNG COUNTS AS UNBOOKED.
+
+   LIVE DEFECT, 2026-09-12. Both predicates matched the word "Proposal" and
+   nothing else on the ladder, so a facility at Qualification, Credit
+   Underwriting, Final Review, Approval / Loan Committee, Processing, Doc Prep,
+   Closing or Boarding read as BOOKED here.
+
+   That is the exposure double-count the founder flagged. nCino files a
+   modification as a forked package version holding a COPY of every member at an
+   unbooked stage — Hartwell's live fork sits at Qualification — and the
+   Customer360Exposure read sums every loan it returns into `totalCommitted`
+   (`Customer360Exposure.cls:320`, over `Status != 'Closed'`). Subtracting only
+   the Proposals left the copy in: Hartwell's booked $54.0M read as $67.5M, the
+   $13.5M version counted a second time beside the facilities it copies. A
+   revolver moved from $15M to $20M read as $35M.
+
+   So the test is the ladder's own, and it is a position rather than a word:
+   anything below `Booked` is not committed. `Complete` sits above Booked and
+   stays counted — it is a loan that ran its course, not a proposal.
+   ----------------------------------------------------------------------------- */
+const BOOKED_RUNG = stageRung(BOOKED);
+
+/** Unbooked, and carrying a figure. A stage this org does not name is NOT
+ *  assumed unbooked: `stageRung` returns -1 and the facility keeps counting,
+ *  which is the same fail-closed rule the rest of the book keeps. */
+function isPending(f: Facility): boolean {
+  const rung = stageRung(f.stage);
+  return rung >= 0 && rung < BOOKED_RUNG && (f.committed ?? 0) > 0;
 }
 
-function isPending(f: Facility): boolean {
-  return /proposal|application/i.test(f.stage ?? "") && (f.committed ?? 0) > 0;
+/**
+ * ARCHIVED: the org has replaced or abandoned this loan.
+ *
+ * `Superseded` is nCino's own word for an original a later version replaced
+ * (read off LLC_BI__Loan__c in bankinggpt-at 2026-09-12: a4Zbb000000xU0eEAE
+ * carries Stage `Complete`, Status `Superseded`); `Withdrawn` is what a
+ * discarded modification carries. Neither may reach a roll-up — for the
+ * superseded one the loan that REPLACED it is already in the same read, so
+ * counting both is the founder's $15M-plus-$20M exactly.
+ */
+function isArchived(f: Facility): boolean {
+  const status = (f.status ?? "").toLowerCase();
+  if (/withdrawn|declined|cancel/.test((f.stage ?? "").toLowerCase())) return true;
+  return /closed|paid|cancel|superse|superce|withdrawn|declined/.test(status);
+}
+
+function isActive(f: Facility): boolean {
+  if (isArchived(f) || isPending(f)) return false;
+  return (f.committed ?? 0) > 0;
 }
 
 function plural(n: number, one: string, many = `${one}s`): string {
@@ -158,16 +199,32 @@ export function heroOf(bundle: BorrowerBundle | null | undefined, now: number = 
   const ex = bundle.exposure;
   const facilities = ex?.facilities ?? [];
   const active = facilities.filter(isActive);
-  const pending = facilities.filter(isPending).reduce((s, f) => s + (f.committed ?? 0), 0);
-  /* THE BOOKED FIGURE. The exposure read sums every open facility, a Proposal
-     included, so its total is committed-plus-proposed; the hero states what is
-     BOOKED (the in-flight-lock doctrine) and names the proposal apart. */
+  /* WHAT THE BANKER IS TOLD ABOUT SEPARATELY: the unbooked, which is real work
+     in flight. An ARCHIVED facility is not named here at all — it is gone, not
+     pending — so the two sets are summed apart. */
+  const sum = (fs: Facility[]) => fs.reduce((s, f) => s + (f.committed ?? 0), 0);
+  const pending = sum(facilities.filter((f) => isPending(f) && !isArchived(f)));
+  const archived = sum(facilities.filter(isArchived));
+  /* THE BOOKED FIGURE. The exposure read sums every loan it returns — every
+     unbooked rung and every superseded original among them — so its total is
+     committed-plus-unbooked-plus-archived. The hero states what is BOOKED AND
+     LIVE (the in-flight-lock doctrine), names the unbooked apart, and never
+     names the archived at all. */
   const gross = num(ex?.totalCommitted);
-  const committed = gross !== undefined ? Math.max(0, gross - pending) : num(snap.totalCreditExposure);
+  const committed = gross !== undefined ? Math.max(0, gross - pending - archived) : num(snap.totalCreditExposure);
   if (committed === undefined) return null;
-  const outstanding = num(ex?.totalOutstanding) ?? num(snap.totalOutstanding) ?? 0;
+  /* THE DRAWN BALANCE OF AN ARCHIVED LOAN IS NOT DRAWN EITHER. A superseded
+     original still carries its balance on the read, and the loan that replaced
+     it carries the same money; counting both would put utilisation over 100%
+     on a relationship that simply modified a facility. */
+  const archivedDrawn = (ex?.facilities ?? [])
+    .filter(isArchived)
+    .reduce((s, f) => s + (typeof f.outstanding === "number" ? f.outstanding : 0), 0);
+  const grossOutstanding = num(ex?.totalOutstanding) ?? num(snap.totalOutstanding) ?? 0;
+  const outstanding = Math.max(0, grossOutstanding - archivedDrawn);
   const grossAvailable = num(ex?.totalAvailable);
-  const available = grossAvailable !== undefined ? Math.max(0, grossAvailable - pending) : Math.max(0, committed - outstanding);
+  const available =
+    grossAvailable !== undefined ? Math.max(0, grossAvailable - pending - archived) : Math.max(0, committed - outstanding);
   const grade = snap.primaryRiskRating ?? snap.computedRiskRating ?? null;
   const stage = snap.primaryStage ?? snap.packageStage ?? "Booked";
   const who = shortName(snap.name);
@@ -186,7 +243,9 @@ export function heroOf(bundle: BorrowerBundle | null | undefined, now: number = 
   let s1 = `${stage} at Grade ${grade ?? "—"}, ${who} carries ${mm(committed)} committed`;
   if (active.length) s1 += ` across ${plural(active.length, "facility", "facilities")}`;
   s1 += ` with ${mm(outstanding)} drawn and ${mm(available)} of headroom`;
-  if (pending > 0) s1 += `, plus ${mm(pending)} proposed`;
+  // "unbooked", not "proposed": the set is now every rung below Booked, which
+  // includes a modification version sitting in approval.
+  if (pending > 0) s1 += `, plus ${mm(pending)} unbooked`;
   if (reads.length) {
     const named = [...exceptions, ...overdue, ...tight, ...numeric.filter((r) => /^(DSC|FCC|Leverage|LTV)$/.test(r.label))]
       .filter((r, i, all) => all.indexOf(r) === i)

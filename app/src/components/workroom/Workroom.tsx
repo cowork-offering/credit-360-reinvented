@@ -76,10 +76,16 @@ import { Narration, useNarration, type NarrationView } from "../../channel/Narra
 import type { Facility } from "../../data/contract";
 import {
   facilitiesInPackage,
+  forkTargetVersion,
+  IN_APPROVAL_REFUSAL,
   IN_FLIGHT_REFUSAL,
+  VERSION_TARGET_REFUSAL,
+  lockedInFlightVersion,
   lockedSourcePackage,
   mustChoosePackage,
+  packagePick,
   packageRoster,
+  type PackageAsk,
   type PackageEntry,
 } from "../../book/packages";
 import { exceptionAsk, exceptionSay, readExceptionOpen } from "./exception";
@@ -1141,6 +1147,18 @@ export function Workroom({
      with the org, so a second one would fork the version chain. Null wherever
      the room is free to run, which is every relationship in the shipped book. */
   const locked = useMemo(() => lockedSourcePackage(roster, context.productPackageId), [roster, context.productPackageId]);
+  /* THE VERSION THE ORG HAS TAKEN (founder, 2026-09-11). A forked version stays
+     the banker's to shape until it reaches `Approval / Loan Committee`; from
+     that rung up the room refuses to change it at all, whatever the route. */
+  const versionLocked = useMemo(
+    () => lockedInFlightVersion(roster, context.productPackageId),
+    [roster, context.productPackageId],
+  );
+  /** The room is standing in an in-flight version, editable or not. */
+  const versionHere = useMemo(
+    () => forkTargetVersion(roster, context.productPackageId),
+    [roster, context.productPackageId],
+  );
   /** The version's own nCino record, for the chip on the refusal. Null with no
    *  org address on the view — a guessed host is worse than no link (A29). */
   const lockedHref = locked?.inFlightVersionId ? packageDeepLink(instanceUrl, locked.inFlightVersionId) : null;
@@ -1201,6 +1219,12 @@ export function Workroom({
    *  three this is; the answer clears it and nothing puts it back. */
   const [ask, setAsk] = useState<RouterQuestion | null>(() => router?.question ?? null);
 
+  /** WHICH KIND OF ASK THIS ROOM'S PICKERS ARE MAKING. A fork only once the
+   *  route is settled on one of the two that version a package; a room still
+   *  asking which route this is closes no door, because the route chips refuse
+   *  Modify and Renew there by name when it comes to it. */
+  const packageAsk: PackageAsk = !ask && (context.mode === "modify" || context.mode === "renew") ? "fork" : "open";
+
   /** Rule 44: the bar carries ONE word. The room's own name minus the noun the
    *  room already is; the app bar carries the brand. An UNBOUND room has no
    *  mode to name yet, and naming the provisional one would be a claim about a
@@ -1235,28 +1259,45 @@ export function Workroom({
    *
    * Returns true when it refused, so every caller reads as a guard.
    */
-  const sayInFlightRefusal = useCallback(() => {
-    const mine = step + 1;
-    setStep(mine);
-    setItems((prev) => [
-      ...prev,
-      {
-        kind: "agent",
-        id: nextId("locked"),
-        step: mine,
-        text: IN_FLIGHT_REFUSAL,
-        link: lockedHref ? { href: lockedHref, label: "Open the version in Salesforce" } : undefined,
-      },
-    ]);
-  }, [lockedHref, step]);
+  const sayInFlightRefusal = useCallback(
+    (text: string = IN_FLIGHT_REFUSAL, href: string | null = lockedHref) => {
+      const mine = step + 1;
+      setStep(mine);
+      setItems((prev) => [
+        ...prev,
+        {
+          kind: "agent",
+          id: nextId("locked"),
+          step: mine,
+          text,
+          link: href ? { href, label: "Open the version in Salesforce" } : undefined,
+        },
+      ]);
+    },
+    [lockedHref, step],
+  );
 
   const refuseLockedRoute = useCallback(
     (route: WorkroomMode): boolean => {
+      /* A VERSION IN APPROVAL REFUSES EVERY ROUTE, not just the two that fork.
+         There is nothing to change in it from here at any stage above the
+         approval rung, so the room says so before it asks anything else. */
+      if (versionLocked) {
+        sayInFlightRefusal(IN_APPROVAL_REFUSAL, packageDeepLink(instanceUrl, versionLocked.id));
+        return true;
+      }
+      /* AND A VERSION IS NOT A FORK TARGET EITHER, at any stage. It holds no
+         booked loan, so the org would refuse the staging; the room says so
+         first, and in the same place the source's own refusal lives. */
+      if (versionHere && (route === "modify" || route === "renew")) {
+        sayInFlightRefusal(VERSION_TARGET_REFUSAL, null);
+        return true;
+      }
       if (!lockedRoute(route)) return false;
       sayInFlightRefusal();
       return true;
     },
-    [lockedRoute, sayInFlightRefusal],
+    [instanceUrl, lockedRoute, sayInFlightRefusal, versionHere, versionLocked],
   );
 
   const [histOpen, setHistOpen] = useState(false);
@@ -5668,20 +5709,25 @@ export function Workroom({
           <div className="wk-cav">{packageStance}</div>
           {roster.map((entry) => {
             const here = entry.id === context.productPackageId;
+            /* THE SWITCH OBEYS THE SAME LOCK AS THE ASK. It did not, and that
+               was the hole: a banker could walk the room off a locked package
+               and onto its own unbooked version from this list. */
+            const pick = packagePick(entry, packageAsk);
             return (
               <button
                 type="button"
                 key={entry.id}
                 className={`wk-pkg ${here ? "wk-sel" : ""}`}
                 data-pkgrow={entry.id}
-                disabled={here}
-                onClick={() => switchPackage(entry)}
+                disabled={here || pick.blocked}
+                data-inflight={pick.blocked ? "1" : undefined}
+                onClick={() => !pick.blocked && switchPackage(entry)}
               >
                 <span>
                   <b>{entry.name}</b>
-                  <span>{here ? `${entry.line} · you are here` : entry.line}</span>
+                  <span>{here ? `${pick.line} · you are here` : pick.line}</span>
                 </span>
-                {!here && (
+                {!here && !pick.blocked && (
                   <span className="wk-go" aria-hidden="true">
                     →
                   </span>
@@ -6006,6 +6052,7 @@ export function Workroom({
                             members={membersItem}
                             packages={brief.packageChoices}
                             roster={roster}
+                            packageAsk={packageAsk}
                             anchored={anchoredPackage}
                             lit={lit}
                             hold={item.kind === "dossier" ? finale.hold : 0}
@@ -6678,6 +6725,7 @@ function ThreadBlock({
   members,
   packages,
   roster,
+  packageAsk,
   anchored,
   lit,
   hold,
@@ -6707,6 +6755,8 @@ function ThreadBlock({
   /** EVERY package the relationship stages, for the ask that runs before the
    *  route. Route-neutral: see the `pkgask` branch. */
   roster: PackageEntry[];
+  /** Which kind of ask the package pickers are making — see `packagePick`. */
+  packageAsk: PackageAsk;
   /** The package the room is already standing in, for the single-package card. */
   anchored: { id: string; label: string; figure: string };
   lit: boolean;
@@ -6757,39 +6807,42 @@ function ThreadBlock({
     return (
       <div className="wk-pkgs wk-pkgask" role="radiogroup" aria-label={PACKAGE_QUESTION}>
         <div className="wk-pkgask-h">{PACKAGE_QUESTION_NOTE}</div>
-        {roster.map((entry) => (
-          /* AN IN-FLIGHT VERSION IS LISTED AND DISABLED (rule 2 + rule 30, the
+        {roster.map((entry) => {
+          /* A BLOCKED PACKAGE IS LISTED AND DISABLED (rule 2 + rule 30, the
              same treatment the ineligible package already gets). It is a real
              package on this relationship, so hiding it would leave the banker
              wondering where the version they just filed went; it is also not a
-             room anyone can work in, so it carries its reason instead of its
-             figures and nothing about it is clickable. */
-          <button
-            type="button"
-            role="radio"
-            aria-checked={false}
-            key={entry.id}
-            className="wk-pkg"
-            data-pkg={entry.id}
-            disabled={entry.inFlightVersion}
-            data-inflight={entry.inFlightVersion ? "1" : undefined}
-            title={entry.reason ?? entry.line}
-            onClick={() =>
-              !entry.inFlightVersion &&
-              onAnchor?.({ id: entry.id, label: entry.name, figure: entry.line, eligible: true })
-            }
-          >
-            <span>
-              <b>{entry.name}</b>
-              <span>{entry.reason ?? entry.line}</span>
-            </span>
-            {!entry.inFlightVersion && (
-              <span className="wk-go" aria-hidden="true">
-                →
+             room they can work in, so it carries its reason instead of its
+             figures and nothing about it is clickable.
+             WHICH packages those are is `packagePick`'s call, not this JSX's. */
+          const pick = packagePick(entry, packageAsk);
+          return (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={false}
+              key={entry.id}
+              className="wk-pkg"
+              data-pkg={entry.id}
+              disabled={pick.blocked}
+              data-inflight={pick.blocked ? "1" : undefined}
+              title={pick.line}
+              onClick={() =>
+                !pick.blocked && onAnchor?.({ id: entry.id, label: entry.name, figure: entry.line, eligible: true })
+              }
+            >
+              <span>
+                <b>{entry.name}</b>
+                <span>{pick.line}</span>
               </span>
-            )}
-          </button>
-        ))}
+              {!pick.blocked && (
+                <span className="wk-go" aria-hidden="true">
+                  →
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
     );
   }

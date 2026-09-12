@@ -123,7 +123,7 @@ import {
 import { newRequestId } from "../../channel/adapter";
 import { ComposerPlus } from "../composer/ComposerPlus";
 import { EMPTY_BOOK } from "../workroom/elicit";
-import type { PackageEntry } from "../../book/packages";
+import { packagePick, type PackageEntry } from "../../book/packages";
 import { awaitFiling, FILED_FAILED, FILING_IN_FLIGHT, LIVE_SETTLE, STILL_WRITING } from "../workroom/settleExecution";
 import "../../styles/workroom.css";
 import "../../styles/package-anchor.css";
@@ -2722,34 +2722,38 @@ function RelBlock({
     return (
       <div className="wk-pkgs wk-pkgask" role="radiogroup" aria-label={REL_PACKAGE_QUESTION}>
         <div className="wk-pkgask-h">{REL_PACKAGE_QUESTION}</div>
-        {packages.map((entry) => (
-          /* AN IN-FLIGHT VERSION IS LISTED AND DISABLED, exactly as the facility
-             room lists it (rule 2). A review cannot run in a package version
-             nobody has booked, and a banker who has learned one room's answer to
-             that has learned both. */
-          <button
-            type="button"
-            role="radio"
-            aria-checked={false}
-            key={entry.id}
-            className="wk-pkg"
-            data-pkg={entry.id}
-            disabled={entry.inFlightVersion}
-            data-inflight={entry.inFlightVersion ? "1" : undefined}
-            title={entry.reason ?? entry.line}
-            onClick={() => !entry.inFlightVersion && onAnchorPackage(entry.id)}
-          >
-            <span>
-              <b>{entry.name}</b>
-              <span>{entry.reason ?? entry.line}</span>
-            </span>
-            {!entry.inFlightVersion && (
-              <span className="wk-go" aria-hidden="true">
-                →
+        {packages.map((entry) => {
+          /* THE SAME LOCK THE FACILITY ROOM USES, from the same function (rule
+             2). A review cannot run in a package version nobody has booked, and
+             a banker who has learned one room's answer to that has learned both.
+             A review FORKS NOTHING, so a package with a modification already in
+             flight is named but never blocked here. */
+          const pick = packagePick(entry, "review");
+          return (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={false}
+              key={entry.id}
+              className="wk-pkg"
+              data-pkg={entry.id}
+              disabled={pick.blocked}
+              data-inflight={pick.blocked ? "1" : undefined}
+              title={pick.line}
+              onClick={() => !pick.blocked && onAnchorPackage(entry.id)}
+            >
+              <span>
+                <b>{entry.name}</b>
+                <span>{pick.line}</span>
               </span>
-            )}
-          </button>
-        ))}
+              {!pick.blocked && (
+                <span className="wk-go" aria-hidden="true">
+                  →
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
     );
   }

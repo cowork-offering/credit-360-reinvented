@@ -22,6 +22,54 @@ import { isActiveFacility } from "./worklist";
 
 export const BOOKED = "Booked";
 
+/* -----------------------------------------------------------------------------
+   THE STAGE LADDER, READ OFF THE LIVE ORG (2026-09-12).
+
+   `sf sobject describe --sobject LLC_BI__Loan__c` on bankinggpt-at returns
+   `LLC_BI__Stage__c` as an eleven-value picklist, every value active, in this
+   order. It is the ladder a loan climbs, so the ORDER is the fact — not just
+   the membership — and "past approval" is a position on it rather than a word
+   anyone can guess at.
+
+   The approval stage is named `Approval / Loan Committee`. It is the fifth rung,
+   and it is the one a modification version stops being editable at: below it the
+   banker is still shaping the version, at it and above the org has taken it.
+   ----------------------------------------------------------------------------- */
+export const STAGE_LADDER = [
+  "Qualification",
+  "Proposal",
+  "Credit Underwriting",
+  "Final Review",
+  "Approval / Loan Committee",
+  "Processing",
+  "Doc Prep",
+  "Closing",
+  "Boarding",
+  "Booked",
+  "Complete",
+] as const;
+
+/** The rung a version locks at. The org's own words, verbatim. */
+export const APPROVAL_STAGE = "Approval / Loan Committee";
+
+const RUNG = new Map(STAGE_LADDER.map((s, i) => [s.toLowerCase(), i]));
+const APPROVAL_RUNG = RUNG.get(APPROVAL_STAGE.toLowerCase())!;
+
+/** Where on the ladder, or -1 for a stage this org does not name. An unknown
+ *  stage is never ranked against a known one: -1 compares below everything and
+ *  every caller treats it as "cannot tell" rather than "early". */
+export function stageRung(stage: string | null | undefined): number {
+  return RUNG.get((stage ?? "").trim().toLowerCase()) ?? -1;
+}
+
+/** Has this facility reached the approval stage or gone past it? Unknown and
+ *  unstaged both read false, which is the same fail-closed rule the rest of
+ *  this file keeps: we withhold the CLAIM, never invent one. */
+export function atOrPastApproval(f: Facility): boolean {
+  const rung = stageRung(f.stage);
+  return rung >= 0 && rung >= APPROVAL_RUNG;
+}
+
 /**
  * Whether EVERY candidate facility carries a stage.
  *
