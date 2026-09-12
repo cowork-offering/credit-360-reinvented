@@ -1,0 +1,18 @@
+{
+  "_source": "BOOM-SNAPSHOT",
+  "company": "Piedmont Precision Components, Inc.",
+  "asOf": "2025-12-31",
+  "raw": {
+    "revenue": 64486000,
+    "revenuePrior": 59915000,
+    "grossProfit": 14064000,
+    "operatingIncome": 2838000,
+    "ebitda": 5234000,
+    "totalDebt": 20130000,
+    "leverage": 3.8460068781047,
+    "interestCoverage": 2.637546468401487,
+    "revenueYoY": 0.07629141283484937,
+    "grossMargin": 0.2180938498278696,
+    "ebitdaMargin": 0.08116490401017275
+  }
+}

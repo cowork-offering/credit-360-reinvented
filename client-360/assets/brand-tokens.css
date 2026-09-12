@@ -1,0 +1,77 @@
+/* ============================================================
+   Brand Tokens — for the Commercial Credit Memo
+   ------------------------------------------------------------
+   SINGLE SOURCE OF BRAND TRUTH for the rendered memo. The whole
+   document re-skins to a client by editing the --brand-* tokens
+   below (and swapping the logo assets). Token NAMES are generic
+   (--brand-primary, --brand-accent); nothing here is client-specific.
+
+   DEFAULT SKIN: the neutral "Acme Bank" demo persona on the
+   Accenture-accelerator palette (deep purple #2E0A4F + #A100FF
+   accent). Swap these for a real client's palette per engagement.
+
+   TYPOGRAPHY: DM Sans (geometric-humanist, squared numerals,
+   rounded apertures), backed by a system sans-serif stack as
+   ultimate fallback. Override per client if a brand typeface is
+   licensed.
+
+   SUPPORTING PALETTE: the non-primary tokens are derived from the
+   primary purple and standard credit-document conventions
+   (green/amber/red for compliance flags).
+   ============================================================ */
+
+:root {
+  /* ------ DEFAULT SKIN: Accenture accelerator (client-agnostic) ------
+     Client skins override these tokens. Default = deep purple #2E0A4F fills/headings + #A100FF accent. */
+  --brand-primary: #2E0A4F;            /* deep purple — headings, banner, table headers */
+  --brand-primary-rgb: 46, 10, 79;
+
+  /* ------ DERIVED (supporting) ------ */
+  --brand-secondary: #2E0A4F;          /* deep purple — subheads, doc-type */
+  --brand-accent: #A100FF;             /* Accenture purple — sparse accent (rules, callout edge, eyebrow, links) */
+  --brand-tint: #F5F2FA;               /* faint purple-gray — callout/KPI backgrounds */
+  --brand-tint-strong: #E2E0E5;        /* light neutral — dividers */
+
+  /* Neutrals */
+  --body: #1A1A1A;
+  --muted: #5C5A60;
+  --slate: #D6D3D1;                     /* rules, borders, table separators */
+  --paper: #FFFFFF;
+  --off-paper: #FAF8FB;                 /* alternating row stripes */
+
+  /* Compliance flags — credit-document convention, not bank-specific */
+  --pass: #1F7A3A;                      /* Green — green flag, favorable ratio */
+  --watch: #B45309;                     /* Amber — within 10% of trigger */
+  --breach: #A8211B;                    /* Red — covenant breach, adverse ratio */
+  --pass-bg: rgba(31, 122, 58, 0.12);
+  --watch-bg: rgba(180, 83, 9, 0.12);
+  --breach-bg: rgba(168, 33, 27, 0.12);
+
+  /* ------ TYPOGRAPHY ------ */
+  /* Open-source fallback stack matching a geometric brand typeface.
+     DM Sans is geometric-humanist with squared numerals and
+     rounded apertures — closest free match to Trio. Inter is
+     the workhorse fallback. System UI completes the stack. */
+  --font-body: "DM Sans", "Inter", "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "DM Sans", "Inter", "SF Pro Display", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Consolas", "Roboto Mono", monospace;
+
+  /* ------ TYPE SCALE (memo-specific) ------ */
+  --size-cover-title: 28pt;             /* "Commercial Credit Memo" cover */
+  --size-borrower-name: 22pt;           /* Borrower name on cover */
+  --size-section-title: 16pt;           /* Section H2 */
+  --size-subsection: 12pt;              /* H3 */
+  --size-body: 11pt;
+  --size-table: 10pt;
+  --size-footnote: 9pt;
+  --size-classification: 9pt;
+  --size-kpi-value: 14pt;
+  --size-eyebrow: 9pt;
+
+  /* ------ SPACING ------ */
+  --page-margin-top: 0.6in;
+  --page-margin-side: 0.7in;
+  --page-margin-bottom: 0.7in;
+  --section-gap: 18px;
+  --subsection-gap: 14px;
+}

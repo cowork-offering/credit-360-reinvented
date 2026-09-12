@@ -1,0 +1,24 @@
+/* Interactive review shell — turns the rendered memo ARTIFACT into the human-in-the-loop
+   workspace: per-section Approve/Edit controls + a sticky review bar + live cover summary.
+   Injected only into the interactive artifact; print/PDF hides all controls. */
+.rv-bar{position:sticky;top:0;z-index:50;background:var(--brand-primary,#2D1A47);color:#fff;display:flex;align-items:center;gap:14px;padding:9px 18px;font:600 12px/1.3 "DM Sans","Inter",system-ui,sans-serif;box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.rv-bar .rv-id{font-weight:500;opacity:.9}
+.rv-bar .rv-id b{font-weight:800;opacity:1}
+.rv-bar .rv-prog{margin-left:auto;font-variant-numeric:tabular-nums;opacity:.95}
+.rv-bar button{appearance:none;border:1px solid rgba(255,255,255,.42);background:transparent;color:#fff;border-radius:6px;padding:6px 11px;font:inherit;font-size:11px;cursor:pointer}
+.rv-bar button:hover{background:rgba(255,255,255,.14)}
+.rv-bar button.rv-primary{background:#fff;color:var(--brand-primary,#2D1A47);border-color:#fff;font-weight:700}
+.rv-ctrl{display:flex;gap:8px;align-items:center;margin:-4px 0 14px;flex-wrap:wrap}
+.rv-ctrl button{appearance:none;border:1px solid var(--slate,#D6D3D1);background:#fff;color:var(--brand-primary,#2D1A47);border-radius:6px;padding:6px 12px;font:600 11px "DM Sans",system-ui,sans-serif;cursor:pointer}
+.rv-ctrl button:hover{border-color:var(--brand-primary,#2D1A47)}
+.rv-ctrl .rv-approve{background:var(--brand-primary,#2D1A47);color:#fff;border-color:var(--brand-primary,#2D1A47)}
+.rv-ctrl .rv-save{background:var(--pass,#1F7A3A);color:#fff;border-color:var(--pass,#1F7A3A)}
+.rv-done{color:var(--pass,#1F7A3A);font:700 11px "DM Sans",system-ui,sans-serif;display:inline-flex;align-items:center;gap:4px}
+/* Only the narrative blocks are editable — highlight THEM (not the whole section), so it's clear the
+   data/tables/figures stay locked (agent-owned, source-of-record). */
+.rv-narr-edit{outline:2px solid var(--brand-primary,#2D1A47);outline-offset:3px;border-radius:5px;background:#faf7fc}
+.rv-narr-edit:focus{outline-color:var(--watch,#B45309)}
+.rv-editing{background:rgba(45,26,71,.025)}
+.rv-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1A1A1A;color:#fff;padding:11px 18px;border-radius:9px;font:500 12px system-ui;z-index:100;max-width:90vw;box-shadow:0 4px 18px rgba(0,0,0,.3)}
+#rv-export{display:none}
+@media print{.rv-bar,.rv-ctrl{display:none!important}.rv-editing,.rv-narr-edit{outline:none;background:none}}

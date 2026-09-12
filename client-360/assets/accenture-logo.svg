@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 46" role="img" aria-label="accenture">
+  <!--
+    PLACEHOLDER traced approximation of the Accenture wordmark for the "Accelerator by Accenture"
+    widget footer. Lowercase wordmark + the signature ">" accent over the 't'. Uses currentColor so
+    the embedding context sets the color (Accenture purple #A100FF on light, white on dark).
+    SWAP FOR OFFICIAL: obtain the official Accenture logo SVG from Accenture brand channels.
+  -->
+  <text x="2" y="38" font-family="'DM Sans','Inter','SF Pro Text','Segoe UI',system-ui,sans-serif"
+        font-size="38" font-weight="600" letter-spacing="-0.5" fill="currentColor">accenture</text>
+  <path d="M99 5 L110 10.5 L99 16" fill="none" stroke="currentColor" stroke-width="3.2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

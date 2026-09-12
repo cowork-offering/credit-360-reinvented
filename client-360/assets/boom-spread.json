@@ -1,0 +1,254 @@
+{
+  "_source": "BOOM-SNAPSHOT",
+  "_provenance": {
+    "system": "Boom",
+    "record": "8b941a16-e697-4fea-8ff5-3bcc1e29e442",
+    "asOf": "2025-12-31"
+  },
+  "file": {
+    "id": "8b941a16-e697-4fea-8ff5-3bcc1e29e442",
+    "fileName": "Piedmont_Precision_Components_Financials_FY2023-2025.xlsx",
+    "financialStatements": [
+      {
+        "statementType": "income_statement",
+        "endDate": "2025-12-31",
+        "periods": [
+          {
+            "id": "p2023",
+            "endDate": "2023-12-31"
+          },
+          {
+            "id": "p2024",
+            "endDate": "2024-12-31"
+          },
+          {
+            "id": "p2025",
+            "endDate": "2025-12-31"
+          }
+        ],
+        "lineItems": [
+          {
+            "accountCode": "net_sales_revenue",
+            "name": "Net Sales",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 59915000,
+              "p2024": 56266000,
+              "p2025": 64486000
+            }
+          },
+          {
+            "accountCode": "cost_of_sales",
+            "name": "Cost of Sales",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 45371000,
+              "p2024": 40829000,
+              "p2025": 50422000
+            }
+          },
+          {
+            "accountCode": "gross_profit",
+            "name": "Gross Profit",
+            "hierarchy": "subtotal",
+            "periodValues": {
+              "p2023": 14544000,
+              "p2024": 15437000,
+              "p2025": 14064000
+            }
+          },
+          {
+            "accountCode": "operating_expenses",
+            "name": "Operating Expenses",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 10989000,
+              "p2024": 10752000,
+              "p2025": 11226000
+            }
+          },
+          {
+            "accountCode": "operating_profit",
+            "name": "Income from Operations",
+            "hierarchy": "subtotal",
+            "periodValues": {
+              "p2023": 3555000,
+              "p2024": 4685000,
+              "p2025": 2838000
+            }
+          },
+          {
+            "accountCode": "interest_expense",
+            "name": "Interest Expense",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": -1019000,
+              "p2024": -947000,
+              "p2025": -1076000
+            }
+          },
+          {
+            "accountCode": "net_income",
+            "name": "Net Income",
+            "hierarchy": "total",
+            "periodValues": {
+              "p2023": 1868000,
+              "p2024": 2873000,
+              "p2025": 1390000
+            }
+          }
+        ]
+      },
+      {
+        "statementType": "balance_sheet",
+        "endDate": "2025-12-31",
+        "periods": [
+          {
+            "id": "p2023",
+            "endDate": "2023-12-31"
+          },
+          {
+            "id": "p2024",
+            "endDate": "2024-12-31"
+          },
+          {
+            "id": "p2025",
+            "endDate": "2025-12-31"
+          }
+        ],
+        "lineItems": [
+          {
+            "accountCode": "cash_and_equivalents",
+            "name": "Cash and Cash Equivalents",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 3092000,
+              "p2024": 3892000,
+              "p2025": 4928000
+            }
+          },
+          {
+            "accountCode": "accounts_receivable_trade",
+            "name": "Accounts Receivable, Net",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 7662000,
+              "p2024": 8427000,
+              "p2025": 9162000
+            }
+          },
+          {
+            "accountCode": "total_inventory",
+            "name": "Inventory",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 9916000,
+              "p2024": 10995000,
+              "p2025": 11965000
+            }
+          },
+          {
+            "accountCode": "total_assets",
+            "name": "Total Assets",
+            "hierarchy": "total",
+            "periodValues": {
+              "p2023": 36062000,
+              "p2024": 40117000,
+              "p2025": 46761000
+            }
+          },
+          {
+            "accountCode": "st_loans_payable_bank",
+            "name": "Line of Credit and Current Portion of LTD",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 4916000,
+              "p2024": 5218000,
+              "p2025": 5674000
+            }
+          },
+          {
+            "accountCode": "long_term_debt_bank",
+            "name": "Long-Term Debt, Net of Current Portion",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 8957000,
+              "p2024": 9969000,
+              "p2025": 14456000
+            }
+          },
+          {
+            "accountCode": "total_equity",
+            "name": "Total Stockholders' Equity",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 15666000,
+              "p2024": 17774000,
+              "p2025": 18870000
+            }
+          }
+        ]
+      },
+      {
+        "statementType": "cash_flow_statement",
+        "endDate": "2025-12-31",
+        "periods": [
+          {
+            "id": "p2023",
+            "endDate": "2023-12-31"
+          },
+          {
+            "id": "p2024",
+            "endDate": "2024-12-31"
+          },
+          {
+            "id": "p2025",
+            "endDate": "2025-12-31"
+          }
+        ],
+        "lineItems": [
+          {
+            "accountCode": "net_income",
+            "name": "Net Income",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 1868000,
+              "p2024": 2873000,
+              "p2025": 1390000
+            }
+          },
+          {
+            "accountCode": null,
+            "name": "Depreciation and Amortization",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": 2009000,
+              "p2024": 2189000,
+              "p2025": 2396000
+            }
+          },
+          {
+            "accountCode": null,
+            "name": "Net Cash Provided by Operating Activities",
+            "hierarchy": "total",
+            "periodValues": {
+              "p2023": 4185000,
+              "p2024": 4777000,
+              "p2025": 3593000
+            }
+          },
+          {
+            "accountCode": null,
+            "name": "Purchases of Property and Equipment",
+            "hierarchy": "line_item",
+            "periodValues": {
+              "p2023": -2093000,
+              "p2024": -2601000,
+              "p2025": -5415000
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

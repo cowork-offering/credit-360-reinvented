@@ -1,0 +1,64 @@
+{
+  "_source": "CAPIQ-IBIS-PLACEHOLDER",
+  "_note": "Stand-in until the OOTB CapIQ/IBIS MCP arrives. Replaces EDGAR.",
+  "peers": {
+    "_note": "CapIQ/IBIS placeholder — aerospace/defense precision manufacturers (not distributors). Low-priority module.",
+    "_stub": true,
+    "naics": "332710",
+    "revenueBand": "$30M–$150M",
+    "set": [
+      {
+        "name": "Ducommun",
+        "ticker": "DCO",
+        "revenueLTM": 780000000,
+        "ebitdaMarginPct": 12.5,
+        "leverage": 3.1,
+        "dsc": 1.8
+      },
+      {
+        "name": "CPI Aerostructures",
+        "ticker": "CVU",
+        "revenueLTM": 95000000,
+        "ebitdaMarginPct": 7.5,
+        "leverage": 2.6,
+        "dsc": 1.5
+      },
+      {
+        "name": "Innovative Solutions",
+        "ticker": "ISSC",
+        "revenueLTM": 47000000,
+        "ebitdaMarginPct": 30,
+        "leverage": 0.4,
+        "dsc": 6
+      },
+      {
+        "name": "Optex Systems",
+        "ticker": "OPXS",
+        "revenueLTM": 33000000,
+        "ebitdaMarginPct": 9,
+        "leverage": 0.6,
+        "dsc": 3.2
+      }
+    ],
+    "medians": {
+      "ebitdaMarginPct": 10.75,
+      "leverage": 1.6,
+      "dsc": 2.5,
+      "revenueYoYPct": 5
+    }
+  },
+  "industryOutlook": {
+    "naics": "332710",
+    "marketSize": "$40B+ (US precision machining / contract manufacturing)",
+    "cagrPct": 4.5,
+    "cyclicality": "Moderate — tied to aerospace/defense build rates and medical-device demand; defense backlog dampens the cycle.",
+    "outlook": "Stable-to-improving. Commercial aerospace build-rate recovery and sustained defense spending support high-tolerance machining demand; reshoring of precision supply chains is a tailwind for AS9100D/ISO-13485 shops.",
+    "drivers": [
+      "Commercial aerospace build rates",
+      "Defense procurement / backlog",
+      "Medical-device demand",
+      "Supply-chain reshoring"
+    ],
+    "mode": "C"
+  }
+}

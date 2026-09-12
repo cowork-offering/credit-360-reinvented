@@ -1,0 +1,280 @@
+{
+  "_source": "AFS-PLACEHOLDER",
+  "_note": "Stand-in until the AFS MCP lands. Swap for the real MCP (Snowflake schema) with no prompt change. Leverage is NS (null) — EBITDA is breakeven, so an EBITDA-based ratio is not meaningful; do not fabricate.",
+  "externalUniqueId": "001bb00001DLtRMAA1",
+  "riskRatingTrend": {
+    "scale": "Acme Bank 1–15 (Pass 1–12, Low Pass 13–15, Criticized 16, Classified 17)",
+    "currentRating": "5 — Pass/Watch",
+    "proposedRating": "5 — Pass/Watch (affirmed)",
+    "events": [
+      {
+        "period": "FY2023",
+        "rating": "5",
+        "band": "Pass/Watch",
+        "pdPct": 1.6,
+        "proposed": false
+      },
+      {
+        "period": "FY2024",
+        "rating": "5",
+        "band": "Pass/Watch",
+        "pdPct": 1.7,
+        "proposed": false
+      },
+      {
+        "period": "FY2025",
+        "rating": "5",
+        "band": "Pass/Watch",
+        "pdPct": 1.85,
+        "proposed": false
+      },
+      {
+        "period": "Proposed",
+        "rating": "5",
+        "band": "Pass/Watch",
+        "pdPct": 1.95,
+        "proposed": true
+      }
+    ]
+  },
+  "covenantCompliance": [
+    {
+      "name": "Minimum Debt Service Coverage",
+      "operator": ">=",
+      "trigger": 1.25,
+      "unit": "x",
+      "frequency": "Quarterly",
+      "type": "Financial",
+      "active": true,
+      "definition": "(EBITDA − unfinanced CapEx − cash taxes − distributions) / (interest + scheduled principal).",
+      "quarters": [
+        "FY2023",
+        "FY2024",
+        "FY2025",
+        "Proposed"
+      ],
+      "actuals": [
+        null,
+        null,
+        1.42,
+        null
+      ],
+      "perPeriod": [
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        },
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        },
+        {
+          "value": 1.42,
+          "flag": "compliant",
+          "arrow": ""
+        },
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        }
+      ],
+      "currentFlag": "compliant",
+      "cushionPct": 13.6
+    },
+    {
+      "name": "Maximum Debt-to-Worth",
+      "operator": "<=",
+      "trigger": 3,
+      "unit": "x",
+      "frequency": "Quarterly",
+      "type": "Financial",
+      "active": true,
+      "definition": "Total liabilities / tangible net worth.",
+      "quarters": [
+        "FY2023",
+        "FY2024",
+        "FY2025",
+        "Proposed"
+      ],
+      "actuals": [
+        null,
+        null,
+        2.18,
+        null
+      ],
+      "perPeriod": [
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        },
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        },
+        {
+          "value": 2.18,
+          "flag": "compliant",
+          "arrow": ""
+        },
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        }
+      ],
+      "currentFlag": "compliant",
+      "cushionPct": 27.33
+    },
+    {
+      "name": "Minimum Liquidity",
+      "operator": ">=",
+      "trigger": 5000000,
+      "unit": "$",
+      "frequency": "Monthly",
+      "type": "Financial",
+      "active": true,
+      "definition": "Cash plus undrawn revolver availability.",
+      "quarters": [
+        "FY2023",
+        "FY2024",
+        "FY2025",
+        "Proposed"
+      ],
+      "actuals": [
+        null,
+        null,
+        8200000,
+        null
+      ],
+      "perPeriod": [
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        },
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        },
+        {
+          "value": 8200000,
+          "flag": "compliant",
+          "arrow": ""
+        },
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        }
+      ],
+      "currentFlag": "compliant",
+      "cushionPct": 64
+    },
+    {
+      "name": "Maximum Annual CapEx",
+      "operator": "<=",
+      "trigger": 7500000,
+      "unit": "$",
+      "frequency": "Annually",
+      "type": "Financial",
+      "active": true,
+      "definition": "Total capital expenditures during the fiscal year.",
+      "quarters": [
+        "FY2023",
+        "FY2024",
+        "FY2025",
+        "Proposed"
+      ],
+      "actuals": [
+        null,
+        null,
+        1250000,
+        null
+      ],
+      "perPeriod": [
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        },
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        },
+        {
+          "value": 1250000,
+          "flag": "compliant",
+          "arrow": ""
+        },
+        {
+          "value": null,
+          "flag": "n/a",
+          "arrow": ""
+        }
+      ],
+      "currentFlag": "compliant",
+      "cushionPct": 83.33
+    }
+  ],
+  "ratios": [
+    {
+      "period": "FY2023",
+      "totalLeverage": 2.17,
+      "ebitda": 6400000,
+      "totalFundedDebt": 13900000
+    },
+    {
+      "period": "FY2024",
+      "totalLeverage": 2.62,
+      "ebitda": 5800000,
+      "totalFundedDebt": 15200000
+    },
+    {
+      "period": "FY2025",
+      "totalLeverage": 3.95,
+      "ebitda": 5100000,
+      "totalFundedDebt": 20150000
+    },
+    {
+      "period": "Proposed",
+      "totalLeverage": 4.93,
+      "ebitda": 5100000,
+      "totalFundedDebt": 25150000
+    }
+  ],
+  "sensitivity": {
+    "_note": "AFS-placeholder sensitivity on the binding DSC covenant. Base = FY2024 actual.",
+    "scenarios": [
+      {
+        "name": "Base (FY2024 actual)",
+        "revenueDelta": 0,
+        "gmDeltaBps": 0,
+        "dsc": 1.42,
+        "covenantBreaches": []
+      },
+      {
+        "name": "Downside — revenue −5%",
+        "revenueDelta": -0.05,
+        "gmDeltaBps": 0,
+        "dsc": 1.28,
+        "covenantBreaches": []
+      },
+      {
+        "name": "Stress — revenue −5%, GM −100bps",
+        "revenueDelta": -0.05,
+        "gmDeltaBps": -100,
+        "dsc": 1.18,
+        "covenantBreaches": [
+          "Minimum Debt Service Coverage"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "_README": "DEMO STUB for nCino-sourced deal facts (all REAL \u2014 pulled live from the BankingGPT sandbox, Account 001bb00001DLtRMAA1, Piedmont). Used by the commercial-credit-memo skill in DEMO STUB MODE so the agent does NOT fire the live SOQL barrage every time \u2014 it reads this one file. (The deal-summary + finalize widgets now live in the Experience MCP, which carries its own fixture.) This mirrors EXACTLY what the forthcoming nCino MCP will return (ncino_get_product_package / _loans / _covenants / _collateral / _guarantor). When the nCino MCP is connected, flip to it; for live SOQL, see ncino-mcp/docs/query-spec.md. Snapshot date 2026-06-01.",
+  "externalUniqueId": "001bb00001DLtRMAA1",
+  "instanceUrl": "https://bankinggpt.lightning.force.com",
+  "account": {
+    "id": "001bb00001DLtRMAA1",
+    "name": "Piedmont Precision Components, Inc.",
+    "industry": "Manufacturing",
+    "state": "NC",
+    "address": "4825 Burlington Road, Suite 200, Greensboro, NC 27405",
+    "annualRevenue": 64500000,
+    "employees": 182,
+    "naics": "332710",
+    "naicsDesc": "Machine Shops",
+    "customerSince": "2009-04-15",
+    "riskRating": "5 \u2014 Pass/Watch",
+    "profile": "Privately held precision-machining manufacturer (founded 1998) \u2014 high-tolerance components for aerospace, defense, and medical-device end markets. ~110,000 sq ft, 182 employees, AS9100D / ISO 13485 certified. banking relationship since 2009 (operating), C&I credit since 2014."
+  },
+  "productPackage": {
+    "id": "a5Fbb000000HA1NEAW",
+    "name": "Piedmont Precision C&I Credit Package",
+    "stage": "In Review",
+    "totalCommitment": 12500000,
+    "outstanding": 4250000,
+    "unused": 8250000,
+    "newMoney": 5000000,
+    "riskRating": "5"
+  },
+  "loans": [
+    {
+      "id": "a4Zbb000001zEQTEA2",
+      "name": "Working Capital Line",
+      "product": "Senior Secured Working Capital RCF",
+      "action": "Secured Renewal",
+      "isNewMoney": false,
+      "isRenewal": true,
+      "isPrimary": true,
+      "commitment": 7500000,
+      "outstanding": 4250000,
+      "rate": "7.50%",
+      "spread": "S+225",
+      "maturity": "2027-07-15",
+      "riskRating": "5"
+    },
+    {
+      "id": "a4Zbb000001vaxREAQ",
+      "name": "Equipment Term Loan",
+      "product": "Senior Secured Equipment Term Loan",
+      "action": "New Loan",
+      "isNewMoney": true,
+      "isRenewal": false,
+      "isPrimary": false,
+      "commitment": 5000000,
+      "outstanding": 0,
+      "fundingAtClose": 5000000,
+      "rate": "7.85%",
+      "spread": "S+260",
+      "maturity": "2031-07-15",
+      "riskRating": "5"
+    }
+  ],
+  "covenants": [
+    {
+      "name": "Minimum Debt Service Coverage",
+      "operator": ">=",
+      "threshold": 1.25,
+      "actual": 1.42,
+      "unit": "x",
+      "frequency": "Quarterly",
+      "status": "Compliant"
+    },
+    {
+      "name": "Maximum Debt-to-Worth",
+      "operator": "<=",
+      "threshold": 3.0,
+      "actual": 2.18,
+      "unit": "x",
+      "frequency": "Quarterly",
+      "status": "Compliant"
+    },
+    {
+      "name": "Minimum Liquidity",
+      "operator": ">=",
+      "threshold": 5000000,
+      "actual": 8200000,
+      "unit": "$",
+      "frequency": "Monthly",
+      "status": "Compliant"
+    },
+    {
+      "name": "Maximum Annual CapEx",
+      "operator": "<=",
+      "threshold": 7500000,
+      "actual": 1250000,
+      "unit": "$",
+      "frequency": "Annually",
+      "status": "Compliant"
+    }
+  ],
+  "collateral": [
+    {
+      "loan": "Working Capital Line",
+      "description": "A/R $4.4M + inventory $2.0M + blanket lien $2.0M",
+      "value": 8400000,
+      "coveragePct": 112,
+      "lienPosition": "1st"
+    },
+    {
+      "loan": "Equipment Term Loan",
+      "description": "Blanket lien $5.0M + 3\u00d7 Mazak INTEGREX CNC $4.25M",
+      "value": 9250000,
+      "coveragePct": 185,
+      "lienPosition": "1st"
+    }
+  ],
+  "guarantors": [
+    {
+      "name": "Margaret Holloway",
+      "guarantyType": "Joint & Several",
+      "entityType": "Individual"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-label="Bank mark" fill="none">
+  <rect x="4" y="4" width="56" height="56" rx="14" stroke="currentColor" stroke-width="5"/>
+  <g fill="currentColor">
+    <rect x="18" y="34" width="6.5" height="13" rx="2"/>
+    <rect x="28.75" y="26" width="6.5" height="21" rx="2"/>
+    <rect x="39.5" y="18" width="6.5" height="29" rx="2"/>
+  </g>
+</svg>
