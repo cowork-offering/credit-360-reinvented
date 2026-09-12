@@ -18,6 +18,10 @@ request and credit-memo rooms. The chat "takes the banker's hand and guides them
    is answered with what its connected relationships imply (a guarantor's own exposure, an
    affiliate's covenant breach, shared collateral). Never answer from a slice; never ask for
    something the book already holds; never treat a relationship as an island.
+   *Secondary, later (founder 2026-09-12, "not dramatic right now"):* it should also understand
+   the Salesforce platform it lives on and the FSC (Financial Services Cloud) model — households,
+   relationship groups, financial accounts, the Account/Contact graph — so the downstream reach
+   and any "where does this live / how is this related" question is answered in those terms too.
 
 2. **It guides and advises wherever it can.** It leads. Every question it asks leads with the
    current figure, offers the real options, and recommends one. It does not put a blank form in
