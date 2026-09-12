@@ -19,6 +19,23 @@ Raw intake = the cockpit **Feedback bucket** (`bugs` collection in each cockpit'
 | 6 | P3 | Data hygiene | 19 other loans in the org read `hasRenewal=true` from PRE-test chain rows: mostly 2025 legacy demo accounts (BlueSky*, Bright*, Cy LTD, Summit, Horizon, Ironclad, Global, Doc Prep — outside the confined demo book) plus EverPetal / Flowers For Dreams (Feb 2026) and **Piedmont Precision — LOC $5,000,000 (chain row 2026-06-04, a June-era test)**. NOT touched — legacy rows aren't ours to clean, and the Piedmont one may be an intentional demo state. If a modification on Piedmont's $5M LOC is planned, its chain row must be cleared first or it hits the same "invalid facilities". **Founder decision 2026-09-12: leave the legacy accounts alone; only residue from OUR test-account fleet (Hartwell, Meridian, …) gets cleaned.** | **Decided — leave legacy** |
 | 5 | P3 | Modification | Brain-narrated option chips (e.g. "$15.0MM Line of Credit") arrive as free text and can miss the deterministic parser, forcing the restate assist at all. Chips the room offers should carry a canonical, deterministically-parseable `say`. Design improvement, adjacent to P1. | Noted |
 
+## Rule 1 ("knows the full relationship + everything around it") — status and completion
+
+Audit truth (2026-09-12, 0.9.17): NOT yet. Three context builders over one bundle DISAGREE (workroom
+envelope carries covenant thresholds/collateral/parties but drops maturities/stages; cockpit chat the
+reverse, and drops `notCarried`); the OBLIGOR GROUP (`graph.connections`: guarantors, principals with
+ownership %, affiliates) never reached any model; the in-flight version was dropped; the chat could
+not state a covenant threshold. On demand (rung 3) the model can pull only `currentBoomRatios` and
+`liveInvolvements` (the relationship graph) — never a CONNECTED party's own book.
+
+| # | Pri | Item | Status |
+|---|-----|------|--------|
+| 7 | P1 (0.9.18, in flight) | Obligor group into the envelope + `notCarried`; covenant threshold + operator + current value into the chat; in-flight version into the envelope; scope stated when quoting totals. | Fixer running |
+| 8 | P1 (next, after 0.9.18) | **Connected-party book on demand**: a rung-3 tool that reads the exposure/covenants of an account the anchored relationship's graph names (guarantor's own exposure, affiliate's breach) — bounded to the graph, never a free wander. Makes "what is the guarantor's own exposure?" answerable. | Spec'd here |
+| 9 | P1 (next, after 0.9.18) | **One context builder**: unify the workroom envelope, the cockpit chat context and the relationship-room context into one builder so no two surfaces ever disagree on the same relationship, and every surface gets the full picture (budget-aware). | Spec'd here |
+| 10 | P2 | Recommendation doctrine = **C (founder 2026-09-12)**: recommend only when grounded (on file / doctrine band), never invented. Follow-up pass after 0.9.18 adds the grounded chip/sentence (valuation on-file appraisal, covenant current value, rating bands, renewal tenor). | Decided — follow-up pass |
+| 11 | P3 (later) | Salesforce platform + FSC (households, relationship groups, financial accounts) awareness in the envelope/doctrine. | Founder: "not dramatic right now" |
+
 ## Stress-test script — run these, report each detail
 
 ### A. MODIFICATION (the primary path)
