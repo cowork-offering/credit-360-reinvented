@@ -1701,7 +1701,7 @@ describe("every beat says WHY, on this package's own figures", () => {
     // The org's own account is still the quote on the chip, unparaphrased.
     expect(result.refusal.reason).toMatch(/founder-gated/);
     expect(result.refusal.why).toBe(
-      "Filing a compliance status makes the bank send its own approval notice to a named person, and that cannot be pulled back — so it is taken deliberately rather than as a side effect of a term change. Open the covenant review on this package and file it there.",
+      "Filing a compliance status makes the bank send its own approval notice to a named person, and that cannot be pulled back, so it is taken deliberately rather than as a side effect of a term change. Open the covenant review on this package and file it there.",
     );
   });
 
@@ -1772,7 +1772,7 @@ describe("advisory 2 — something of this kind is already on the facility", () 
     const { engine } = engineOn();
     const result = await propose(engine, "add a collateral insurance covenant for the line of credit - $15,000,000.00");
     const advice = result.advisories!.find((a) => a.rule === "amend-or-add")!;
-    expect(advice.line).toContain("already carries 1 covenant — Accounts Receivable");
+    expect(advice.line).toContain("already carries 1 covenant (Accounts Receivable)");
     expect(advice.line).toContain("stages a new one beside it");
     expect(advice.resolution!.label).toBe("Change the Accounts Receivable test instead");
   });
@@ -1847,7 +1847,7 @@ describe("advisory 5 — a release that takes the cover under the org's own rati
     const result = await propose(engine, "release the pledge COL-000762 on the line of credit - $15,000,000.00");
     const advice = result.advisories!.find((a) => a.rule === "release-thins-cover")!;
     expect(advice.line).toBe(
-      "Releasing COL-000762 takes $8M out of the $34.60M pledged pool, leaving 1.02x against the $26M committed — under the 1.13x the org reads on this relationship today.",
+      "Releasing COL-000762 takes $8M out of the $34.60M pledged pool, leaving 1.02x against the $26M committed, under the 1.13x the org reads on this relationship today.",
     );
   });
 

@@ -102,10 +102,10 @@ export function whyProposed(deltas: WorkroomDelta[]): string {
  *  org already computed; the commitment is what the banker is moving. That gap
  *  IS the check, and stating it is what turns a ratio into a reason. */
 export function whyChecked(args: { lendable: number; covers: boolean }): string {
-  const held = `The pledged pool does not grow with the commitment — it holds at ${fmtMoney(args.lendable)}`;
+  const held = `The pledged pool does not grow with the commitment. It holds at ${fmtMoney(args.lendable)}`;
   return args.covers
-    ? `${held} — so every dollar added thins the cover behind it, and at this level it still clears the whole commitment.`
-    : `${held} — so every dollar added thins the cover behind it, and at this level it no longer clears the whole commitment.`;
+    ? `${held}, so every dollar added thins the cover behind it, and at this level it still clears the whole commitment.`
+    : `${held}, so every dollar added thins the cover behind it, and at this level it no longer clears the whole commitment.`;
 }
 
 /* --------------------------------------------------------- 4. handed off */
@@ -127,25 +127,25 @@ export function whyHandoff(delta: WorkroomDelta): string {
     case "covenant-add":
       return `Creating a covenant means writing it and attaching it to the modification${steps}. A mapped type with a stated threshold files directly; this one the room could not settle against the org's own catalog, so it rides the plan as a handoff and nothing is silently dropped.`;
     case "covenant-remove":
-      return "Taking a covenant off the facility means deleting the attachment outright, which nothing in this room may do — it rides the plan as a handoff, with the reason.";
+      return "Taking a covenant off the facility means deleting the attachment outright, which nothing in this room may do, so it rides the plan as a handoff, with the reason.";
     case "covenant-change":
-      return "The test itself lives on the covenant rather than on the facility, and no deployed write reaches it — it rides the plan as a handoff so nothing is silently dropped.";
+      return "The test itself lives on the covenant rather than on the facility, and no deployed write reaches it, so it rides the plan as a handoff and nothing is silently dropped.";
     case "collateral-add":
-      return `Pledging security files on the modification${steps} — an asset the borrower already owns goes straight onto the clone, and a net-new one is created, has its ownership recorded and is then pledged. This one the room could not resolve to a single asset, or could not settle its kind, value and advance rate, so it rides the plan as a handoff rather than a pledge aimed at a record nobody picked.`;
+      return `Pledging security files on the modification${steps}. An asset the borrower already owns goes straight onto the clone, and a net-new one is created, has its ownership recorded and is then pledged. This one the room could not resolve to a single asset, or could not settle its kind, value and advance rate, so it rides the plan as a handoff rather than a pledge aimed at a record nobody picked.`;
     case "collateral-remove":
-      return "Releasing a pledge is a change on the pledge itself, and no deployed write reaches it yet — it rides the plan as a handoff, with the reason.";
+      return "Releasing a pledge is a change on the pledge itself, and no deployed write reaches it yet, so it rides the plan as a handoff, with the reason.";
     case "party-add":
       return "Putting an entity on the modification files when the line names the member and the role; this one did not, so it rides the plan as a handoff and leaves with you rather than being dropped.";
     case "party-remove":
-      return "Taking an entity off files as a CARRY EXCLUSION when the line names the member — the booked facility keeps its row, the clone starts without it. This line did not name one, so it rides the plan as a handoff.";
+      return "Taking an entity off files as a CARRY EXCLUSION when the line names the member: the booked facility keeps its row, the clone starts without it. This line did not name one, so it rides the plan as a handoff.";
     case "fee":
-      return "A whole fee files on the modification — the kind, and either a percentage of the commitment or a flat amount. This one the room could not settle into that shape, so it rides the plan as a handoff rather than a figure that would look filed.";
+      return "A whole fee files on the modification: the kind, and either a percentage of the commitment or a flat amount. This one the room could not settle into that shape, so it rides the plan as a handoff rather than a figure that would look filed.";
     case "pricing":
-      return "Pricing is neither read nor written here, so the room can name the change but not show today's value — it rides the plan as a handoff so nothing is silently dropped.";
+      return "Pricing is neither read nor written here, so the room can name the change but not show today's value, so it rides the plan as a handoff and nothing is silently dropped.";
     case "exception":
-      return "Logging an exception files on the modification — what is out of policy, what the bank decided about it, and what stands behind that decision. This one the room could not settle into that shape, so it rides the plan as a handoff rather than as a record named after its own Id.";
+      return "Logging an exception files on the modification: what is out of policy, what the bank decided about it, and what stands behind that decision. This one the room could not settle into that shape, so it rides the plan as a handoff rather than as a record named after its own Id.";
     default:
-      return "The credit action carries four terms — commitment, rate, maturity and term — and this is not one of them, so it rides the plan as a handoff with the field named.";
+      return "The credit action carries four terms (commitment, rate, maturity and term), and this is not one of them, so it rides the plan as a handoff with the field named.";
   }
 }
 
@@ -198,7 +198,7 @@ function handoffKind(delta: WorkroomDelta): HandoffKind {
 export function whyRefused(fieldId: string): string {
   switch (fieldId) {
     case "covenant.complianceStatus":
-      return "Filing a compliance status makes the bank send its own approval notice to a named person, and that cannot be pulled back — so it is taken deliberately rather than as a side effect of a term change. Open the covenant review on this package and file it there.";
+      return "Filing a compliance status makes the bank send its own approval notice to a named person, and that cannot be pulled back, so it is taken deliberately rather than as a side effect of a term change. Open the covenant review on this package and file it there.";
     case "collateral.valuation":
       return "A valuation is a fact about the asset rather than a term on the facility, so it is filed against the collateral itself and not against a modification. Open the collateral valuation and it goes through there.";
     case "loan.stage":
@@ -226,7 +226,7 @@ export const NO_CONNECTOR_REFUSAL =
 /** No package to anchor on. Same shape: the reason, then the way forward. */
 export const NO_PACKAGE_REFUSAL =
   "A modification is anchored on one product package, and this relationship stages none. " +
-  "There is nothing here to modify until the deal is on a package — open the relationship and check what the package read carries.";
+  "There is nothing here to modify until the deal is on a package. Open the relationship and check what the package read carries.";
 
 /** A manifest where nothing files. The reason is the gap table; the way forward
  *  is either a term the credit action carries, or the handoff list itself. */

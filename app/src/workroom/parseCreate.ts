@@ -271,7 +271,7 @@ export function parseCreate(text: string, ctx: CreateParseContext): CreateOutcom
   if (/\b\d+\b/.test(lower)) {
     return {
       kind: "clarify",
-      question: "I read a number but not what it is. Say it with its magnitude — $5MM, or 60 months — and I will place it.",
+      question: "I read a number but not what it is. Say it with its magnitude ($5MM, or 60 months) and I will place it.",
     };
   }
   return { kind: "none" };
@@ -314,7 +314,7 @@ export function parseCreateAnswer(field: CreateField, text: string): CreateOutco
     if (!money.length) {
       return {
         kind: "clarify",
-        question: "Say the amount with its magnitude — $5,000,000 or $5MM. A bare number could be either.",
+        question: "Say the amount with its magnitude: $5,000,000 or $5MM. A bare number could be either.",
         awaiting: field,
       };
     }

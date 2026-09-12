@@ -310,6 +310,73 @@ describe("the renewal verb asks the one question the tool refuses without", () =
     expect(out.reply).toContain("Equipment (May 1, 2027)");
   });
 
+  /* THE MATURITY ASK CARRIES THE ANSWER SET (golden rule 2, finding B2). The one
+     question this room exists to ask arrived with three figures and nothing to
+     click, on a field whose whole point is that it must move. */
+  it("offers the real options off the date on file, and recommends none of them", async () => {
+    const { engine } = engineOn();
+    const out = await engine.parseIntent("renew the Line of Credit", context);
+    expect(out.kind).toBe("unparsed");
+    if (out.kind !== "unparsed") return;
+    // The current maturity is STATED, and the options are extensions off it.
+    expect(out.reply).toContain("matures Mar 15, 2027");
+    expect(out.options).toEqual([
+      { label: "+12 months (Mar 15, 2028)", say: "extend by 12 months" },
+      { label: "+24 months (Mar 15, 2029)", say: "extend by 24 months" },
+      { label: "+36 months (Mar 15, 2030)", say: "extend by 36 months" },
+      { label: "Another date", say: "another date" },
+    ]);
+    // NO RECOMMENDATION, and no chip that holds the maturity where it is.
+    expect(out.reply).not.toMatch(/I would|recommend|suggest/i);
+    expect(out.options!.some((o) => /keep|hold/i.test(o.label))).toBe(false);
+  });
+
+  it("derives the chip's own date through the parser, so the chip and a typed answer file the same thing", async () => {
+    const { engine } = engineOn();
+    await engine.parseIntent("renew the Line of Credit", context);
+    const said = await engine.parseIntent("extend by 24 months", context);
+    expect(said.kind).toBe("deltas");
+    if (said.kind !== "deltas") return;
+    expect(said.deltas[0].wire).toEqual({ key: "newMaturityDate", value: "2029-03-15", facilityId: LINE_ID });
+  });
+
+  /* A RENEWAL CANNOT HOLD ITS MATURITY (golden rule 2/4/5, finding B1). The chip
+     used to be offered and the hold used to be accepted, which staged a plan
+     `wirePayload` refuses at Confirm and left the room with no next move. */
+  it("offers no keep chip on the maturity, and answers a typed hold with the options", async () => {
+    const { engine } = engineOn();
+    const ask = await engine.parseIntent("renew the Line of Credit", context);
+    if (ask.kind !== "unparsed") throw new Error("expected the maturity ask");
+    expect(JSON.stringify(ask.options)).not.toMatch(/keep/i);
+
+    const held = await engine.parseIntent("keep it", context);
+    expect(held.kind).toBe("unparsed");
+    if (held.kind !== "unparsed") return;
+    // NOT the hold sentence: it closed the question on a plan the tool refuses.
+    expect(held.reply).not.toContain("Holding maturity");
+    expect(held.reply).toContain("Mar 15, 2027");
+    expect(held.reply).toMatch(/refuses a plan with no new maturity date/);
+    expect(held.options?.map((o) => o.say)).toEqual([
+      "extend by 12 months",
+      "extend by 24 months",
+      "extend by 36 months",
+      "another date",
+    ]);
+    // And the question is still open, so the next line is read as its answer.
+    const answered = await engine.parseIntent("15 March 2029", context);
+    expect(answered.kind).toBe("deltas");
+  });
+
+  it("still takes a hold on a term a renewal CAN leave alone", async () => {
+    const { engine } = engineOn();
+    const ask = await engine.parseIntent("reprice the Line of Credit", context);
+    expect(ask.kind).toBe("unparsed");
+    if (ask.kind !== "unparsed") return;
+    expect(ask.options?.[0]).toEqual({ label: "Keep 7.6%", say: "keep it" });
+    const held = await engine.parseIntent("keep it", context);
+    expect(held.reply).toBe("Holding interest rate at 7.6%. Nothing changes on it.");
+  });
+
   it("answers a pick on the strip, and refuses one that is not booked", () => {
     const { engine } = engineOn();
     const booked = engine.pick(LINE_ID)!;

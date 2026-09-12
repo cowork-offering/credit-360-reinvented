@@ -115,6 +115,21 @@ function pct(part: number | undefined, whole: number | undefined): number | null
   return Math.round((part / whole) * 100);
 }
 
+/** The same date `months` on, clamped into the target month so an extension of
+ *  the 31st never rolls into the next one. Null where there is nothing to count
+ *  from: an extension is derived off the org's own maturity or it is invented. */
+function plusMonths(from: string | undefined, months: number): string | null {
+  const m = (from ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const day = Number(m[3]);
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1));
+  d.setUTCMonth(d.getUTCMonth() + months);
+  const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, last));
+  const iso = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${iso(d.getUTCMonth() + 1)}-${iso(d.getUTCDate())}`;
+}
+
 /** Whole days from `from` to `to`, or null where either is not a date. */
 function daysBetween(from: string | undefined, to: string | undefined): number | null {
   if (!from || !to) return null;
@@ -248,19 +263,61 @@ function currentValue(field: CatalogField, facility: Facility | null): string {
   }
 }
 
-/** The term fields a banker moves to a value, so can hold at the current one. */
-const SCALAR_TERM_TYPES = new Set(["currency", "percent", "months", "date"]);
+/**
+ * The term fields a banker moves to a value, so can hold at the current one.
+ *
+ * A DATE IS NOT ONE OF THEM IN THIS ROOM. The maturity is the one term a
+ * renewal MUST move — `wirePayload` refuses a plan that carries no new maturity
+ * date, and the org refuses it again in Apex — so a "Keep Mar 15, 2027" chip
+ * under the maturity question offers the banker the one answer this room can
+ * never file. It is offered on the modification, where holding a term is a
+ * legitimate outcome.
+ */
+const SCALAR_TERM_TYPES = new Set(["currency", "percent", "months"]);
 
-/** The chips under a renewal term question: a one-click "Keep <current>" first
- *  (it rides the keep-current parser, same as a typed "hold"), then any org
+/** The extensions offered off the maturity the org has on file. Three terms a
+ *  commercial renewal ordinarily runs, no more: a longer list is a form. */
+const MATURITY_STEPS = [12, 24, 36] as const;
+
+/**
+ * THE RENEWAL'S OWN ANSWER SET FOR A MATURITY.
+ *
+ * Each chip says an extension in the banker's own words, so the said line goes
+ * through `readValue`'s own `extend by N months` reader and the date is DERIVED
+ * off the member's maturity rather than composed here. Absent where the org
+ * stages no maturity to count from: there is nothing to extend, and inventing a
+ * baseline to offer chips off would be fiction.
+ *
+ * NO RECOMMENDATION. How far a renewal runs is a credit decision, and this room
+ * states what is on file and what the options are rather than picking one.
+ */
+function maturityChips(facility: Facility | null, withOther = false): Array<{ label: string; say: string }> | undefined {
+  const from = facility?.maturityDate;
+  if (!from) return undefined;
+  const chips: Array<{ label: string; say: string }> = [];
+  for (const months of MATURITY_STEPS) {
+    const to = plusMonths(from, months);
+    if (!to) continue;
+    chips.push({ label: `+${months} months (${fmtDate(to)})`, say: `extend by ${months} months` });
+  }
+  if (!chips.length) return undefined;
+  if (withOther) chips.push({ label: "Another date", say: "another date" });
+  return chips;
+}
+
+/** The chips under a renewal term question: the maturity's own options where
+ *  that is what is being asked, otherwise a one-click "Keep <current>" (it
+ *  rides the keep-current parser, same as a typed "hold"), then any org
  *  picklist values, capped. Mirrors the modify engine so a renewal reads the
- *  same as a modification. */
+ *  same as a modification everywhere the maturity is not the question. */
 function clarifyChips(
   awaiting: Awaiting | undefined,
   options: string[] | undefined,
 ): Array<{ label: string; say: string }> | undefined {
   const chips: Array<{ label: string; say: string }> = [];
-  if (awaiting && SCALAR_TERM_TYPES.has(awaiting.field.type)) {
+  if (awaiting?.field.id === MATURITY_FIELD.id) {
+    chips.push(...(maturityChips(awaiting.facility) ?? []));
+  } else if (awaiting && SCALAR_TERM_TYPES.has(awaiting.field.type)) {
     const cur = currentValue(awaiting.field, awaiting.facility);
     const known = !cur.startsWith("not ") && !cur.includes("not staged");
     chips.push({ label: known ? `Keep ${cur}` : "Keep as booked", say: "keep it" });
@@ -695,6 +752,10 @@ export function createRenewEngine(args: {
     return {
       kind: "unparsed",
       reply: `${facilityProduct(facility, relationship)}${held ? `: ${held}` : ""}. What maturity does the renewal run to? A renewal is maturity-driven and the tool refuses a plan without the date.`,
+      // THE REAL OPTIONS, off the date the org has on file. The question used to
+      // arrive with three figures and nothing to click, on the one ask the whole
+      // room exists for.
+      options: maturityChips(facility, true),
     };
   }
 
@@ -720,6 +781,23 @@ export function createRenewEngine(args: {
     // the current figure back and stop asking; nothing stages, and the caller
     // clears `awaiting` because this is not a clarify.
     if (outcome.kind === "hold") {
+      /* THE MATURITY IS THE ONE TERM A RENEWAL CANNOT HOLD. Answering "keep it"
+         with "Holding maturity date at Mar 15, 2027" closed the question on a
+         plan the tool would refuse at Confirm, and took the next move off the
+         table with it. The hold is taken as the answer it is, said back, and the
+         real options come with it. */
+      if (outcome.field.id === MATURITY_FIELD.id && outcome.facility) {
+        const facility = outcome.facility;
+        focus = facility;
+        awaiting = { field: MATURITY_FIELD, facility };
+        asked = true;
+        const today = facility.maturityDate ? fmtDate(facility.maturityDate) : null;
+        return {
+          kind: "unparsed",
+          reply: `${facilityProduct(facility, relationship)}${today ? ` matures ${today}` : ""}, and a renewal is the move that carries it forward: the tool refuses a plan with no new maturity date, so holding it is the one answer this room cannot file. Take one of these, or name the date it runs to.`,
+          options: maturityChips(facility, true),
+        };
+      }
       const cur = currentValue(outcome.field, outcome.facility);
       const at = cur.startsWith("not ") || cur.includes("not staged") ? "unchanged" : `at ${cur}`;
       return { kind: "unparsed", reply: `Holding ${outcome.field.label.toLowerCase()} ${at}. Nothing changes on it.` };
@@ -767,7 +845,12 @@ export function createRenewEngine(args: {
       if (answered) {
         const result = toResult(answered, deltaSeq);
         if (result) {
-          awaiting = answered.kind === "clarify" ? (answered.awaiting ?? awaiting) : null;
+          // A HELD MATURITY LEAVES THE QUESTION OPEN. Every other hold settles
+          // the field and clears the wait; this one cannot, because a renewal
+          // with no new maturity is not a renewal.
+          const heldMaturity =
+            answered.kind === "hold" && answered.field.id === MATURITY_FIELD.id && Boolean(answered.facility);
+          awaiting = answered.kind === "clarify" ? (answered.awaiting ?? awaiting) : heldMaturity ? awaiting : null;
           return settle(result);
         }
       }

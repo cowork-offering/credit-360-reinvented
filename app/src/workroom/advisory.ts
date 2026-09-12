@@ -156,7 +156,7 @@ const amendOrAddSecond: Rule = ({ amendment, delta }, input) => {
   return {
     id: `advice:second:${delta.id}`,
     rule: "amend-or-add",
-    line: `The ${name} already carries ${existing.length} ${noun} — ${existing.join(", ")} — and the modification carries ${them} forward. This stages a new one beside ${them} rather than changing what is there.`,
+    line: `The ${name} already carries ${existing.length} ${noun} (${existing.join(", ")}), and the modification carries ${them} forward. This stages a new one beside ${them} rather than changing what is there.`,
     // THE RESOLUTION IS A LINE THE BANKER COULD HAVE TYPED, and it is read back
     // by the same parser — so it names the test rather than saying "covenant",
     // which would resolve a second field and stage two changes for one click.
@@ -203,7 +203,7 @@ const maturityOutOfOrder: Rule = ({ amendment, delta }, input) => {
   return {
     id: `advice:maturity-before-test:${iso}`,
     rule: "maturity-out-of-order",
-    line: `The ${test.type} test on the ${name} is next measured ${fmtDate(test.due)}, which falls after the ${fmtDate(iso)} maturity — the facility would mature owing a test nobody can take.`,
+    line: `The ${test.type} test on the ${name} is next measured ${fmtDate(test.due)}, which falls after the ${fmtDate(iso)} maturity: the facility would mature owing a test nobody can take.`,
     // The test date is the EARLIEST maturity that does not strand the test, so
     // it is what the room can offer honestly. Anything later is the banker's.
     resolution: {
@@ -337,7 +337,7 @@ const releaseThinsCover: Rule = ({ amendment, delta }, input) => {
   return {
     id: `advice:thin-cover:${delta.id}`,
     rule: "release-thins-cover",
-    line: `Releasing ${name} takes ${fmtMoney(released)} out of the ${fmtMoney(pool)} pledged pool, leaving ${after.toFixed(2)}x against the ${fmtMoney(input.committed)} committed — under the ${baseline.toFixed(2)}x the org reads on this relationship today.`,
+    line: `Releasing ${name} takes ${fmtMoney(released)} out of the ${fmtMoney(pool)} pledged pool, leaving ${after.toFixed(2)}x against the ${fmtMoney(input.committed)} committed, under the ${baseline.toFixed(2)}x the org reads on this relationship today.`,
   };
 };
 
@@ -387,7 +387,7 @@ const entityAlreadyInvolved: Rule = ({ amendment, delta }, input) => {
     rule: "entity-already-involved",
     line: same
       ? `${party} is ${held} on this package, so this stages a second involvement for the same name rather than a new party.`
-      : `${party} is ${held} on this package. Adding them again stages a second involvement rather than a new party — a role change is the move if that is what you meant.`,
+      : `${party} is ${held} on this package. Adding them again stages a second involvement rather than a new party; a role change is the move if that is what you meant.`,
     resolution:
       asked && !same
         ? { label: `Change the role to ${asked} instead`, say: `change the role of ${party} to ${asked}` }
