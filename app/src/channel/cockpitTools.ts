@@ -35,8 +35,8 @@ export async function askCopilot(args: {
  *  spread follows the same connector pattern and is best-effort. */
 export async function refreshBoom(company: string): Promise<{ ratios?: unknown; spread?: unknown; storedAt?: number }> {
   const [ratios, spread] = await Promise.allSettled([
-    callTool(SERVERS.gateway, TOOLS.boomRatios, { company }, { read: true, cache: { staleTime: 30_000 } }),
-    callTool(SERVERS.gateway, TOOLS.boomSpread, { company }, { read: true, cache: { staleTime: 30_000 } }),
+    callTool(SERVERS.boom, TOOLS.boomRatios, { company }, { read: true, cache: { staleTime: 30_000 } }),
+    callTool(SERVERS.boom, TOOLS.boomSpread, { company }, { read: true, cache: { staleTime: 30_000 } }),
   ]);
   const out: { ratios?: unknown; spread?: unknown; storedAt?: number } = {};
   if (ratios.status === "fulfilled") {

@@ -492,3 +492,113 @@ export function mergeTrail(
   for (const e of orgRows) byId.set(e.id, e);
   return [...byId.values()].sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0));
 }
+
+/* ------------------------------------------ the spread, in the same trail
+
+   A30, EXTENDED TO THE SPREADING ROOM (BOOM-UPLOAD-SPEC §2, 2026-09-12). Files
+   leaving the cockpit for the spreading system are the same class of event as a
+   filed plan: a named person confirmed a governed plan and something left the
+   page because of it. The spec says so in as many words — "the action lands in
+   the relationship's activity trail like every governed write" — so the plan
+   lands when it is SENT and again when Boom settles it, success or failure.
+
+   WHY NOT A `WriteActionId`. That union is the nCino write-tool registry in
+   `channel/writeTools.ts`: every member has a stage tool, an execute tool and a
+   decision token. A spread has none of the three — it is a file going to a
+   different system entirely — so growing that union would put an action in the
+   registry that no executor can run. The entry is minted here, beside the
+   workroom's and the memo's, which is where every non-registry trail entry in
+   this cockpit is already minted.
+
+   THE SYSTEM IS NAMED, AND IT IS NAMED HONESTLY. While the Boom connector does
+   not exist the spread came from the stub, and the trail says
+   "Boom (stub, provisional)" rather than "Boom". A trail row is the last place
+   a provisional figure should read as a verified one.                        */
+
+export interface SpreadFiledInput {
+  /** Sent, settled, or refused by the spreading system. */
+  phase: "sent" | "completed" | "failed";
+  /** The relationship the plan was anchored on. */
+  company: string;
+  /** The plan's own governed sentence, verbatim. The line the trail carries. */
+  summary: string;
+  /** Which system answered, in words: "Boom", or "Boom (stub, provisional)"
+   *  while the lane is the stub. Composed by the room, carried verbatim. */
+  system: string;
+  /** One plan, one entry per phase, however many times the room re-renders.
+   *  The room passes the plan's own content key (the files' hashes). */
+  planKey: string;
+  /** The period Boom returned, where it returned one. */
+  period?: string | null;
+  /** TRUE only where the spreading system reports an analyst has signed it off.
+   *  The stub never does, and neither does a Boom spread before verification. */
+  signedOff?: boolean;
+  /** How many files went. */
+  fileCount?: number;
+  /** The spreading system's own words on a failure. Shown verbatim; this layer
+   *  has no structured reason to map it onto (Boom Q&A tracker #14). */
+  failure?: string | null;
+  /** The signed-in user. */
+  actor?: string;
+  /** Session clock: the banker just did this, on this clock (A10 carve-out). */
+  now?: () => Date;
+}
+
+/** The trail entry for one spreading plan, at one of its three moments. */
+export function spreadActivityEntry(input: SpreadFiledInput): ActivityEntry {
+  const { phase, company, summary, system, planKey, period, failure, actor } = input;
+  const now = (input.now ?? (() => new Date()))();
+  const files = input.fileCount ?? 0;
+  const fileWord = files ? `${files} file${files === 1 ? "" : "s"}` : "The statements";
+
+  const base = {
+    id: `spread-${planKey}-${phase}`,
+    ts: now.toISOString(),
+    actor: actor ?? "You",
+    sessionLocal: true,
+    // No record id and no link: the spreading system's own page is an analyst
+    // verification session the cockpit cannot mint (the stub has none at all).
+    // The source label is what the trail can say truthfully, so it is all it says.
+    reference: { kind: "boom-spread", source: system },
+  };
+
+  if (phase === "sent") {
+    return {
+      ...base,
+      kind: "ACTION_TRIGGERED" as const,
+      title: `Financial statements sent to ${system}`,
+      summary,
+      detail: { body: `${fileWord} left the cockpit for ${system} on ${company}. ${summary}` },
+    };
+  }
+
+  if (phase === "failed") {
+    return {
+      ...base,
+      kind: "ACTION_EXECUTION_FAILED" as const,
+      title: `${system} did not spread these statements`,
+      summary,
+      detail: {
+        body: [summary, failure ? `${system} reported: ${failure}` : null, "Nothing on the relationship moved."]
+          .filter(Boolean)
+          .join(" "),
+      },
+    };
+  }
+
+  return {
+    ...base,
+    kind: "ACTION_EXECUTED" as const,
+    title: period ? `${system} spread ${period} for ${company}` : `${system} spread these statements for ${company}`,
+    summary,
+    detail: {
+      body: [
+        summary,
+        period ? `${period} is on the relationship's financials.` : null,
+        input.signedOff ? null : "An analyst has not signed this spread off in Boom.",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    },
+  };
+}

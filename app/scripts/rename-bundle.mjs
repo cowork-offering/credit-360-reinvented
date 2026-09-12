@@ -45,24 +45,32 @@ if (leaked.length) {
 console.log(`bundle: dist/cockpit.html \u2014 ${bytes.toLocaleString()} bytes (${mib.toFixed(3)} MiB)`);
 
 // OUR OWN LOAD DISCIPLINE, NOT A PLATFORM LIMIT. The artifact platform allows
-// 16 MiB; this budget exists so a page that a banker opens over a hotel
-// connection stays a page and not a download. It moved from 1.5 to 1.75 MiB on
-// 2026-09-04 to admit the credit memo renderer (110 KB of vendored code, shell
-// and manifest) that the memo room renders from. Anything that asks for the
-// next 250 KB has to justify itself the same way this did.
-// It moved from 1.75 to 1.76 MiB on 2026-09-12 to admit the package lifecycle
-// (packagePick, the live nCino stage ladder, archival in the exposure
-// roll-up): 2.0 KB of load-bearing logic that tripped the gate by 63 bytes.
-// Not a licence for the next 10 KB; the same justification applies.
-// It moved from 1.76 to 1.77 MiB on 2026-09-12 (same day) to admit the
-// golden-rule work: the obligor group and in-flight version in the envelope,
-// the connected-party book tool, the cockpit chat's thread + narration guard,
-// and the relationship-room fixes: +17.7 KB of context, tool and guard code.
-// TWO moves in one day is the signal this gate should become a real
-// load-derived cap with a soft "justify" tier rather than 0.01 MiB nudges;
-// logged as a founder decision in knowledge/IMPROVEMENTS-AND-BUGS.md.
-const BUDGET_MIB = 1.77;
-if (mib > BUDGET_MIB) {
-  console.error(`FAIL: bundle ${mib.toFixed(3)} MiB exceeds ${BUDGET_MIB} MiB budget`);
+// 16 MiB; this gate exists so a page a banker opens over a hotel connection
+// stays a page and not a download. History: 1.5 → 1.75 MiB on 2026-09-04
+// (the vendored credit memo renderer), 1.75 → 1.76 → 1.77 MiB on 2026-09-12
+// (package lifecycle, then the golden-rule context + tools). Two moves in one
+// day showed that 0.01 MiB nudges tax every feature without catching bloat, so
+// on 2026-09-12 the founder reset it to TWO tiers (IMPROVEMENTS-AND-BUGS #16):
+//
+//   HARD  2.0 MiB  load-derived: ~2 s over a 10 Mbit hotel link, ~7 s over
+//                  3G. Exceeding it fails the build. Moving it is a founder
+//                  decision with a measurement, not a comment edit.
+//   SOFT  +50 KB   per release over the last SHIPPED size (recorded in
+//                  BUNDLE-BASELINE below at every release). Exceeding it
+//                  prints a JUSTIFY notice and passes: the release notes must
+//                  say what the bytes bought. Bump BASELINE_BYTES in the same
+//                  commit that ships the growth.
+const HARD_CAP_MIB = 2.0;
+const BASELINE_BYTES = 1_952_974; // 0.9.19 shipped size, 2026-09-13 (spread room + audits + latency, +97.8 KB over 0.9.18, justified in STATUS.md)
+const SOFT_TIER_BYTES = 50 * 1024;
+if (mib > HARD_CAP_MIB) {
+  console.error(`FAIL: bundle ${mib.toFixed(3)} MiB exceeds the ${HARD_CAP_MIB} MiB hard cap (load-derived; founder decision to move)`);
   process.exit(1);
+}
+const growth = bytes - BASELINE_BYTES;
+if (growth > SOFT_TIER_BYTES) {
+  console.warn(
+    `JUSTIFY: bundle grew ${(growth / 1024).toFixed(1)} KB over the shipped baseline (${BASELINE_BYTES.toLocaleString()} B); ` +
+      `the soft tier is ${SOFT_TIER_BYTES / 1024} KB. Say what the bytes bought in the release notes and bump BASELINE_BYTES.`,
+  );
 }

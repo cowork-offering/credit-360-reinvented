@@ -54,7 +54,7 @@
 }
 
 /* --------------------------------------------------------------- the corner
-   ONE fixed anchor carries the mark, the four satellites and the narrator chip,
+   ONE fixed anchor carries the mark, the six satellites and the narrator chip,
    so "the FAB yields" is one transform on one object rather than four elements
    agreeing to disappear together. */
 .fabwrap {
@@ -153,7 +153,7 @@
 /* ------------------------------------------------------- the quarter-circle
    Rule 49, at its original radius: 40px glass satellites fan out of the mark on
    a 96px radius, chat at the top and the last credit action at the horizontal,
-   staggered 28ms apart. Each satellite carries its own --tx/--ty (the four
+   staggered 18ms apart. Each satellite carries its own --tx/--ty (the four
    positions live in ChatFab's ARC table) and its own --i for the stagger.
 
    THE STAGGER IS A TRANSITION-DELAY AND THAT IS CORRECT HERE. Trap 1 forbids
@@ -161,7 +161,77 @@
    interactively — a delay on a nav tab poisons every later wash. A satellite's
    only state change IS this open/close transition, in both directions, so the
    delay is the mechanism rather than a one-off entrance. The dummy does exactly
-   this and the port keeps it. */
+   this and the port keeps it.
+
+   ---------------------------------------------------------------------------
+   THE ARC LANDS IN 0.28s, AND ITS LENS STANDS DOWN WHILE IT TRAVELS (C1 + A5,
+   founder latency brief 2026-09-12: "110% zero latency and smooth transitions
+   etc in all workrooms and chats").
+
+   THE TIMING. Measured 2026-09-12: FAB click to satellites at opacity 1 took
+   360-458ms on cpu 1x and 4x alike, because `#actFacility` is `--i: 1` and paid
+   28ms of stagger on top of a 420ms travel. The discs were `pointer-events:
+   auto` from the first frame but they were MOVING, so the banker could not aim
+   at one. 0.28s and an 18ms step lands the last satellite at 0.35s instead of
+   0.53s, and the arc is the most-used gesture in the cockpit.
+
+   THE LENS. `workroom.css` writes the law down verbatim: "the compositor was
+   re-rasterising a `backdrop-filter` on a moving element every single frame,
+   which is the one thing a backdrop filter cannot survive. A transform is free;
+   a transform over a lens is a full re-read of everything behind it, sixty
+   times a second." The sheet morph stands its lens down for the 600ms it moves
+   and the card ghost does the same; the arc did not, and it moves FIVE
+   `blur(30px)` discs at once, plus two more at the chip blur on the second
+   tier. The same file names the scale specifically: "a filter on a child of a
+   transforming element is re-rasterised at every scale it passes through", and
+   these discs scale 0.4 to 1.
+
+   SO THE LENS IS SWITCHED, NOT ANIMATED, at each end of the beat — the sheet's
+   own pattern — and it is done in CSS alone, with no class to toggle and no
+   hook in `ChatFab`. `arc-lens-down` is an animation whose ONLY job is to hold
+   `backdrop-filter: none` for exactly as long as the disc is travelling: its
+   duration is the stagger plus the travel, both keyframes carry the same
+   stood-down value, and its FILL MODE IS NONE, so the frame the animation ends
+   is the frame the element's own lens comes back. One rule runs it on the way
+   out and one on the way back, because the return leg is a transform over a
+   lens too.
+
+   IT HAD TO BE AN ANIMATION AND NOT A DELAYED TRANSITION. A transition from
+   `none` to `blur(30px)` interpolates rather than switching: `none` is defined
+   as the identity list, so the computed value during the delay is
+   `blur(0px) saturate(1)` — measured, 2026-09-12 — and a zero-radius backdrop
+   filter is still a backdrop filter to the compositor. A keyframe is the only
+   thing in CSS that holds a literal `none`.
+
+   AND IT IS WHY NOTHING HERE RESTATES THE RECIPE. An animation outranks every
+   normal declaration whatever its specificity, so the stand-down needs no
+   selector war, and the lens that comes back afterwards is whichever one the
+   page's own material rules say it is: `.eg-glass-satellite`'s 30px in the
+   plain mode, and `html.eg-liquid .eg-glass-satellite`'s `url(#eg-liquid-soft)
+   blur(7px)` under liquid glass. Writing `blur(var(--eg-blur))` into the open
+   state instead — the first thing tried here — beat that liquid override on
+   source order and silently took the small lens off every satellite. Measured
+   at rest, open, before and after this block: identical, url() included.
+
+   WHAT STANDS IN FOR THE LENS while it travels is the tint the lens was
+   producing anyway, exactly as `.wk-sheet[data-morph="from"]` does it.
+
+   REDUCED MOTION lands it in one commit, as everything else here does:
+   `electric-glass.css` kills every animation, so the surface's own lens applies
+   on the first frame and nothing travels to stand it down for. */
+
+/* The disc is travelling: no lens, and the tint the lens was making instead.
+   Both keyframes carry it, because this animation interpolates nothing — it
+   holds one value for the length of the journey and then gets out of the way. */
+@keyframes arc-lens-down {
+  from,
+  to {
+    /* autoprefixer: ignore next */
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: rgba(255, 255, 255, 0.9);
+  }
+}
 .arcbtn {
   position: absolute;
   right: 6px;
@@ -177,9 +247,16 @@
   transform: translate(0, 0) scale(0.4);
   pointer-events: none;
   transition:
-    transform 0.42s var(--ease-settle),
+    transform 0.28s var(--ease-settle),
     opacity 0.3s var(--ease-out);
-  transition-delay: calc(var(--i) * 28ms);
+  transition-delay: calc(var(--i) * 18ms);
+}
+/* AND THE RETURN LEG. The arc travels back the moment `.open` goes, so the same
+   stand-down runs again. The one time it fires with no gesture behind it, the
+   first paint, the discs are at opacity 0 and there is nothing on screen to
+   stand down. */
+.fabwrap:not(.open) .arcbtn {
+  animation: arc-lens-down-back calc(var(--i) * 18ms + 0.28s) steps(1) 1;
 }
 /* Rule 35 — ONE icon language. The satellites wear the SAME glyphs their Client
    Actions rows wear, drawn at the dummy's 15px rather than the row's 18px: the
@@ -192,6 +269,10 @@
   opacity: 1;
   transform: translate(var(--tx), var(--ty)) scale(1);
   pointer-events: auto;
+  /* Stood down for its own stagger plus its own travel, and not one frame
+     longer. `fill-mode: none` is the whole mechanism: when this ends, the
+     surface's own material rules are what is left, untouched. */
+  animation: arc-lens-down calc(var(--i) * 18ms + 0.28s) steps(1) 1;
 }
 .arcbtn:hover {
   color: var(--ink-strong);
@@ -209,7 +290,7 @@
    seat on the arc that opens nothing: it fans TWO smaller discs — the client's
    Account page and their latest Product Package — which leave its position
    along the arc's own horizontal and spread 24deg either side of it. Same
-   spring, same 28ms stagger, one tier deeper.
+   spring, same 18ms stagger, one tier deeper.
 
    34px, and at the CHIP blur rather than the satellite's: depth of field is the
    only thing size decides here (rule 71), and a smaller disc belongs on the
@@ -233,10 +314,12 @@
   opacity: 0;
   transform: translate(0, 0) scale(0.4);
   pointer-events: none;
+  /* THE SECOND TIER STANDS ITS LENS DOWN TOO, on the same keyframe. See the
+     quarter-circle block above for why, and for why it needs no class. */
   transition:
-    transform 0.42s var(--ease-settle),
+    transform 0.28s var(--ease-settle),
     opacity 0.3s var(--ease-out);
-  transition-delay: calc(var(--i) * 28ms);
+  transition-delay: calc(var(--i) * 18ms);
 }
 .sfbtn svg {
   width: 13px;
@@ -246,6 +329,10 @@
   opacity: 1;
   transform: translate(var(--tx), var(--ty)) scale(1);
   pointer-events: auto;
+  /* Stood down for its own stagger plus its own travel, and not one frame
+     longer. `fill-mode: none` is the whole mechanism: when this ends, the
+     surface's own material rules are what is left, untouched. */
+  animation: arc-lens-down calc(var(--i) * 18ms + 0.28s) steps(1) 1;
 }
 .fabwrap.tier .sfbtn:hover {
   color: var(--ink-strong);
@@ -255,6 +342,11 @@
    the translate, or the bubble flings back onto the mark for the press. */
 .fabwrap.tier .sfbtn:active {
   transform: translate(var(--tx), var(--ty)) scale(0.9);
+}
+
+/* The second tier's return leg, exactly as the arc's above. */
+.fabwrap:not(.tier) .sfbtn {
+  animation: arc-lens-down-back calc(var(--i) * 18ms + 0.28s) steps(1) 1;
 }
 
 /* THE DOOR THAT ISN'T THERE. No `meta.instanceUrl`, or no package id on the

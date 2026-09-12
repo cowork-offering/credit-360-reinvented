@@ -6,7 +6,7 @@ import {
   ENVELOPE_CAP_BYTES,
   ENVELOPE_BLOCK_DROP_ORDER,
 } from "./channel/brainLane";
-import { ALWAYS_BLOCK_IDS, DOCTRINE_BLOCKS, composeDoctrine } from "./channel/doctrine";
+import { ALWAYS_BLOCK_IDS, DOCTRINE_BLOCKS, RECOMMEND_ONLY_WHEN_GROUNDED, VOICE, composeDoctrine } from "./channel/doctrine";
 import { toolsCovering } from "./channel/ladder";
 import { buildReadBlocks } from "./components/workroom/readBlocks";
 import { buildEnvelope, toReadCardModel } from "./components/workroom/brainRoute";
@@ -132,12 +132,15 @@ describe("rule 1: the book holds the obligor group and the envelope drops it", (
     expect(rows.find((r) => r.name === "Hartwell Industrial Holdings LLC")!.role).toBe("Guarantor");
     // ...and `group` now says who the borrower IS, downstream, in the org's own
     // roles and with the ownership the involvement block suppresses.
+    /* FIXTURE UPDATED 2026-09-12 (backlog item 14b): the org's own
+       `counterpartyId` now travels on each row, because `connectedPartyBook`
+       resolves a party by id and the model held only a name. */
     const group = readsFor().group!;
     expect(group).toEqual([
-      { name: "Hartwell Industrial Holdings LLC", relation: "parent", role: undefined, ownership: "100%", grade: "4" },
-      { name: "Hartwell Logistics LLC", relation: "affiliate", role: "Affiliated Company", ownership: undefined, grade: undefined },
-      { name: "James Hartwell", relation: "owner", role: undefined, ownership: "60%", grade: undefined },
-      { name: "Elena Hartwell", relation: "owner", role: "Co-Owner", ownership: "40%", grade: undefined },
+      { name: "Hartwell Industrial Holdings LLC", counterpartyId: "001bb00001I7NZkAAN", relation: "parent", role: undefined, ownership: "100%", grade: "4" },
+      { name: "Hartwell Logistics LLC", counterpartyId: "001bb00001I7VCHAA3", relation: "affiliate", role: "Affiliated Company", ownership: undefined, grade: undefined },
+      { name: "James Hartwell", counterpartyId: "001bb00001I7V2cAAF", relation: "owner", role: undefined, ownership: "60%", grade: undefined },
+      { name: "Elena Hartwell", counterpartyId: "001bb00001I7BC0AAN", relation: "owner", role: "Co-Owner", ownership: "40%", grade: undefined },
     ]);
     const text = readsText();
     expect(text).toMatch(/affiliate/i);
@@ -177,7 +180,12 @@ describe("rule 1: the book holds the obligor group and the envelope drops it", (
     expect(readsText()).not.toMatch(/obligor/i);
   });
 
-  it("REPRO: the action history reaches the envelope builder and is discarded", () => {
+  /* FIXED 2026-09-12 (backlog item 9). The trail reached the builder and was
+     thrown away, so "what did we do last time" was answered by a model that had
+     never been shown the answer. The one builder now carries the last three
+     filed rows, and `history` is first in the drop order: it is the block a
+     squeezed envelope gives up before anything else. */
+  it("the action history the host already passes in now travels", () => {
     const b = bundle();
     // The trail the room already holds (WorkroomHost.tsx:151 passes it as
     // `ReadSource.history`; RelationshipRoom.tsx:3137 does the same).
@@ -196,24 +204,36 @@ describe("rule 1: the book holds the obligor group and the envelope drops it", (
         },
       ],
     })!;
-    // Byte for byte the same blocks: `buildReadBlocks` never reads `history`.
-    expect(JSON.stringify(withHistory)).toBe(readsText());
-    expect(withHistory.notCarried.join(" ")).not.toMatch(/history|prior action|what was filed/i);
+    expect(withHistory.history).toEqual([
+      { what: "The risk rating was reviewed and held at grade 4.", action: "loan-modification", status: "Completed" },
+    ]);
+    // And it is absent, not empty, where the host holds no trail.
+    expect(readsFor().history).toBeUndefined();
   });
 
-  it("REPRO: a facility travels as a label and a commitment, with no maturity, stage or drawn figure", () => {
+  /* FIXED 2026-09-12 (backlog item 9). The envelope carried a label and a
+     commitment per member, so "what does this facility do" could not be
+     answered with its maturity, its drawn balance, its stage or its own
+     coverage — four figures the cockpit chat was printing off the same read.
+     One builder, one naming, both surfaces. */
+  it("a facility travels with its maturity, its drawn balance, its stage and its own coverage", () => {
     const facility = (bundle().exposure?.facilities ?? []).find((f) => f.loanId === "a4Zbb0000027MaYEAU")!;
     // What the read holds about it.
     expect(facility.maturityDate).toBe("2027-03-15");
     expect(facility.stage).toBe("Booked");
     expect(facility.outstanding).toBe(9_200_000);
     expect(facility.coverageRatio).toBe(1.3);
-    // What travels: the package-level sums, and nothing per facility beyond the
-    // covenant/collateral/pricing scopes. "What does this facility do" cannot be
-    // answered with its maturity, its drawn balance or its own coverage.
-    const text = readsText();
-    expect(text).not.toContain("2027-03-15");
-    expect(text).not.toMatch(/"stage"/);
+    // And what now travels, printed by the glass's own formatters.
+    expect(readsFor().facilities!.find((f) => f.name === "Line of Credit ($15M)")).toEqual({
+      name: "Line of Credit ($15M)",
+      commitment: "$15M",
+      drawn: "$9.20M",
+      available: "$5.80M",
+      rate: "6.58%",
+      maturity: "Mar 15, 2027",
+      stage: "Booked",
+      coverage: "1.30×",
+    });
     expect(readsFor().exposure).toEqual({
       committed: "$49M",
       drawn: "$31.03M",
@@ -239,13 +259,15 @@ describe("rule 1: the book holds the obligor group and the envelope drops it", (
     expect(toolsCovering("which facilities cross-default off this one")).toEqual([]);
   });
 
-  /* THE BUDGET, MEASURED RATHER THAN ASSUMED. The additions above were costed
-     against the deepest relationship in the book: 6,119 bytes of read blocks
-     and a 7,436-byte facility envelope before, 6,738 and 8,055 after, against
-     the 10,000-byte cap. Roughly 1.9 KB of headroom is left for the rest. */
+  /* THE BUDGET, MEASURED RATHER THAN ASSUMED. Costed against the deepest
+     relationship in the book, at each step: 6,119 bytes of read blocks and a
+     7,436-byte facility envelope before the rule-1 additions; 6,738 and 8,055
+     after 0.9.18; 7,979 and 9,320 after the one builder added the facility
+     block, the action trail and the counterparty ids (2026-09-12). The cap is
+     10,000 and nothing is dropped to reach it. */
   it("the envelope carries the additions and still fits inside its own cap", () => {
     expect(ENVELOPE_CAP_BYTES).toBe(10_000);
-    expect(readsText().length).toBeLessThan(7_000);
+    expect(readsText().length).toBeLessThan(8_500);
     const envelope = hartwellEnvelope();
     expect(JSON.stringify(envelope).length).toBeLessThan(ENVELOPE_CAP_BYTES);
     // Nothing was given up to get there: a capped envelope names what it dropped.
@@ -312,13 +334,21 @@ describe("rule 1: the book holds the obligor group and the envelope drops it", (
   it.todo("the envelope carries the plan's own pro-forma package total, so 'what does this do to exposure' is read and not derived");
   it.todo("the envelope carries the relationship's own flags (deriveReasonsForBundle), so 'why is this flagged' is answered in the glass's words");
 
+  /* ORDER UPDATED 2026-09-12 (backlog item 9). It is `CONTEXT_DROP_ORDER` now,
+     shared with the cockpit chat, which emits its parts in the reverse of it:
+     the block the envelope surrenders first is the block the chat's own cut
+     reaches first, so the two surfaces cannot disagree about what matters
+     least. `history` joins at the front and `facilities` just inside
+     `covenants`. */
   it("every new read block is added to ENVELOPE_BLOCK_DROP_ORDER, so nothing is dropped silently", () => {
     expect([...ENVELOPE_BLOCK_DROP_ORDER]).toEqual([
+      "history",
       "pricing",
       "collateral",
       "involvements",
       "group",
       "inFlight",
+      "facilities",
       "covenants",
       "exposure",
     ]);
@@ -343,12 +373,20 @@ describe("rule 1: the cockpit chat carries a different, thinner book", () => {
      `thresholdValue`, so the surface a founder demo opens on stated a figure
      with nothing to measure it against and "what is this covenant doing" was
      unanswerable on it. */
+  /* LINE UPDATED 2026-09-12 (backlog item 9). The verdict word is now the
+     GLASS'S OWN (`classifyCovenant`, the label the covenant card renders) rather
+     than the raw `latestComplianceStatus` this surface alone was reading, and
+     the facility the test hangs off travels with it. That was a real
+     disagreement: the chat said "Pending" where the card beside it said
+     "Compliant". One builder, one verdict. */
   it("the cockpit chat carries the covenant thresholds, so it can say what a covenant is doing", () => {
     const text = deskText();
     // What it measures, what it is measured against, and where it stands: the
     // operator and the unit are the org's own, through the same formatter the
     // workroom envelope and the covenant card use.
-    expect(text).toContain("Debt Service Coverage of Borrower, Pending, tests ≥ 1.25×, last 1.38×, Quarterly, next test Sep 30, 2026.");
+    expect(text).toContain(
+      "Debt Service Coverage of Borrower, Compliant, tests ≥ 1.25×, last 1.38×, Quarterly, next test Sep 30, 2026, Purchase ($6.50M).",
+    );
     expect(text).toContain("Maximum Debt to Worth");
     expect(text).toContain("tests ≤ 3.00×");
     // The three surfaces write one test one way.
@@ -358,21 +396,28 @@ describe("rule 1: the cockpit chat carries a different, thinner book", () => {
     expect(text).toContain("no threshold carried on this read");
   });
 
-  it("REPRO: no collateral figures, no parties, no coverage and no honesty list travel", () => {
+  /* FIXED 2026-09-12 (backlog item 9, and item 14a for the honesty list). The
+     desk read the bundle itself and looked at neither the collateral, the
+     parties, the obligor group nor the per-facility coverage. All four come off
+     the one builder now, and the honesty list stands rather than appearing only
+     when a cut happens to name a gap. Measured on the deepest book in the
+     artifact: 6,579 bytes against the 7,000-byte cut, with nothing cut. */
+  it("the desk carries the collateral, the parties, the coverage and a standing honesty list", () => {
     const text = deskText();
-    // "Collateral valuation recorded" rides in as an ACTIVITY TITLE; not one
-    // collateral figure does.
-    expect(text).not.toMatch(/pledge|lendable|advance rate|first mortgage|blanket lien/i);
-    expect(text).not.toMatch(/guarantor|guaranty|borrower type|\bowner\b/i);
-    expect(text).not.toMatch(/coverage ratio|collateral coverage|shortfall/i);
-    expect(text).not.toContain("1.09");
-    // Still no standing `notCarried` list naming the collateral, the parties
-    // and the coverage. What HAS gone is the silent stop at 7,000 characters:
-    // a context that is cut now names the parts of the book that did not
-    // travel (`deskAsk.test.ts`, "the context names what it had to cut"), and
-    // Hartwell, the deepest book, does not reach the cut at all.
-    expect(text).not.toMatch(/not carried|does not carry/i);
+    expect(text).toMatch(/pledged/);
+    expect(text).toMatch(/lendable/);
+    expect(text).toMatch(/advance rate/);
+    expect(text).toMatch(/Guarantor/);
+    expect(text).toContain("Elena Hartwell is Limited Guarantor on");
+    // The org's OWN per-facility coverage, through the formatter the exposure
+    // tab prints it with. Never a ratio the desk worked out for itself.
+    expect(text).toContain("coverage 1.30×");
+    // The standing list, in the rooms' own words (item 14a).
+    expect(text).toMatch(/This view does not carry the fees already charged on these facilities/);
+    expect(text).toMatch(/Refuse those by name; never read their absence as a fact about this borrower\./);
     expect(text.length).toBeLessThan(7_000);
+    // And the whole book still fits: the deepest relationship reaches no cut.
+    expect(text).not.toMatch(/cut to fit/);
   });
 
   /* FIXED. Both surfaces still total a different book, which is correct: the
@@ -389,14 +434,19 @@ describe("rule 1: the cockpit chat carries a different, thinner book", () => {
     expect(DESK_RULES).toMatch(/a workroom quotes the anchored package/);
   });
 
-  it("REPRO: the desk carries per-facility figures the workroom envelope drops, and the other way round", () => {
+  /* FIXED 2026-09-12 (backlog item 9). This was the repro of the split: the
+     desk held maturities and stages the envelope dropped, the envelope held
+     thresholds, collateral and parties the desk dropped, and neither surface
+     was the book. Both select from one builder now, so a fact one carries the
+     other carries in the same words. */
+  it("the per-facility figures reach BOTH surfaces, in the same words", () => {
     const text = deskText();
-    // The desk holds the maturity, the drawn balance and the stage per facility.
     expect(text).toContain("matures Mar 15, 2027");
-    expect(text).toContain("drawn");
-    // The workroom envelope holds none of those, and holds thresholds,
-    // collateral and parties the desk does not. Neither surface is the book.
-    expect(readsText()).not.toContain("Mar 15, 2027");
+    expect(readsText()).toContain("Mar 15, 2027");
+    // The same facility, named the same way on both. It used to read
+    // "Non-Real Estate" on the desk and "Line of Credit" in the room.
+    expect(text).toContain("Line of Credit ($15M)");
+    expect(readsText()).toContain("Line of Credit ($15M)");
   });
 
   /* FIXED, 2026-09-12 (finding I8). `askDesk` took one question and no thread,
@@ -438,7 +488,9 @@ describe("rule 1: the cockpit chat carries a different, thinner book", () => {
     expect(said).toContain("IS the unbooked modification version of another package");
   });
 
-  it.todo("the cockpit chat and the workrooms compose their context through ONE builder over the same bundle");
+  // DONE 2026-09-12: "the cockpit chat and the workrooms compose their context
+  // through ONE builder over the same bundle" is now `src/contextUnity.test.ts`,
+  // which builds all three contexts for Hartwell and holds them to one another.
 });
 
 /* ================================================= RULE 2 — guide and advise
@@ -451,14 +503,30 @@ describe("rule 2: nothing in the doctrine holds an ask to figure, options and a 
     .flatMap((b) => b.lines)
     .join("\n");
 
-  it("REPRO: the shape rules govern what a clarify may ask about, never how it is put", () => {
-    // The one rule that exists is about the WIRE, not about the banker.
+  /* PARTLY FIXED 2026-09-12 (backlog item 15, founder doctrine C). The pack now
+     carries the RECOMMENDATION rule verbatim: recommend only where the
+     recommendation is already grounded, say which grounding, and stay silent
+     where neither is there. What is still absent is the OTHER half of rule 2 —
+     an instruction to lead every ask with the figure on file (finding I1). */
+  /* FIXED 2026-09-12, the other half of rule 2 (founder: "run again some agents
+     over the chat behaviours, patterns etc to avoid any fallbacks"). Rule C
+     landed earlier the same day and governs WHEN a recommendation is allowed;
+     nothing governed what an ask LEADS with, so a blank ask passed every gate
+     in the layer. The two assertions that pinned that absence are inverted
+     here rather than deleted: the instruction they said was missing is the one
+     now required to be present. */
+  it("the doctrine carries rule C, and now requires the figure to lead", () => {
+    // The one shape rule that exists is about the WIRE, not about the banker.
     expect(always).toContain("A CLARIFY MAY ONLY ASK FOR A FIELD THE WIRE ACTUALLY CARRIES.");
-    // No standing instruction to lead with the figure on file.
-    expect(always).not.toMatch(/lead with the (current )?figure/i);
-    expect(always).not.toMatch(/state the current figure/i);
-    // No standing instruction to recommend one of the options offered.
-    expect(always).not.toMatch(/recommend one/i);
+    // Rule C, in the founder's own terms, verbatim in the always-on blocks.
+    expect(always).toContain(RECOMMEND_ONLY_WHEN_GROUNDED);
+    expect(always).toMatch(/Recommend one option only where the recommendation is ALREADY GROUNDED/);
+    expect(always).toMatch(/Never invent a number or a default/);
+    expect(always).toMatch(/a chip the banker takes, never an answer already filled in/);
+    // I1, closed: the figure on file leads, and the options come with it.
+    expect(always).toMatch(/lead with the current figure on file/i);
+    expect(always).toMatch(/then the real options/i);
+    expect(always).toMatch(/Never put a blank ask in front of them/);
   });
 
   it("REPRO: a clarify is valid with no options at all", async () => {
@@ -469,7 +537,7 @@ describe("rule 2: nothing in the doctrine holds an ask to figure, options and a 
     // not have been composed, and nothing in the layer says so.
   });
 
-  it.todo("the doctrine requires every ask to carry the figure on file, the real options, and one recommendation");
+  // DONE 2026-09-12: asserted above, in the always-on blocks.
 });
 
 /* ================================================ RULE 3 — explain on demand
@@ -716,14 +784,17 @@ describe("rule 4: a degrade must still name the next step", () => {
     expect(UNREADABLE_CLARIFY.text).toMatch(/try asking directly, or say the change you want/i);
   });
 
-  it("REPRO: the not-connected clarify ends without one", () => {
-    // It states a condition and a future capability. There is nothing here the
-    // banker can do next, in a room they are standing in now.
-    expect(NOT_CONNECTED_CLARIFY.text).toBe(
-      "This view is not connected to the bank's systems, so I cannot take that question to the desk. I can still change this package once a connector is added.",
-    );
-    expect(NOT_CONNECTED_CLARIFY.text).not.toMatch(/ask again|try|reload|open|pick|say the/i);
-    expect(NOT_CONNECTED_CLARIFY.options).toBeUndefined();
+  /* FIXED 2026-09-12 (founder, the fallback audit). It used to end on "I can
+     still change this package once a connector is added": a future capability,
+     conditional on an act only an administrator can perform, offered to a
+     banker standing in the room now. The deterministic parser is untouched by
+     the absence of a door, so the room CAN still stage a change the banker
+     types, and that is what the sentence now names. */
+  it("the not-connected clarify names what the banker can still do here", () => {
+    expect(NOT_CONNECTED_CLARIFY.text).toMatch(/say the change you want/i);
+    expect(NOT_CONNECTED_CLARIFY.text).toMatch(/already read from the bank/i);
+    // And it never sends them to configure infrastructure.
+    expect(NOT_CONNECTED_CLARIFY.text).not.toMatch(/connector|gateway|settings/i);
   });
 
   it("REPRO: the relationship room's fallback next step offers the one thing the room refuses", () => {
@@ -741,7 +812,7 @@ describe("rule 4: a degrade must still name the next step", () => {
   });
 
   it.todo("the relationship room's fallback next step names one of its six reviews, never a package change");
-  it.todo("the not-connected clarify names what the banker can still do in this view");
+  // DONE 2026-09-12: asserted above.
 });
 
 /* ============================================================ RULE 7 — voice */
@@ -767,10 +838,18 @@ describe("rule 7: the voice rule binds the model and not the room", () => {
     expect(NO_PACKAGE_REFUSAL).toContain("until the deal is on a package. Open the relationship");
   });
 
-  it("REPRO: the golden rule bans exclamation points and emoji, and the doctrine names neither", () => {
-    expect(always).not.toMatch(/exclamation/i);
-    expect(always).not.toMatch(/emoji/i);
+  /* FIXED 2026-09-12 (founder, the fallback audit). The pack banned the em dash
+     and nothing else, so three quarters of golden rule 7 bound nobody. The rule
+     is now one exported constant (`doctrine.VOICE`) carried by the always-on
+     blocks AND by the cockpit chat's own standing rules, so the two surfaces
+     cannot drift into two different voices. */
+  it("the doctrine carries the golden rule's voice line in full", () => {
+    expect(always).toContain(VOICE);
+    expect(always).toMatch(/no marketing words/i);
+    expect(always).toMatch(/no exclamation points/i);
+    expect(always).toMatch(/no emoji/i);
+    expect(always).toMatch(/no opening pleasantry/i);
   });
 
-  it.todo("the doctrine carries the golden rule's voice line in full: no marketing, no exclamation points, no emoji");
+  // DONE 2026-09-12: asserted above.
 });

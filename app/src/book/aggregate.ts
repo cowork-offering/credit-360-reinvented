@@ -2,16 +2,30 @@ import type { AccountRow, ActionHistoryRow, BorrowerBundle, Id } from "../data/c
 import { DETAIL_TOOLS, TOOLS, unwrapInvocable, type McpFailure, type McpOk } from "../channel/mcp";
 import { readThroughEitherLane, type LaneResult } from "../channel/gateway/lane";
 import { fetchActionHistory } from "../channel/cockpitTools";
-import { createPacer, LAUNCH_GAP_MS, MAX_IN_FLIGHT } from "../channel/syncSweep";
+import { createPacer } from "../channel/syncSweep";
+import { noteOpenRateLimited, openInFlightLimit, openLaunchGapMs } from "../channel/openBurst";
 import type { AccountMatch } from "./search";
 
 /* =============================================================================
    READING A RELATIONSHIP THE SNAPSHOT NEVER BAKED.
 
-   THE SAME EIGHT READS THE SYNC SWEEP RUNS, at the SAME pacing. Two calls in
-   flight, spaced by a small gap: the artifact-connector bridge does not like a
-   burst and this is the module that already knows it (`createPacer`, exported
-   from syncSweep so there is ONE pacing rule rather than two that agree today).
+   THE SAME EIGHT READS THE SYNC SWEEP RUNS, AT THE OPEN'S OWN PACING.
+
+   THEY USED TO RUN AT THE SWEEP'S: two in flight, 200ms apart. That is the
+   pacing `openRefresh` abandoned on 2026-09-06 and for the same reason it does
+   not fit here. The sweep is nine calls on a deliberate gesture; this is eight
+   calls the banker did not ask for and IS WAITING ON, and two at a time makes
+   the open four waves deep instead of one. Measured against the real backup
+   connector: six reads issued serially cost 243-542ms each, the same six issued
+   together answered in 534ms of wall clock TOTAL. Against a 500ms relay the old
+   ladder cost this path 1.0 to 1.5 seconds for nothing (founder latency brief,
+   2026-09-12: "110% zero latency and smooth transitions").
+
+   SO IT READS OFF THE OPEN'S OWN REGISTER (`channel/openBurst.ts`), the same
+   one `openRefresh` uses: six wide with no gap, and narrowed to the sweep's two
+   and 200ms for the rest of the page session the moment the PLATFORM says
+   `rate_limited`, on nothing else. The ceiling is read per slot, so a narrowing
+   that lands mid-open applies to the reads still queued behind it.
 
    THE GRAPH IS THE SLOW ONE, and this is honest about it rather than making the
    banker wait for the whole set. `onReady` fires the moment the FAST reads have
@@ -139,12 +153,23 @@ export async function aggregateBorrower(args: {
   const { accountId } = args;
   const sleep = args.sleep ?? wait;
   const pace = createPacer({
-    gap: args.launchGapMs ?? LAUNCH_GAP_MS,
-    limit: args.maxInFlight ?? MAX_IN_FLIGHT,
+    gap: args.launchGapMs ?? openLaunchGapMs,
+    limit: args.maxInFlight ?? openInFlightLimit,
     sleep,
   });
 
-  const settled = <T,>(p: Promise<T>) => p.then((v) => ({ ok: true as const, v }), (e) => ({ ok: false as const, e }));
+  /* AND THE BACKOFF IS ARMED FROM HERE TOO. Every one of the eight goes through
+     this wrapper, so the platform's own `rate_limited` narrows the reads still
+     queued behind it and every open after this one, exactly as it does on the
+     refresh path. Nothing else narrows anything. */
+  const settled = <T,>(p: Promise<T>) =>
+    p.then(
+      (v) => ({ ok: true as const, v }),
+      (e) => {
+        if ((e as McpFailure)?.code === "rate_limited") noteOpenRateLimited();
+        return { ok: false as const, e };
+      },
+    );
   /* EITHER DOOR, with `pace()` outside the fallback exactly as the sweep has
      it: the backup rides the same relay and costs the same budget. */
   const read = (tool: (typeof DETAIL_TOOLS)[number]) =>
@@ -198,11 +223,6 @@ export async function aggregateBorrower(args: {
     await land(key, call);
   }
 
-  // The portfolio read confirms the book around the relationship; nothing is
-  // patched from it, exactly as in the sweep.
-  await portfolio;
-  tick("portfolio");
-
   const hist = await history;
   const historyRows = hist.ok ? hist.v.rows : undefined;
   tick("history");
@@ -235,6 +255,14 @@ export async function aggregateBorrower(args: {
     missing: [...missing, "graph"],
   };
   args.onReady?.(partial);
+
+  /* THE PORTFOLIO READ IS NOT ON THE OPEN'S CRITICAL PATH (2026-09-12). It
+     confirms the book AROUND the relationship and nothing is patched from it,
+     exactly as in the sweep, so awaiting it before `onReady` held the room shut
+     behind a read whose answer it does not use. It is still awaited, and still
+     counted, one line later. */
+  await portfolio;
+  tick("portfolio");
 
   /* AND THE GRAPH, WHEN IT LANDS. The room is already open on the six; this
      fills the relationship graph behind it. A graph that never comes back

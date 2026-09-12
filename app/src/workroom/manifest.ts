@@ -22,10 +22,51 @@ export interface ManifestBaseline {
   changeWord: [string, string];
 }
 
-/** The rail, in landing order. Removal is by delta id, so the order of what is
- *  left is the order it landed in. */
+/**
+ * THE SAME FIELD ON THE SAME MEMBER, ADDRESSED TWICE.
+ *
+ * A wire entry carries ONE value per field per member: `wirePayload` refuses a
+ * plan holding two and the org could not file it either way round. A second
+ * entry on that address is therefore not a second change, it is a CORRECTION of
+ * the first.
+ *
+ * THE ADDRESS IS DELIBERATELY NARROW. Covenants, pledges, fees, parties and
+ * policy exceptions carry no address at all, because a package legitimately
+ * takes two of each and superseding one with the next would quietly delete work
+ * the banker asked for.
+ */
+function wireAddress(delta: WorkroomDelta): string | null {
+  if (delta.wire) return `scalar:${delta.wire.key}:${delta.wire.facilityId}`;
+  if (delta.fieldWire) return `field:${delta.fieldWire.field}:${delta.fieldWire.facilityId}`;
+  return null;
+}
+
+/** The entry this one REPLACES, or null. Exported so the room can name the
+ *  figure that was walked over on the confirm that replaced it. */
+export function supersededBy(entries: WorkroomDelta[], delta: WorkroomDelta): WorkroomDelta | null {
+  const address = wireAddress(delta);
+  if (!address) return null;
+  return entries.find((e) => e.id !== delta.id && wireAddress(e) === address) ?? null;
+}
+
+/**
+ * The rail, in landing order. Removal is by delta id, so the order of what is
+ * left is the order it landed in.
+ *
+ * A CORRECTION SUPERSEDES (founder stress script, 2026-09-12, MODIFICATION 3.k:
+ * "set 7%, then 'actually 8%' — 🚩 keeps the first or STACKS BOTH"). The note
+ * below this function used to say the opposite, and stacking is what it
+ * produced: 7% AND 8% on one facility, a plan that then refused to stage at
+ * all, and the banker doing the room's bookkeeping by hand. The founder's
+ * script supersedes that note. A second figure on the same wire address
+ * REPLACES the first IN PLACE, so the rail keeps the order the banker built it
+ * in and the entry stays where their eye last left it. Removal by × is
+ * untouched, and everything the wire does not address still stacks.
+ */
 export function addEntry(entries: WorkroomDelta[], delta: WorkroomDelta): WorkroomDelta[] {
   if (entries.some((e) => e.id === delta.id)) return entries;
+  const replaced = supersededBy(entries, delta);
+  if (replaced) return entries.map((e) => (e.id === replaced.id ? delta : e));
   return [...entries, delta];
 }
 
@@ -35,11 +76,16 @@ export function removeEntry(entries: WorkroomDelta[], deltaId: string): Workroom
 
 /* ------------------------------------------------- the rail, from the chat
    W2: "the chat must speak about what is staged and accept amendments
-   conversationally (not only the rail's ×)". Two moves and no more, because
+   conversationally (not only the rail's ×)". Two moves here and no more, because
    they are the two the rail itself offers: say what is in there, and take
-   something out of it. AMENDING is deliberately not a third move — the room's
-   answer to "make it 19 instead" is to remove the entry and say it again, so
-   that every entry in the rail is one the parser produced from one sentence.  */
+   something out of it.
+
+   AMENDING IS NOT A THIRD MOVE HERE, and it no longer has to be. This file used
+   to answer "make it 19 instead" with "remove the entry and say it again", which
+   is the bookkeeping the founder's stress script flags as a red flag (2026-09-12,
+   MODIFICATION 3.k). Saying it again is now enough on its own: the new figure
+   lands through `addEntry` and SUPERSEDES the old one at the same wire address.
+   Every entry in the rail is still one the parser produced from one sentence. */
 
 export type ManifestAddress =
   | { kind: "list"; entries: WorkroomDelta[] }

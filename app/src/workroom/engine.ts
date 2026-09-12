@@ -235,6 +235,61 @@ export function readableError(e: unknown): string {
   return text === "[object Object]" ? "The room got back an error it could not read." : text;
 }
 
+/* ------------------------------------------------------- the honest re-ask
+
+   THE SECOND MISS IS NOT THE FIRST ONE AGAIN (A2 audit, 2026-09-12; the rule
+   the relationship room already keeps in `RelationshipRoom.tsx`). A banker who
+   typed something the room could not read and then reads the identical question
+   a second time has learned nothing: they cannot tell whether the room heard
+   them at all, and the room looks like it is looping. So the repeat names what
+   was heard before it asks again, and the question itself is unchanged
+   underneath so the chips still answer it.                                   */
+
+/** How much of the banker's own line is worth quoting back. Past this it is a
+ *  paragraph, not a quote. */
+const HEARD_CHARS = 60;
+
+/** The consecutive misses on ONE question. The engines keep one of these. */
+export interface MissLedger {
+  /** Records a miss on `question` and returns how many in a row it has taken. */
+  miss(question: string): number;
+  /** An answer landed. The escalation is about one question missed twice in a
+   *  row, never about the room's whole conversation. */
+  clear(): void;
+}
+
+export function createMissLedger(): MissLedger {
+  let asked = "";
+  let count = 0;
+  return {
+    miss(question) {
+      count = asked === question ? count + 1 : 1;
+      asked = question;
+      return count;
+    },
+    clear() {
+      asked = "";
+      count = 0;
+    },
+  };
+}
+
+/**
+ * WHAT THE ROOM HEARD, said before it asks again.
+ *
+ * `what` names the answer the question takes, in the banker's own words ("a
+ * rate", "a figure", "a date"), so the repeat narrows rather than repeats. An
+ * empty line gets its own sentence: "I heard nothing" is a different fact from
+ * "I heard something I could not read", and a banker who hit Enter on an empty
+ * box deserves to be told which one happened.
+ */
+export function heardPreface(said: string, what: string): string {
+  const line = said.trim().replace(/\s+/g, " ");
+  if (!line) return `That came through with nothing in it, so there is nothing for me to read as ${what}.`;
+  const quoted = line.length > HEARD_CHARS ? `${line.slice(0, HEARD_CHARS)}...` : line;
+  return `I heard "${quoted}", and I cannot read it as ${what}.`;
+}
+
 export interface WorkroomEngine {
   readonly mode: WorkroomMode;
   /** TRUE while the room runs on a storyline and reaches no tool. The header

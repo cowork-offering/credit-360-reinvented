@@ -114,9 +114,18 @@ export function CommandPalette() {
 
   /** Open a relationship the snapshot never baked: read it, then go. */
   const openFromOrg = (match: AccountMatch) => {
-    void openAccountLive({ accountId: match.accountId, name: match.name, match }).then((ok) => {
-      if (ok) dispatch({ type: "OPEN_ACCOUNT", accountId: match.accountId });
-      else announce(`the org had nothing to read for ${match.name}. Nothing was opened.`);
+    /* Navigate on `onOpen`, the moment the account is navigable, not after the
+       whole aggregate (graph included) resolves: the L1 latency audit measured
+       the difference at one to one and a half seconds on a cold open (founder
+       brief 2026-09-12, "zero latency"). `.then` keeps only the one sentence
+       for a relationship the org had nothing readable for. */
+    void openAccountLive({
+      accountId: match.accountId,
+      name: match.name,
+      match,
+      onOpen: () => dispatch({ type: "OPEN_ACCOUNT", accountId: match.accountId }),
+    }).then((ok) => {
+      if (!ok) announce(`the org had nothing to read for ${match.name}. Nothing was opened.`);
     });
   };
 

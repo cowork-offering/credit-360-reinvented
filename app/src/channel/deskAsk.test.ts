@@ -110,12 +110,22 @@ describe("the context names what it had to cut (finding I8)", () => {
     return { ...b, exposure: { ...b.exposure, facilities } } as unknown as BorrowerBundle;
   };
 
+  /* WHAT IS LOST CHANGED 2026-09-12 (backlog item 9), and that is the point.
+     The desk used to emit its facility list before its covenants, so a book of
+     200 facilities cost the banker the thresholds. It now emits its parts in
+     the reverse of `CONTEXT_DROP_ORDER`, the envelope's own order: the totals
+     and the covenants survive, and the facility list is the first thing the cut
+     reaches. One order, two surfaces. */
   it("cuts at a whole line and names the parts of the book that did not travel", () => {
     const said = deskContext(wide(), "Hartwell Precision Manufacturing LLC");
     expect(said).toContain("This context was cut to fit, so it does not carry");
     // What was dropped, by the part of the book it came from, so the model can
     // refuse it by name instead of reading silence as a fact.
-    expect(said).toMatch(/the covenants and their thresholds/);
+    expect(said).toMatch(/the facility list/);
+    expect(said).toMatch(/who is on the deal/);
+    // And what survived it: the two blocks the shared order protects.
+    expect(said).toMatch(/Facilities across the relationship, every package included/);
+    expect(said).toMatch(/Debt Service Coverage of Borrower/);
     expect(said).toMatch(/Say that it is not in front of you rather than reading what is here as the whole book/);
     // And it still ends on a whole sentence, never mid-figure.
     expect(said.trim().endsWith(".")).toBe(true);
@@ -196,7 +206,6 @@ describe("askDesk sends the rules, the book, the conversation and the question",
     }));
     const { askDesk, DESK_RULES } = await import("./deskAsk");
     const answer = await askDesk({
-      data,
       bundle: bundle(),
       accountName: bundle().snapshot!.name!,
       question: "and the other one?",

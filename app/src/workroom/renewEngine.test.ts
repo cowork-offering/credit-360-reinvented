@@ -269,6 +269,27 @@ describe("the renewal verb asks the one question the tool refuses without", () =
     expect(engine.suggest()).toBeNull();
   });
 
+  /* DOCTRINE C, THE ABSENCE HALF (founder 2026-09-12). The room recommends only
+     where a figure on file or a doctrine band grounds it. Neither grounds a
+     RENEWAL TENOR here: the only tenor language in the codebase is one
+     `credit-policy` doctrine line of CAPS keyed to product words this engine
+     does not carry ("revolver", "machinery and equipment", "owner-occupied
+     CRE"), and nothing maps nCino's own `productType` onto them. So the ask
+     leads with the current figures, offers the three real extensions, and takes
+     no view. This test exists to keep it that way. */
+  it("offers the real options on the maturity and recommends none of them", async () => {
+    const { engine } = engineOn();
+    const out = await engine.parseIntent("renew the Line of Credit", context);
+    if (out.kind !== "unparsed") throw new Error(`expected the maturity question, got ${out.kind}`);
+    expect(out.options?.map((o) => o.label)).toEqual([
+      "+12 months (Mar 15, 2028)",
+      "+24 months (Mar 15, 2029)",
+      "+36 months (Mar 15, 2030)",
+      "Another date",
+    ]);
+    expect(out.reply).not.toMatch(/I would|recommend|suggest|standard tenor|typical|usually/i);
+  });
+
   it("takes the answer alone as a complete instruction", async () => {
     const { engine } = engineOn();
     await engine.parseIntent("renew the Line of Credit", context);

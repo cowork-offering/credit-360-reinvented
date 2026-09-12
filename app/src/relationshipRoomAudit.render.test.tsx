@@ -486,3 +486,124 @@ describe("AUDIT — what is already right", () => {
     void room;
   });
 });
+
+/* =============================================================================
+   THE POLISH SET, MADE PERMANENT (backlog item 13).
+
+   Items 8, 9 and 11 of the relationship fixer were verified with a harness that
+   was then deleted, so nothing in the tree held them. These four behaviours are
+   the ones that live only in the ROOM — `KEEP_CURRENT`, `keepContradiction`,
+   `readsAsJunk` and `TAKE_THEM_ALL` are module-local to
+   `components/relationship/RelationshipRoom.tsx` and reachable only through a
+   rendered room, which is why they are here and not in a unit file.
+   ============================================================================= */
+
+describe("a keep is an answer, and a keep that says two things is not", () => {
+  /* GOLDEN RULE 5, in the founder's own words: "a keep / hold / no change is an
+     answer, not a miss." The step that OFFERS the figure on file takes the keep
+     AS that figure, which is the only reading that does not either lose the
+     answer or invent one. */
+  it("takes 'keep' on the observed-figure step as the figure the read carries", async () => {
+    const room = open("covenant");
+    await settle();
+    chip(/Debt Service Coverage/);
+    await settle();
+    await type(room, "Exception");
+    expect(said().at(-1)).toContain("The read carries 1.08");
+    await type(room, "keep");
+    // The room moved on rather than re-asking, and it moved on holding 1.08.
+    expect(said().at(-1)).not.toContain("The read carries 1.08");
+    expect(said().join(" ")).not.toContain("I need a figure");
+    expect(room.textContent).toContain("1.08");
+  });
+
+  it("takes the longer ways a banker holds a figure, on the same step", async () => {
+    for (const held of ["no change", "leave it as is", "hold"]) {
+      const room = open("covenant");
+      await settle();
+      chip(/Debt Service Coverage/);
+      await settle();
+      await type(room, "Exception");
+      await type(room, held);
+      expect(said().at(-1), held).not.toContain("The read carries 1.08");
+      act(() => root?.unmount());
+      container?.remove();
+    }
+  });
+
+  /* A LINE THAT SAYS HOLD AND SAYS FILE IS NOT AN ANSWER. Choosing between the
+     two halves here would be the room deciding a governance record, so it asks
+     which, once, with both readings named. */
+  it("asks which, where the line says keep AND names a new figure", async () => {
+    const room = open("covenant");
+    await settle();
+    chip(/Debt Service Coverage/);
+    await settle();
+    await type(room, "Exception");
+    await type(room, "keep it, 1.35");
+    const asked = said().at(-1) ?? "";
+    expect(asked).toContain("That line says two things");
+    expect(asked).toContain("file a new figure");
+    expect(asked).toContain("Which is it?");
+    void room;
+  });
+});
+
+describe("a governance record nobody can read is not an answer", () => {
+  /* The case SUBJECT and the case BODY are worked by people who were not in
+     this room, and they are the only two steps in the whole relationship room
+     marked `substantive`. Everything else — a narrative, a rationale — is free
+     prose and is never challenged. */
+  it("challenges '!!!' on the case subject and asks again", async () => {
+    const room = open("service");
+    await settle();
+    await type(room, "!!!");
+    const asked = said().at(-1) ?? "";
+    expect(asked).toContain("is not something the servicing team could act on");
+    expect(asked).toContain("What did the client ask for");
+  });
+
+  it("challenges 'asdf' on the case body and asks again", async () => {
+    const room = open("service");
+    await settle();
+    await type(room, "Copy of the June covenant compliance certificate");
+    await type(room, "asdf");
+    const asked = said().at(-1) ?? "";
+    expect(asked).toContain("is not something the servicing team could act on");
+    expect(asked).toContain("in full");
+  });
+
+  it("leaves the free-text detail step alone, because nobody works off it", async () => {
+    const room = open("service");
+    await settle();
+    await type(room, "Copy of the June covenant compliance certificate");
+    await type(room, "James Hartwell asked on 28 Aug for the June certificate for his own file.");
+    await type(room, "n/a");
+    expect(said().join(" ")).not.toContain("is not something the servicing team could act on");
+    void room;
+  });
+});
+
+describe("a survey of the whole list is an answer to a multi step", () => {
+  /* "Which collateral are we valuing?" over two assets, answered the way a
+     banker answers it out loud. The room's own `TAKE_THEM_ALL` reading, which
+     nothing in the suite held. */
+  it("takes 'value them all' as every option on the list", async () => {
+    const room = open("valuation");
+    await settle();
+    await type(room, "value them all");
+    // Both assets picked: the first per-asset value question is the next ask,
+    // and the counter is the TWO-asset walk (8) rather than the one-asset one
+    // (7, pinned above by "counts the steps it is going to ask").
+    expect(said().at(-1)).toContain("carries");
+    expect(kickers().at(-1)).toBe("Step 2 of 8");
+  });
+
+  it("takes 'all of them on the list' the same way, and any casing of it", async () => {
+    const room = open("valuation");
+    await settle();
+    await type(room, "All of them on the list");
+    expect(said().at(-1)).toContain("carries");
+    expect(kickers().at(-1)).toBe("Step 2 of 8");
+  });
+});

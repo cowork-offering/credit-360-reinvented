@@ -236,6 +236,21 @@ export function Worklist() {
          share link cannot read anything, and an empty workspace is still the
          one thing this must never do. */
       if (mcpAvailable()) {
+        /* THE VIEW SWITCHES THE MOMENT THE RELATIONSHIP IS NAVIGABLE, not when
+           the last read has settled (2026-09-12, founder latency brief: "110%
+           zero latency and smooth transitions"). The navigation used to sit in
+           `.then()`, which resolves only after the WHOLE aggregate has landed —
+           the relationship graph included, and the graph is the heaviest read
+           in the set and deliberately the last one issued. That cost the banker
+           the graph's whole wave on a view that does not open on it. `onOpen`
+           fires when the fast reads have registered; the graph fills in behind
+           the open view, exactly as it does on a cached open.
+
+           THE RESOLVE IS NOW ONLY THE FAILURE. Every path that resolves true
+           has already fired `onOpen` — the session book, the cache and the live
+           read all register before they resolve — so the only thing left for
+           `.then` to say is the one sentence for a relationship the org had
+           nothing readable for. */
         void openAccountLive({
           accountId: r.accountId,
           name: r.name,
@@ -247,9 +262,9 @@ export function Worklist() {
             industry: r.industry === "—" ? undefined : r.industry,
             naicsCode: r.naicsCode ?? undefined,
           },
+          onOpen: () => dispatch({ type: "OPEN_ACCOUNT", accountId: r.accountId }),
         }).then((ok) => {
-          if (ok) dispatch({ type: "OPEN_ACCOUNT", accountId: r.accountId });
-          else announce(`the org had nothing to read for ${r.name}. Nothing was opened.`);
+          if (!ok) announce(`the org had nothing to read for ${r.name}. Nothing was opened.`);
         });
         return;
       }

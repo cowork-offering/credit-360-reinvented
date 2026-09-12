@@ -238,7 +238,13 @@ export function createPacer({
       if (inFlight < capNow()) take();
       else queue.push(take);
     });
-    const spaced = lastLaunch.then(() => sleep(gapNow()));
+    /* A ZERO GAP CHAINS NOTHING (A7, founder latency brief 2026-09-12). On the
+       open path `openLaunchGapMs()` returns 0, and `lastLaunch.then(() =>
+       sleep(0))` still costs a chained `setTimeout(0)` per call: Chromium
+       clamps those to 4ms from the fifth nesting level, so the sixth read left
+       6 to 20ms late for a gap nobody asked for. With no gap the launch chain
+       is simply the one before it, which keeps the ordering identical. */
+    const spaced = gapNow() > 0 ? lastLaunch.then(() => sleep(gapNow())) : lastLaunch;
     lastLaunch = spaced;
     return Promise.all([slot, spaced]).then(() => {
       const p = fn();

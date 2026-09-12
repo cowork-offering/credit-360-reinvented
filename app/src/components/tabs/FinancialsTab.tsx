@@ -1,10 +1,19 @@
 import type { BorrowerBundle, Covenant } from "../../data/contract";
 import { fmtMoney, fmtPct } from "../../data/format";
 import { fmtRatio } from "../../data/finance";
+import { isProvisionalPeriod } from "../../spread/publishSpread";
 import { EmptyPane, Fig, Note, Pane, PaneCard, SecHead, Status, type StatusTone } from "./paneKit";
 
 const EXPLAIN =
   "Explain these financials: the EBITDA trend, leverage, and interest coverage.";
+
+/* THE SPREADING ROOM'S PERIOD SAYS WHAT IT IS (item 18, BOOM-UPLOAD-SPEC §3).
+   A period this session published from the Spreading room while the Boom
+   connector does not exist is the room's own read of the banker's file, not
+   Boom's spread and not signed off by an analyst. It shows here, in the tab's
+   own register, with the word on it. The badge renders ONLY on a provisional
+   period, so a tab reading Boom's own spread is the tab it has always been. */
+const PROVISIONAL_BADGE = "Provisional, Boom verification pending";
 
 /* The trend chart's own box, the dummy's: a 720x190 field with three grid
    lines and the axis labels on the baseline. */
@@ -79,6 +88,18 @@ export function FinancialsTab({ bundle }: { bundle: BorrowerBundle }) {
       : null;
 
   const levTone = ratioTone(ratios.totalLeverage, levCov?.thresholdValue ?? null, true);
+  /* THE BADGE FINDS THE PROVISIONAL PERIOD WHEREVER IT SITS. A spread can land
+     on a period that is not the last one on the trend: a book carrying its own
+     trailing-twelve-months row keeps that row last while the year the banker
+     just dropped sits before it. Badging only the last period hid the word
+     entirely on exactly those relationships. The newest period carrying it is
+     the one named, and it is NAMED whenever it is not the headline period,
+     because a badge beside a figure it is not about is worse than no badge. */
+  const provisional = [...periods].reverse().find((p) => isProvisionalPeriod(p)) ?? null;
+  const provisionalLabel =
+    provisional && provisional !== latest && provisional.period
+      ? `${provisional.period} · ${PROVISIONAL_BADGE}`
+      : PROVISIONAL_BADGE;
 
   return (
     <Pane id="financials">
@@ -97,6 +118,14 @@ export function FinancialsTab({ bundle }: { bundle: BorrowerBundle }) {
               )}
               <span className="cap">
                 Boom · {periods.length} period{periods.length === 1 ? "" : "s"}
+                {provisional && (
+                  <>
+                    {" "}
+                    <Status tone="warn" data-provisional-period={provisional.period ?? ""}>
+                      {provisionalLabel}
+                    </Status>
+                  </>
+                )}
               </span>
             </div>
             <svg

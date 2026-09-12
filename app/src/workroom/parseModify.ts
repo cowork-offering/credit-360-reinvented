@@ -1223,6 +1223,44 @@ function readException(
   };
 }
 
+/* ===========================================================================
+   A MOVE IS NOT A TARGET (A2 audit, 2026-09-12).
+
+   "increase the Line of Credit by $5M" on a $15M line was staged as a
+   commitment of $5,000,000: a two-thirds CUT, filed under the word "increase",
+   with the room reporting "1 of these goes on the clone" and no check on it.
+   "add 50bps" on a 7.6% rate staged 0.5%. Both are the most natural sentence a
+   C&I banker writes, and both produced a plan that says the opposite of what
+   was asked.
+
+   So a relative line is COMPUTED off the figure the read carries, and where the
+   read carries no figure it is a question rather than a guess. The tell is a
+   direction word with no target marker: "to", "at" and "becomes" all name a
+   target, and a line carrying one is read exactly as it always was.
+   =========================================================================== */
+
+/** Words that move a figure UP. */
+const MOVE_UP = /\b(increase[sd]?|increasing|raise[sd]?|raising|add|adds|added|adding|plus|bump|bumps|bumped|up)\b/i;
+/** Words that move a figure DOWN. */
+const MOVE_DOWN = /\b(reduce[sd]?|reducing|lower|lowers|lowered|lowering|cut|cuts|decrease[sd]?|decreasing|drop|drops|dropped|shave[sd]?|down|minus|less)\b/i;
+/** A target marker. "take it to $19M" and "price it at 810 bps" are absolutes. */
+const NAMES_A_TARGET = /\b(?:to|at|becomes?|of)\s+(?:\$\s*)?\d/i;
+
+/** Which way this line moves a figure, or 0 where it names a target. */
+function moveDirection(lower: string): 1 | -1 | 0 {
+  if (NAMES_A_TARGET.test(lower)) return 0;
+  if (MOVE_DOWN.test(lower)) return -1;
+  if (MOVE_UP.test(lower)) return 1;
+  return 0;
+}
+
+/** Is the token at `index` written with a minus in front of it? A sign the
+ *  tokenisers drop is a figure the banker never typed, and staging 5% off "-5%"
+ *  is the room putting a number in their mouth. */
+function negated(lower: string, index: number): boolean {
+  return /[-\u2212]\s*$/.test(lower.slice(0, index));
+}
+
 /** Read the value for ONE catalog field out of the line. */
 function readValue(
   field: CatalogField,
@@ -1247,6 +1285,32 @@ function readValue(
     // "from 15 to 20 million" — the target is the one after the last "to".
     const to = lower.lastIndexOf(" to ");
     const target = (to >= 0 ? tokens.filter((t) => t.index > to) : []).at(0) ?? tokens.at(-1)!;
+    if (negated(lower, target.index)) {
+      return {
+        question: `A commitment is a positive figure, and I will not read a minus off the line as one. Say what ${field.label.toLowerCase()} should become, or say the move in words, for example "reduce it by ${exactMoney(target.value)}".`,
+      };
+    }
+    // A MOVE IS COMPUTED OFF THE FIGURE ON FILE, never staged as the target.
+    const way = field.id === "loan.amount" ? moveDirection(lower) : 0;
+    if (way !== 0) {
+      const held = typeof facility?.committed === "number" ? facility.committed : null;
+      if (held === null) {
+        return {
+          question: `This read carries no committed amount for that member, so there is nothing here to move ${
+            way > 0 ? "up" : "down"
+          } from. Say what ${field.label.toLowerCase()} should become.`,
+        };
+      }
+      const moved = held + way * target.value;
+      if (moved <= 0) {
+        return {
+          question: `${exactMoney(target.value)} ${way > 0 ? "on" : "off"} ${exactMoney(held)} leaves ${exactMoney(
+            moved,
+          )}, and a commitment is a positive figure. Say what ${field.label.toLowerCase()} should become.`,
+        };
+      }
+      return { value: { kind: "currency", amount: moved, text: `${target.text} ${way > 0 ? "on" : "off"} ${exactMoney(held)}` } };
+    }
     return { value: { kind: "currency", amount: target.value, text: target.text } };
   }
 
@@ -1262,6 +1326,31 @@ function readValue(
       const pcts = percentTokens(lower);
       if (!pcts.length) return { question: "What rate should it move to? A percentage, or a move in basis points." };
       const last = pcts.at(-1)!;
+      if (negated(lower, last.index)) {
+        return {
+          question: `A rate on this facility is an absolute figure, not a move, and I will not read a minus off the line as one. Say the all-in rate, or say the move in words, for example "lower it by ${last.value}%".`,
+        };
+      }
+      // A MOVE IS COMPUTED OFF THE RATE ON FILE. The question itself offers "a
+      // move in basis points", so a move has to mean one.
+      const way = moveDirection(lower);
+      if (way !== 0) {
+        const held = typeof facility?.interestRate === "number" ? facility.interestRate : null;
+        if (held === null) {
+          return {
+            question: `This read carries no rate for that member, so there is nothing here to move ${
+              way > 0 ? "up" : "down"
+            } from. Give me the all-in rate as a percentage.`,
+          };
+        }
+        const moved = Math.round((held + way * last.value) * 1e6) / 1e6;
+        if (moved <= 0) {
+          return {
+            question: `${last.text} ${way > 0 ? "on" : "off"} ${held}% leaves ${moved}%, which is not a rate this files. Give me the all-in rate as a percentage.`,
+          };
+        }
+        return { value: { kind: "percent", rate: moved, text: `${last.text} ${way > 0 ? "on" : "off"} ${held}%` } };
+      }
       return { value: { kind: "percent", rate: last.value, text: last.text } };
     }
 
@@ -1286,7 +1375,10 @@ function readValue(
           value: { kind: "months", months: isYears ? Math.round(said * 12) : said, text: `${stated[1]} ${isYears ? "years" : "months"}` },
         };
       }
-      return { question: "How long — in months or years?" };
+      /* NO EM DASH IN A BANKER-FACING SENTENCE (house rule). `bankerly` in
+         `components/workroom/ask.ts` neutralises one on the way to the glass;
+         it should not have to. */
+      return { question: "How long is it, in months or years?" };
     }
 
     if (field.type === "date") {

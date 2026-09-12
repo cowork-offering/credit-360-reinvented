@@ -107,13 +107,14 @@ function openArc(data: C360Data) {
 describe("the arc's cloud seat", () => {
   it("carries the Salesforce cloud on a client", () => {
     openArc(bookWith({ instanceUrl: INSTANCE, packaged: true }));
-    expect(document.querySelectorAll(".arcbtn")).toHaveLength(5);
+    expect(document.querySelectorAll(".arcbtn")).toHaveLength(6);
     const sat = cloud();
     expect(sat).toBeTruthy();
     expect(sat.getAttribute("data-act")).toBe("salesforce");
-    // The offsets ARE the five-satellite recipe (2026-09-04): 22.5deg steps on
-    // r=124, the chat at the top and the cloud at the horizontal.
-    expect(sat.getAttribute("style")).toContain("--tx: -124px");
+    // The offsets ARE the six-satellite recipe (2026-09-12, the Spreading room
+    // took a seat): 18deg steps on r=150, the chat at the top and the cloud at
+    // the horizontal exactly where they have always been.
+    expect(sat.getAttribute("style")).toContain("--tx: -150px");
     expect(sat.getAttribute("style")).toContain("--ty: 0px");
   });
 

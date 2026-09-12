@@ -258,12 +258,29 @@ export function useNarration(deps: NarrationDeps): NarrationHook {
             setViews((prev) => ({ ...prev, [id]: { blocks, reveal: total, pending: false, spoke: true } }));
             return;
           }
+          /* AN EMIT THAT CARRIES NO NEW WORD COMMITS NOTHING (D2/F1, founder
+             latency brief 2026-09-12: "110% zero latency and smooth
+             transitions"). The pacer runs on the frame clock at 26 words a
+             second against 60fps, so on a 51-word remark 39 of its 90 emits
+             release the same prefix as the frame before. Each one used to be a
+             `setViews` returning a FRESH object, which React can never bail out
+             of, so the largest component in the build re-rendered forty times
+             for no change on the glass. Returning `prev` unchanged where both
+             `reveal` and `streaming` match is the bail-out. The pacer's own
+             emit semantics are untouched: `streamPacer.test.ts` reads the first
+             frame's emit and it is still made. */
           const pacer = startPacer({
             emit: (visible, done) =>
-              setViews((prev) => ({
-                ...prev,
-                [id]: { blocks, reveal: unitsOf(visible).length, pending: false, spoke: true, streaming: !done },
-              })),
+              setViews((prev) => {
+                const reveal = unitsOf(visible).length;
+                const streaming = !done;
+                const held = prev[id];
+                if (held && held.reveal === reveal && held.streaming === streaming) return prev;
+                return {
+                  ...prev,
+                  [id]: { blocks, reveal, pending: false, spoke: true, streaming },
+                };
+              }),
           });
           pacers.current.set(id, pacer);
           pacer.finish(prose);

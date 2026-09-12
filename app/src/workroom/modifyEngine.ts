@@ -19,6 +19,8 @@ import { fmtDate, fmtMoney } from "../data/format";
 import { isActiveFacility } from "../data/worklist";
 import type { BorrowerBundle, C360Data, Covenant, Facility } from "../data/contract";
 import {
+  createMissLedger,
+  heardPreface,
   holdComposed,
   readableError,
   recallComposed,
@@ -30,6 +32,7 @@ import {
 } from "./engine";
 import { runAdvisories } from "./advisory";
 import {
+  answerShape,
   NO_CONNECTOR_REFUSAL,
   NO_PACKAGE_REFUSAL,
   nothingFilesRefusal,
@@ -293,6 +296,16 @@ function currentValue(field: CatalogField, facility: Facility | null): string {
       return facility.maturityDate ? fmtDate(facility.maturityDate) : "not staged";
     case "loan.termMonths":
       return typeof facility.termMonths === "number" ? `${facility.termMonths} months` : "not staged in this read";
+    /* THE TWO PRICING FIELDS READ OFF THE BOOK TOO (fixer pass, 2026-09-12).
+       Without these the amortisation and first-payment questions fell to the
+       default below, so the ask led with nothing and the keep-chip read "Keep as
+       booked" over a figure the read was carrying all along. */
+    case "loan.amortisedTerm":
+      return typeof facility.amortizedTermMonths === "number"
+        ? `${facility.amortizedTermMonths} months`
+        : "not staged in this read";
+    case "loan.firstPaymentDate":
+      return facility.firstPaymentDate ? fmtDate(facility.firstPaymentDate) : "not staged in this read";
     default:
       return "today's value is not staged in this read";
   }
@@ -1353,15 +1366,28 @@ export function createModifyEngine(args: {
     // AND WHY THE ROOM IS ASKING. A question with today's figure beside it says
     // what the field holds; it does not say what the answer is FOR, and a banker
     // who cannot see that is being walked through a form rather than talked to.
-    const why = whyAsked(awaiting.field, { committed, lendable: bundle?.exposure?.totalUniqueCollateralLendableValue });
+    const why = whyAsked(awaiting.field, {
+      committed,
+      lendable: bundle?.exposure?.totalUniqueCollateralLendableValue,
+      // THE FIGURE THE ASK LEADS WITH, off the facility the question is about.
+      amortisedTermMonths: awaiting.facility?.amortizedTermMonths,
+      firstPaymentDate: awaiting.facility?.firstPaymentDate,
+    });
     return `${question}${reads}${why ? ` ${why}` : ""}`;
   }
 
   function toResult(outcome: ReturnType<typeof parseModify>, seq: number, said: string): IntentResult | null {
     if (outcome.kind === "clarify") {
+      const reply = withCurrent(outcome.question, outcome.awaiting);
+      const chips = clarifyChips(outcome.awaiting, outcome.options);
+      /* THE QUESTION ON THE TABLE, kept so a line that answers nothing can be
+         answered WITH IT rather than with the parser's boilerplate (A2 audit,
+         2026-09-12). Without this a blank line took the question away and the
+         banker's next good answer had nothing left to land on. */
+      if (outcome.awaiting) pending = { question: outcome.question, reply, chips, awaiting: outcome.awaiting };
       return {
         kind: "unparsed",
-        reply: withCurrent(outcome.question, outcome.awaiting),
+        reply,
         // GUIDANCE: the way out comes first. Every term question offers a
         // one-click "Keep <current>" that holds the field where it is, so
         // keep-current is a chip and not only a typed word — and the banker
@@ -1369,7 +1395,7 @@ export function createModifyEngine(args: {
         // rides the same keep-current parser a typed "hold" does. Then the
         // org's own picklist values, capped so a long list is not a wall of
         // forty buttons.
-        options: clarifyChips(outcome.awaiting, outcome.options),
+        options: chips,
       };
     }
     if (outcome.kind === "none") return null;
@@ -1463,6 +1489,15 @@ export function createModifyEngine(args: {
   let deltaSeq = 0;
   /** The question the room last asked, so the next line can answer it. */
   let awaiting: Awaiting | null = null;
+  /** THE QUESTION ITSELF, with the sentence and the chips it went out with, so
+   *  a line that answers nothing is answered with the question again rather
+   *  than with the parser's capability lecture. */
+  let pending: { question: string; reply: string; chips: Array<{ label: string; say: string }> | undefined; awaiting: Awaiting } | null = null;
+  /** Consecutive lines ONE question could not read. */
+  const misses = createMissLedger();
+  /** The last field the banker actually settled. A loose figure arriving later
+   *  is most often a correction of it, and saying so beats a dead end. */
+  let lastAnswered: Awaiting | null = null;
 
   /**
    * WHAT THE ANSWER DID TO THE ROOM'S OWN STATE.
@@ -1499,20 +1534,44 @@ export function createModifyEngine(args: {
     // reply to "what should the commitment become", and reading it as a new
     // instruction would lose both the field and the member.
     if (awaiting) {
+      const before = awaiting;
+      const onTheTable = pending?.question ?? "";
       const answered = parseAnswer(awaiting, text, parseContext());
       if (answered) {
         const result = toResult(answered, deltaSeq, text);
         if (result) {
           awaiting = answered.kind === "clarify" ? (answered.awaiting ?? awaiting) : null;
+          /* THE SAME QUESTION, PUT AGAIN, IS A MISS AND IS SAID AS ONE. A
+             clarify that MOVED ON (the pledge's next missing half) is progress,
+             not a miss, so the two are told apart on the question itself. */
+          if (answered.kind === "clarify" && answered.question === onTheTable) {
+            result.reply = missReply(text, before, result.reply, pending?.chips);
+          } else {
+            misses.clear();
+            if (answered.kind !== "clarify") lastAnswered = before;
+          }
           return settle(result);
         }
       }
     }
 
     const parsed = parseModify(text, parseContext());
-    awaiting = parsed.kind === "clarify" ? (parsed.awaiting ?? null) : null;
     const direct = toResult(parsed, deltaSeq, text);
-    if (direct) return settle(direct);
+    if (direct) {
+      /* THE PENDING QUESTION ONLY RETIRES ON A LINE THAT ANSWERED SOMETHING.
+         It used to retire on every line, so a stray keystroke took the question
+         off the table and the banker's next good answer had nothing to land on
+         (A2 audit, 2026-09-12). */
+      awaiting = parsed.kind === "clarify" ? (parsed.awaiting ?? null) : null;
+      if (parsed.kind === "amendments") {
+        misses.clear();
+        // A ONE-LINER SETTLES A FIELD TOO, so a loose correction after it gets
+        // the same route out as one typed into a question.
+        const only = parsed.amendments.length === 1 ? parsed.amendments[0] : null;
+        lastAnswered = only ? { field: only.field, facility: only.facility } : null;
+      }
+      return settle(direct);
+    }
 
     // THE ASSIST, and its whole job is vocabulary. It restates the line in the
     // catalog's words and the deterministic parser reads THAT; nothing the
@@ -1539,16 +1598,51 @@ export function createModifyEngine(args: {
     // matched no field and no amount could be inferred, so the only half that
     // can have landed is the member — and saying which one landed is the
     // difference between a refusal the banker can answer and a dead end.
+    /* A LINE THAT ANSWERED NOTHING DOES NOT CANCEL THE QUESTION ON THE TABLE.
+       The room says what it heard and puts the same question back, chips and
+       all, rather than answering an open question with a capability lecture. */
+    if (awaiting && pending) {
+      asked = true;
+      return { kind: "unparsed", reply: missReply(text, awaiting, pending.reply, pending.chips), options: pending.chips };
+    }
+
     const named = membersNamedIn(text, parseContext());
     const scope =
       "Commitment, rate, maturity, term, covenants, entities, fees, collateral and policy exceptions all file on the clone; pricing I stage and hand off with the reason.";
+    /* AND A LOOSE FIGURE IS USUALLY A CORRECTION. Where the banker has already
+       settled a field and then types a bare figure, the dead end used to be the
+       capability lecture; naming the field they last set, and the words that
+       correct it, is the route out. The room does NOT restage it silently: one
+       entry in the rail is one sentence the banker said (manifest.ts). */
+    const correcting =
+      lastAnswered && /\d/.test(text)
+        ? ` The last figure you settled was ${lastAnswered.field.label.toLowerCase()}${
+            lastAnswered.facility ? ` on the ${memberName(lastAnswered.facility)}` : ""
+          }. If that is what you are correcting, say "remove the ${lastAnswered.field.label.toLowerCase()}" and then name it again with the new figure.`
+        : "";
     asked = true;
     return {
       kind: "unparsed",
       reply: named.length
-        ? `I read the ${named.map(memberName).join(" and the ")}, but not what should change on ${named.length === 1 ? "it" : "them"}. ${scope}`
-        : `I could not map that onto this package: it names no member I hold and no field I file. Name one of the members above and what should change on it. ${scope}`,
+        ? `I read the ${named.map(memberName).join(" and the ")}, but not what should change on ${named.length === 1 ? "it" : "them"}. ${scope}${correcting}`
+        : `I could not map that onto this package: it names no member I hold and no field I file. Name one of the members above and what should change on it. ${scope}${correcting}`,
     };
+  }
+
+  /**
+   * THE HONEST RE-ASK. What was heard, then the question again, unchanged
+   * underneath so the chips still answer it, and from the second miss on, the
+   * chips named in words for a banker who has not spotted them.
+   */
+  function missReply(
+    said: string,
+    on: Awaiting,
+    question: string,
+    chips: Array<{ label: string; say: string }> | undefined,
+  ): string {
+    const seen = misses.miss(pending?.question ?? on.field.id);
+    const named = seen > 1 && chips?.length ? ` The chips under this answer it too: ${chips.map((c) => c.label).join(", ")}.` : "";
+    return `${heardPreface(said, answerShape(on.field))} ${question}${named}`;
   }
 
   /* ----------------------------------------------------- picking a member
@@ -1752,7 +1846,7 @@ export function createModifyEngine(args: {
       // The delta carries the key as a plain string so `types.ts` stays free of
       // the catalog; this is the one place it is read back as the wire key.
       const key = d.wire.key as WireKey;
-      const at = `${key} ${d.wire.facilityId}`;
+      const at = `${key}\u0000${d.wire.facilityId}`;
       const held = valueAt.get(at);
       if (held !== undefined) {
         // WITHIN ONE MEMBER a scalar still travels once. Two figures for the

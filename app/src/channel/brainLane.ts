@@ -2,6 +2,7 @@ import { buildBrainTools } from "./brainTools";
 import { budgetPrompt } from "./doctrine";
 import { rungFor, type RungChoice } from "./ladder";
 import { callTool, mcpAvailable, SERVERS, TOOLS, unwrapLlm } from "./mcp";
+import { CONTEXT_DROP_ORDER } from "./relationshipContext";
 import { askSessionJson, sampleAvailable } from "./sampleDoor";
 
 /* =============================================================================
@@ -57,6 +58,29 @@ export interface BrainFacility {
    an empty fact.                                                            */
 
 export interface BrainReadBlocks {
+  /**
+   * WHAT EACH FACILITY IS, not just what it is called.
+   *
+   * The envelope carried a label and a commitment per member and nothing else,
+   * so "what does this facility do" could not be answered with its maturity,
+   * its drawn balance, its stage or its own coverage. Four figures the cockpit
+   * chat was printing off the same read the whole time. One builder now prints
+   * them once (`channel/relationshipContext.ts`) and both surfaces name the
+   * facility the same way, so this block joins to `covenants[].scope`,
+   * `collateral[].scope` and `pricing[].facility` by name.
+   */
+  facilities?: Array<{
+    name: string;
+    commitment?: string;
+    drawn?: string;
+    available?: string;
+    rate?: string;
+    maturity?: string;
+    /** The org's own stage word. Absent where the read stages none. */
+    stage?: string;
+    /** The ORG'S per-facility coverage ratio, never one derived here. */
+    coverage?: string;
+  }>;
   covenants?: Array<{
     name: string;
     threshold: string;
@@ -112,6 +136,10 @@ export interface BrainReadBlocks {
    */
   group?: Array<{
     name: string;
+    /** THE ORG'S OWN ACCOUNT ID for this counterparty, where the graph carries
+     *  one. `connectedPartyBook` is addressed by id, and a model holding only
+     *  the name can only ever ask for it the one way that is ambiguous. */
+    counterpartyId?: string;
     /** Normalised from the org's own role word, never guessed from a name. */
     relation: "parent" | "subsidiary" | "affiliate" | "owner" | "guarantor";
     /** The org's own word where it says more than the relation does
@@ -152,6 +180,11 @@ export interface BrainReadBlocks {
   /** Pricing AS STORED. Rate only: this org stores no index name (see the
    *  prompt's prohibition) and no read on this cockpit carries a spread. */
   pricing?: Array<{ facility: string; rate: string }>;
+  /** THE LAST FEW ACTIONS THIS COCKPIT FILED on this relationship. The host has
+   *  passed the trail to the builder since the envelope shipped and the builder
+   *  discarded it, so "what did we do last time" was answered by a model that
+   *  had never been shown the answer. */
+  history?: Array<{ what: string; action?: string; status?: string }>;
   /** What NO read on this cockpit carries, named so an answer refuses by name
    *  rather than reporting silence as a fact. */
   notCarried: string[];
@@ -293,19 +326,13 @@ export interface BrainEnvelope {
  *  well clear of the grounding pack the skill loads beside it. */
 export const ENVELOPE_CAP_BYTES = 10_000;
 
-/** Read blocks in the order they are given up. Exposure is last: it is four
- *  figures and it grounds nearly every question a banker asks. The obligor
- *  group goes after the deal's own parties, and the version chain after it:
- *  both are small, and both answer questions nothing else in the envelope can. */
-export const ENVELOPE_BLOCK_DROP_ORDER = [
-  "pricing",
-  "collateral",
-  "involvements",
-  "group",
-  "inFlight",
-  "covenants",
-  "exposure",
-] as const;
+/** Read blocks in the order they are given up.
+ *
+ *  THE ORDER IS NOT THIS FILE'S ANY MORE (2026-09-12, backlog item 9). It is
+ *  {@link CONTEXT_DROP_ORDER}, shared with the cockpit chat, so the block the
+ *  envelope surrenders first is the block the chat's own cut reaches first and
+ *  the two surfaces cannot disagree about what matters least. */
+export const ENVELOPE_BLOCK_DROP_ORDER = CONTEXT_DROP_ORDER;
 
 const sizeOf = (envelope: BrainEnvelope): number => JSON.stringify(envelope).length;
 
@@ -515,6 +542,26 @@ export const UNREADABLE_CLARIFY: BrainClarify = {
   degraded: true,
 };
 
+/**
+ * THE SAME DEGRADE, IN THE ASKING ROOM'S OWN VOCABULARY (fixer pass,
+ * 2026-09-12).
+ *
+ * "Say the change you want and I will put it up" is the FACILITY room's move:
+ * it stages a change on a package. The relationship room reviews and files —
+ * it has no package to put a change up on — so that route out sent a banker
+ * standing in a covenant review to a move this room cannot make, which is the
+ * dead end golden rule 4 forbids. The move it CAN make is the review it is
+ * already standing in, so that is what its degrade names.
+ */
+export function unreadableClarify(room: BrainEnvelope["room"]): BrainClarify {
+  if (room !== "relationship") return UNREADABLE_CLARIFY;
+  return {
+    type: "clarify",
+    text: "I could not read that answer. Ask it a different way, or answer the question on the table and I will carry it into the review.",
+    degraded: true,
+  };
+}
+
 /** The clarify a round trip that never came back resolves to. It names the
  *  delay rather than pretending the question was answered. */
 export function timeoutClarify(seconds: number): BrainClarify {
@@ -525,11 +572,35 @@ export function timeoutClarify(seconds: number): BrainClarify {
   };
 }
 
-/** The clarify a room with no bridge answers a routed line with. Honest, and
- *  it never hangs: there was nothing to wait for. */
+/**
+ * The clarify a room with no door answers a routed line with. Honest, and it
+ * never hangs: there was nothing to wait for.
+ *
+ * REWRITTEN 2026-09-12 (founder, the fallback audit; golden rule 4). It used to
+ * end on "I can still change this package once a connector is added": a future
+ * capability, conditional on an act only an administrator can perform, offered
+ * to a banker standing in the room now. The deterministic parser is untouched
+ * by any of this, so the room CAN still stage a change the banker types. That
+ * is the move, and it is the one this sentence names.
+ */
 export const NOT_CONNECTED_CLARIFY: BrainClarify = {
   type: "clarify",
-  text: "This view is not connected to the bank's systems, so I cannot take that question to the desk. I can still change this package once a connector is added.",
+  text: "I cannot take that question to the desk from this view. Say the change you want in plain words and I will put it up, and the figures on the cards here are the ones already read from the bank.",
+  degraded: true,
+};
+
+/**
+ * THE DOOR DID NOT ANSWER, WHICH IS NOT A REPLY THAT COULD NOT BE READ.
+ *
+ * Every transport failure used to resolve to {@link UNREADABLE_CLARIFY}, which
+ * told the banker a reply was malformed when no reply was ever made, and then
+ * sent them back down the path that had just failed ("try asking directly").
+ * Untrue, and a loop by rule 5. This names the state and offers the lane that
+ * is still working (founder 2026-09-12, the fallback audit).
+ */
+export const NO_ANSWER_CLARIFY: BrainClarify = {
+  type: "clarify",
+  text: "The desk did not answer that one. Ask again, or say the change you want and I will put it up from the book already on this page.",
   degraded: true,
 };
 
@@ -888,7 +959,8 @@ export function composeBrainPrompt(envelope: BrainEnvelope): string {
        The envelope is no longer blind, so an answer that ignores it is now a
        worse failure than one that refuses. */
     "GROUNDING FACTS. CONTEXT.reads carries what this room has already read:",
-    "covenants, involvements, the obligor group, the package's version chain, collateral, exposure and pricing,",
+    "the facilities with their maturities, stages and coverage, covenants, involvements, the obligor group,",
+    "the package's version chain, collateral, exposure, pricing and the actions already filed,",
     "formatted as the glass prints them.",
     "Answer READS from those blocks and state the figures as they stand there.",
     "CONTEXT.reads.notCarried names what no read on this cockpit holds, and CONTEXT.omitted names",
@@ -920,6 +992,16 @@ export interface BrainAskDeps {
   anchor?: { accountId: string | null; company: string | null };
   /** The rung, overridden. The router decides it from the envelope otherwise. */
   rung?: RungChoice;
+  /**
+   * THE MODEL STARTED WRITING (B2, founder latency brief 2026-09-12).
+   *
+   * Forwarded to the session door and fired at most once, on the first token.
+   * The reply itself is JSON and must never be rendered from a partial, so this
+   * carries no text: it is the one honest beat a room can put between "reading"
+   * and "writing" in a silence that runs to 150 seconds at rung 3. The gateway
+   * rung does not stream and simply never fires it.
+   */
+  onFirstToken?: () => void;
 }
 
 /** The gateway completion door, verbatim as `askCopilot` unwraps it. It is the
@@ -950,6 +1032,7 @@ function doorFor(envelope: BrainEnvelope, deps: BrainAskDeps, choice: RungChoice
           tier: choice.tier,
           rung: choice.rung,
           signal,
+          onFirstToken: deps.onFirstToken,
           tools:
             choice.rung === 3 && deps.anchor
               ? buildBrainTools({ anchor: deps.anchor, reads: envelope.reads })
@@ -959,6 +1042,12 @@ function doorFor(envelope: BrainEnvelope, deps: BrainAskDeps, choice: RungChoice
         // Absence, never an error on the glass. The gateway is the next rung.
       }
     }
+    /* ONLY WHERE THE RUNG BELOW EXISTS (founder 2026-09-12, the fallback
+       audit). `brainReachable` is satisfied by EITHER door, so a view with a
+       session door and no connector reached this line, called a gateway that is
+       not in the view, and the rejection surfaced to the banker as a malformed
+       reply. There is no second rung here; say so and let the caller degrade. */
+    if (!mcpAvailable()) throw new Error("no door answered");
     return sendThroughBridge(prompt, signal);
   };
 }
@@ -970,6 +1059,9 @@ function doorFor(envelope: BrainEnvelope, deps: BrainAskDeps, choice: RungChoice
  * failure — no door, a timeout, a transport error, a malformed reply — comes
  * back as a clarify the room renders as an agent bubble.
  */
+/** What a door that threw resolves to, distinct from any text it could return. */
+const SILENT = Symbol("no-door-answered");
+
 export async function askBrain(envelope: BrainEnvelope, deps: BrainAskDeps = {}): Promise<BrainReply> {
   const choice = deps.rung ?? rungFor(envelope);
   const send = deps.send ?? doorFor(envelope, deps, choice);
@@ -986,14 +1078,19 @@ export async function askBrain(envelope: BrainEnvelope, deps: BrainAskDeps = {})
     // THE BUDGET IS ENFORCED AT THE WIRE, not at the caller: every room that
     // builds an envelope gets the same cap without having to remember it.
     const prompt = composeBrainPrompt(capEnvelope(envelope));
-    const raced = await Promise.race([send(prompt, controller.signal).catch(() => null), timeout]);
+    /* THE TWO FAILURES ARE TOLD APART. A door that threw produced NO reply, and
+       calling that unreadable is a false statement about the desk (founder
+       2026-09-12). The sentinel is a symbol so a model can never emit it. */
+    const raced = await Promise.race([send(prompt, controller.signal).catch(() => SILENT), timeout]);
     if (raced === "timeout") {
       controller.abort();
       return timeoutClarify(Math.round(timeoutMs / 1000));
     }
-    if (typeof raced !== "string") return UNREADABLE_CLARIFY;
+    if (raced === SILENT) return NO_ANSWER_CLARIFY;
+    // AND THE DEGRADE SPEAKS THE ASKING ROOM'S VOCABULARY (see below).
+    if (typeof raced !== "string") return unreadableClarify(envelope.room);
     const parsed = parseBrainReply(raced);
-    return parsed.ok ? parsed.reply : UNREADABLE_CLARIFY;
+    return parsed.ok ? parsed.reply : unreadableClarify(envelope.room);
   } finally {
     if (timer) clearTimeout(timer);
   }

@@ -4,7 +4,7 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { AiMessage, C360Data } from "./data/contract";
 import { AppProvider, useApp } from "./state/appState";
-import { ChatPanelBody, mergeMessages } from "./components/ChatPanel";
+import { CHAT_ASK_FAILED, ChatPanelBody, mergeMessages } from "./components/ChatPanel";
 import { __skipBootForTests } from "./channel/useLivePortfolio";
 import sample from "../../artifact/sample-data.json";
 
@@ -192,7 +192,13 @@ describe("Ask again repeats the ask, never the banker", () => {
     await mount(base);
     await ask(QUESTION);
 
-    expect(container!.textContent).toContain("The desk refused that read.");
+    /* CHANGED 2026-09-12 (founder, the fallback audit). The note used to print
+       `McpFailure.fix`, which names the IDB Gateway and claude.ai connector
+       settings: plumbing, addressed to an administrator, handed to a banker
+       with no next step in it. The chat now says its own sentence; the
+       connector diagnosis stays on HealthLine. */
+    expect(container!.textContent).toContain(CHAT_ASK_FAILED);
+    expect(container!.textContent).not.toMatch(/gateway|connector|claude\.ai/i);
     expect(bubbles().filter((t) => t === QUESTION).length).toBe(1);
     expect(hooks.copilot.length).toBe(1);
 

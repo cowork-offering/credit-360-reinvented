@@ -2,6 +2,49 @@
 
 ## Changelog
 
+- **0.9.19 (2026-09-13)** SPREAD FINANCIALS (on the stub), THE GOLDEN RULE PART TWO, AND THE
+  FALLBACK AND LATENCY AUDITS. SPREAD FINANCIALS: a sixth FAB satellite opens the Spreading
+  room (arc respread r=124 → r=150, 46.9 px rhythm kept, both anchors unchanged): drop
+  PDF / XLSX / CSV / images, each file becomes a card on the first frame and the pre-read
+  fills it in place (kind, pages, statements, periods, quality, provisional read; pdf.js
+  3.11.174 and SheetJS 0.18.5 load lazily from cdnjs, never bundled; 5 MB a file, ten a
+  plan, sha256 identity so a re-drop never forks a period); one ask at a time with chips
+  (recommended only where a sibling file grounds it); one governed plan; a per-file Boom
+  ladder; then the live financials panel (tiles, trend, IS/BS/CF, new period marked) and
+  the post-read (what changed, which covenant tests move, "not yet verified in Boom").
+  THE SPREAD LANDS IN THE COCKPIT: `spread/publishSpread.ts` merges the returned
+  statements into the raw Boom file and re-normalises through `boom-normalise.mjs`, so the
+  Financials tab (badge "Provisional, Boom verification pending") and the memo's Boom graph
+  pick the new period up; the covenant challenge is deliberately NOT recomputed until it can
+  carry a provisional qualifier (backlog 20). Activity trail entry "Boom (stub, provisional)".
+  BOOM IS A LATER DELIVERY: Noland's read + write Boom MCP server does not exist yet;
+  `channel/boomUpload.ts` implements the adapter with the STUB active (real ladder, 4-8 s,
+  spread built from the pre-read, never "verified"), the live mapping written against four
+  expected tools (`boom_upload_statement`, `boom_upload_status`, `boom_create_file_group`,
+  `boom_validation_session`), `SERVERS.boom` = the gateway name until the connector lands
+  (health row "Boom (via gateway)"); both existing Boom reads now address `SERVERS.boom`, so
+  the flip is one line. An 8-test honesty suite pins that no surface says "verified" on the
+  stub. GOLDEN RULE PART TWO (items 9/13/14/15): one context builder
+  (`channel/relationshipContext.ts`) behind the workroom envelope, the cockpit chat and the
+  relationship room (proven identical by `contextUnity.test.ts`); standing `notCarried`;
+  `counterpartyId` on the group rows; rule C wording on the two grounded asks. FALLBACK
+  AUDITS (chat + workrooms, 62 findings, all P1 fixed, 81 repro tests): the chat no longer
+  says "unavailable" with the session door open, the desk wait is bounded (75 s) and honest,
+  relative moves ("add 50bps", "increase by $5M") are computed off the figure on file and a
+  minus sign is refused with options, a blank or gibberish line keeps the pending question,
+  a correction supersedes the earlier entry ("That replaces the earlier 7%."), typed
+  new-facility amounts land, empty choosers are refused with a door, term / first-payment
+  asks lead with the current figure, connector wording leaves the KPI band and the actions
+  panel, rung-3 waits say they can take up to two minutes. LATENCY (measured, L1): room
+  lookup shimmer 1,500 ms → adaptive (400 ms floor); compose floor only when the desk was
+  asked; no second shimmer on Renew / New facility; chat streams through the shared pacer
+  (140 words 8.4 s → ~3 s); cold relationship open goes wide and navigates before the graph
+  wave; the FAB arc no longer moves a backdrop-filter and tightens to 0.28 s; `.itab` no
+  longer transitions layout. Budgets: DOCTRINE_BUDGET_BYTES 19,000 → 20,500 (measured
+  19,983; `credit-policy` must survive, pinned); relationship envelope 9,407 / 10,000 B;
+  chat context 6,579 / 7,000 B. Bundle gate reset (item 16): HARD 2.0 MiB, SOFT +50 KB over
+  the shipped baseline. Browser gate (new, mandatory): scratchpad spread-e2e drive of the BUILT page with the stub lanes for CSV, XLSX and PDF: room 55-59 ms to first paint, card 25-40 ms, stub ladder completed, provisional panel, Financials tab "Boom · 4 periods, FY2025 · Provisional", activity entry "Boom (stub, provisional)", zero connector calls, no IRIS, no em dashes; it caught six defects the unit suite did not (stub died without a model, PDF lines joined on one line, singular "Auditor's" regex, units ask on a stated scale, periods replaced not appended, badge missing, a policy sentence through the post-read guard). tsc clean; vitest 198 files, 4,691 passed, 0 failed, 11 todo. Bundle 1.863 MiB (+97.8 KB over 0.9.18: the spread room, the audit suites are test-only, the line map, the publish path); baseline reset to 1,952,974 B.
+
 - **0.9.18 (2026-09-12)** THE CHAT GOLDEN RULE, ROUND ONE — plus the memo agents.
   Two audits (chat / envelope, and the relationship room) found 8 + 4
   showcase-blocking defects, each pinned as a repro test first; two fixer agents

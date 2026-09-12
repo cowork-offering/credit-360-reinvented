@@ -49,14 +49,21 @@ describe("the list is exactly three, each narrow", () => {
     // another borrower at all.
     expect(boom.inputSchema).toBeUndefined();
     expect(parties.inputSchema).toBeUndefined();
-    // The third takes exactly ONE, and its bound is enforced in `execute`
-    // against the anchored graph's own connections (see the refusal below).
+    /* The third takes exactly ONE, and its bound is enforced in `execute`
+       against the anchored graph's own connections (see the refusal below).
+
+       THE ARGUMENT IS THE ID FIRST (2026-09-12, backlog item 14b). The group
+       block on the envelope now carries each counterparty's own `counterpartyId`
+       and the schema points at it by that name: four parties on Hartwell share
+       the word "Hartwell", and a name is the one handle that can be ambiguous.
+       The name stays legal because a graph row can carry no id. */
     expect(connected.inputSchema).toEqual({
       type: "object",
       properties: {
         accountId: {
           type: "string",
-          description: "The counterparty's account id, or its name exactly as CONTEXT.reads.group carries it.",
+          description:
+            "The counterpartyId CONTEXT.reads.group carries for that party. Use its name from the same block only where the row carries no id: four parties on one relationship can share a name prefix, and the id never does.",
         },
       },
       required: ["accountId"],

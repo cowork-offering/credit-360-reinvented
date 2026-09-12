@@ -41,6 +41,18 @@
      livePatch    per-tool fields merged over the LIVE body, so a drive that
                  needs one more field (a package id, for a room that will not
                  open without one) does not have to fork this table
+     boom        THE BOOM UPLOAD LANE (2026-09-12), the stand-in for Noland's
+                 read + write Boom MCP server, which does not exist yet:
+                   mode          "ok" | "failed", what the file ends as
+                   processingMs  how long the file sits at `processing`
+                                 (4000 is the floor of the room's own range)
+                   files         per-file clock, keyed by Boom file id
+                 It answers `boom_upload_statement`, `boom_upload_status`,
+                 `boom_create_file_group` and `boom_validation_session` on
+                 whichever connector the page addresses them to, which is
+                 "IDB Gateway" until `SERVERS.boom` is flipped to the Boom
+                 connector's own name. Boom's ladder, unchanged:
+                 waiting_for_upload -> processing -> failed | completed.
 
    NOTHING HERE SHIPS. The artifact's own build fails closed on simulation
    markers and this file is never bundled; the app itself still refuses to
@@ -50,7 +62,7 @@
 
   var BACKUP_SERVER = "Salesforce Read Backup";
 
-  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, relayMs: 0, attempts: {}, calls: [], settled: [], livePatch: {} };
+  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, relayMs: 0, attempts: {}, calls: [], settled: [], livePatch: {}, boom: { mode: "ok", processingMs: 4000, files: {} } };
   window.__DRIVE_OUT = { errors: [] };
   window.addEventListener("error", function (e) {
     window.__DRIVE_OUT.errors.push(String((e && e.message) || e));
@@ -142,6 +154,24 @@
       return give({ payload: { ok: true, orgReachable: true, orgError: null, checkedAt: new Date().toISOString() } });
     }
 
+    /* ------------------------------------------------------------- boom
+
+       THE UPLOAD LANE, standing in for Noland's Boom MCP server. The four tool
+       names and the argument names are the ones the cockpit's adapter sends
+       (app/src/channel/boomUpload.ts, "THE MAPPING NOLAND'S SERVER AMENDS"), so
+       a drive here exercises the wire contract itself and not a paraphrase of
+       it. The answers are Boom's own output shapes: a file id and a rung on
+       `boom_upload_statement`, the same object with `financialStatements` once
+       the file has been processing for `processingMs`.
+
+       IDEMPOTENT, because Boom is: the file id is derived from the sha256 the
+       cockpit sends as `externalUniqueId`, so the same bytes twice are one
+       file, one clock and one set of periods. NEVER `verified`: verification is
+       an analyst's act in Boom's own page and no stub may claim one. */
+    if (tool.indexOf("boom_upload") === 0 || tool.indexOf("boom_create") === 0 || tool.indexOf("boom_validation") === 0) {
+      return give({ payload: boomAnswer(tool, input || {}) });
+    }
+
     /* THE STAGED PLAN, so a probe can time the room's one write-path round
        trip. The shape is the one lib/stub-connector.js already answers with;
        nothing here executes and nothing here is a figure the room may print. */
@@ -174,6 +204,101 @@
     return sleep(wait).then(function () { return give(body ? envelope(body) : { payload: {} }); });
   }
 
+  /* ---------------------------------------------------------------- boom */
+
+  /* ONE STATEMENT, in Boom's output shape, with the figures the cockpit's
+     on-file spread carries (client-360/assets/boom-spread.json: Piedmont,
+     FY2023-2025). A drive reading these back off the page is reading the same
+     numbers a banker would. */
+  var BOOM_PERIODS = [
+    { id: "p2023", endDate: "2023-12-31", periodType: "annual" },
+    { id: "p2024", endDate: "2024-12-31", periodType: "annual" },
+    { id: "p2025", endDate: "2025-12-31", periodType: "annual" },
+  ];
+
+  function boomLine(id, name, code, hierarchy, v23, v24, v25) {
+    return {
+      id: id,
+      name: name,
+      hierarchy: hierarchy,
+      accountCode: code,
+      flipSign: false,
+      periodValues: { p2023: v23, p2024: v24, p2025: v25 },
+    };
+  }
+
+  function boomStatements(fileId) {
+    var lines = [
+      boomLine(fileId + "-l1", "Net Sales", "net_sales_revenue", "line_item", 59915000, 56266000, 64486000),
+      boomLine(fileId + "-l2", "Cost of Sales", "cost_of_sales", "line_item", 45371000, 40829000, 50422000),
+      boomLine(fileId + "-l3", "Gross Profit", "gross_profit", "subtotal", 14544000, 15437000, 14064000),
+      boomLine(fileId + "-l4", "Operating Expenses", "operating_expenses", "line_item", 10989000, 10752000, 11226000),
+      boomLine(fileId + "-l5", "Income from Operations", "operating_profit", "subtotal", 3555000, 4685000, 2838000),
+      boomLine(fileId + "-l6", "Interest Expense", "interest_expense", "line_item", -1019000, -947000, -1076000),
+      boomLine(fileId + "-l7", "Net Income", "net_income", "total", 1868000, 2873000, 1390000),
+    ];
+    return [{
+      id: fileId + "-s1",
+      statementType: "income_statement",
+      endDate: "2025-12-31",
+      validationStatus: "not_validated",
+      periods: BOOM_PERIODS,
+      lineItems: lines,
+      aggregatedFinancials: lines.map(function (l) {
+        return { accountCode: l.accountCode, accountName: l.name, periodValues: l.periodValues };
+      }),
+    }];
+  }
+
+  /** A uuid-shaped file id from the sha256 the cockpit sends. */
+  function boomFileId(sha) {
+    var h = String(sha || "").replace(/[^0-9a-f]/gi, "").toLowerCase();
+    while (h.length < 32) h += "0";
+    return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20, 32);
+  }
+
+  function boomAnswer(tool, input) {
+    var B = window.__LANES.boom;
+    if (tool === "boom_create_file_group") {
+      return { fileGroupId: boomFileId("f11e" + (input.companyExternalUniqueId || "")) };
+    }
+    if (tool === "boom_validation_session") {
+      return {
+        url: "https://app.boom.build/file-validation/" + input.fileId + "#token=bvs_probe",
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      };
+    }
+    if (tool === "boom_upload_statement") {
+      var id = boomFileId((input.file || {}).sha256 || input.externalUniqueId);
+      // A re-drop does not restart the clock and does not make a second file.
+      if (!B.files[id]) B.files[id] = { startedAt: Date.now(), fileGroupId: input.fileGroupId || null };
+      return {
+        fileId: id,
+        companyId: boomFileId("c0" + ((input.company || {}).externalUniqueId || "")),
+        fileGroupId: B.files[id].fileGroupId,
+        status: "processing",
+      };
+    }
+    // boom_upload_status
+    var file = B.files[input.fileId];
+    if (!file) {
+      return { fileId: input.fileId, companyId: null, fileGroupId: null, status: "failed", message: "Boom has no file with that id." };
+    }
+    var base = { fileId: input.fileId, companyId: null, fileGroupId: file.fileGroupId, validationUrl: null };
+    if (Date.now() - file.startedAt < (B.processingMs || 0)) {
+      base.status = "processing";
+      return base;
+    }
+    if (B.mode === "failed") {
+      base.status = "failed";
+      base.message = "Boom could not read this file. Nothing in it could be placed on a statement.";
+      return base;
+    }
+    base.status = "completed";
+    base.financialStatements = boomStatements(input.fileId);
+    return base;
+  }
+
   var mcp = {
     callTool: function (server, tool, input) {
       return answer(server, tool, input);
@@ -190,6 +315,11 @@
       var servers = [
         { server: "Customer 360", authStatus: "connected", tools: [] },
         { server: "IDB Gateway", authStatus: "connected", tools: [] },
+        /* THE BOOM CONNECTOR, published here already so the day `SERVERS.boom`
+           stops being the gateway's name the drives need no change. The page
+           only asks about the lanes it addresses, so an extra one is invisible
+           until the cockpit names it. */
+        { server: "Boom", authStatus: "connected", tools: [] },
       ];
       if (window.__LANES.backup !== "absent") {
         servers.splice(1, 0, { server: BACKUP_SERVER, authStatus: "connected", tools: [] });

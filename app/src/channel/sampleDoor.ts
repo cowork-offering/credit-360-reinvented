@@ -191,6 +191,21 @@ export interface AskSessionOptions {
   tier?: CallTier;
   signal?: AbortSignal;
   onText?: (update: SampleTextUpdate) => void;
+  /**
+   * THE FIRST TOKEN LANDED (B2, founder latency brief 2026-09-12).
+   *
+   * The platform already tells us the moment the model starts writing: the
+   * `onText` wrapper below calls `probe.firstToken()` on it, and until now that
+   * signal died in `sampleMetrics` with nothing on the glass reading it. A room
+   * that shows one undifferentiated breathing mark for up to 150 seconds can
+   * use it to move its own mark from reading to writing.
+   *
+   * CALLED AT MOST ONCE PER CALL, and never for a call the model answered
+   * without streaming. It carries no text on purpose: the structured reply
+   * cannot be rendered from a partial (`Narration.tsx` documents why), so this
+   * is a beat and not a stream.
+   */
+  onFirstToken?: () => void;
   /** Page functions for a rung-3 call. Never passed with `cache`. */
   tools?: SampleTool[];
   /** Off by default: a room answering the same line twice usually means the
@@ -271,11 +286,16 @@ function callOptions(tier: CallTier, options: AskSessionOptions, probe: CallProb
     probe.tool(name, over);
     options.onToolCall?.(name, over);
   };
+  let spoke = false;
   const out: SampleOptions = {
     modelTier: tier,
     signal: options.signal,
     onText: (update) => {
       probe.firstToken();
+      if (!spoke) {
+        spoke = true;
+        options.onFirstToken?.();
+      }
       options.onText?.(update);
     },
   };

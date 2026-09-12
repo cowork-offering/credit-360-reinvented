@@ -16,6 +16,7 @@ import type { C360Data } from "../../data/contract";
 import { BrandGlyph } from "../brand";
 import { Peek, usePeek } from "../workroom/Peek";
 import { GooFilter, LiquidMark, Orbit } from "../workroom/Liquid";
+import { REACHES_THE_ORG } from "../workroom/Words";
 import { TypeIcon, type IconKind } from "../workroom/TypeIcon";
 import { ReadCard } from "../workroom/ReadCardView";
 import { isQuestion, readRole, readTopic } from "../workroom/ask";
@@ -38,7 +39,8 @@ import {
 import { FINALE_SWEEP_MS, finaleAttrs, useFinale, withFinale } from "../workroom/finale";
 import { FILED_SECTION_MS, FiledList, type FiledLine } from "../workroom/FiledList";
 import type { BrainEnvelope, BrainMail, BrainReply, BrainTurn } from "../../channel/brainLane";
-import { UNREADABLE_CLARIFY, askBrain, brainReachable, isDegrade } from "../../channel/brainLane";
+import { askBrain, brainReachable, isDegrade, unreadableClarify } from "../../channel/brainLane";
+import { rungFor } from "../../channel/ladder";
 import { readCatalog, type OrgCatalog } from "../../channel/catalog";
 import { Narration, useNarration } from "../../channel/Narration";
 import { subjectFor } from "../../channel/narrate";
@@ -249,6 +251,17 @@ function relTierOf(item: RelItem, detailId: string | null): EntryTier | null {
 /** The composed beat. A floor, not a delay: the room waits for the slower of
  *  the flow and the beat. Zero under reduced motion. */
 const COMPOSE_FLOOR_MS = 460;
+/** THE QUICK FLOOR, for an answer nobody was asked for (B3, founder latency
+ *  brief 2026-09-12). The step machine settles an answer in ~2 ms and the full
+ *  floor held every one of those for 460 ms. One paced beat is what makes a
+ *  reply read as a reply; the full floor is kept for a desk round trip. */
+const COMPOSE_QUICK_MS = 150;
+/** THE FLOOR UNDER THE LOOKUP SHIMMER (A1, same brief). Measured, satellite
+ *  click to composer enabled was 1,539 to 1,599 ms with nothing being read in
+ *  that window. The shimmer now ends when the mail gate the greeting is already
+ *  blocked on resolves, never before this and never after {@link LOOKUP_MS}. */
+const LOOKUP_FLOOR_MS = 400;
+/** The longest the lookup can shimmer, unchanged: the old fixed beat. */
 const LOOKUP_MS = 1500;
 const STATUS_ROTATE_MS = 1500;
 const DOSSIER_HEADER_MS = 140;
@@ -689,7 +702,9 @@ export function RelationshipRoom({
    * refuses. ABSENT IS NO BRAIN LANE, and the room then behaves exactly as it
    * did before this lane existed: the same re-ask, the same refusals, no wait.
    */
-  brain?: (envelope: BrainEnvelope) => Promise<BrainReply>;
+  /** THE SECOND LANE. `opts.onFirstToken` fires the instant the model starts
+   *  writing, so the room can say which half of the silence it is in (B2). */
+  brain?: (envelope: BrainEnvelope, opts?: { onFirstToken?: () => void }) => Promise<BrainReply>;
   deps?: RelFlowDeps;
   /**
    * THE CLIENT'S OWN MESSAGE, AND THE GATE THE GREETING WAITS ON.
@@ -739,6 +754,14 @@ export function RelationshipRoom({
   const [order, setOrder] = useState<string[]>([]);
   const [awake, setAwake] = useState(false);
   const [thinking, setThinking] = useState(false);
+  /** TRUE while the line in flight is a rung-3 one: it reaches the org and the
+   *  room allows it two minutes. The notice rides the beat and nothing else
+   *  about the wait changes (A14, `../workroom/Words.tsx`). */
+  const [reaching, setReaching] = useState(false);
+  /** THE DESK STARTED WRITING (B2, founder latency brief 2026-09-12). The
+   *  structured reply cannot be streamed, so the mark is the only honest thing
+   *  the room can move through the silence. */
+  const [writing, setWriting] = useState(false);
   const [phase, setPhase] = useState<"work" | "filed">("work");
   const [flow, setFlow] = useState<null | { staging: StagedRelPlan | null; running: boolean; status: number }>(null);
   const [filing, setFiling] = useState(false);
@@ -812,7 +835,28 @@ export function RelationshipRoom({
 
   /* ---- THE RITUAL OPENS. The agent greets on the relationship, the lookup
           shimmers, and the room states its position. Under reduced motion the
-          whole ritual is simply there. */
+          whole ritual is simply there.
+
+          AND THE SHIMMER IS AS LONG AS THE WAIT IS (A1). The landing is held in
+          a ref rather than in the effect's deps: the mail gate resolving must
+          not re-run the ritual, which would rebuild the opening thread under
+          the banker at the moment the room was about to wake up. */
+  const landRef = useRef<(() => void) | null>(null);
+  const floorPassed = useRef(false);
+  const mailGateRef = useRef(false);
+  /** Land, if both the floor and the gate say so. `force` is the ceiling. */
+  const landIfReady = useCallback((force = false) => {
+    const land = landRef.current;
+    if (!land) return;
+    if (!force && !(floorPassed.current && mailGateRef.current)) return;
+    landRef.current = null;
+    land();
+  }, []);
+  useEffect(() => {
+    mailGateRef.current = mailGate;
+    if (mailGate) landIfReady();
+  }, [landIfReady, mailGate]);
+
   const openingIdRef = useRef<string>("");
   useEffect(() => {
     const opening: RelItem[] = [
@@ -836,9 +880,20 @@ export function RelationshipRoom({
       land();
       return;
     }
-    const t = window.setTimeout(land, LOOKUP_MS);
-    return () => clearTimeout(t);
-  }, [reduced, tierArrived]);
+    landRef.current = land;
+    floorPassed.current = false;
+    const floor = window.setTimeout(() => {
+      floorPassed.current = true;
+      landIfReady();
+    }, LOOKUP_FLOOR_MS);
+    const ceiling = window.setTimeout(() => landIfReady(true), LOOKUP_MS);
+    return () => {
+      landRef.current = null;
+      floorPassed.current = false;
+      window.clearTimeout(floor);
+      window.clearTimeout(ceiling);
+    };
+  }, [landIfReady, reduced, tierArrived]);
 
   useEffect(() => {
     if (!toast) return;
@@ -850,6 +905,13 @@ export function RelationshipRoom({
     const el = threadRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [items, thinking, flow]);
+
+  /* THE MARK GOES BACK TO READING BETWEEN TURNS (B2). `writing` is latched by
+     the desk's first token; without this the next turn, which may never reach
+     the desk at all, would open on the wrong word. */
+  useEffect(() => {
+    if (!thinking) setWriting(false);
+  }, [thinking]);
 
   /* ---- derived. Nothing below is stored twice. */
   const live = useMemo(() => (route ? nextStep(route, ctx, answers) : null), [route, ctx, answers]);
@@ -910,10 +972,13 @@ export function RelationshipRoom({
     setItems((prev) => [...prev, { ...item, step: prev.length ? prev[prev.length - 1].step : 0 } as RelItem]);
   }, []);
 
+  /** `asked` is whether the DESK ran. A round trip gets the full floor; an
+   *  answer the step machine settled on its own gets one paced beat (B3). */
   const beat = useCallback(
-    (started: number) =>
+    (started: number, asked = false) =>
       new Promise<void>((resolve) => {
-        const left = reduced ? 0 : Math.max(0, COMPOSE_FLOOR_MS - (Date.now() - started));
+        const floor = asked ? COMPOSE_FLOOR_MS : COMPOSE_QUICK_MS;
+        const left = reduced ? 0 : Math.max(0, floor - (Date.now() - started));
         if (!left) {
           resolve();
           return;
@@ -1262,7 +1327,7 @@ export function RelationshipRoom({
            set used to fall through to the free-text record below, which is how
            a type nobody could name still landed on the wire. */
         if (live.kind === "chips") {
-          const hit = (live.options ?? []).find((o) => o.value.toLowerCase() === text.toLowerCase());
+          const hit = matchOption(live.options, text);
           if (!hit) {
             setThinking(false);
             unreadable(live, text);
@@ -1272,7 +1337,7 @@ export function RelationshipRoom({
           return;
         }
         if (live.options?.length) {
-          const hit = live.options.find((o) => o.value.toLowerCase() === text.toLowerCase());
+          const hit = matchOption(live.options, text);
           record(live.key, hit ? hit.value : text, shown);
           return;
         }
@@ -1393,12 +1458,20 @@ export function RelationshipRoom({
   const askTheDesk = useCallback(
     async (line: string): Promise<BrainReply | null> => {
       if (!brain) return null;
+      const envelope = envelopeFor(line);
+      /* WHICH WAIT THIS IS, DECIDED BEFORE THE CALL. `rungFor` is the same read
+         `askBrain` makes to pick the door, so the notice can never claim a round
+         trip the lane did not take (A14). */
+      setReaching(rungFor(envelope).rung === 3);
+      setWriting(false);
       try {
-        return await brain(envelopeFor(line));
+        return await brain(envelope, { onFirstToken: () => setWriting(true) });
       } catch {
         // The lane never throws into the room: a transport that failed past
         // `askBrain`'s own guard degrades exactly as a malformed reply does.
         return null;
+      } finally {
+        setReaching(false);
       }
     },
     [brain, envelopeFor],
@@ -1509,12 +1582,33 @@ export function RelationshipRoom({
         return;
       }
       if (reply.type === "clarify") {
+        /* AND A CLARIFY COMES BACK TO THE FLOW TOO (fixer pass, 2026-09-12,
+           golden rule 4). The read-card branch above has restated the live step
+           since the audit; the clarify branch did not, so a desk question asked
+           mid-review left the room's own question two bubbles up the thread and
+           the banker with nothing under the answer box. */
+        const back = liveRef.current;
         answer({ kind: "agent", id: nextId("agent"), text: reply.text, options: reply.options });
+        if (back) answer({ kind: "agent", id: nextId("back"), text: back.ask, options: optionsFor(back) });
         return;
       }
       /* A CHANGE TO A FACILITY IS NOT THIS ROOM'S WORK, whoever proposed it.
-         The desk gets the same answer a banker does, in one line. */
-      answer({ kind: "agent", id: nextId("agent"), text: `${reply.rationale} ${FACILITY_HANDOFF}` });
+         The desk gets the same answer a banker does, in one line.
+
+         ONLY WHERE THE LINE ASKED FOR FACILITY WORK, THOUGH (fixer pass,
+         2026-09-12). Every reply that was not a clarify took this branch, so a
+         COVENANT proposal made inside a covenant review — the room's own
+         subject — was answered with "that is facility work" and the banker's
+         line was thrown away. The room's own test decides it, the same one the
+         typed path uses, so the desk can do nothing a banker could not. */
+      const back = liveRef.current;
+      const nextDoor = asksForFacilityWork(line, { openTextStep: back?.kind === "text" });
+      answer({
+        kind: "agent",
+        id: nextId("agent"),
+        text: nextDoor ? `${reply.rationale} ${FACILITY_HANDOFF}` : reply.rationale,
+      });
+      if (!nextDoor && back) answer({ kind: "agent", id: nextId("back"), text: back.ask, options: optionsFor(back) });
     },
     [router],
   );
@@ -1526,7 +1620,8 @@ export function RelationshipRoom({
       let reply: BrainReply | null = null;
       try {
         reply = await askTheDesk(line);
-        await beat(started);
+        // THE DESK RAN, so the full floor (B3).
+        await beat(started, true);
       } finally {
         setThinking(false);
       }
@@ -1857,7 +1952,7 @@ export function RelationshipRoom({
                 kind: "agent",
                 id: nextId("agent"),
                 step: mine,
-                text: topic !== null ? readGap(topic, ctx.accountName) : UNREADABLE_CLARIFY.text,
+                text: topic !== null ? readGap(topic, ctx.accountName) : unreadableClarify("relationship").text,
               },
             ]),
         });
@@ -2537,9 +2632,19 @@ export function RelationshipRoom({
                   </div>
                 ))}
                 {thinking && (
-                  <div className="wk-compose" role="status" aria-label="Composing an answer">
+                  <div
+                    className="wk-compose"
+                    role="status"
+                    aria-label="Composing an answer"
+                    /* WHICH HALF OF THE SILENCE THIS IS (B2). Reading until the
+                       first token lands, writing after it. The accessible name
+                       does not move: a status that renamed itself mid-wait
+                       would be announced twice for one answer. */
+                    data-desk={writing ? "writing" : "reading"}
+                  >
                     <LiquidMark />
-                    <span>Composing…</span>
+                    <span>{writing ? "Writing…" : "Composing…"}</span>
+                    {reaching && <span data-reaching="org">{REACHES_THE_ORG}</span>}
                   </div>
                 )}
                 {/* THE QUIET AFTERGLOW. One line, and the one door this room has:
@@ -2769,6 +2874,30 @@ function stepAccepts(step: RelStep, text: string): boolean {
     return (step.options ?? []).some((o) => !o.disabled && o.value.toLowerCase() === line.toLowerCase());
   }
   return true;
+}
+
+/**
+ * THE OPTION A TYPED LINE PICKS, or null.
+ *
+ * THE CHIP SAYS ONE THING AND THE MATCHER READ ANOTHER (A2 audit, 2026-09-12).
+ * A chips step matched on `value` alone, while every chip prints its LABEL and
+ * several placeholders instruct the banker in the label's own words: "Record it,
+ * or leave those out" on a step whose values are "yes" and "no", "Another one,
+ * or that is all" on the values "more" and "done". A banker who typed exactly
+ * what the room had just told them to say was answered with "I could not read
+ * that as one of the values above". The label and the org's own synonyms are
+ * read here for the same reason `matchOptions` already reads them on a multi
+ * step: they are the names the row is known by on the glass.
+ *
+ * Disabled options are not selectable by a typed line either, exactly as on a
+ * multi step: the chip is refused on the glass, and the org would refuse it.
+ */
+function matchOption(options: readonly StepOption[] | undefined, text: string): StepOption | null {
+  const line = text.trim().toLowerCase();
+  if (!line) return null;
+  const opts = (options ?? []).filter((o) => !o.disabled);
+  const names = (o: StepOption): string[] => [o.value, o.label, ...(o.synonyms ?? [])].map((n) => n.toLowerCase());
+  return opts.find((o) => names(o).some((n) => n === line)) ?? null;
 }
 
 function matchOptions(step: RelStep, text: string): string[] {
@@ -3290,8 +3419,12 @@ function RelDossier({
 
 /** The lane, or nothing. Built once per render rather than per line: the room
  *  takes a function and asks nothing about what is on the other end of it. */
-function relBrainLane(): ((envelope: BrainEnvelope) => Promise<BrainReply>) | undefined {
-  return brainReachable() ? (envelope: BrainEnvelope) => askBrain(envelope) : undefined;
+function relBrainLane():
+  | ((envelope: BrainEnvelope, opts?: { onFirstToken?: () => void }) => Promise<BrainReply>)
+  | undefined {
+  return brainReachable()
+    ? (envelope: BrainEnvelope, opts?: { onFirstToken?: () => void }) => askBrain(envelope, opts)
+    : undefined;
 }
 
 export function RelationshipRoomHost() {

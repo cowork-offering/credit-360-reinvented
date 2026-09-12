@@ -110,6 +110,15 @@ export const SERVERS = {
      never an id, and a differently named connector is invisible to the page. */
   experience: "Experience / nCino",
   afs: "AFS",
+  /* THE BOOM LANE (2026-09-12). Noland is revamping Boom into its OWN read +
+     write MCP server, and until that connector exists there is nothing for the
+     viewer to add: the two Boom reads the cockpit already makes run through
+     "IDB Gateway", so the upload lane is addressed to the same door and this
+     alias is deliberately the SAME STRING as `gateway` above. When the Boom
+     connector lands the flip is this one line (`boom: "Boom"`), and with it the
+     health line stops saying "via gateway" on its own. Nothing else moves:
+     every Boom call in the cockpit is already addressed to `SERVERS.boom`. */
+  boom: "IDB Gateway",
 } as const;
 
 /** Upstream tool names exactly as `listTools()` returns them.
@@ -208,6 +217,19 @@ export const TOOLS = {
   afsPaymentHistory: "payment_history",
   afsRevolverUtilization: "revolver_utilization",
   afsCreateWorkpackage: "create_workpackage",
+  /* ------------------------------------------------------------------------
+     THE BOOM UPLOAD SURFACE (2026-09-12). EXPECTED, NOT YET OBSERVED: these
+     four names are what the cockpit ASKS Noland's Boom MCP server for, written
+     down here so the contract handed to him is a file and not a conversation.
+     Nothing calls them today; `BOOM_UPLOAD_LANE` in channel/boomUpload.ts is
+     "stub", and that module is the one place the names and the argument
+     mapping live. When the real server publishes its tools, these strings and
+     that mapping are the whole amendment.
+     ---------------------------------------------------------------------- */
+  boomUpload: "boom_upload_statement",
+  boomUploadStatus: "boom_upload_status",
+  boomCreateFileGroup: "boom_create_file_group",
+  boomValidationSession: "boom_validation_session",
 } as const;
 
 /** The six per-account detail tools, in the order the app stages them. */

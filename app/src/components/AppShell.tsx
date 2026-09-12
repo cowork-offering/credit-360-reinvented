@@ -13,6 +13,7 @@ import { EmptyState } from "./ui";
 import { WorkroomHost } from "./workroom/WorkroomHost";
 import { RelationshipRoomHost } from "./relationship/RelationshipRoom";
 import { MemoRoomHost } from "./memo/MemoRoomHost";
+import { SpreadingRoomHost } from "./workroom/SpreadingRoom";
 import { buildWorklistRows } from "../data/worklistRows";
 import { useKeepAlive } from "../channel/keepAlive";
 import { useOpenRefresh } from "../channel/openRefresh";
@@ -159,6 +160,10 @@ export function AppShell() {
           the memo session is its own store, and the doors that open it close
           whichever room they were standing in. */}
       <MemoRoomHost />
+      {/* The fourth. Same overlay, same independent store: the Spreading room
+          holds files nobody has sent yet, so closing whatever opened it must
+          not take them down with it. */}
+      <SpreadingRoomHost />
       {/* THE PAGE SAYS WHERE IT IS STANDING. One small document in the
           artifact's own store, kept current, so a Cowork session asked "what am
           I looking at" can answer from the cockpit rather than from a guess.

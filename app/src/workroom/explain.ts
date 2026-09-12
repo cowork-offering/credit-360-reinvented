@@ -1,4 +1,4 @@
-import { fmtMoney } from "../data/format";
+import { fmtDate, fmtMoney } from "../data/format";
 import type { CatalogField } from "./fieldCatalog";
 import type { WorkroomDelta } from "./types";
 
@@ -38,6 +38,52 @@ import type { WorkroomDelta } from "./types";
    sixty words, and the explanations live in the beats that follow it.
    ============================================================================= */
 
+/* ------------------------------------------------------ 0. what it takes
+
+   THE ANSWER A QUESTION TAKES, in the banker's own words. It is used by the
+   honest re-ask (A2 audit, 2026-09-12): a repeat that says "I heard \"asdf\",
+   and I cannot read it as a rate" has narrowed the question, and one that says
+   the question again word for word has not. It names the SHAPE and never a
+   figure, so it can never read as the room proposing an answer.              */
+
+/** What this field's question will accept, named. */
+export function answerShape(field: CatalogField): string {
+  switch (field.id) {
+    case "loan.interestRate":
+      return "a rate";
+    case "loan.amount":
+      return "an amount";
+    case "loan.maturityDate":
+      return "a date";
+    case "covenant.add":
+      return "a covenant and the level it is tested at";
+    case "fee.row":
+      return "a fee";
+    case "collateral.pledge":
+      return "an asset to pledge";
+    case "exception.record":
+      return "a policy exception";
+    default:
+      break;
+  }
+  switch (field.type) {
+    case "currency":
+      return "an amount";
+    case "percent":
+      return "a percentage";
+    case "months":
+      return "a length in months or years";
+    case "date":
+      return "a date";
+    case "number":
+      return "a figure";
+    case "picklist":
+      return "one of the values above";
+    default:
+      return `an answer to ${field.label.toLowerCase()}`;
+  }
+}
+
 /* -------------------------------------------------------------- 1. asked */
 
 /** What the room is standing on when it asks for a figure. Everything here is
@@ -47,6 +93,13 @@ export interface AskContext {
   committed: number;
   /** The org's distinct lendable collateral pool, where the read carries one. */
   lendable?: number;
+  /** THE TWO PRICING FIELDS, AS THE BOOK HOLDS THEM ON THIS FACILITY (golden
+   *  rule 2: every ask leads with the current figure). Undefined or null is the
+   *  org holding the field BLANK, which this room says out loud rather than
+   *  filling: a first payment date nobody set is not a first payment date. */
+  amortisedTermMonths?: number | null;
+  /** ISO, exactly as the read carries it. Formatted here, never re-derived. */
+  firstPaymentDate?: string | null;
 }
 
 /**
@@ -74,6 +127,20 @@ export function whyAsked(field: CatalogField, ctx: AskContext): string {
       return "The rate is the price the modification carries; the booked facility keeps the one it has until the bank's own approval books the change.";
     case "loan.termMonths":
       return "The term is what the amortisation and the payment schedule are built off, so nothing can be composed until it is settled.";
+    /* THE OTHER TWO OF THE FOUR SALESFORCE PRICES ON (fixer pass, 2026-09-12).
+       The rate, the amount and the maturity each led with what the book holds
+       and these two asked blankly, which is the one thing golden rule 2 does not
+       allow. Each states the current figure where the book carries one and says
+       the org holds it blank where it does not; neither invents a length or a
+       date, because a facility nobody can price is the defect, not the cure. */
+    case "loan.amortisedTerm":
+      return typeof ctx.amortisedTermMonths === "number"
+        ? `The amortisation is what the payment stream is struck on, and this facility runs on ${ctx.amortisedTermMonths} months today.`
+        : "The amortisation is what the payment stream is struck on, and the org holds none on this facility, so nothing prices until it is set.";
+    case "loan.firstPaymentDate":
+      return ctx.firstPaymentDate
+        ? `The first payment date starts the schedule the rate is struck against, and this facility reads ${fmtDate(ctx.firstPaymentDate)} today.`
+        : "The first payment date starts the schedule the rate is struck against, and the org holds none on this facility, so nothing prices until it is set.";
     default:
       return "";
   }

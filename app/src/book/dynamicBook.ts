@@ -205,17 +205,32 @@ const progressLine = (name: string, done: number) => `reading ${name}: ${READ_CO
  *
  * Resolves FALSE where the org returned nothing readable. The caller says so;
  * nothing is registered and no room opens on an empty bundle.
+ *
+ * THE VIEW SWITCHES ON `onOpen`, NOT ON THE RESOLVE (2026-09-12, founder
+ * latency brief: "110% zero latency and smooth transitions"). Callers used to
+ * navigate in `.then()`, which is the moment the WHOLE aggregate has settled —
+ * the relationship graph included, and the graph is the heaviest and
+ * deliberately-last read in the set. So the banker sat on the worklist watching
+ * a read they were never going to look at first. `onOpen` fires the instant the
+ * relationship is navigable, which is the instant it is registered, and the
+ * graph lands behind the open view exactly as it does for a cached open.
  */
 export async function openAccountLive(args: {
   accountId: Id;
   /** The name to say while the reads run. The org's own name replaces it. */
   name: string;
   match?: AccountMatch | null;
+  /** The relationship is registered and the cockpit can open it. Fired at most
+   *  once, and never where the org had nothing readable. */
+  onOpen?: () => void;
 }): Promise<boolean> {
   const { accountId } = args;
 
   // Already in this session's book: nothing to do, and no second round of reads.
-  if (state.book[accountId]) return true;
+  if (state.book[accountId]) {
+    args.onOpen?.();
+    return true;
+  }
 
   const cached = await readCache(accountId);
   if (cached) {
@@ -228,6 +243,7 @@ export async function openAccountLive(args: {
       readAt: cached.storedAt,
       fromCache: true,
     });
+    args.onOpen?.();
     // AND IT REFRESHES BEHIND ITSELF. The banker is already in the room; the
     // reads replace what they came in on when they land.
     void refresh(accountId, args.match ?? null);
@@ -245,6 +261,7 @@ export async function openAccountLive(args: {
         register(toEntry(partial, Date.now()));
         opened = true;
         set({ progress: null });
+        args.onOpen?.();
       },
     });
     const entry = toEntry(agg, Date.now());

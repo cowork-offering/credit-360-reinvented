@@ -492,6 +492,30 @@ function annualStep(ctx: RelContext, a: Answers): RelStep | null {
   return null;
 }
 
+/**
+ * THE GROUNDED RECOMMENDATION, AND THE ONLY ONE (doctrine C, founder
+ * 2026-09-12: "the middle path").
+ *
+ * Rule 2 says the room recommends one option. The room's own governance rule
+ * says a record must not be filed under a default nobody chose. Doctrine C
+ * reconciles them: the room recommends ONLY where the recommendation is already
+ * grounded — a figure on file, or a band this codebase actually states — and it
+ * says which of the two it is standing on. It never invents a number.
+ *
+ * This is the ON-FILE half, and it is said ONLY on a step that is holding a real
+ * figure from the read: the covenant's observed value and the collateral's value
+ * on the book. It is a sentence, never a pre-filled answer — the chip beside it
+ * is what the banker takes, and both asks still offer the alternative in the
+ * same breath.
+ *
+ * WHERE NOTHING IS GROUNDED THERE IS NO SENTENCE. The rating factors, the grade,
+ * the override and the renewal maturity all lead with the figure on file and
+ * stop there: this org states no band for a grade and no standard tenor for a
+ * product, so a preference there would be invented. `reviewFlows.test.ts` and
+ * `renewEngine.test.ts` assert that absence rather than trusting it.
+ */
+export const ON_FILE_RECOMMENDATION = "That is the figure on file, so it is the one I would file.";
+
 function covenantStep(ctx: RelContext, a: Answers): RelStep | null {
   const covenants = reviewableCovenants(ctx);
   /* THE BOOK SPEAKS BEFORE THE ROOM ASKS, and `nextStep` has already asked
@@ -525,9 +549,18 @@ function covenantStep(ctx: RelContext, a: Answers): RelStep | null {
   for (const id of picked) {
     if (typeof statuses[id] === "string") continue;
     const cov = covenants.find((c) => c.covenantId === id);
+    /* THE TEST LEADS WITH WHERE IT STANDS (A2 audit, 2026-09-12). On the
+       governance path the room is opened ON a covenant, so "How does the Debt
+       Service Coverage test assess?" was the FIRST thing the banker read, with
+       the rail the room was already holding two questions away. Rule 2: every
+       question leads with the current figure. The rail is the read's own
+       actual against its own threshold; nothing is proposed with it, because
+       how a breach is assessed is a credit judgement and no band grounds it. */
+    const rail = byId.get(id)?.rail;
+    const standing = rail ? `The ${covenantLabel(cov ?? {})} reads ${rail}. ` : "";
     return {
       key: `covenantStatuses.${id}`,
-      ask: `How does the ${covenantLabel(cov ?? {})} test assess?`,
+      ask: `${standing}How does the ${covenantLabel(cov ?? {})} test assess?`,
       kind: "chips",
       options: asOptions(COVENANT_ASSESSMENT_STATUSES),
       placeholder: "Compliant, Waived or Exception.",
@@ -547,7 +580,7 @@ function covenantStep(ctx: RelContext, a: Answers): RelStep | null {
     return {
       key: `covenantObservedValues.${id}`,
       ask: proposed
-        ? `The read carries ${held?.rail ?? proposed} on the ${covenantLabel(cov ?? {})}. File that figure, or give me the certificate's own.`
+        ? `The read carries ${held?.rail ?? proposed} on the ${covenantLabel(cov ?? {})}. ${ON_FILE_RECOMMENDATION} File that figure, or give me the certificate's own.`
         : `What figure was tested on the ${covenantLabel(cov ?? {})}?`,
       kind: "number",
       optional: true,
@@ -668,9 +701,19 @@ export function relRouteBlock(route: RelRoute, ctx: RelContext): string | null {
     if (!ctx.productPackageId) return NO_PACKAGE_ANCHOR;
     const book = relBookFor(ctx);
     if (book.noComplianceRows) return NO_COMPLIANCE_ROW(book.covenants.length);
+    /* AND A QUESTION WITH NO LEGAL ANSWER IS A SEALED ROOM (A2 audit,
+       2026-09-12). "Which covenants are we assessing?" is a chooser, and an
+       empty chooser cannot be answered, cannot be skipped and cannot be left:
+       the room asked a question nothing could satisfy and kept asking it. The
+       route is refused up front instead, in words that say what is missing. */
+    if (!reviewableCovenants(ctx).length) return NOTHING_TO_ASSESS;
     return null;
   }
-  if (route === "valuation") return ctx.productPackageId ? null : NO_PACKAGE_ANCHOR;
+  if (route === "valuation") {
+    if (!ctx.productPackageId) return NO_PACKAGE_ANCHOR;
+    if (!valuableCollateral(ctx).length) return NOTHING_TO_VALUE;
+    return null;
+  }
   return null;
 }
 
@@ -746,7 +789,14 @@ function valuationStep(ctx: RelContext, a: Answers): RelStep | null {
       : null;
     return {
       key: `recordValues.${id}`,
-      ask: standing ? `${standing} File that figure, or give me the new one.` : `What value are we filing for ${label}?`,
+      /* AND WHERE THE BOOK CARRIES NOTHING IT SAYS SO (A2 audit, 2026-09-12).
+         "What value are we filing for Receivables?" reads as a form the room
+         could have filled; "the book carries no value for it" is the fact that
+         makes the question necessary. No figure is proposed here, because none
+         is grounded. */
+      ask: standing
+        ? `${standing} ${ON_FILE_RECOMMENDATION} File that figure, or give me the new one.`
+        : `The book carries no value for ${label}. What value are we filing for it?`,
       kind: "number",
       options: onFile && raw ? [{ label: onFile, value: raw, detail: "the figure on the book", onFile: true }] : undefined,
       placeholder: onFile ? `The figure, in dollars, or take the ${onFile} on file.` : "The figure, in dollars.",
@@ -754,9 +804,19 @@ function valuationStep(ctx: RelContext, a: Answers): RelStep | null {
     };
   }
   if (!answered(a, "valuationDate")) {
+    /* THE DATE ON FILE LEADS, LIKE THE FIGURE ABOVE IT (A2 audit, 2026-09-12).
+       The room holds every picked asset's last valuation date and asked for a
+       date cold underneath them, which is the blank form rule 2 refuses. The
+       dates on file are stated; NO recommendation travels with them, because
+       the date a new valuation is struck on is the exercise's own and the date
+       on file is by definition the one being replaced. */
+    const onFile = [...new Set(picked.map((id) => held.get(id)?.lastValued).filter((d): d is string => Boolean(d)))];
+    const standing = onFile.length
+      ? `The ${onFile.length === 1 ? "valuation on file was" : "valuations on file were"} struck ${onFile.join(", ")}. `
+      : "";
     return {
       key: "valuationDate",
-      ask: "As of what date was the valuation struck?",
+      ask: `${standing}As of what date was this one struck?`,
       kind: "date",
       placeholder: "YYYY-MM-DD.",
       target: { object: "LLC_BI__Collateral_Valuation__c", field: "LLC_BI__Valuation_Date__c" },
@@ -1354,6 +1414,16 @@ export function relReadyLine(route: RelRoute, ctx: RelContext, answers: Answers)
 
 const NO_PACKAGE_ANCHOR =
   "This review is anchored on the product package and the read stages none for this relationship, so there is nothing to stage against.";
+
+/* WHAT THE ROUTE WOULD HAVE HAD NOTHING TO ASK ABOUT. Both name the gap and
+   both name the way on, because a refusal without a door is the dead end rule 4
+   forbids (A2 audit, 2026-09-12). */
+const NOTHING_TO_ASSESS =
+  "This package carries no covenant this room can assess: a covenant is assessable here only where Salesforce holds a compliance row against it. " +
+  "I can put a new covenant onto the relationship, or run the annual review.";
+const NOTHING_TO_VALUE =
+  "This package carries no pledged collateral, so there is nothing here to value. " +
+  "I can put a new asset onto the relationship, or run the annual review.";
 
 /* ------------------------------------------------------------- the driver */
 

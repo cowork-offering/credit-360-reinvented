@@ -131,13 +131,18 @@ describe("what the room read travels with the line", () => {
      to, and only the first travelled. The parent read as a guarantor, the
      affiliate as a role on one loan, and the 60/40 between the two owners was
      dropped outright by the involvement block's own detail rule. */
+  /* FIXTURE UPDATED 2026-09-12 (backlog item 14b): every row now carries the
+     org's own `counterpartyId`. `connectedPartyBook` resolves a party BY ID and
+     the model held only the name, which on this relationship is four strings
+     sharing the word "Hartwell". ~80 bytes on the deepest book in the artifact;
+     the envelope was measured at 9,320 of its 10,000-byte cap with it. */
   it("carries the obligor group: the parent, the affiliate and the owners with their ownership", () => {
     expect(blocks.group).toEqual([
-      { name: "Hartwell Industrial Holdings LLC", relation: "parent", role: undefined, ownership: "100%", grade: "4" },
-      { name: "Hartwell Logistics LLC", relation: "affiliate", role: "Affiliated Company", ownership: undefined, grade: undefined },
+      { name: "Hartwell Industrial Holdings LLC", counterpartyId: "001bb00001I7NZkAAN", relation: "parent", role: undefined, ownership: "100%", grade: "4" },
+      { name: "Hartwell Logistics LLC", counterpartyId: "001bb00001I7VCHAA3", relation: "affiliate", role: "Affiliated Company", ownership: undefined, grade: undefined },
       // "Owner" says exactly what the relation says, so it does not travel twice.
-      { name: "James Hartwell", relation: "owner", role: undefined, ownership: "60%", grade: undefined },
-      { name: "Elena Hartwell", relation: "owner", role: "Co-Owner", ownership: "40%", grade: undefined },
+      { name: "James Hartwell", counterpartyId: "001bb00001I7V2cAAF", relation: "owner", role: undefined, ownership: "60%", grade: undefined },
+      { name: "Elena Hartwell", counterpartyId: "001bb00001I7BC0AAN", relation: "owner", role: "Co-Owner", ownership: "40%", grade: undefined },
     ]);
   });
 

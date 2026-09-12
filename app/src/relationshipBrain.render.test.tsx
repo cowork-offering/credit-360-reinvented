@@ -318,7 +318,19 @@ describe("the desk may resolve the review, and never binds one itself", () => {
 /* ----------------------------------------------- facility work lives next door */
 
 describe("a change to a facility is not this room's work, whoever proposed it", () => {
-  it("hands a delta-proposal next door rather than composing one here", async () => {
+  /* WHAT CHANGED ON 2026-09-12 (founder's stress-test pass, fixer item OPEN-4).
+     EVERY reply that was not a read-card or a clarify used to be answered with
+     the facility handoff, whatever the banker had actually said — so a line
+     about the credit committee, inside an annual review, was told that pledging
+     security runs next door and the banker's line was thrown away. Golden rule
+     4 and 5 both: the answer did not belong to the question, and the live step
+     was left two bubbles up the thread.
+
+     The handoff is now GATED on the room's own facility test, the same one the
+     typed path takes, so the desk can do nothing a banker could not. What this
+     case pins is unchanged and is the part that matters: a proposal NEVER
+     becomes a chip in this room. */
+  it("never composes a proposal here, and answers it in the room's own subject", async () => {
     const brain = reply({
       type: "delta-proposal",
       action: "loan-modification",
@@ -330,7 +342,19 @@ describe("a change to a facility is not this room's work, whoever proposed it", 
     await type(room, "whatever the credit committee decided last time");
 
     expect(room.textContent).toMatch(/The line could carry another two million/);
+    expect(room.querySelectorAll(".wk-chip")).toHaveLength(0);
+    // Nothing was staged, and the review is standing on its own question again.
+    expect(room.textContent).toMatch(/Which review is this\?/);
+  });
+
+  it("hands facility work next door, before the desk is even asked", async () => {
+    const brain = reply({ type: "clarify", text: "?" });
+    const { room } = open({ route: "annual", brain });
+    await settle();
+    await type(room, "pledge the receivables to the line of credit");
+
     expect(room.textContent).toMatch(/Facility Actions/);
+    expect(brain).not.toHaveBeenCalled();
     expect(room.querySelectorAll(".wk-chip")).toHaveLength(0);
   });
 });

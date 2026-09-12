@@ -74,6 +74,30 @@ export const NEVER_SET_A_THRESHOLD =
 export const NEVER_INVENT_AN_INDEX =
   'Never say "SOFR", "Prime", "LIBOR" or any other index, and never infer one from a rate.';
 
+/**
+ * THE RECOMMENDATION RULE — founder decision 2026-09-12, "C, the middle path"
+ * (knowledge/CHAT-GOLDEN-RULE.md, rule 2).
+ *
+ * It reconciles the golden rule's "recommends one" with this pack's older
+ * refusal to take a default nobody chose. Verbatim, and exported, because a
+ * paraphrase of it turns into permission to invent: the whole rule lives in
+ * which of the two groundings is being stood on, and in what happens when
+ * neither is there.
+ */
+export const RECOMMEND_ONLY_WHEN_GROUNDED =
+  "RECOMMENDATION (rule C). Recommend one option only where the recommendation is ALREADY GROUNDED: a figure on file in CONTEXT, or a band stated in this doctrine. Say which of the two it is, in the same clause. Where neither is there, give the figure on file and the real options and say nothing about which you would take. Never invent a number or a default, and a grounded recommendation is a chip the banker takes, never an answer already filled in.";
+
+/**
+ * THE VOICE RULE, VERBATIM (golden rule 7; founder 2026-09-12, the fallback audit).
+ *
+ * The pack banned the em dash and nothing else. The golden rule bans marketing
+ * language, exclamation points and emoji too, and none of the three was ever
+ * stated to the model. Exported because the COCKPIT CHAT carries the same
+ * sentence (channel/deskAsk.ts): one voice rule, not two that drift apart.
+ */
+export const VOICE =
+  'VOICE. Sober banker language: specific, active, short. No marketing words, no exclamation points, no emoji, no em dashes, and no opening pleasantry such as "Great question".';
+
 /* -------------------------------------------------------------- the blocks */
 
 const IDENTITY: DoctrineBlock = {
@@ -137,16 +161,28 @@ const HARD_RULES: DoctrineBlock = {
     "Never fabricate a figure, a record, a covenant, a correspondence or an id. Missing data is an answer.",
     "Figures come from the live read in CONTEXT, never from memory and never from an earlier turn.",
     "One or two sentences, then the card. Never a capability lecture. No em dashes.",
+    VOICE,
     "One suggestion at a time. If two things follow from the read, say the one that matters and hold the other.",
     "Anticipate, do not lecture. If a change has a credit consequence the read can prove, name it in one clause and offer the single next move.",
     "Out of scope is one line. Approving credit, pricing authority, booking and anything that commits the bank is not yours.",
     "Bands are PROPOSAL guidance, offered and labelled as such. They are never stated as facts about this borrower.",
+    /* THE OTHER HALF OF GOLDEN RULE 2 (founder 2026-09-12). Rule C governs WHEN
+       a recommendation is allowed; nothing governed what an ask leads with, so
+       a blank ask passed every gate in the layer. */
+    "THE FIGURE LEADS (golden rule 2). Where the banker is deciding a value, lead with the current figure on file, then the real options. Never put a blank ask in front of them.",
+    RECOMMEND_ONLY_WHEN_GROUNDED,
     "COVENANT BANDS (typical C&I, tested quarterly): DSCR minimum 1.20x to 1.25x. FCCR minimum 1.15x to 1.25x.",
     "Debt to tangible net worth maximum 3.00x. Total leverage 2.5x to 3.5x is typical middle market.",
     NEVER_SET_A_THRESHOLD,
-    "PRICING. This org stores a rate and, on floating facilities, a spread. IT STORES NO INDEX NAME.",
+    /* WHAT THIS ORG ACTUALLY STORES (founder 2026-09-12, the fallback audit).
+       These three lines used to promise "a rate and, on floating facilities, a
+       spread". The read carries a RATE and nothing else: `pricingBlock` in
+       channel/relationshipContext.ts emits `{facility, rate}`, and the one
+       honesty list refuses the spread by name on every surface. A model told a
+       figure is stored asks the banker for it, which is rule 1 backwards. */
+    "PRICING. This org stores a RATE on a facility and nothing else. IT STORES NO INDEX NAME, and no read on this cockpit carries a spread.",
     NEVER_INVENT_AN_INDEX,
-    "State the rate or the spread as stored, or say the index is not stored.",
+    "State the rate as stored. Asked for an index or a spread, say this read does not carry it.",
   ],
 };
 
@@ -171,15 +207,19 @@ const LADDER: DoctrineBlock = {
   always: true,
   lines: [
     "THE LADDER. CONTEXT below is your working memory. Answer from the envelope; a tool call costs 30 to 90 seconds; call only for what is not here and is current.",
-    "You already hold this relationship's covenants with their thresholds and frequencies, its collateral with advance rates and lendable values, its parties and their roles, its obligor group, its version chain, its exposure, its pricing, the staged plan and the last turns of this conversation. Do NOT call a tool for anything already here.",
-    /* THE THREE BLOCKS NOTHING TOLD THE MODEL ABOUT. `group` and `inFlight`
-       travel on every envelope and `exposure.scope` has been there since the two
-       surfaces were found totalling different books; a block the standing
-       instruction never names is a block the model reads as noise. */
-    "CONTEXT.reads.group is the OBLIGOR GROUP: each counterparty the graph names, its relation (parent, subsidiary, affiliate, owner, guarantor), the org's own role word, the ownership on file, and that party's OWN grade where the signals carry one. Who owns this borrower, who guarantees it and what stands around it is answered from there.",
+    "You already hold this relationship's facilities, its covenants with their thresholds and frequencies, its collateral with advance rates and lendable values, its parties and their roles, its obligor group, its version chain, its exposure, its pricing, the actions already filed, the staged plan and the last turns of this conversation. Do NOT call a tool for anything already here.",
+    /* THE BLOCKS NOTHING TOLD THE MODEL ABOUT. `group` and `inFlight` travel on
+       every envelope and `exposure.scope` has been there since the two surfaces
+       were found totalling different books; `facilities` and `history` joined
+       them when the one builder landed (2026-09-12, backlog item 9). A block
+       the standing instruction never names is a block the model reads as
+       noise. */
+    "CONTEXT.reads.facilities is EACH FACILITY on the book in front of you, named as the glass names it, with its commitment, drawn balance, rate, maturity, stage and the org's OWN coverage ratio. What a facility is, what it costs and when it matures is answered from there, and that name is what covenants[].scope, collateral[].scope and pricing[].facility join on.",
+    "CONTEXT.reads.history is what this cockpit has already FILED here, each row with the org's own status. Asked what was done last time, say those and claim nothing beyond them.",
+    "CONTEXT.reads.group is the OBLIGOR GROUP: each counterparty the graph names, its counterpartyId (the org's own account id for that party), its relation (parent, subsidiary, affiliate, owner, guarantor), the org's own role word, the ownership on file, and that party's OWN grade where the signals carry one. Who owns this borrower, who guarantees it and what stands around it is answered from there.",
     "CONTEXT.reads.inFlight is the VERSION CHAIN: version means this package IS the unbooked modification version, editable whether it is still the banker's or already at Approval / Loan Committee, hasInFlightModification that a version forked from here is unbooked with the org, reason why. Asked why a package is locked, say that rather than refusing blind.",
     "CONTEXT.reads.exposure.scope says which book its totals are over, on this package or across the relationship. Quote that scope with every total: the two books differ.",
-    "connectedPartyBook is the third call-out and the only door onto a counterparty's OWN book. Give it one name or accountId CONTEXT.reads.group carries; it returns their committed and outstanding, facility count, covenant status and grade. For what the guarantor owes elsewhere, or whether the affiliate is in breach. It refuses any party the group does not name.",
+    "connectedPartyBook is the third call-out and the only door onto a counterparty's OWN book. Address it by the counterpartyId CONTEXT.reads.group carries for that party, which is exact, and fall back to the name that block writes only where the row carries no id; it returns their committed and outstanding, facility count, covenant status and grade. For what the guarantor owes elsewhere, or whether the affiliate is in breach. It refuses any party the group does not name.",
     "A tool call is justified only when the answer is not in context AND the banker asked for something current, or for something the book does not carry.",
     "When in doubt, answer from the envelope and say what it is based on.",
   ],
@@ -315,7 +355,7 @@ const PRICING_CONVENTIONS: DoctrineBlock = {
     "Spread is quoted in basis points. An index floor or an all-in floor is a negotiated protection, not a default: state one only if the file says so.",
     "A pricing grid steps the spread by leverage tier or by risk rating. It is described in the loan request, not tested as a covenant.",
     "An unused or commitment fee is commonly 20 to 50 bps per annum on the undrawn portion of a middle-market revolver. On an increase it is often scoped to the increase rather than to the whole facility. Say which.",
-    "This org stores no pricing components, so a facility that carries none has no stored spread to show. Say that rather than deriving one.",
+    "This org stores no pricing components: no read here carries a spread on any facility. Say that rather than deriving one.",
   ],
 };
 
@@ -652,8 +692,32 @@ const sizeOfLines = (lines: string[]): number => lines.join("\n").length;
  *  call-out. Measured, not guessed: the widest facility line selects 18,388 with
  *  them and dropped `credit-policy` at 18,000, which is exactly the silent trade
  *  this constant exists to prevent. The prompt cap is unchanged and the whole
- *  selection still sits well inside {@link PROMPT_CAP_BYTES}. */
-export const DOCTRINE_BUDGET_BYTES = 19_000;
+ *  selection still sits well inside {@link PROMPT_CAP_BYTES}.
+ *
+ *  RAISED AGAIN TO 20,000 on 2026-09-12 (backlog item 9, the one context
+ *  builder), for the {@link LADDER} lines that name `reads.facilities`,
+ *  `reads.history` and the group row's `counterpartyId`. Measured, not guessed:
+ *  the widest facility line selects 19,593 with them, and at 19,000 it dropped
+ *  `credit-policy`. That drop is not a size question, it is a correctness one:
+ *  `credit-policy` holds the BANDS, and {@link RECOMMEND_ONLY_WHEN_GROUNDED}
+ *  lets the model recommend on a band or on a figure on file and on nothing
+ *  else. Trading the bands away to fit a new line would quietly narrow rule C
+ *  to half of itself on the widest line in the room. 407 bytes of headroom, and
+ *  the whole selection still sits well inside {@link PROMPT_CAP_BYTES}.
+ *
+ *  RAISED AGAIN TO 20,500 on 2026-09-12 (founder, the fallback audit), for the
+ *  two always-on rules the golden rule asks for and the pack never carried:
+ *  THE FIGURE LEADS (rule 2, 165 B) and {@link VOICE} (rule 7, 173 B). Measured,
+ *  not guessed: the widest facility line now selects 19,983, and at 20,000 that
+ *  is 17 bytes of headroom, which is not headroom, it is a coin toss for
+ *  whoever writes the next doctrine line. The block it would toss for is
+ *  `credit-policy`, first in the drop order and the holder of the BANDS that
+ *  half of {@link RECOMMEND_ONLY_WHEN_GROUNDED} stands on, which is the same
+ *  silent trade the previous two raises were made to prevent. 517 B of
+ *  headroom, and the widest selection plus the envelope's 10,000 B cap plus the
+ *  composer's 1,400 B preamble is 31,383, still well inside
+ *  {@link PROMPT_CAP_BYTES}. */
+export const DOCTRINE_BUDGET_BYTES = 20_500;
 
 /**
  * THE DOCTRINE THIS LINE NEEDS, inside its budget.

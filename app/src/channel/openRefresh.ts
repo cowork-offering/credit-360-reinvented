@@ -18,7 +18,8 @@ import { readThroughEitherLane } from "./gateway/lane";
 import { noteLaneStale } from "./laneHealth";
 import { loadLastGood, putLastGood, type CachedRead } from "./lastGood";
 import { claimPrefetch, type PrefetchedLane } from "./openPrefetch";
-import { createPacer, LAUNCH_GAP_MS, MAX_IN_FLIGHT, slowTierWindowMs, SLOW_TIER_KEYS } from "./syncSweep";
+import { createPacer, slowTierWindowMs, SLOW_TIER_KEYS } from "./syncSweep";
+import { noteOpenRateLimited, openInFlightLimit, openLaunchGapMs } from "./openBurst";
 
 /* =============================================================================
    THE OPEN REFRESH: the relationship reads itself when the banker lands on it.
@@ -68,13 +69,6 @@ import { createPacer, LAUNCH_GAP_MS, MAX_IN_FLIGHT, slowTierWindowMs, SLOW_TIER_
 /** How long a lane that gave up waits before trying again, quietly. */
 export const BACKGROUND_RETRY_MS = 60_000;
 
-/** All six at once. The open is one round trip deep, not three. */
-export const OPEN_MAX_IN_FLIGHT = 6;
-/** No spacing between them either: a burst of six is what the measurement says
- *  the transport is happy to answer, and a 200ms ladder in front of it only
- *  delays the last read by a second for nothing. */
-export const OPEN_LAUNCH_GAP_MS = 0;
-
 /**
  * ONE LANE'S WALL CLOCK on the open.
  *
@@ -87,26 +81,19 @@ export const OPEN_LAUNCH_GAP_MS = 0;
  */
 export const OPEN_LANE_DEADLINE_MS = READ_DEADLINE_MS;
 
-/* THE PLATFORM'S OWN WORD IS THE ONLY THING THAT NARROWS THIS. Not a guess, not
-   a heuristic on latency: `rate_limited` is a code the runtime sends, and until
-   it does, six is what the measurement supports. Page-session scoped, because
-   a relay that is rationing calls at 22:34 is still rationing them at 22:35. */
-let burstAllowed = true;
-
-/** Calls in flight the next open may use. */
-export const openInFlightLimit = (): number => (burstAllowed ? OPEN_MAX_IN_FLIGHT : MAX_IN_FLIGHT);
-/** Spacing the next open may use. */
-const openLaunchGapMs = (): number => (burstAllowed ? OPEN_LAUNCH_GAP_MS : LAUNCH_GAP_MS);
-
-/** The platform said there were too many. Every open after this one is paced. */
-export function noteOpenRateLimited(): void {
-  burstAllowed = false;
-}
-
-/** Test seam: put the burst policy back the way a fresh page finds it. */
-export function __resetOpenBurstForTests(): void {
-  burstAllowed = true;
-}
+/* THE BURST REGISTER LIVES IN `openBurst.ts` (2026-09-12). The policy and its
+   doctrine are unchanged; it moved so the live-open aggregate can pace itself
+   off the SAME register rather than off the sweep's, without importing this
+   module and putting a cycle through React state. Every name this file used to
+   publish it still publishes. */
+export {
+  OPEN_MAX_IN_FLIGHT,
+  OPEN_LAUNCH_GAP_MS,
+  openInFlightLimit,
+  openLaunchGapMs,
+  noteOpenRateLimited,
+  __resetOpenBurstForTests,
+} from "./openBurst";
 
 /** One of the six detail tools, each of which the backup lane mirrors. */
 type DetailTool = (typeof DETAIL_TOOLS)[number];

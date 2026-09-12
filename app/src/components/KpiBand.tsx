@@ -41,6 +41,11 @@ interface Kpi {
 
 const asCount = (n: number) => String(Math.round(n));
 
+/** What the band says when the live read failed. The figures on the tiles are
+ *  the last ones that came back good, so that is what it says; the date beside
+ *  it names when. */
+const BAND_ON_LAST_GOOD = "This tile shows the last good read.";
+
 /** Split the trailing unit off a formatted figure so it can take the purple.
  *  "$81M" -> ["$81", "M"], "72.9%" -> ["72.9", "%"], "4" -> ["4", ""]. */
 function splitUnit(s: string): [string, string] {
@@ -207,6 +212,19 @@ export function KpiBand() {
       return;
     }
     if (mcpAvailable()) {
+      /* THE VIEW SWITCHES THE MOMENT THE RELATIONSHIP IS NAVIGABLE, not when
+         the last read has settled (2026-09-12, founder latency brief: "110%
+         zero latency and smooth transitions"). The navigation used to sit in
+         `.then()`, which resolves only after the WHOLE aggregate has landed,
+         the relationship graph included, and the graph is the heaviest read in
+         the set and deliberately the last one issued. The popover's own
+         behaviour is untouched: it closed above, before either branch, exactly
+         as it has since 0.9.10, and the staged pre-seed path never came here.
+
+         THE RESOLVE STILL CARRIES THE FAILURE. `!ok` means nothing was ever
+         registered, so `onOpen` never fired and the sentence is the only thing
+         left to say. */
+      let switched = false;
       void openAccountLive({
         accountId: row.accountId,
         name: row.name,
@@ -216,9 +234,13 @@ export function KpiBand() {
           industry: row.industry === "—" ? undefined : row.industry,
           naicsCode: row.naicsCode ?? undefined,
         },
+        onOpen: () => {
+          switched = true;
+          dispatch({ type: "OPEN_ACCOUNT", accountId: row.accountId });
+        },
       }).then((ok) => {
-        if (ok) dispatch({ type: "OPEN_ACCOUNT", accountId: row.accountId });
-        else announce(`the org had nothing to read for ${row.name}. Nothing was opened.`);
+        if (ok && !switched) dispatch({ type: "OPEN_ACCOUNT", accountId: row.accountId });
+        else if (!ok) announce(`the org had nothing to read for ${row.name}. Nothing was opened.`);
       });
       return;
     }
@@ -261,7 +283,15 @@ export function KpiBand() {
           )}
           {live.failure && (
             <span style={{ color: live.failure.retract ? "var(--critical)" : "var(--warning)" }}>
-              {live.failure.fix}
+              {/* WHAT THE BAND IS SHOWING, NOT HOW TO FIX THE PLUMBING (A15,
+                  2026-09-12). `McpFailure.fix` is written for whoever wired the
+                  connector — "Add IDB Gateway in claude.ai Settings >
+                  Connectors" — and it sat on the banker's own landing, over
+                  figures that were still perfectly readable. The operator
+                  sentence belongs on the operator surface and stays there
+                  (`HealthLine`); this one says what the tiles are standing on.
+                  The raw code below still names the layer for a screenshot. */}
+              {BAND_ON_LAST_GOOD}
               {/* Freshness comes off the served result's cache stamp, never a
                   clock read here: it says when the figures on screen were true,
                   which is the one thing a stale band has to be honest about. */}

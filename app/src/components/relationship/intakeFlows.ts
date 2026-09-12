@@ -1058,7 +1058,13 @@ function collateralIntakeStep(ctx: RelContext, a: Answers): RelStep | null {
     };
   }
   const existingPick = text(at(a, "colExisting", 0));
+  /* ANSWERED ONCE IS ANSWERED (A2 audit, 2026-09-12). This step used to re-read
+     `colExisting.0`, which never changes, so it came back identical for every
+     line the banker typed after it: the route could not reach ready and the
+     room repeated the same paragraph forever. It is a handoff, so once it has
+     been read the machine is done with the intake rather than standing on it. */
   if (existingPick && existingPick !== "new") {
+    if (answered(a, "colExistingHandoff")) return null;
     return {
       key: "colExistingHandoff",
       ask: `That asset is already on the book. ${FACILITY_HANDOFF} Nothing is filed here for it.`,

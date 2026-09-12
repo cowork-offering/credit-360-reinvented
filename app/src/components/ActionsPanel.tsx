@@ -70,6 +70,10 @@ function ActionRow({
   );
 }
 
+/** What the panel says when an action did not come back. The rows are still
+ *  composed from the read already on the page, so that is what it says. */
+const ACTIONS_ON_LAST_GOOD = "These actions stage from the last good read.";
+
 /* THE WORKROOM ROWS ARE RETIRED (founder call, 2026-08-31 night).
    Reshaping a package, renewing what matures and composing something new are
    ONE room now, and the way in is the FAB's Facility Actions satellite. Three
@@ -195,8 +199,15 @@ export function ActionsPanelBody() {
                         </span>
                       )}
                       {failure?.id === action.id && (
+                        /* WHAT THE ACTION IS STANDING ON, NOT HOW TO FIX THE
+                           PLUMBING (A15, 2026-09-12). `McpFailure.fix` is the
+                           operator's sentence — "Add IDB Gateway in claude.ai
+                           Settings > Connectors" — and it was the only thing a
+                           banker read when an action did not go through. It
+                           stays on the operator surface (`HealthLine`); this row
+                           says what the actions are composed from. */
                         <span className="mt-1.5 block text-[11px] font-semibold" style={{ color: "var(--critical)" }}>
-                          {failure.failure.fix}
+                          {ACTIONS_ON_LAST_GOOD}
                         </span>
                       )}
                     </>

@@ -177,9 +177,21 @@ describe("the budget gives up doctrine, and never the always blocks", () => {
     // The widest line this room can be asked: every surface matches at once.
     const wide =
       "on this modification, add a DSCR covenant, pledge the equipment, add a fee, log a policy exception, change the guarantor and reprice it";
-    const { dropped, bytes } = composeDoctrine(wide);
+    const { dropped, included, bytes } = composeDoctrine(wide);
     expect(dropped).toEqual([]);
     expect(bytes).toBeLessThanOrEqual(DOCTRINE_BUDGET_BYTES);
+    /* AND `credit-policy` IS STILL IN IT (2026-09-12, backlog item 9). It is
+       first in the drop order, so it is what a budget one byte short gives up,
+       and it holds the BANDS. Rule C lets the model recommend on a band or on a
+       figure on file and on nothing else, so losing this block on the widest
+       line would quietly narrow the recommendation rule to half of itself. The
+       budget moved 19,000 to 20,000 for exactly that reason; this line is what
+       would have caught the silent trade. Measured: 19,593 of 20,000.
+       RE-MEASURED 2026-09-12 (founder, the fallback audit): 19,983 of 20,500,
+       after rule 2's "THE FIGURE LEADS" and rule 7's VOICE joined the always-on
+       blocks. At the old 20,000 this line went red on a 17-byte overrun, which
+       is exactly the catch it was written for. */
+    expect(included).toContain("credit-policy");
   });
 
   it("keeps the always blocks even at a budget of zero", () => {

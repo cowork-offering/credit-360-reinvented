@@ -15,6 +15,7 @@ import { packageDeepLink, recordDeepLink } from "./DeepLink";
 import { openFacilityRoom } from "./workroom/roomSession";
 import { openRelationshipRoom } from "./relationship/relSession";
 import { openMemoRoom } from "./memo/memoSession";
+import { openSpreadingRoom } from "./workroom/spreadSession";
 import { relOpeningForAccount } from "./relationship/RelationshipRoom";
 import { smartOpeningFor } from "./workroom/route";
 import { sowSeed } from "./workroom/seed";
@@ -52,29 +53,30 @@ import "../styles/chat.css";
    No satellite here has an onClick of its own.
    ============================================================================= */
 
-type ArcAct = "chat" | "facility" | "memo" | "relationship" | "salesforce";
+type ArcAct = "chat" | "facility" | "memo" | "spread" | "relationship" | "salesforce";
 
-/** The arc: four satellites on a 96px radius, evenly spread across the quarter,
+/** The arc: SIX satellites on a 150px radius, evenly spread across the quarter,
  *  staggered 28ms apart by index.
  *
- *  CLOSER TO THE MARK (founder, 2026-09-01). The four kept the five-arc's first
- *  offsets on r=118, which put the last satellite two thirds of the way round a
- *  sweep nothing finished — distant from the mark and lopsided in the corner.
- *  The radius comes back to rule 49's original 96px and the four RESPREAD over
- *  the full quarter at 30° steps off vertical: chat at the top, the cloud at
- *  the horizontal, the two credit rooms evenly between them. Neighbouring
- *  centres land 2·96·sin(15°) = 49.7px apart, which holds the ~46px rhythm the
- *  five-arc read at while making the arc symmetric about its own 45° axis.
+ *  THE TWO ANCHORS NEVER MOVE and they are the only thing the geometry is
+ *  allowed to fix: the chat at the top, the Salesforce cloud at the horizontal.
+ *  Everything between them is the SWEEP, and the sweep is respread whenever a
+ *  seat is added rather than squeezing the new one in beside the old ones.
+ *
+ *  THE HISTORY, because each step was a founder call and the next person should
+ *  not have to re-derive them: four seats on r=96 at 30° steps (2026-09-01,
+ *  49.7px neighbour rhythm), five on r=124 at 22.5° steps (2026-09-04, 48.4px),
+ *  and now six on r=150 at 18° steps (2026-09-12, the Spreading room took a
+ *  seat of its own per BOOM-UPLOAD-SPEC §2). Six 40px discs at r=124 would land
+ *  2·124·sin(11.25°) = 38.8px apart and TOUCH; at r=150 they land
+ *  2·150·sin(9°) = 46.9px apart, which is the ~46px rhythm rule 49 has held
+ *  since the five-arc, to the pixel.
  *
  *  The offsets below ARE that geometry, rounded to the pixel the transform will
- *  paint at: (0,-96) (-48,-83) (-83,-48) (-96,0). They are written out rather
- *  than computed for the same reason the dummy's were — the arc is a set of
- *  approved positions, and a formula in the source invites the next person to
- *  re-tune the sweep instead of asking the founder.
- *
- *  THE FOURTH SEAT IS THE CLOUD (founder, 2026-09-01). The geometry above was
- *  minted for four and is unchanged by what sits in the last one; the arc keeps
- *  its 30° steps and its 49.7px neighbour rhythm. */
+ *  paint at: (0,-150) (-46,-143) (-88,-121) (-121,-88) (-143,-46) (-150,0).
+ *  They are written out rather than computed for the same reason the dummy's
+ *  were — the arc is a set of approved positions, and a formula in the source
+ *  invites the next person to re-tune the sweep instead of asking the founder. */
 const ARC: {
   act: ArcAct;
   /** The narrator chip's word for it. One or two words so the centred chip can
@@ -90,16 +92,30 @@ const ARC: {
   icon?: IconName;
   domId?: string;
 }[] = [
-  // FIVE SEATS ON THE QUARTER ARC (founder, 2026-09-04: the credit memo is a
-  // room of its own and gets its own chip). 22.5deg steps on r=124 (founder, 2026-09-04: more air between the chips), the chat at
-  // the top and the cloud at the horizontal exactly where they were.
-  { act: "chat", label: "Assist", aria: "Assist chat", tx: 0, ty: -124 },
-  { act: "facility", label: "Facility Actions", aria: "Facility Actions", tx: -47, ty: -115, actionId: "loan-modification", icon: "modify", domId: "actFacility" },
-  { act: "memo", label: "Credit memo", aria: "Credit memo workroom", tx: -88, ty: -88, icon: "memo", domId: "actMemo" },
-  { act: "relationship", label: "Relationship", aria: "Relationship Actions", tx: -115, ty: -47, icon: "person", domId: "actRelationship" },
-  // THE CLOUD AT THE HORIZONTAL (founder, 2026-09-01). It is not a fourth room:
+  // SIX SEATS ON THE QUARTER ARC (2026-09-12: the Spreading room is a room of
+  // its own and gets its own chip, BOOM-UPLOAD-SPEC §2). The arc's two anchors
+  // are unchanged and are the only things the geometry is allowed to fix: the
+  // chat at the top, the cloud at the horizontal. What moved is the SWEEP, and
+  // it had to: six 40px discs at the five-arc's r=124 would land 38.8px apart
+  // and touch. So the radius goes to 150 and the six respread at 18deg steps,
+  // which puts neighbouring centres 2·150·sin(9°) = 46.9px apart — the ~46px
+  // rhythm rule 49 has held since the five-arc, to the pixel.
+  //
+  // WRITTEN OUT, NOT COMPUTED, for the reason the four-arc and the five-arc
+  // were: the arc is a set of positions somebody approved, and a formula in the
+  // source invites the next person to re-tune the sweep instead of asking.
+  // These six are (0,-150) (-46,-143) (-88,-121) (-121,-88) (-143,-46) (-150,0).
+  { act: "chat", label: "Assist", aria: "Assist chat", tx: 0, ty: -150 },
+  { act: "facility", label: "Facility Actions", aria: "Facility Actions", tx: -46, ty: -143, actionId: "loan-modification", icon: "modify", domId: "actFacility" },
+  { act: "memo", label: "Credit memo", aria: "Credit memo workroom", tx: -88, ty: -121, icon: "memo", domId: "actMemo" },
+  // THE STATEMENT SHEET WITH AN UP-ARROW. It has no entry in the registry's
+  // icon language yet, so it is drawn inline here exactly as the chat's speech
+  // bubble is, at the same 16-unit grid and the same 1.5 stroke.
+  { act: "spread", label: "Spread financials", aria: "Spread financials", tx: -121, ty: -88, domId: "actSpread" },
+  { act: "relationship", label: "Relationship", aria: "Relationship Actions", tx: -143, ty: -46, icon: "person", domId: "actRelationship" },
+  // THE CLOUD AT THE HORIZONTAL (founder, 2026-09-01). It is not a fifth room:
   // it is the door to the org, and it opens a second tier rather than routing.
-  { act: "salesforce", label: "Salesforce", aria: "Salesforce records", tx: -124, ty: 0, icon: "cloud", domId: "actSalesforce" },
+  { act: "salesforce", label: "Salesforce", aria: "Salesforce records", tx: -150, ty: 0, icon: "cloud", domId: "actSalesforce" },
 ];
 
 /** THE SECOND TIER — the cloud's own two doors.
@@ -110,11 +126,17 @@ const ARC: {
  *  bend. A mirror-symmetric fan put both at the same x and the pair read as a
  *  straight vertical stack (founder, 2026-09-01); breaking the mirror is what
  *  makes it a bow. Written as absolute offsets from the mark, like the arc's,
- *  because that is what the transform paints: (-96,0) + 54·(−cosθ, −sinθ) at
- *  θ=48° and θ=4° above the radial = (-132,-40) and (-150,-4).
+ *  because that is what the transform paints: the cloud's own (-150,0) plus
+ *  54·(−cosθ, −sinθ) at θ=48° and θ=4° above the radial = (-186,-40) and
+ *  (-204,-4).
  *
  *  They drive the SAME anchored narrator chip the satellites do (rule 54). A
- *  floating label on a 34px disc would be the exact thing that rule bans. */
+ *  floating label on a 34px disc would be the exact thing that rule bans.
+ *
+ *  THEY MOVE WITH THEIR PARENT. The cloud went from (-96,0) to (-124,0) to
+ *  (-150,0) as the arc respread; the bow is measured from the cloud, so both
+ *  offsets carry the same 26px the cloud just took. The bow itself, r=54 at
+ *  θ=48° and θ=4° above the outward radial, is untouched. */
 const SF_TIER: {
   key: "account" | "package";
   label: string;
@@ -124,8 +146,8 @@ const SF_TIER: {
   ty: number;
   domId: string;
 }[] = [
-  { key: "account", label: "Account page", aria: "Open the Account page in Salesforce", icon: "building", tx: -160, ty: -40, domId: "sfAccount" },
-  { key: "package", label: "Latest package", aria: "Open the latest Product Package in Salesforce", icon: "package", tx: -178, ty: -4, domId: "sfPackage" },
+  { key: "account", label: "Account page", aria: "Open the Account page in Salesforce", icon: "building", tx: -186, ty: -40, domId: "sfAccount" },
+  { key: "package", label: "Latest package", aria: "Open the latest Product Package in Salesforce", icon: "package", tx: -204, ty: -4, domId: "sfPackage" },
 ];
 
 /** The honest reason a tier bubble is dead. It is a title, never a toast: the
@@ -202,6 +224,14 @@ function ArcSatellite({
     >
       {spec.icon ? (
         <ActionGlyph name={spec.icon} />
+      ) : spec.act === "spread" ? (
+        /* A statement sheet with an up-arrow: the page, its folded corner, and
+           the arrow that says the sheet goes somewhere. */
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 2.4h5.4L12.6 5.6v8H4z" />
+          <path d="M9.4 2.4v3.2h3.2" />
+          <path d="M8.3 11.9V8.1M6.7 9.7l1.6-1.6 1.6 1.6" />
+        </svg>
       ) : (
         <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 7.6c0 3-2.7 5.4-6 5.4-.7 0-1.4-.1-2-.3L2.6 13.7l.8-2.5C2.5 10.2 2 9 2 7.6c0-3 2.7-5.4 6-5.4s6 2.4 6 5.4Z" />
@@ -566,6 +596,14 @@ export function ChatFab() {
         // finds (the greeting names it). Same seed, same gate as the others.
         sowSeed(document.querySelector('.arcbtn[data-act="memo"]'));
         openMemoRoom({ accountId, accountName, productPackageId: null, trigger: "adhoc" });
+        return;
+      }
+      if (act === "spread") {
+        // THE SPREADING ROOM, from the arc: no route to bind and nothing to
+        // fetch. Everything it needs at open is in the book, so the drop zone
+        // paints on the first frame. Same seed, same gate as the others.
+        sowSeed(document.querySelector('.arcbtn[data-act="spread"]'));
+        openSpreadingRoom({ accountId, accountName });
         return;
       }
       if (act === "relationship") {

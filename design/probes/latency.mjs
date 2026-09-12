@@ -147,23 +147,38 @@ async function take(browser, url, relayMs, withReload, throttle) {
        relationship. */
     const marks = await page.evaluate(
       async ({ account, tools, budgetMs }) => {
-        const t0 = performance.now();
+        /* THE CLOCK STARTS ON THE ROW CLICK, and the row click is now INSIDE
+           the poll loop (2026-09-12, founder latency brief: "110% zero latency
+           and smooth transitions"). It used to fire once at t0 outside the
+           loop, and on this build the click landed before the row was
+           interactive: three takes lost, `calls 2`, `peak in flight 0`, and
+           not one of the three marks reached. Polled, it lands the instant the
+           row exists, which is what every other drive in this directory does,
+           and t0 is stamped on the gesture rather than on entry. */
+        let t0 = performance.now();
         const since = () => Math.round(performance.now() - t0);
-        document.querySelector(`[data-open="${account}"]`)?.click();
 
         const out = { firstLiveFigureMs: null, allSixSlicesMs: null, roomReadyMs: null };
         const buttons = (re) => [...document.querySelectorAll("button")].find((b) => re.test(b.textContent || ""));
+        let rowClicked = false;
         let tabClicked = false;
         let roomClicked = false;
         const deadline = performance.now() + budgetMs;
 
         while (performance.now() < deadline) {
-          /* THE DRIVE. Exposure first, because that is the tab carrying a
-             figure the org just returned; then the covenant room, which is the
-             door a plan is staged behind. Both are clicked the instant they
-             exist, so the reads still in flight behind them are exactly the
-             contention being measured. */
-          if (!tabClicked) {
+          /* THE DRIVE. The row first; then Exposure, the tab carrying a figure
+             the org just returned; then the covenant room, the door a plan is
+             staged behind. Each is clicked the instant it exists, so the reads
+             still in flight behind them are exactly the contention being
+             measured. */
+          if (!rowClicked) {
+            const row = document.querySelector(`[data-open="${account}"]`);
+            if (row) {
+              t0 = performance.now();
+              row.click();
+              rowClicked = true;
+            }
+          } else if (!tabClicked) {
             const t = buttons(/Exposure/);
             if (t) { t.click(); tabClicked = true; }
           } else if (!roomClicked) {

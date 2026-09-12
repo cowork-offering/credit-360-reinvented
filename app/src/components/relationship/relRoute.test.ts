@@ -237,6 +237,16 @@ describe("facility work", () => {
     expect(FACILITY_HANDOFF).toContain("Facility Actions");
     expect(FACILITY_HANDOFF).not.toMatch(/[—!]/);
   });
+
+  /* PERMANENT COVER (backlog item 13). The handoff counted FIVE reviews after
+     the intake route made six, and it is the most frequently fired string in
+     the room: three push sites. The count and the room's own route vocabulary
+     are asserted together, so adding a seventh route fails here rather than in
+     front of a banker. */
+  it("counts the reviews this room actually takes", () => {
+    expect(Object.keys(REL_ROUTE_WORD)).toHaveLength(6);
+    expect(FACILITY_HANDOFF).toContain("This room takes the six reviews.");
+  });
 });
 
 describe("a route word inside an ANSWER is not a request to change review", () => {

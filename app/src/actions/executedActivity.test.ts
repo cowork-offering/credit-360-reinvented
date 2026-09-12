@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createdRecordId, executedActivityEntry, historyActivityEntry, memoPublishedActivityEntry, mergeTrail } from "./executedActivity";
+import {
+  createdRecordId,
+  executedActivityEntry,
+  historyActivityEntry,
+  memoPublishedActivityEntry,
+  mergeTrail,
+  spreadActivityEntry,
+} from "./executedActivity";
 import type { LaneOutcome, MemoPublication } from "../memo/publishTypes";
 import type { ExecuteResult } from "../channel/writeTools";
 
@@ -394,5 +401,73 @@ describe("the trail entry for a published memo", () => {
 
   it("logs nothing for a publication that ran no lane at all", () => {
     expect(memoPublishedActivityEntry({ publication: { memoId: "m", packageId: "p", status: "not-wired", lanes: [] }, now: NOW })).toBeNull();
+  });
+});
+
+
+/* =============================================================================
+   THE SPREADING PLAN IN THE TRAIL (BOOM-UPLOAD-SPEC §2).
+
+   "The action lands in the relationship's activity trail like every governed
+   write." So it lands twice: when the plan goes, and when the spreading system
+   settles it. The plan's own governed sentence is the line the trail carries,
+   and the system that answered is named — as the stub, while it is the stub.
+   ============================================================================= */
+
+const SPREAD = {
+  company: "Piedmont Precision Components, Inc.",
+  summary: "3 statements to Boom, Piedmont Precision Components, Inc.: FY2025 audited income statement, balance sheet, cash flow.",
+  system: "Boom (stub, provisional)",
+  planKey: "sha-a+sha-b",
+  fileCount: 2,
+  actor: "Dana Whitfield",
+  now: NOW,
+} as const;
+
+describe("the spreading plan lands in the trail", () => {
+  it("logs the plan leaving, with its own sentence as the line", () => {
+    const e = spreadActivityEntry({ ...SPREAD, phase: "sent" });
+    expect(e.kind).toBe("ACTION_TRIGGERED");
+    expect(e.title).toBe("Financial statements sent to Boom (stub, provisional)");
+    expect(e.summary).toBe(SPREAD.summary);
+    expect(e.detail?.body).toContain("2 files left the cockpit");
+    expect(e.actor).toBe("Dana Whitfield");
+    expect(e.sessionLocal).toBe(true);
+    expect(e.ts).toBe("2026-07-26T12:00:00.000Z");
+  });
+
+  it("names the period once the spread has landed, and the system that spread it", () => {
+    const e = spreadActivityEntry({ ...SPREAD, phase: "completed", period: "FY2025" });
+    expect(e.kind).toBe("ACTION_EXECUTED");
+    expect(e.title).toBe("Boom (stub, provisional) spread FY2025 for Piedmont Precision Components, Inc.");
+    expect(e.detail?.body).toContain("FY2025 is on the relationship's financials.");
+    expect(e.detail?.body).toContain("An analyst has not signed this spread off in Boom.");
+    expect(e.reference?.source).toBe("Boom (stub, provisional)");
+  });
+
+  it("drops the sign-off caveat only where an analyst has actually signed it off", () => {
+    const e = spreadActivityEntry({ ...SPREAD, phase: "completed", period: "FY2025", signedOff: true });
+    expect(e.detail?.body).not.toContain("has not signed this spread off");
+  });
+
+  it("carries the system's own words on a refusal, and says nothing moved", () => {
+    const e = spreadActivityEntry({
+      ...SPREAD,
+      phase: "failed",
+      failure: "Boom could not read this file. Nothing in it could be placed on a statement.",
+    });
+    expect(e.kind).toBe("ACTION_EXECUTION_FAILED");
+    expect(e.title).toBe("Boom (stub, provisional) did not spread these statements");
+    expect(e.detail?.body).toContain("Nothing in it could be placed on a statement.");
+    expect(e.detail?.body).toContain("Nothing on the relationship moved.");
+  });
+
+  it("keys one entry per plan per moment, so a re-render cannot double-log either", () => {
+    const sent = spreadActivityEntry({ ...SPREAD, phase: "sent" });
+    const again = spreadActivityEntry({ ...SPREAD, phase: "sent" });
+    const done = spreadActivityEntry({ ...SPREAD, phase: "completed", period: "FY2025" });
+    expect(sent.id).toBe(again.id);
+    expect(sent.id).not.toBe(done.id);
+    expect(mergeTrail([], [sent, again, done], [])).toHaveLength(2);
   });
 });

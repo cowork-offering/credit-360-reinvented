@@ -61,6 +61,12 @@ const PRODUCTS: Array<{ product: string; words: RegExp }> = [
 /** Every product the room can offer, in the order a C&I banker meets them. */
 export const NEW_FACILITY_PRODUCTS = PRODUCTS.map((p) => p.product);
 
+/** THE LINE WITHOUT ITS PURPOSE CLAUSE. "for equipment" is an answer about the
+ *  purpose and it must never be read as an answer about the product. */
+function withoutPurposeClause(line: string): string {
+  return line.replace(/\bfor\s+[^,;.]*/i, " ");
+}
+
 /** The product this line names, or null. */
 export function readProduct(line: string): string | null {
   for (const p of PRODUCTS) if (p.words.test(line)) return p.product;
@@ -185,8 +191,19 @@ export function readPurposeValue(said: string): string | null {
   if (!text) return null;
   const exact = PURPOSES.find((p) => p.value === text.toLowerCase().replace(/\s+/g, "_"));
   if (exact) return exact.value;
-  for (const p of PURPOSES) if (p.words.test(text)) return p.value;
-  return null;
+  /* THE LONGEST READING WINS (A2 audit, 2026-09-12). The org holds both
+     "Business credit line" and "Business credit line increase", and the first
+     one's words match "credit line" INSIDE the second one's label: scanned in
+     declaration order, the room's own chip for the increase read back onto the
+     plain credit line and the card then asserted the wrong coded value to the
+     banker. Longest match is the only reading that can tell two values apart
+     when one of their names contains the other. */
+  let best: { value: string; length: number } | null = null;
+  for (const p of PURPOSES) {
+    const hit = p.words.exec(text);
+    if (hit && (!best || hit[0].length > best.length)) best = { value: p.value, length: hit[0].length };
+  }
+  return best?.value ?? null;
 }
 
 /**
@@ -354,6 +371,23 @@ export interface NewFacilityAsk {
   kind: "ask";
   text: string;
   options?: Array<{ label: string; say: string }>;
+  /** THE LINE THIS ASK WAS READ FROM, answers folded in. The room holds it and
+   *  hands it back as `composing`, so the NEXT typed answer is read against the
+   *  whole composition rather than against the sentence it started as. */
+  draft: string;
+  /** WHERE THE COMPOSITION HAS GOT TO. The asks are a fixed sequence, so a
+   *  typed answer has only answered something if it moved the sequence ON: a
+   *  line that leaves the arm asking at the same slot, or sends it BACKWARDS by
+   *  renaming the product, answered nothing and belongs to another lane. */
+  slot: number;
+  /** HOW THIS ASK'S OWN CHIPS PHRASE AN ANSWER. A typed "working capital" is
+   *  the same answer as the chip, and the chip says "for working capital"; the
+   *  bare word reads onto nothing, and so does a bare date at the first-payment
+   *  question. Carried only by the asks whose readers need a marker — a
+   *  product, a commitment and a term all read bare — and tried only where the
+   *  bare fold answered nothing, so a line that already carries its own
+   *  preposition is untouched. */
+  phrase?: (answer: string) => string;
 }
 export interface NewFacilityCard {
   kind: "card";
@@ -391,6 +425,22 @@ export interface NewFacilityContext {
   staged: number;
   /** The artifact's own instant, for the first-payment chips. Never a clock. */
   generatedAt?: string;
+  /**
+   * THE DRAFT THIS ANSWER BELONGS TO (OPEN-2, 2026-09-12).
+   *
+   * The chips type the whole sentence back, so the room needed no state — but a
+   * banker who TYPES the answer does not type the sentence. "$3MM" at the
+   * amount ask names no new facility, so it fell straight past this arm and the
+   * composition the room had been building was lost in silence, under an ask
+   * that had just promised "say the commitment and I will put it on the new
+   * version". This is the line the arm last asked from; the answer is folded
+   * into it exactly as a chip would have.
+   */
+  composing?: string;
+  /** THE COMMITMENT THE CLIENT ASKED FOR, where the read carries a request.
+   *  Offered as a chip at the amount ask and NOWHERE else: it is a figure on
+   *  the book, not a default, and the banker is the one who sizes the loan. */
+  requestedCommitment?: number | null;
 }
 
 /**
@@ -402,14 +452,72 @@ export interface NewFacilityContext {
  */
 export function readNewFacility(ctx: NewFacilityContext): NewFacilityRead {
   if (ctx.mode !== "modify" && ctx.mode !== "renew") return null;
-  if (!namesANewFacility(ctx.line)) return null;
+  if (namesANewFacility(ctx.line)) return draftOn(readComposition(ctx, ctx.line), ctx.line);
+
+  /* THE ANSWER TYPED INTO AN OPEN ASK (OPEN-2, 2026-09-12). It names no new
+     facility on its own, so it is read against the draft the ask came from.
+
+     IT ONLY CLAIMS THE LINE IF IT MOVED THE DRAFT ON. The draft is re-read as
+     it stood and re-read with the answer folded in, and a fold that leaves the
+     room asking the very same question answered nothing: that line belongs to
+     whichever lane comes next, exactly as it did before this arm held any
+     state. So a commitment lands and "what is the coverage on the line of
+     credit" still falls through. */
+  const draft = ctx.composing?.trim();
+  if (!draft || !namesANewFacility(draft)) return null;
+  const open = readComposition(ctx, draft);
+  if (!open || open.kind !== "ask") return null;
+  /* THE ANSWER, BARE FIRST. A commitment, a term and a product all read
+     anywhere in the sentence, so most typed answers need nothing around them. */
+  const bare = withAnswer(draft, ctx.line);
+  const first = readComposition(ctx, bare);
+  if (moved(open, first)) return draftOn(first, bare);
+
+  /* AND THEN AS THE ASK'S OWN CHIP WOULD HAVE SAID IT. "working capital" typed
+     at a question whose chips all read "for working capital" is the same
+     answer, and dropping it would be the silent loss this fix exists for. */
+  if (open.phrase) {
+    const phrased = withAnswer(draft, open.phrase(ctx.line.trim()));
+    const second = readComposition(ctx, phrased);
+    if (moved(open, second)) return draftOn(second, phrased);
+  }
+  return null;
+}
+
+/** TRUE where the folded line took the composition FORWARD. Equal is a line
+ *  that answered nothing; backwards is a line that renamed something already
+ *  settled, which a question about another facility does by naming its product. */
+function moved(open: NewFacilityAsk, next: NewFacilityRead): boolean {
+  if (!next) return false;
+  if (next.kind === "handoff") return false;
+  if (next.kind === "card") return true;
+  return next.slot > open.slot;
+}
+
+/** An ask carries the line it was read from; nothing else does, because nothing
+ *  else leaves a composition open. */
+function draftOn(read: NewFacilityRead, line: string): NewFacilityRead {
+  return read && read.kind === "ask" ? { ...read, draft: line } : read;
+}
+
+/** The whole composition, read off ONE line. Stateless by construction: the
+ *  same line always reaches the same place. */
+function readComposition(ctx: NewFacilityContext, line: string): NewFacilityRead {
   if (ctx.mode === "renew") return { kind: "handoff", text: RENEWAL_HANDOFF };
 
-  const line = ctx.line;
-  const product = readProduct(line);
+  /* THE PRODUCT IS WHAT THE FACILITY IS, NEVER WHAT IT IS FOR (A2 audit,
+     2026-09-12). The whole sentence is re-read on every turn, so once the
+     purpose answer is on it the purpose vocabulary and the product vocabulary
+     collide: the room's own "Equipment" purpose chip, clicked on a HELOC,
+     re-read the product as Equipment and silently renamed the facility. The
+     purpose clause is taken off before the product is read; where that leaves
+     no product the room asks for one, which is the honest outcome. */
+  const product = readProduct(withoutPurposeClause(line));
   if (!product) {
     return {
       kind: "ask",
+      draft: line,
+      slot: 1,
       text:
         "What product is the new facility? The org builds the loan's own name from it and self-populates Construction when it is blank, " +
         "so a facility filed without one ships mislabelled.",
@@ -419,16 +527,33 @@ export function readNewFacility(ctx: NewFacilityContext): NewFacilityRead {
 
   const amount = readAmount(line);
   if (amount === null) {
-    return { kind: "ask", text: `How much is the new ${product.toLowerCase()}? Say the commitment and I will put it on the new version.` };
+    /* THE ONE FIGURE THE ROOM CAN OFFER HERE IS THE ONE THE CLIENT ASKED FOR,
+       and only where the read carries a request. There is no doctrine band for
+       the size of a facility nobody has structured yet, so with no request
+       there is no chip: a default commitment would be the room sizing the loan
+       (golden rule 2, the recommendation rule). */
+    const asked = ctx.requestedCommitment;
+    return {
+      kind: "ask",
+      draft: line,
+      slot: 2,
+      text: `How much is the new ${product.toLowerCase()}? Say the commitment and I will put it on the new version.`,
+      options:
+        typeof asked === "number" && asked > 0
+          ? [{ label: `The client asked for ${money(asked)}`, say: withAnswer(line, money(asked)) }]
+          : undefined,
+    };
   }
   if (amount <= 0) {
-    return { kind: "ask", text: "A commitment is greater than zero. What is the amount on the new facility?" };
+    return { kind: "ask", draft: line, slot: 2, text: "A commitment is greater than zero. What is the amount on the new facility?" };
   }
 
   const termMonths = readTermMonths(line);
   if (termMonths === null) {
     return {
       kind: "ask",
+      draft: line,
+      slot: 3,
       text: `What term does the ${money(amount)} ${product.toLowerCase()} run for? Salesforce prices on the amount and the term, and a facility with neither cannot be priced at all.`,
       options: [36, 60, 84, 120].map((m) => ({ label: `${m} months`, say: withAnswer(line, `with a ${m} month term`) })),
     };
@@ -438,6 +563,9 @@ export function readNewFacility(ctx: NewFacilityContext): NewFacilityRead {
   if (!said) {
     return {
       kind: "ask",
+      draft: line,
+      slot: 4,
+      phrase: (a) => `for ${a}`,
       text:
         "What is the primary loan purpose? It goes on the Loan Detail Salesforce creates for the facility, and the org leaves it null, " +
         "so nobody sets it unless this plan carries it. The org holds a fixed list, so say it in your own words and I will " +
@@ -452,6 +580,9 @@ export function readNewFacility(ctx: NewFacilityContext): NewFacilityRead {
   if (!purpose) {
     return {
       kind: "ask",
+      draft: line,
+      slot: 5,
+      phrase: (a) => `for ${a}`,
       text:
         `"${said}" is not one of the values this org offers for the primary loan purpose, and the field is a restricted ` +
         "picklist so the org refuses anything outside its own list rather than storing it. Which of these is it?",
@@ -467,6 +598,9 @@ export function readNewFacility(ctx: NewFacilityContext): NewFacilityRead {
     const same = { label: `Same as the term (${termMonths} months)`, say: withAnswer(line, `amortised over ${termMonths} months`) };
     return {
       kind: "ask",
+      draft: line,
+      slot: 6,
+      phrase: (a) => `amortised over ${a}`,
       text: `What is the amortisation term on the new ${product.toLowerCase()}? ${PRICING_WHY} It is a new loan, so nothing carries one for it.`,
       options: [
         same,
@@ -482,6 +616,9 @@ export function readNewFacility(ctx: NewFacilityContext): NewFacilityRead {
     const dates = [next, after].filter((d): d is string => d !== null);
     return {
       kind: "ask",
+      draft: line,
+      slot: 7,
+      phrase: (a) => `first payment ${a}`,
       text:
         `What is the first payment date on the new ${product.toLowerCase()}? ${PRICING_WHY} This is the last of the four.` +
         (dates.length ? "" : " This view carries no snapshot instant, so I will not offer a month; say the date."),

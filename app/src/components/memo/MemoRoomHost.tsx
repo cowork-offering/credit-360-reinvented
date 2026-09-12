@@ -10,6 +10,7 @@ import { latestMemo, saveAttestations, saveMemoDraft, type MemoDraft } from "../
 import { publishDraft } from "../../memo/publishAdapter";
 import type { ActionHistoryRow } from "../../data/contract";
 import { MemoRoom, type MemoContext, type MemoDeps, type MemoNarrator } from "./MemoRoom";
+import { byDeadline } from "../workroom/deadline";
 import { closeMemoRoom, useMemoRoom } from "./memoSession";
 import { executedRead, memoGreeting } from "./memoGreeting";
 import { RoomBoundary } from "../workroom/RoomBoundary";
@@ -89,7 +90,14 @@ export function MemoRoomHost() {
        catalog lags the Apex deploy), so the two new inputs are not sent yet: the
        read's default already returns steps for executed rows of the last 90 days,
        and executedRead narrows to the package on this side. */
-    fetchActionHistory(accountId, 25)
+    /* AND IT CARRIES A CLOCK (B4, founder latency brief 2026-09-12). The room
+       opens without this read, correctly, so a hung trail was never visible to
+       the banker - but it held the promise and its closure for the life of the
+       page, which is the one thing "no await without a deadline" exists to stop.
+       Fifteen seconds is the ordinary read budget, the same shape `clientMail`
+       already uses, and an expiry is silent for the same reason a refusal is:
+       the greeting falls back to the sweep's rows and says what it stands on. */
+    byDeadline(fetchActionHistory(accountId, 25), "read", "the action trail")
       .then(({ rows }) => {
         if (alive) setOrgRows(rows);
       })

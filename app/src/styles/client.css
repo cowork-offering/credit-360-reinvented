@@ -76,7 +76,22 @@
   background: none;
   border-radius: 999px;
   position: relative;
-  transition: all var(--dur-mid) var(--ease-out);
+  /* THE TAB TRANSITIONS PAINT, NOT LAYOUT (C2, founder latency brief
+     2026-09-12: "110% zero latency and smooth transitions etc in all workrooms
+     and chats"). This was `transition: all`, which interpolates whatever
+     property the element happens to change - and the one it changes on becoming
+     active is its LABEL's width. The layout-shift observer attributed every
+     shift on a tab switch to `.itab` nodes sliding horizontally, up to 19px
+     each, four or five siblings per event, over 300ms. `all` also silently
+     adopts any layout property a future edit adds, which is how this happened
+     in the first place. The four named below are the four the tab actually
+     changes between rest, hover and active, plus the press scale. */
+  transition:
+    color var(--dur-mid) var(--ease-out),
+    background-color var(--dur-mid) var(--ease-out),
+    border-color var(--dur-mid) var(--ease-out),
+    box-shadow var(--dur-mid) var(--ease-out),
+    transform var(--dur-mid) var(--ease-out);
 }
 .itab svg {
   width: 14px;
@@ -89,8 +104,16 @@
   stroke-linejoin: round;
   opacity: 0.85;
 }
-/* The label is present for assistive tech and for the active state; it is the
-   width that opens, so nothing reflows on hover. */
+/* The label is present for assistive tech and for the active state.
+
+   IT NO LONGER ANIMATES ITS OWN WIDTH (C2, 2026-09-12). The comment here used
+   to claim "it is the width that opens, so nothing reflows on hover" - but
+   `max-width` IS layout, and its neighbours reflowed for the whole 300ms with
+   it, which is every horizontal shift the observer recorded on a tab switch.
+   The slot still opens; it opens in ONE step, and only the word fades, so the
+   strip settles once instead of on every frame of a third of a second. The
+   resting states are pixel-identical: closed is max-width 0 at opacity 0, open
+   is 150px at opacity 1, exactly as before. */
 .itab .lbl {
   max-width: 0;
   overflow: hidden;
@@ -98,7 +121,7 @@
   font-size: 12.5px;
   font-weight: 600;
   opacity: 0;
-  transition: max-width 0.3s var(--ease-out), margin 0.3s var(--ease-out), opacity 0.25s var(--ease-out);
+  transition: opacity 0.25s var(--ease-out);
 }
 /* The resting tooltip is a PSEUDO-ELEMENT rather than a second span carrying
    the same words: an icon tab that spells its label twice in the DOM says it

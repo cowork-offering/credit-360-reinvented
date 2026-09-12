@@ -116,3 +116,35 @@ describe("coverage is the mirror of the exposed tool list", () => {
     expect(toolsCovering("is there a newer appraisal")).toEqual([]);
   });
 });
+
+/* =============================================================================
+   THE CONNECTED PARTY'S OWN BOOK (golden rule 1, downstream; backlog item 8).
+
+   `connectedPartyBook` exists because no read on this cockpit opens another
+   relationship's ledger, and `notCarried` says so by name. The ladder entry is
+   what lets the question REACH it: none of these lines carries a CURRENT word,
+   so without the entry every one of them stopped at rung 2 and the tool was
+   never offered for the one question it was built to answer. Pinned here as the
+   four phrasings a banker actually uses, and the one that must stay silent.
+   ============================================================================= */
+
+describe("the downstream question reaches connectedPartyBook", () => {
+  const lines = [
+    "what is the guarantor's own exposure",
+    "is the affiliate in breach",
+    "who is the parent company",
+    "what does the obligor group look like",
+  ];
+
+  it("fires on a party's own book, on an affiliate, on the parent and on the group", () => {
+    for (const line of lines) expect(toolsCovering(line), line).toContain("connectedPartyBook");
+  });
+
+  it("stays silent on an instruction that changes this package", () => {
+    // A modification is the fast lane's work. A 30 to 90 second round trip to
+    // another relationship's book, to stage a line increase, is the founder's
+    // latency complaint in its purest form.
+    expect(toolsCovering("increase the line to 20M")).toEqual([]);
+    expect(at("increase the line to 20M")).toMatchObject({ rung: 2, tier: "quick" });
+  });
+});

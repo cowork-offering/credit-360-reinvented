@@ -39,6 +39,17 @@ import { laneCalls, useLaneHealth, type LaneHealth } from "../channel/laneHealth
 /** The lanes, in the order the cockpit depends on them, with the word a banker
  *  uses for each. Display names come from SERVERS so the line can never name a
  *  connector the calls do not address. */
+/* THE BOOM LANE HAS NO CONNECTOR OF ITS OWN YET (2026-09-12), so
+   `SERVERS.boom` is the SAME STRING as `SERVERS.gateway` and both name the IDB
+   Gateway. The rows below are keyed by connector display name and the render
+   keys on it too, so a second row for the same name would be the same lane
+   printed twice, with the same sentence and a duplicate React key. So while the
+   two names are equal there is ONE row and it carries the Boom label; when the
+   Boom connector lands and the names differ, the gateway goes back to reading
+   "Gateway" and Boom earns a row of its own. Compared as strings deliberately:
+   after the flip the two literal types no longer overlap. */
+const BOOM_VIA_GATEWAY = (SERVERS.boom as string) === (SERVERS.gateway as string);
+
 const LANES: ReadonlyArray<{ server: string; label: string }> = [
   { server: SERVERS.customer360, label: "Salesforce" },
   /* THE BACKUP EARNS ITS PLACE ON THE LINE OR IT IS NOT ON IT. A read lane
@@ -48,7 +59,8 @@ const LANES: ReadonlyArray<{ server: string; label: string }> = [
      keeps any lane that has been called), or the viewer has not added it, which
      is a connector to add and worth one word. */
   { server: SERVERS.readBackup, label: "Backup" },
-  { server: SERVERS.gateway, label: "Gateway" },
+  { server: SERVERS.gateway, label: BOOM_VIA_GATEWAY ? "Boom (via gateway)" : "Gateway" },
+  ...(BOOM_VIA_GATEWAY ? [] : [{ server: SERVERS.boom, label: "Boom" }]),
   { server: SERVERS.m365, label: "Inbox" },
   { server: SERVERS.experience, label: "nCino" },
   { server: SERVERS.afs, label: "AFS" },

@@ -14,6 +14,8 @@ import { fmtDate, fmtMoney } from "../data/format";
 import { isActiveFacility, MATURITY_NEAR_WINDOW_DAYS } from "../data/worklist";
 import type { BorrowerBundle, C360Data, Covenant, Facility } from "../data/contract";
 import {
+  createMissLedger,
+  heardPreface,
   holdComposed,
   recallComposed,
   releaseComposed,
@@ -36,6 +38,7 @@ import {
   type ParseContext,
   type ParsedValue,
 } from "./parseModify";
+import { answerShape } from "./explain";
 import { greetingFor } from "./viewer";
 import type { SourceChip, WhyRow } from "./scripts";
 import type {
@@ -394,6 +397,14 @@ export function createRenewEngine(args: {
   const spent = new Set<string>();
   let deltaSeq = 0;
   let awaiting: Awaiting | null = null;
+  /** THE QUESTION ITSELF, with the sentence and the chips it went out with, so
+   *  a line that answers nothing is answered with the question again rather
+   *  than with the parser's capability lecture (A2 audit, 2026-09-12). */
+  let pending: { question: string; reply: string; chips: Array<{ label: string; say: string }> | undefined; awaiting: Awaiting } | null = null;
+  /** Consecutive lines ONE question could not read. */
+  const misses = createMissLedger();
+  /** The last term the banker actually settled, for a loose figure that follows. */
+  let lastAnswered: Awaiting | null = null;
 
   /* ------------------------------------------------------------- the deltas */
 
@@ -770,12 +781,12 @@ export function createRenewEngine(args: {
   }
 
   function toResult(outcome: ReturnType<typeof parseModify>, seq: number): IntentResult | null {
-    if (outcome.kind === "clarify")
-      return {
-        kind: "unparsed",
-        reply: withCurrent(outcome.question, outcome.awaiting),
-        options: clarifyChips(outcome.awaiting, outcome.options),
-      };
+    if (outcome.kind === "clarify") {
+      const reply = withCurrent(outcome.question, outcome.awaiting);
+      const chips = clarifyChips(outcome.awaiting, outcome.options);
+      if (outcome.awaiting) pending = { question: outcome.question, reply, chips, awaiting: outcome.awaiting };
+      return { kind: "unparsed", reply, options: chips };
+    }
     if (outcome.kind === "none") return null;
     // KEEP CURRENT — the banker held the term the renewal was waiting on. Say
     // the current figure back and stop asking; nothing stages, and the caller
@@ -841,6 +852,8 @@ export function createRenewEngine(args: {
     // reply to "what maturity does the renewal run to", and reading it as a new
     // instruction would lose both the field and the member.
     if (awaiting) {
+      const before = awaiting;
+      const onTheTable = pending?.question ?? "";
       const answered = parseAnswer(awaiting, text, parseContext());
       if (answered) {
         const result = toResult(answered, deltaSeq);
@@ -851,6 +864,15 @@ export function createRenewEngine(args: {
           const heldMaturity =
             answered.kind === "hold" && answered.field.id === MATURITY_FIELD.id && Boolean(answered.facility);
           awaiting = answered.kind === "clarify" ? (answered.awaiting ?? awaiting) : heldMaturity ? awaiting : null;
+          /* THE SAME QUESTION, PUT AGAIN, IS A MISS AND IS SAID AS ONE (A2
+             audit, 2026-09-12). A clarify that moved on is progress, not a
+             miss, so the two are told apart on the question itself. */
+          if (answered.kind === "clarify" && answered.question === onTheTable) {
+            result.reply = missReply(text, before, result.reply, pending?.chips);
+          } else {
+            misses.clear();
+            if (answered.kind === "amendments") lastAnswered = before;
+          }
           return settle(result);
         }
       }
@@ -900,9 +922,19 @@ export function createRenewEngine(args: {
     }
 
     const parsed = parseModify(text, parseContext());
-    awaiting = parsed.kind === "clarify" ? (parsed.awaiting ?? null) : null;
     const direct = toResult(parsed, deltaSeq);
-    if (direct) return settle(direct);
+    if (direct) {
+      /* THE PENDING QUESTION ONLY RETIRES ON A LINE THAT ANSWERED SOMETHING. It
+         used to retire on every line, so a stray keystroke took the question off
+         the table and the banker's next good answer had nothing to land on. */
+      awaiting = parsed.kind === "clarify" ? (parsed.awaiting ?? null) : null;
+      if (parsed.kind === "amendments") {
+        misses.clear();
+        const only = parsed.amendments.length === 1 ? parsed.amendments[0] : null;
+        lastAnswered = only ? { field: only.field, facility: only.facility } : null;
+      }
+      return settle(direct);
+    }
 
     if (deps.restate && deps.available()) {
       const words = [...new Set(members.map((f) => facilityProduct(f, relationship)))].concat("renew", "maturity date", "interest rate", "covenant", "pledge", "guarantor");
@@ -913,15 +945,43 @@ export function createRenewEngine(args: {
       }
     }
 
+    /* A LINE THAT ANSWERED NOTHING DOES NOT CANCEL THE QUESTION ON THE TABLE. */
+    if (awaiting && pending) {
+      asked = true;
+      return { kind: "unparsed", reply: missReply(text, awaiting, pending.reply, pending.chips), options: pending.chips };
+    }
+
     const named = membersNamedIn(text, parseContext());
     const scope = "The new maturity and a repricing file on the renewal; everything else rolls forward on the clone and I stage it as a handoff with the reason.";
+    /* AND A LOOSE FIGURE IS USUALLY A CORRECTION. Naming the term the banker
+       last settled, and the words that correct it, is the route out of what
+       used to be the capability lecture. */
+    const correcting =
+      lastAnswered && /\d/.test(text)
+        ? ` The last figure you settled was ${lastAnswered.field.label.toLowerCase()}${
+            lastAnswered.facility ? ` on the ${memberName(lastAnswered.facility)}` : ""
+          }. If that is what you are correcting, say "remove the ${lastAnswered.field.label.toLowerCase()}" and then name it again with the new figure.`
+        : "";
     asked = true;
     return {
       kind: "unparsed",
       reply: named.length
-        ? `I read the ${named.map(memberName).join(" and the ")}, but not what should change on the renewal. ${scope}`
-        : `I could not map that onto this package: it names no member I hold and no term I file. Name one of the members above and the maturity it renews to. ${scope}`,
+        ? `I read the ${named.map(memberName).join(" and the ")}, but not what should change on the renewal. ${scope}${correcting}`
+        : `I could not map that onto this package: it names no member I hold and no term I file. Name one of the members above and the maturity it renews to. ${scope}${correcting}`,
     };
+  }
+
+  /** THE HONEST RE-ASK. What was heard, then the question again, unchanged
+   *  underneath so the chips still answer it. */
+  function missReply(
+    said: string,
+    on: Awaiting,
+    question: string,
+    chips: Array<{ label: string; say: string }> | undefined,
+  ): string {
+    const seen = misses.miss(pending?.question ?? on.field.id);
+    const named = seen > 1 && chips?.length ? ` The chips under this answer it too: ${chips.map((c) => c.label).join(", ")}.` : "";
+    return `${heardPreface(said, answerShape(on.field))} ${question}${named}`;
   }
 
   /* --------------------------------------------------------- picking a member */

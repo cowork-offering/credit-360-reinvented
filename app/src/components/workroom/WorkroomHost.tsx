@@ -178,7 +178,17 @@ export function WorkroomHost() {
      shipping against the live bridge. `brainReachable()` is the mcp capability
      gate: with no capability there is no arm of the bridge that returns a
      reply, so the prop is ABSENT and the composer keeps only the fast lane. */
-  const brain = useMemo(() => (brainReachable() ? (envelope: BrainEnvelope) => askBrain(envelope) : undefined), []);
+  /* AND THE FIRST TOKEN COMES BACK WITH IT (B2, founder latency brief
+     2026-09-12). The room passes the callback; this forwards it to the lane,
+     which forwards it to the session door. The gateway rung does not stream and
+     simply never fires it, which is the honest answer there. */
+  const brain = useMemo(
+    () =>
+      brainReachable()
+        ? (envelope: BrainEnvelope, opts?: { onFirstToken?: () => void }) => askBrain(envelope, opts)
+        : undefined,
+    [],
+  );
 
   /* AN EXECUTED PLAN LANDS IN THE TRAIL (A30). The room hands over what it
      already holds; the entry is minted in actions/ where every other executed

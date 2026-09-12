@@ -1,0 +1,537 @@
+/* =============================================================================
+   THE SPREADING ROOM — ONLY WHAT IS NEW.
+
+   THE ROOM IS THE WORKROOM'S SHEET. Everything it shares with the other three
+   rooms is addressed by the SAME class and styled once, in workroom.css:
+   `.wk-root`, `.wk-scrim`, `.wk-room`, `.wk-head`, `.wk-title`, `.wk-spacer`,
+   `.wk-icobtn`. Nothing is restated here, because a second copy of the recipe
+   is how two rooms stop being one room. No rule in this file touches a `.wk-`
+   class, and no rule was added to workroom.css.
+
+   WHAT IS IN THIS FILE is the one flow the other rooms have no equivalent of:
+
+     .sp-body    the room's one scroller
+     .sp-drop    the drop zone, painted on the first frame
+     .sp-card    one dropped file, filling in place
+     .sp-ask     the one ask and its chips
+     .sp-plan    the governed plan and its confirm
+     .sp-ladder  Boom's own rungs, one row per file
+     .sp-fin     the live financials panel: tiles, trend, statements
+     .sp-post    the post-read prose
+
+   MATERIAL SPLIT, HONOURED. Every surface below is CONTENT, so every surface
+   below is SOLID: opaque, hairline, the card shadow. Not one declares a
+   `backdrop-filter`, so the glass census is unchanged by this room — the only
+   blurred surface it opens is `.wk-room` itself, cut from the one sheet by
+   `.eg-glass.eg-glass-workroom`.
+
+   TOKENS ONLY. No hex, no named colour, no font stack: everything is a
+   variable from tokens.css, so calm, liquid and reduced motion reach this room
+   through the same switches they reach every other surface through.
+
+   ONE ACCENT. `--accent` marks exactly three things: the recommended chip, the
+   trend's new point, and the new period's column. Everything else is ink.
+   ============================================================================= */
+
+/* THE ROOM'S ONE SCROLLER. The facility room's law ("exactly one scroller, and
+   it is .wk-thread") is a law about workroom.css and the thread it governs;
+   this room has no thread. It has one column that may run past the glass, and
+   it scrolls with no visible bar for the same reason the thread does. */
+.sp-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 26px 30px;
+  align-items: stretch;
+}
+.sp-body::-webkit-scrollbar {
+  display: none;
+}
+/* One column, centred, at the reading width the other rooms hold. */
+.sp-body > * {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.sp-anchor {
+  font-size: 12px;
+  color: var(--ink-muted);
+  letter-spacing: var(--tracking);
+}
+
+/* ---------------------------------------------------------------- the drop
+
+   IT IS THE FIRST THING PAINTED and it never leaves: once files are in, it
+   shrinks to a band so the banker can add another without hunting for a
+   control. The dashed rim is the only dashed edge in the app and it is what
+   makes a drop target read as one. */
+.sp-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 34px 24px;
+  border-radius: 16px;
+  border: 1px dashed var(--border-strong);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    padding var(--dur-mid) var(--ease-settle);
+}
+.sp-drop:hover,
+.sp-drop:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+.sp-drop:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+.sp-drop.is-over {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+/* Past the first drop the zone is a band, not a stage. */
+.sp-drop:not([data-stage="idle"]) {
+  padding: 14px 18px;
+}
+.sp-drop:not([data-stage="idle"]) .sp-drop-s {
+  display: none;
+}
+.sp-drop-g {
+  width: 26px;
+  height: 26px;
+  color: var(--ink-muted);
+}
+.sp-drop:not([data-stage="idle"]) .sp-drop-g {
+  width: 18px;
+  height: 18px;
+}
+.sp-drop-h {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.sp-drop-s {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  max-width: 52ch;
+}
+.sp-drop-b {
+  font-size: 12px;
+  color: var(--accent-ink);
+  border-bottom: 1px solid var(--accent-hairline);
+}
+.sp-file {
+  display: none;
+}
+
+.sp-refusals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--warning-prose);
+}
+.sp-refusals p {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- the cards
+
+   A DROPPED FILE IS A CARD IMMEDIATELY and the pre-read fills it IN PLACE.
+   Nothing here re-lays-out as lines arrive: the list grows downward inside a
+   card whose header was correct from the first frame. */
+.sp-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sp-card {
+  padding: 13px 16px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  animation: wk-in 460ms var(--ease-settle) both;
+}
+.sp-card.is-out {
+  opacity: 0.55;
+}
+.sp-card-h {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.sp-card-n {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-card-b,
+.sp-card-s {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  flex: none;
+}
+.sp-card-s {
+  margin-left: auto;
+}
+.sp-card-r {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--warning-prose);
+}
+.sp-card-l {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sp-card-l li {
+  font-size: 12.5px;
+  color: var(--ink-body);
+  animation: wk-in 380ms var(--ease-settle) both;
+}
+
+/* ------------------------------------------------------------------ the ask
+
+   ONE ASK, never two. The lead is a statement of what was found; the chips are
+   the real options; at most one is recommended and it says what grounds it. */
+.sp-ask {
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  animation: wk-in 550ms var(--ease-settle) both;
+}
+.sp-ask-lead {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--ink-strong);
+}
+.sp-ask-rest {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.sp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sp-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: var(--radius-ctl);
+  border: 1px solid var(--border);
+  background: var(--quiet-fill);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.sp-chip:hover {
+  background: var(--quiet-fill-hover);
+}
+.sp-chip.is-rec {
+  border-color: var(--accent-hairline-strong);
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+}
+.sp-chip-why {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+/* ----------------------------------------------------------------- the plan */
+.sp-plan,
+.sp-ladder,
+.sp-fin,
+.sp-post {
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  animation: wk-in 550ms var(--ease-settle) both;
+}
+.sp-plan-k {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+.sp-plan-s {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--ink-strong);
+}
+.sp-plan-n {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.sp-go {
+  margin-top: 14px;
+  padding: 9px 18px;
+  border-radius: var(--radius-ctl);
+  border: 1px solid transparent;
+  background: var(--brand);
+  color: var(--ink-inverse);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sp-go:hover {
+  background: var(--accent);
+}
+
+/* ---------------------------------------------------------------- the ladder
+
+   THE SAME CINEMATIC PROGRESSION THE FILING FINALE USES: one row per file,
+   five rungs, the current one lit. The dots do not spin: a rung that is waiting
+   BREATHES, so a stalled step still reads as a state rather than as a loader
+   that has hung. */
+.sp-ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sp-rung {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12.5px;
+}
+.sp-rung-n {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.sp-rung-d {
+  display: inline-flex;
+  gap: 5px;
+  flex: none;
+}
+.sp-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--fill-strong);
+}
+.sp-dot.is-on {
+  background: var(--accent);
+}
+.sp-dot.is-now {
+  animation: sp-breathe 1.8s ease-in-out infinite;
+}
+.sp-rung[data-state="failed"] .sp-dot.is-on {
+  background: var(--critical);
+}
+.sp-rung-w {
+  flex: none;
+  width: 84px;
+  text-align: right;
+  color: var(--ink-muted);
+}
+.sp-rung-m {
+  flex: none;
+  color: var(--warning-prose);
+}
+@keyframes sp-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.sp-stall {
+  padding-top: 6px;
+  border-top: 1px solid var(--divider-soft);
+  font-size: 12.5px;
+  color: var(--ink-body);
+}
+.sp-stall p {
+  margin: 8px 0 10px;
+}
+
+/* ------------------------------------------------------- the live financials
+
+   THE BOOM FINANCIALS WIDGET'S REGISTER, in the room: the same tiles, the same
+   one-accent trend, the same statement table. A figure ROLLS to its new value
+   through the shared odometer; the last-good figure is what it rolls FROM, so
+   nothing is ever blank. */
+.sp-fin-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sp-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: 10.5px;
+  letter-spacing: var(--tracking);
+}
+.sp-badge.is-ok {
+  background: var(--positive-bg);
+  color: var(--positive);
+  border-color: transparent;
+}
+.sp-badge.is-prov {
+  background: var(--warning-bg);
+  color: var(--warning-prose);
+  border-color: transparent;
+}
+.sp-verify {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--accent-ink);
+}
+.sp-tiles {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 12px;
+}
+.sp-tile {
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--wash-2);
+  border: 1px solid var(--border);
+}
+.sp-tile-k {
+  font-size: 10.5px;
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+.sp-tile-v {
+  margin-top: 5px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  font-variant-numeric: tabular-nums;
+}
+.sp-trend {
+  width: 100%;
+  height: auto;
+  margin-top: 16px;
+}
+.sp-trend-line {
+  stroke: var(--accent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.sp-trend-new {
+  fill: var(--accent);
+}
+.sp-trend-ax text {
+  fill: var(--ink-faint);
+  font-family: var(--font-sans);
+  font-size: 10px;
+}
+.sp-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* The statement tabs. The table is the one thing in this room wide enough to
+   need its own horizontal scroller, and it takes one rather than making the
+   room scroll sideways. */
+.sp-st {
+  margin-top: 16px;
+}
+.sp-st-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--divider-soft);
+}
+.sp-st-tab {
+  padding: 7px 12px;
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.sp-st-tab.is-on {
+  color: var(--ink-strong);
+  border-bottom-color: var(--accent);
+}
+.sp-st-scroll {
+  overflow-x: auto;
+}
+.sp-st-t {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.sp-st-t th,
+.sp-st-t td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--row-divider);
+  text-align: left;
+  white-space: nowrap;
+}
+.sp-st-t th {
+  font-size: 10.5px;
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+  color: var(--ink-label);
+  font-weight: 600;
+}
+.sp-st-t .r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sp-st-t .is-new {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}
+.sp-st-t tr[data-hierarchy="total"] td,
+.sp-st-t tr[data-hierarchy="subtotal"] td {
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+/* ------------------------------------------------------------- the post-read */
+.sp-prose p {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--prose-deep);
+}

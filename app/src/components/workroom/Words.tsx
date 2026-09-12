@@ -17,6 +17,20 @@ import { useMemo } from "react";
 
 export const WORD_STAGGER_MS = 26;
 
+/**
+ * THE WAIT THE BANKER IS ACTUALLY IN (A14, 2026-09-12).
+ *
+ * A rung-3 line goes out to the org and the room allows it up to 150 seconds
+ * (`timeoutFor`, channel/ladder.ts), while the glass showed the same breathing
+ * mark a one-second restatement shows. Two minutes of that reads as a hang. One
+ * clause beside the mark says which wait this is; nothing else about the wait
+ * changes, and the timeout clarify still names the number afterwards.
+ *
+ * It lives here because BOTH rooms say it, and a second copy of a sentence is
+ * how two rooms stop saying the same thing.
+ */
+export const REACHES_THE_ORG = "This one reaches the org and can take up to two minutes.";
+
 export function Words({ text, offset = 0 }: { text: string; offset?: number }) {
   const parts = useMemo(() => text.split(/(\s+)/).filter((p) => p !== ""), [text]);
   let n = offset - 1;

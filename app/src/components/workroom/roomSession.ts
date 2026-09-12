@@ -63,6 +63,42 @@ const PROVISIONAL: WorkroomMode = "modify";
 let session: RoomSession | null = null;
 const listeners = new Set<() => void>();
 
+/* =============================================================================
+   THE LOOKUP IS PAID ONCE PER SESSION (A2, founder latency brief 2026-09-12:
+   "110% zero latency and smooth transitions etc in all workrooms and chats").
+
+   Binding a route REBUILDS the room on the new engine — that remount is
+   load-bearing, one session is one engine is one plan, and nothing here touches
+   it. What the remount must not do is charge the banker for the ritual a second
+   time: measured, choosing "Renew" or "New facility" put the composer back to
+   sleep and enabled it again 1,516 to 1,568 ms later, while "Modify" cost 60 ms
+   because the provisional route was already `modify` and the key did not move.
+   Same gesture, three sibling chips, a 25x spread.
+
+   So the ROOM remembers that it has already looked this relationship up, and
+   the remounted room lands the ritual synchronously instead of re-running the
+   timer. Deliberately NOT part of `RoomSession`: this is not state anything
+   renders from, and putting it in the store would push a new session object
+   through `useSyncExternalStore` at the exact moment the room is landing.
+
+   It lives and dies with the session. `openFacilityRoom` clears it, so every
+   room a banker opens shimmers once; `closeFacilityRoom` clears it, so the next
+   open shimmers again. The named door (`openWorkroom`, the palette and deep
+   links) holds no session at all and therefore never skips.
+   ============================================================================= */
+let lookedUp = false;
+
+/** The ritual landed. Called by the room, never by a caller. */
+export function markFacilityRoomLookedUp(accountId: string): void {
+  if (!session || session.accountId !== accountId) return;
+  lookedUp = true;
+}
+
+/** Has this session already paid for the lookup on this relationship? */
+export function facilityRoomLookedUp(accountId: string): boolean {
+  return lookedUp && !!session && session.accountId === accountId;
+}
+
 function emit() {
   for (const l of listeners) l();
 }
@@ -91,6 +127,8 @@ export function openFacilityRoom(args: {
     // the join, and it is the only gesture that speaks for the banker.
     joinPackageId: null,
   };
+  // A NEW ROOM SHIMMERS. The ritual is per relationship-session, not per page.
+  lookedUp = false;
   emit();
 }
 
@@ -138,6 +176,7 @@ export function bindFacilityRoute(
 export function closeFacilityRoom(): void {
   if (!session) return;
   session = null;
+  lookedUp = false;
   /* THE MESSAGE THE ROOM WAS OPENED ON DIES WITH THE ROOM. A carried mail that
      outlived its session would lead the NEXT room's greeting with a message
      nobody clicked, and would outrank a newer one a sweep had since landed. */

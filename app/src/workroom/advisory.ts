@@ -399,7 +399,68 @@ const article = (word: string) => (/^[aeiou]/i.test(word) ? "an" : "a");
 
 /* --------------------------------------------------------------- the set */
 
+/* ------------------------------------------- 7. a figure off any known scale */
+
+/**
+ * A RATE THAT IS NOT A RATE, AND A LIMIT THAT IS NOT A LIMIT.
+ *
+ * The stress script's own line: an absurd figure must be QUESTIONED, never
+ * staged in silence. A rate of 0%, of 0.0001% or of 600% and a commitment of a
+ * trillion dollars all went onto the plan with the same "1 of these goes on the
+ * clone" as a sound one (A2 audit, 2026-09-12).
+ *
+ * NOTHING HERE IS A POLICY BAND and nothing is recommended. The rate test is
+ * arithmetic about what a rate IS, and the commitment test is stated against
+ * the package's own committed total, which is a figure on file. The entry stays
+ * open either way: this room informs, and the org's guards do the blocking.
+ */
+const RATE_FLOOR = 0.01;
+const RATE_CEILING = 100;
+/** How many times the package's own total a single limit may be before it is
+ *  worth saying out loud. Not a policy: a multiple this large is a keystroke. */
+const COMMITMENT_MULTIPLE = 100;
+
+const figureOffTheScale: Rule = ({ amendment, delta }, input) => {
+  const wire = delta.wire;
+  const facility = amendment.facility;
+  if (!wire || typeof wire.value !== "number" || !facility) return null;
+  const name = input.memberName(facility);
+
+  if (wire.key === "requestedRate") {
+    const rate = wire.value;
+    if (rate >= RATE_FLOOR && rate < RATE_CEILING) return null;
+    const held = typeof facility.interestRate === "number" ? `${facility.interestRate}%` : null;
+    return {
+      id: `advice:rate-off-scale:${facility.loanId ?? name}:${rate}`,
+      rule: "rate-off-the-scale",
+      line:
+        rate < RATE_FLOOR
+          ? `${rate}% on the ${name} prices the facility at nothing${held ? `, against ${held} today` : ""}. A rate the bank can approve is a rate it earns on, so this is either a waiver said another way or the figure came out wrong.`
+          : `${rate}% on the ${name} is not a rate this book carries${held ? `, against ${held} today` : ""}. Check the figure before it goes up for approval.`,
+      resolution: held
+        ? { label: `Hold ${held}`, say: `keep the rate on the ${input.identity(facility)}` }
+        : undefined,
+    };
+  }
+
+  if (wire.key === "requestedAmount") {
+    const limit = wire.value;
+    const total = input.committed;
+    if (!total || limit <= total * COMMITMENT_MULTIPLE) return null;
+    return {
+      id: `advice:commitment-off-scale:${facility.loanId ?? name}:${limit}`,
+      rule: "commitment-off-the-scale",
+      line: `A limit of ${fmtMoney(limit)} on the ${name} is ${Math.round(limit / total).toLocaleString()} times the ${fmtMoney(
+        total,
+      )} this package carries in total. Check the figure before it goes up for approval.`,
+    };
+  }
+
+  return null;
+};
+
 const RULES: Rule[] = [
+  figureOffTheScale,
   commitmentBelowOutstanding,
   amendOrAddSecond,
   maturityOutOfOrder,

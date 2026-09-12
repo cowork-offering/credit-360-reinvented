@@ -19,6 +19,7 @@ import { packageJoinability } from "../data/packageStage";
 import { isActiveFacility } from "../data/worklist";
 import type { BorrowerBundle, C360Data, Facility } from "../data/contract";
 import {
+  heardPreface,
   holdComposed,
   recallComposed,
   releaseComposed,
@@ -722,11 +723,15 @@ export function createCreateEngine(args: {
     const missing = missingRequired(onManifest);
     awaiting = missing[0] ?? null;
     asked = true;
+    /* WHAT THE ROOM HEARD, BEFORE IT ASKS AGAIN (A2 audit, 2026-09-12). The
+       question here is a constant per field, so a banker whose line the parser
+       could not place read the identical sentence every turn and had no way to
+       tell whether the room had heard them at all. */
     return {
       kind: "unparsed",
       reply: missing.length
-        ? `I could not place that on the facility. ${questionFor(missing[0])}`
-        : "I could not place that. Product, amount and purpose are all set, so the next move is to file it — or name a term to change.",
+        ? `${heardPreface(text, "an answer to that")} ${questionFor(missing[0])}`
+        : `${heardPreface(text, "a change to the facility")} Product, amount and purpose are all set, so the next move is to file it, or to name a term to change.`,
       options: optionsFor(missing[0] ?? null),
     };
   }
@@ -751,8 +756,12 @@ export function createCreateEngine(args: {
     return {
       kind: "unparsed",
       reply: `${facilityProduct(facility, relationship)} is already ${joining ? "on the package" : "on the relationship"}${held ? `: ${held}` : ""}. This room adds a new facility ${joining ? "beside it" : "on a new package beside it"}. ${
-        missing.length ? questionFor(missing[0]) : "Product, amount and purpose are set — confirm and I will file it."
+        missing.length ? questionFor(missing[0]) : "Product, amount and purpose are set: confirm and I will file it."
       }`,
+      /* THE QUESTION KEEPS ITS CHIPS WHEREVER IT IS ASKED (A2 audit,
+         2026-09-12). This was the one asking of the product question that
+         arrived without them. */
+      options: optionsFor(missing[0] ?? null),
     };
   }
 

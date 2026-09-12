@@ -9,6 +9,7 @@ import {
   OVERRIDE_NEEDS_A_REASON,
   REL_FLOWS,
   RelFlowError,
+  SCORED_VS_STORED,
   SKIPPED,
   VALUATION_BATCH_CAP,
   asksForClassification,
@@ -370,6 +371,56 @@ describe("the risk-rating review is account-level and carries no facility scope"
     ]);
   });
 
+  /* PERMANENT COVER for the relationship fixer's item 8 (backlog item 13). The
+     four factors were four blank numeric boxes in a row, and the one the org's
+     template actually scores was indistinguishable from the three it stores and
+     never weighs. It was verified with a harness that was then deleted; this is
+     the standing test. */
+  it("leads the scored factor with the closest figure the read carries, named as the covenant's", () => {
+    const measured = ctxFor({
+      covenants: {
+        covenants: [
+          { covenantId: "cov1", covenantType: "Debt Service Coverage", latestComplianceStatus: "Pending", actualValue: 1.08 },
+        ],
+      },
+    } as never);
+    const first = nextStep("rating", measured, {})!;
+    expect(first.key).toBe("cashFlowCoverage");
+    expect(first.ask).toBe(
+      "What is cash-flow coverage on this borrower? The closest figure the read carries is the Debt Service Coverage test at 1.08.",
+    );
+    // OFFERED, NEVER WRITTEN. The chip carries the covenant's own figure and
+    // says whose figure it is, so nobody reads it as a rating input on file.
+    expect(first.options).toEqual([
+      { label: "1.08", value: "1.08", detail: "the Debt Service Coverage test's own figure" },
+    ]);
+    expect(first.optional).toBe(true);
+    expect(first.target).toEqual({ object: "LLC_BI__Annual_Review__c", field: "cashFlowCoverageActual" });
+  });
+
+  it("says so plainly where the read carries nothing, and invents no figure", () => {
+    // The baked fixture's covenant carries no `actualValue` at all.
+    const blind = nextStep("rating", ctx, {})!;
+    expect(blind.key).toBe("cashFlowCoverage");
+    expect(blind.ask).toContain("No read on this cockpit carries it, so the figure is yours or the question is skipped.");
+    expect(blind.options).toBeUndefined();
+  });
+
+  it("lands SCORED_VS_STORED on the FIRST unscored factor, and on no other", () => {
+    /* Said over the scored factor it would tell the banker nothing about the
+       three still coming; said on every one of them it is a lecture. */
+    const a: Answers = {};
+    const carrying: string[] = [];
+    for (const _ of [0, 1, 2, 3]) {
+      const step = nextStep("rating", ctx, a)!;
+      if (step.ask.includes(SCORED_VS_STORED)) carrying.push(step.key);
+      a[step.key] = SKIPPED;
+    }
+    expect(carrying).toEqual(["revenueGrowth"]);
+    expect(SCORED_VS_STORED).toContain("scores cash-flow coverage and nothing else");
+    expect(SCORED_VS_STORED).toContain("the tool cannot choose the template");
+  });
+
   it("composes four NAMED scalars, never a factor map, and no override key", () => {
     const answers = driveTo("rating", ctx, { cashFlowCoverage: 1.35, creditScore: 680, overrideComment: "Held at 5." });
     const built = buildStagePayload("rating", ctx, answers, "key-1");
@@ -498,6 +549,58 @@ describe("the service request is purely account-level, with its subject and body
     // `description` key on this request class and the room does not invent one.
     expect(p).not.toHaveProperty("description");
     expect(p.rationale).toContain("No credit action requested.");
+  });
+
+  /* PERMANENT COVER for the relationship fixer's item 9 (backlog item 13). The
+     `detail` step claimed `{Case, Description}` on its peek — the field
+     `summary` already owns and actually writes — so the founder was reading a
+     wrong field name on the glass. `a.detail` rides the plan's RATIONALE and
+     reaches no Case field at all, and a step with no target claims nothing. */
+  it("the detail step claims no field, because the answer reaches none", () => {
+    const step = nextStep("service", ctx, { requestType: "Payoff quote", summary: "The full request." })!;
+    expect(step.key).toBe("detail");
+    expect(step.optional).toBe(true);
+    expect(step.target).toBeUndefined();
+    // The ask itself says where the words go, which is what the peek cannot.
+    expect(step.ask).toBe("Anything further for the audit record? It rides the plan's rationale, not the case body.");
+  });
+
+  it("every peek on this route names a key the staged payload actually writes", () => {
+    const answers = driveTo("service", ctx, {
+      requestType: "Payoff quote",
+      summary: "James Hartwell asked for a payoff quote.",
+      detail: "No credit action requested.",
+    });
+    const built = buildStagePayload("service", ctx, answers, "key-1");
+    const p = (built as { payload: Record<string, unknown> }).payload;
+    /* THE PEEK IS A PROMISE. A step that names an object and a field is telling
+       the banker where their answer lands, so the set of fields the route
+       claims has to be a subset of what the wire carries: Subject from
+       `requestType`, Description from `summary`, and nothing else claimed. */
+    const claimed: Array<{ key: string; target?: { object: string; field: string } }> = [];
+    const a: Answers = {};
+    for (let guard = 0; guard < 8; guard++) {
+      const step = nextStep("service", ctx, a);
+      if (!step) break;
+      claimed.push({ key: step.key, target: step.target });
+      a[step.key] = "x";
+    }
+    expect(claimed.map((c) => `${c.key}:${c.target ? `${c.target.object}.${c.target.field}` : "nothing"}`)).toEqual([
+      "requestType:Case.Subject",
+      "summary:Case.Description",
+      "detail:nothing",
+    ]);
+    // And the wire's own key set, so a claim and a write cannot drift apart.
+    expect(Object.keys(p).sort()).toEqual([
+      "accountId",
+      "idempotencyKey",
+      "rationale",
+      "referenceId",
+      "referenceKind",
+      "referenceWebLink",
+      "requestType",
+      "summary",
+    ]);
   });
 
   it("offers the client's own words as the SUBJECT chip, never written silently", () => {

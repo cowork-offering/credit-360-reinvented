@@ -73,20 +73,27 @@ const band = () => container!.querySelector(".kpi-live");
 const retryButton = () => [...container!.querySelectorAll("button")].find((b) => /Retry/i.test(b.textContent ?? ""));
 
 describe("the unreachable banner", () => {
-  it("stays away while the retry runs, then names the fix, the freshness and a gesture", async () => {
+  /* WHAT THE BANNER SAYS CHANGED ON 2026-09-12 (founder, audit item A15). It
+     used to print `McpFailure.fix` — "Customer 360 is briefly unreachable...",
+     and on an authz failure "Add IDB Gateway in claude.ai Settings >
+     Connectors" — which is the OPERATOR's sentence on the banker's own landing.
+     The operator sentence keeps its surface (`HealthLine`); the band now says
+     what the tiles are standing on. Everything else these cases pin — the retry
+     budget, the freshness stamp, the gesture, the clearing — is unchanged. */
+  it("stays away while the retry runs, then names what the tiles show, the freshness and a gesture", async () => {
     vi.useFakeTimers();
     let good = true;
     mount(() => (good ? Promise.resolve(GOOD) : Promise.reject(UNAVAILABLE)));
     await tick();
-    expect(band()?.textContent ?? "").not.toContain("briefly unreachable");
+    expect(band()?.textContent ?? "").not.toContain("last good read");
 
     good = false;
     await tick(PORTFOLIO_REFETCH_MS);
-    expect(band()?.textContent ?? "").not.toContain("briefly unreachable"); // the retry is still running
+    expect(band()?.textContent ?? "").not.toContain("last good read"); // the retry is still running
 
     await tick(RETRY_BUDGET_MS + 50);
     const text = band()?.textContent ?? "";
-    expect(text).toContain("briefly unreachable");
+    expect(text).toContain("This tile shows the last good read.");
     /* THE DAY RIDES WITH THE CLOCK once the stamp is not today's. The
        2026-09-03 outage ran two hours; "last good data, 14:03 UTC" on its own
        cannot say whether that was this morning or last week, which is the one
@@ -102,12 +109,12 @@ describe("the unreachable banner", () => {
     await tick();
     good = false;
     await tick(PORTFOLIO_REFETCH_MS + RETRY_BUDGET_MS + 50);
-    expect(band()?.textContent).toContain("briefly unreachable");
+    expect(band()?.textContent).toContain("This tile shows the last good read.");
     expect(band()?.textContent).toMatch(/14:03 UTC/); // the figures on screen are the last good ones
 
     good = true;
     await tick(PORTFOLIO_REFETCH_MS);
-    expect(band()?.textContent ?? "").not.toContain("briefly unreachable");
+    expect(band()?.textContent ?? "").not.toContain("last good read");
     expect(retryButton()).toBeUndefined();
   });
 
@@ -116,7 +123,7 @@ describe("the unreachable banner", () => {
     let good = false;
     const h = mount(() => (good ? Promise.resolve(GOOD) : Promise.reject(UNAVAILABLE)));
     await tick(RETRY_BUDGET_MS + 50);
-    expect(band()?.textContent).toContain("briefly unreachable");
+    expect(band()?.textContent).toContain("This tile shows the last good read.");
     const before = h.portfolioCalls().length;
     expect(before).toBeGreaterThan(1); // the retry policy was spent first
 
@@ -125,6 +132,6 @@ describe("the unreachable banner", () => {
     expect(retryButton()!.textContent).toContain("Retrying");
     await tick();
     expect(h.portfolioCalls().length).toBe(before + 1);
-    expect(band()?.textContent ?? "").not.toContain("briefly unreachable");
+    expect(band()?.textContent ?? "").not.toContain("last good read");
   });
 });

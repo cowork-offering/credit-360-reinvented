@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   askBrain,
   composeBrainPrompt,
+  NO_ANSWER_CLARIFY,
   NOT_CONNECTED_CLARIFY,
   parseBrainReply,
   restateProposal,
@@ -351,13 +352,22 @@ describe("the wire never hands the room something it cannot draw", () => {
     expect(reply).toEqual(UNREADABLE_CLARIFY);
   });
 
-  it("degrades a transport failure to the neutral clarify", async () => {
+  /* CHANGED 2026-09-12 (founder: "avoid any fallbacks", the fallback audit).
+     A door that threw produced NO reply, and telling the banker the reply could
+     not be read is a false statement about the desk, followed by "try asking
+     directly", which points back at the path that just failed. The two failures
+     are now told apart: this one says the desk did not answer, and the
+     malformed-reply case above still degrades as unreadable. */
+  it("says the desk did not answer when the transport failed, not that the reply was unreadable", async () => {
     const reply = await askBrain(envelope, {
       send: async () => {
         throw { code: "server_unavailable", message: "gateway down" };
       },
     });
-    expect(reply).toEqual(UNREADABLE_CLARIFY);
+    expect(reply).toEqual(NO_ANSWER_CLARIFY);
+    expect(reply).not.toEqual(UNREADABLE_CLARIFY);
+    // Rule 4: it still hands the banker a move the room can actually take.
+    expect(NO_ANSWER_CLARIFY.text).toMatch(/say the change you want/i);
   });
 
   it("names the delay honestly when the desk does not come back", async () => {

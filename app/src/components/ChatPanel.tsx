@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { askDesk, deskAvailable } from "../channel/deskAsk";
+import { startPacer } from "../channel/streamPacer";
+import { prefersReducedMotion } from "../data/motion";
 import { openFacilityRoom } from "./workroom/roomSession";
 import { smartOpeningFor } from "./workroom/route";
 import { openRelationshipRoom } from "./relationship/relSession";
 import { relOpeningForAccount } from "./relationship/RelationshipRoom";
 import { useApp, ACCOUNT_TABS } from "../state/appState";
 import type { AiMessage } from "../data/contract";
-import { formatProbe, newRequestId, probeChannels } from "../channel/adapter";
-import { mcpAvailable, type McpFailure } from "../channel/mcp";
+import { formatProbe, newRequestId, probeChannels, type AgentChannel } from "../channel/adapter";
+import { mcpAvailable } from "../channel/mcp";
 import { askCopilot } from "../channel/cockpitTools";
 import { resolveBundle } from "../actions/registry";
 import { ActionPanel } from "./ActionPanel";
@@ -20,33 +22,63 @@ import { GooFilter, LiquidMark } from "./workroom/Liquid";
 
 type SendState = "idle" | "sending" | "handedOff" | "answered" | "error";
 
-/** The chat's own word cadence (rule 9): ~60ms apart, each word 340ms. The
- *  room's is faster (26ms) because the room speaks in one short sentence and
- *  the assist answers in paragraphs. */
-const CHAT_WORD_MS = 60;
-
 /**
  * THE ANSWER ARRIVES, IT DOES NOT APPEAR (rule 9).
  *
  * Words condense in one at a time — opacity, a 4px rise and a blur clearing —
  * so a long answer reads as being said rather than pasted in one block. The
  * whitespace stays as plain text nodes, which keeps `textContent` byte-identical
- * to what the copilot returned: nothing about the animation changes the answer.
+ * to what the desk returned: nothing about the animation changes the answer.
+ *
+ * THE RATE IS THE ROOMS' RATE NOW (D1, founder latency brief 2026-09-12: "110%
+ * zero latency and smooth transitions etc in all workrooms and chats"). It used
+ * to be a fixed 60ms CSS stagger per word — `animationDelay: n * 60ms` — with no
+ * catch-up and no cap, which is 16.7 words a second: 2.3 times slower than the
+ * rooms and BELOW the pacer's own resting floor of 26. Because it was linear it
+ * scaled without limit, so the longest legal desk answer (DESK_ANSWER_WORDS,
+ * 140) took 8.4 seconds to finish arriving and the banker read the chat as the
+ * slow surface in the cockpit. The same 140 words on the rooms' pacer take 3.0
+ * seconds, because the pacer leans into a backlog instead of crawling through
+ * it.
+ *
+ * SO THE PACER RELEASES THE WORDS AND THE CSS STILL SAYS THEM. `startPacer` is
+ * the rooms' own clock (BASE_RATE 26, MAX_RATE 72, CATCH_UP 0.34) and it hands
+ * out a growing PREFIX; each word that arrives is a new DOM node and runs the
+ * `.chatw` condense on its own, with no delay, because the pacer is already the
+ * cadence. The previously released words keep their nodes and never re-animate.
+ *
+ * IT PACES THE GUARDED ANSWER, NEVER A PARTIAL. `askDesk` resolves to text that
+ * `deskAnswer` has already stripped of markdown and clipped to budget. A raw
+ * stream would put unguarded markdown on the glass and then shrink it, which is
+ * the defect `Narration.tsx` documents; the guarded text paced at the rooms'
+ * rate is the honest version of the same beat.
  *
  * ONLY THE ANSWER THIS SESSION JUST RECEIVED runs it. Injected history is
  * already-read text, and staggering forty words of it on every panel open would
  * be a load animation over something that never loaded.
+ *
+ * REDUCED MOTION LANDS IT WHOLE, which is the pacer's own contract and the path
+ * every jsdom test takes.
  */
 function ChatWords({ text }: { text: string }) {
-  const parts = useMemo(() => text.split(/(\s+)/).filter((p) => p !== ""), [text]);
-  let n = -1;
+  const [visible, setVisible] = useState(() => (prefersReducedMotion() ? text : ""));
+  useEffect(() => {
+    if (!text) {
+      setVisible("");
+      return;
+    }
+    const pacer = startPacer({ emit: (v) => setVisible(v), instant: prefersReducedMotion() });
+    pacer.finish(text);
+    return () => pacer.cancel();
+  }, [text]);
+
+  const parts = useMemo(() => visible.split(/(\s+)/).filter((p) => p !== ""), [visible]);
   return (
     <>
       {parts.map((part, i) => {
         if (/^\s+$/.test(part)) return part;
-        n += 1;
         return (
-          <span className="chatw" style={{ animationDelay: `${n * CHAT_WORD_MS}ms` }} key={i}>
+          <span className="chatw" key={i}>
             {part}
           </span>
         );
@@ -83,6 +115,43 @@ function ConnectionDetails() {
     </details>
   );
 }
+
+/* ======================================================= THE DOORS AND THE COPY
+
+   THE GATE COUNTED THE WRONG DOORS (founder 2026-09-12, the fallback audit).
+   `available` was `live || channel.available()`: the connector, and the legacy
+   prompt bridge. Neither is the door the cockpit chat answers through. The desk
+   runs on the viewer's own session Claude and needs no connector at all, and it
+   is tried FIRST inside `send`. So a view carrying a working session door and
+   no IDB Gateway rendered the composer disabled and told the banker to re-open
+   the cockpit through the agent, with the door that would have answered sitting
+   open beside it. The desk is now the first door the gate counts, in the same
+   order `send` tries them.
+
+   THE COPY IS THE CHAT'S OWN. It used to print the connector layer's fix copy
+   (`McpFailure.fix`), which names the IDB Gateway and claude.ai connector
+   settings: plumbing, addressed to an administrator, handed to a banker with no
+   next step in it. `HealthLine` is where that diagnosis belongs. Here the rule
+   is the golden rule's: say what could not be done, then the move that still
+   exists on this page.                                                        */
+
+/** Whether the chat can take an ask at all, over any of its three doors, in the
+ *  order `send` tries them: the session desk, the connector, the prompt bridge. */
+export function chatReachable(channel: AgentChannel): boolean {
+  return deskAvailable() || mcpAvailable() || channel.available();
+}
+
+/** The ask did not reach any door, or the one it reached refused. */
+export const CHAT_ASK_FAILED =
+  "That question did not reach the desk. The figures on this page are the ones already read from the bank, so the tabs and the rooms still answer from them. Ask again, or open the relationship room and put the question there.";
+
+/** A door answered with nothing at all. */
+export const CHAT_EMPTY_ANSWER =
+  "The desk came back with nothing on that one. Ask again, or open the relationship room, where the same book travels with the question.";
+
+/** No door of the three is in this view. */
+export const CHAT_OFF_BODY =
+  "Nothing in this view can take a question right now. The book on this page is already read, so the tabs, the relationship room and the facility room all work from it, and a change you type in a room still stages.";
 
 /** How far apart a local message and the agent's own written-back copy of it
  *  may sit and still be the same exchange. The two clocks are different
@@ -186,9 +255,8 @@ export function ChatPanelBody() {
   );
 
   const live = mcpAvailable();
-  const available = live || channel.available();
+  const available = chatReachable(channel);
   const sending = sendState === "sending";
-  const [failure, setFailure] = useState<McpFailure | null>(null);
   // Last question, so a failed ask can be retried by a USER GESTURE. Never auto-
   // retried: the contract forbids it for non-retryable codes, and the trust
   // budget that produces blocked_by_policy would only burn further.
@@ -295,7 +363,6 @@ export function ChatPanelBody() {
     }
     dispatch({ type: "SET_DRAFT", draft: "" });
     setSendState("sending");
-    setFailure(null);
     setLastQuestion(prompt);
 
     // THE SESSION BRAIN FIRST (founder, 2026-09-03): the desk answers with the
@@ -306,11 +373,14 @@ export function ChatPanelBody() {
       if (bundle) {
         try {
           const answerText = await askDesk({
-            data,
             bundle,
             accountName: account.name ?? "this relationship",
             question: prompt,
             thread,
+            /* WHAT THIS COCKPIT HAS ALREADY FILED. The desk named it in its own
+               cut notice and no caller ever passed it, so the block was
+               unreachable by construction (2026-09-12). */
+            history: state.actionHistory[account.accountId],
           });
           dispatch({
             type: "PUSH_MESSAGE",
@@ -347,15 +417,14 @@ export function ChatPanelBody() {
           message: {
             id: `${requestId}-answer`,
             role: "agent",
-            text: answer.text || "The copilot returned an empty answer.",
+            text: answer.text || CHAT_EMPTY_ANSWER,
             ts: new Date().toISOString(),
           },
         });
         setAnswerMeta({ model: answer.model, costUsd: answer.costUsd });
         setStreamedId(`${requestId}-answer`);
         setSendState("answered");
-      } catch (e) {
-        setFailure(e as McpFailure);
+      } catch {
         setSendState("error");
       }
       return;
@@ -422,9 +491,11 @@ export function ChatPanelBody() {
 
       {sendState === "error" && (
         <div className="chatnote bad">
-          {/* Branch on the error CODE — never one catch-all banner (it would
-              hide the single action that fixes the page). */}
-          {failure ? failure.fix : "Could not reach the desk. Try again from an agent-connected session."}
+          {/* ONE SENTENCE, THE CHAT'S OWN. The connector's `failure.fix` names
+              the IDB Gateway and claude.ai connector settings, which is
+              plumbing addressed to an administrator. That diagnosis lives on
+              HealthLine, where an operator looks for it. */}
+          {CHAT_ASK_FAILED}
           {/* The question is already in the thread. Repeating the ASK must not
               repeat the banker's own bubble (golden rule 5). */}
           {lastQuestion && (
@@ -501,10 +572,7 @@ export function ChatPanelBody() {
       ) : (
         <div className="chatoff">
           <div className="chatoff-t">Chat unavailable in this view</div>
-          <div className="chatoff-b">
-            No agent channel is connected to this artifact. Open the cockpit through the agent to ask questions; the
-            staged data stays fully navigable offline.
-          </div>
+          <div className="chatoff-b">{CHAT_OFF_BODY}</div>
           <ConnectionDetails />
         </div>
       )}

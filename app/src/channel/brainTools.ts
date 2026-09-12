@@ -115,7 +115,7 @@ export function buildBrainTools(args: BrainToolsArgs): SampleTool[] {
     execute: async (_input: Record<string, unknown>, context: SampleToolContext) => {
       const company = args.anchor.company;
       if (!company) return "No company is bound to this room, so the Boom door cannot be opened.";
-      const payload = await readDoor(call, SERVERS.gateway, TOOLS.boomRatios, { company }, context.signal);
+      const payload = await readDoor(call, SERVERS.boom, TOOLS.boomRatios, { company }, context.signal);
       return shapeRatios(payload);
     },
   };
@@ -160,7 +160,8 @@ export function buildBrainTools(args: BrainToolsArgs): SampleTool[] {
       properties: {
         accountId: {
           type: "string",
-          description: "The counterparty's account id, or its name exactly as CONTEXT.reads.group carries it.",
+          description:
+            "The counterpartyId CONTEXT.reads.group carries for that party. Use its name from the same block only where the row carries no id: four parties on one relationship can share a name prefix, and the id never does.",
         },
       },
       required: ["accountId"],

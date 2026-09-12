@@ -113,7 +113,7 @@ describe("Customer360SearchAccounts", () => {
 /* ------------------------------------------------------------ the reads */
 
 describe("the eight reads", () => {
-  it("builds a bundle in the shape live-data.json stores, at the sweep's pacing", async () => {
+  it("builds a bundle in the shape live-data.json stores, at the open's pacing", async () => {
     const { calls } = installConnector();
     const progress: number[] = [];
     let readyAt = -1;
@@ -126,8 +126,14 @@ describe("the eight reads", () => {
 
     expect(progress).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(READ_COUNT).toBe(8);
-    // The room opens on the fast reads; the graph lands after.
-    expect(readyAt).toBe(7);
+    /* The room opens on the fast reads; the graph lands after.
+       SIX, NOT SEVEN, SINCE 2026-09-12 (founder latency brief: "110% zero
+       latency and smooth transitions"). The portfolio read confirms the book
+       AROUND the relationship and nothing is patched from it, so it moved from
+       in front of `onReady` to behind it: the room now opens one whole read
+       earlier and the portfolio is still awaited, still counted, one line
+       later. The eight and their order are unchanged. */
+    expect(readyAt).toBe(6);
 
     expect(Object.keys(agg.bundle).sort()).toEqual(
       ["covenants", "exposure", "graph", "opportunities", "signals", "snapshot"].sort(),

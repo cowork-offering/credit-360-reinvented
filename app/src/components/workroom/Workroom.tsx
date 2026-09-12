@@ -5,7 +5,7 @@ import { prefersReducedMotion, staggerDelay } from "../../data/motion";
 import { shortFacilityName } from "../../data/facilityStage";
 import { CLIENT_EMAIL, GOVERNANCE, HAVE } from "../../workroom/fixture";
 import { readableError, type PackageChoice, type WorkroomEngine, type WorkroomSuggestion } from "../../workroom/engine";
-import { addEntry, addressManifest, figuresFor, removeEntry } from "../../workroom/manifest";
+import { addEntry, addressManifest, figuresFor, removeEntry, supersededBy } from "../../workroom/manifest";
 import { vocabularyFor } from "../../workroom/modes";
 import { stepperState } from "../../workroom/stepper";
 import {
@@ -72,6 +72,8 @@ import { bankerly, isQuestion, readRole, readTopic, unsoundFieldChange, whatICan
 import { buildEnvelope, clarifyOffWire, facilityLabel, politeCommand, toReadCardModel } from "./brainRoute";
 import type { BrainEnvelope, BrainReply, BrainTurn } from "../../channel/brainLane";
 import { UNREADABLE_CLARIFY, isDegrade, restateProposal } from "../../channel/brainLane";
+import { rungFor } from "../../channel/ladder";
+import { REACHES_THE_ORG } from "./Words";
 import { Narration, useNarration, type NarrationView } from "../../channel/Narration";
 import type { Facility } from "../../data/contract";
 import {
@@ -249,6 +251,7 @@ import { executionFailed } from "../../channel/writeTools";
 import { NEW_PACKAGE, NEW_PACKAGE_CHOICE } from "../../workroom/modes";
 import { mailTipFrom, overdueCovenantTip } from "./tips";
 import { useClientMail } from "./clientMail";
+import { facilityRoomLookedUp, markFacilityRoomLookedUp } from "./roomSession";
 import { useRoomFeed } from "../../intent/feed";
 import { intentFor, intentMailNote } from "../../intent/open";
 import { carriedMailFor } from "../../actions/mailCarry";
@@ -474,7 +477,37 @@ type ThreadItem = { id: string; step: number } & (
  * a half. Under reduced motion the floor is zero and the answer is simply there.
  */
 const COMPOSE_FLOOR_MS = 460;
-/** How long the package lookup shimmers before the brief lands. */
+/**
+ * THE QUICK FLOOR, for an answer nobody was asked for (B3, founder latency
+ * brief 2026-09-12: "110% zero latency and smooth transitions etc in all
+ * workrooms and chats").
+ *
+ * Measured: the deterministic parser answers in ~2 ms and the full floor held
+ * every one of those answers for 460 ms. The floor exists so a reply reads as a
+ * reply rather than as a lookup, and one paced beat buys that; 460 ms buys it
+ * twice over on the most common interaction in the cockpit. The full floor is
+ * still paid wherever the DESK was actually asked, which is the case it was
+ * written for: a round trip that came back fast should not snap.
+ */
+const COMPOSE_QUICK_MS = 150;
+/**
+ * THE LOOKUP SHIMMERS FOR AS LONG AS THE ROOM IS ACTUALLY WAITING (A1, same
+ * brief).
+ *
+ * Measured: satellite click to composer enabled was 1,544 to 1,568 ms while the
+ * room root and its first question painted in 15 to 97 ms and NOTHING was read
+ * in that window — the six detail reads landed on the account open and the
+ * room's own mailbox read resolves in ~508 ms, in parallel. A fixed 1,500 ms
+ * timer with no work behind it is not a ritual, it is a wait.
+ *
+ * So the beat is real: the shimmer ends when the mail gate the greeting is
+ * ALREADY blocked on has resolved, never sooner than the floor (so the lookup
+ * is still seen to happen) and never later than the ceiling (so a mailbox that
+ * never answers cannot hold the composer). With no connector the gate is open
+ * on the first tick and the room lands on the floor.
+ */
+const LOOKUP_FLOOR_MS = 400;
+/** The longest the lookup can shimmer, unchanged: the old fixed beat. */
 const LOOKUP_MS = 1500;
 
 /* ------------------------------------------------------ the package question
@@ -1040,7 +1073,9 @@ export function Workroom({
    * a routed question is answered honestly rather than left hanging on a bridge
    * that was never there.
    */
-  brain?: (envelope: BrainEnvelope) => Promise<BrainReply>;
+  /** THE SECOND LANE. `opts.onFirstToken` fires the instant the model starts
+   *  writing, so the room can say which half of the silence it is in (B2). */
+  brain?: (envelope: BrainEnvelope, opts?: { onFirstToken?: () => void }) => Promise<BrainReply>;
   /** The org's own Lightning host, for the dossier's link to the package the
    *  plan filed against. Absent renders NO link (A29), never a guessed host. */
   instanceUrl?: string;
@@ -1190,6 +1225,14 @@ export function Workroom({
     () => overdueCovenantTip({ bundle: reads?.bundle ?? null, today: reads?.generatedAt ?? "" }),
     [reads?.bundle, reads?.generatedAt],
   );
+  /* WHAT THE CLIENT ASKED FOR, where this relationship carries a request. The
+     ONE figure the new-facility amount ask can offer as a chip, and it is a
+     figure on the book rather than a default (golden rule 2). */
+  const clientAskTo = useMemo(() => {
+    const to = (reads?.bundle?.requests ?? [])[0]?.ask?.to;
+    return typeof to === "number" ? to : null;
+  }, [reads?.bundle]);
+
   /* ONE MAIL READ, TWO CONSUMERS (founder, 2026-09-02: the client's mail is
      baked into the greeting). `useClientMail` makes the SAME single
      `outlook_email_search` the tier used to make on its own, and hands back
@@ -1404,10 +1447,27 @@ export function Workroom({
   const rateIndexOf = useRef(new Map<string, RateIndex>());
   /** Which facilities have already heard the "no index name" aside. Once each. */
   const rateIndexSaid = useRef(new Set<string>());
+  /** THE NEW-FACILITY LINE THE ARM LAST ASKED FROM (OPEN-2). Held for exactly
+   *  one turn, so a TYPED answer lands where a chip would have and nothing
+   *  later is read against a composition the banker has moved on from. */
+  const composingFacility = useRef<string | null>(null);
   /** The room is composing an answer. It drives the beat, and it holds the
    *  review chip closed: a chip that appeared for one frame between a confirm
    *  landing and the check it trips is an approval offered too early. */
   const [thinking, setThinking] = useState(false);
+  /** TRUE while the line in flight is a rung-3 one: it reaches the org and the
+   *  room allows it two minutes. The notice rides the beat and nothing else
+   *  about the wait changes (A14, `Words.tsx`). */
+  const [reaching, setReaching] = useState(false);
+  /**
+   * THE DESK STARTED WRITING (B2, founder latency brief 2026-09-12).
+   *
+   * The structured reply cannot be streamed — it is JSON, and a partial is a
+   * sentence the guards have not seen — so the mark is the only thing the room
+   * can honestly move during a silence that runs to 150 seconds at rung 3. One
+   * word, in the register the mark already speaks.
+   */
+  const [writing, setWriting] = useState(false);
   /** The review card is open, and what it is holding. */
   /* `held` NAMES THE STAGED ARMS THE ORG'S PLAN DOES NOT CARRY A STEP FOR, and
      it is a GATE rather than a sentence: while it is non-empty the approval is
@@ -1662,7 +1722,30 @@ export function Workroom({
 
   /* ---- THE RITUAL OPENS. The agent greets, the lookup shimmers, the brief
           lands with the members under it, and only then does the room take an
-          instruction. Under reduced motion the whole ritual is simply there. */
+          instruction. Under reduced motion the whole ritual is simply there.
+
+          AND THE SHIMMER IS AS LONG AS THE WAIT IS (A1). The three parts below
+          are one clock: the ritual arms it, the mail gate closes it, and the
+          ceiling is the backstop. The landing itself is held in a ref rather
+          than in the effect's deps, because the mail gate resolving must not
+          re-run the ritual — that would rebuild the opening thread under the
+          banker at the exact moment the room was about to wake up. */
+  const landRef = useRef<(() => void) | null>(null);
+  const floorPassed = useRef(false);
+  const mailGateRef = useRef(false);
+  /** Land, if both the floor and the gate say so. `force` is the ceiling. */
+  const landIfReady = useCallback((force = false) => {
+    const land = landRef.current;
+    if (!land) return;
+    if (!force && !(floorPassed.current && mailGateRef.current)) return;
+    landRef.current = null;
+    land();
+  }, []);
+  useEffect(() => {
+    mailGateRef.current = mailGate;
+    if (mailGate) landIfReady();
+  }, [landIfReady, mailGate]);
+
   useEffect(() => {
     const choosing = packageChoiceBlocks;
     const pending = packagePending;
@@ -1690,6 +1773,10 @@ export function Workroom({
       // that is still asking which room this is.
       setItems((prev) => prev.filter((i) => i.kind !== "lookup"));
       setLookedUp(true);
+      // AND THE SESSION REMEMBERS IT (A2). Binding a route rebuilds this room
+      // on the new engine; the rebuilt room lands the ritual on the first tick
+      // rather than charging the banker for the shimmer a second time.
+      markFacilityRoomLookedUp(context.accountId);
       /* WHICH PACKAGE, BEFORE ANYTHING BINDS. On a relationship staging more
          than one the room asks first and nothing else lands: no route chips, no
          package card, no facilities, no greeting remark. One package is not a
@@ -1748,13 +1835,40 @@ export function Workroom({
         },
       ]);
     };
-    if (reduced) {
+    /* A SECOND SHIMMER IS NOT A RITUAL (A2). "Renew" and "New facility" change
+       the room key and remount; "Modify" does not, because the provisional
+       route already IS modify. Measured, that made one gesture cost 60 ms or
+       1.5 s depending on which of three sibling chips the banker pressed. The
+       remount stays; only the timer is skipped. */
+    if (reduced || facilityRoomLookedUp(context.accountId)) {
       land();
       return;
     }
-    const t = window.setTimeout(land, LOOKUP_MS);
-    return () => clearTimeout(t);
-  }, [context.mode, engine, packageChoiceBlocks, packagePending, reduced, resetTiers, tierArrived, vocabulary.changeWord]);
+    landRef.current = land;
+    floorPassed.current = false;
+    const floor = window.setTimeout(() => {
+      floorPassed.current = true;
+      landIfReady();
+    }, LOOKUP_FLOOR_MS);
+    const ceiling = window.setTimeout(() => landIfReady(true), LOOKUP_MS);
+    return () => {
+      landRef.current = null;
+      floorPassed.current = false;
+      window.clearTimeout(floor);
+      window.clearTimeout(ceiling);
+    };
+  }, [
+    context.accountId,
+    context.mode,
+    engine,
+    landIfReady,
+    packageChoiceBlocks,
+    packagePending,
+    reduced,
+    resetTiers,
+    tierArrived,
+    vocabulary.changeWord,
+  ]);
 
   /* ---- THE TWO TIERS UNDER THE QUESTION (the entry choreography, founder
           2026-09-01).
@@ -1823,6 +1937,13 @@ export function Workroom({
     const el = threadRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [items, thinking, flow]);
+
+  /* THE MARK GOES BACK TO READING BETWEEN TURNS (B2). `writing` is latched by
+     the desk's first token; without this the NEXT turn — a deterministic parse
+     that never asks the desk at all — would open on the wrong word. */
+  useEffect(() => {
+    if (!thinking) setWriting(false);
+  }, [thinking]);
 
   /* ---- derived state. Nothing below is stored twice. */
   const openGates = items.reduce((n, item) => (isLive(item) ? n + 1 : n), 0);
@@ -1966,11 +2087,15 @@ export function Workroom({
 
   /** Hold the composed beat, then let the answer settle in. Zero under reduced
    *  motion, so a test and a banker who asked for stillness get it on the same
-   *  tick. */
+   *  tick.
+   *
+   *  `asked` is whether the DESK ran. A round trip gets the full floor; an
+   *  answer the parser produced on its own gets one paced beat (B3). */
   const beat = useCallback(
-    (started: number) =>
+    (started: number, asked = false) =>
       new Promise<void>((resolve) => {
-        const left = reduced ? 0 : Math.max(0, COMPOSE_FLOOR_MS - (Date.now() - started));
+        const floor = asked ? COMPOSE_FLOOR_MS : COMPOSE_QUICK_MS;
+        const left = reduced ? 0 : Math.max(0, floor - (Date.now() - started));
         if (!left) {
           resolve();
           return;
@@ -2511,12 +2636,20 @@ export function Workroom({
   const askTheDesk = useCallback(
     async (instruction: string, routeOpen: boolean): Promise<BrainReply | null> => {
       if (!brain) return null;
+      const envelope = envelopeFor(instruction, routeOpen);
+      /* WHICH WAIT THIS IS, DECIDED BEFORE THE CALL. `rungFor` is the same read
+         `askBrain` makes to pick the door, so the notice can never claim a
+         round trip the lane did not take (A14). */
+      setReaching(rungFor(envelope).rung === 3);
+      setWriting(false);
       try {
-        return await brain(envelopeFor(instruction, routeOpen));
+        return await brain(envelope, { onFirstToken: () => setWriting(true) });
       } catch {
         // The lane never throws into the room. A transport that failed past
         // `askBrain`'s own guard degrades exactly as a malformed reply does.
         return null;
+      } finally {
+        setReaching(false);
       }
     },
     [brain, envelopeFor],
@@ -2768,7 +2901,9 @@ export function Workroom({
       let reply: BrainReply | null;
       try {
         reply = await askTheDesk(instruction, routeOpen);
-        await beat(started);
+        // THE DESK RAN, so the full floor (B3): a round trip that came back
+        // fast is the case the composed beat was written for.
+        await beat(started, true);
       } finally {
         setThinking(false);
       }
@@ -2831,7 +2966,9 @@ export function Workroom({
               qualifier: qualifierFilter(instruction, sound, qualifierMembers),
             }));
         if (!clean) reply = await askTheDesk(instruction, false);
-        await beat(started);
+        // THE FLOOR FOLLOWS THE LANE (B3). A provably clean parse answered in
+        // ~2 ms and was held for 460 ms; it gets one paced beat instead.
+        await beat(started, !clean);
         if (clean && result) {
           renderParse(instruction, result, mine, note);
           return;
@@ -3864,7 +4001,20 @@ export function Workroom({
           members: elicitMembers,
           staged: stagedNewFacilities(entries).length,
           generatedAt: reads?.generatedAt,
+          /* THE DRAFT THE LAST ASK CAME FROM, so a TYPED answer lands where a
+             chip would have (OPEN-2). The arm re-reads the whole sentence
+             either way; this only carries the sentence it re-reads. */
+          composing: composingFacility.current ?? undefined,
+          /* AND THE ONE FIGURE THE AMOUNT ASK CAN OFFER: what the client asked
+             for, where this relationship carries a request. */
+          requestedCommitment: clientAskTo,
         });
+        /* THE COMPOSITION LIVES EXACTLY ONE TURN. The arm asked, so the next
+           line may answer it; any other line ends it, and it is never carried
+           further than that. A draft that outlived its ask would fold a bare
+           "$5MM" typed at some later question into a facility nobody was
+           composing any more. */
+        if (!reading) composingFacility.current = newFacility?.kind === "ask" ? newFacility.draft : null;
         if (newFacility) {
           if (newFacility.kind === "ask") {
             answer({ kind: "agent", id: nextId("agent"), text: newFacility.text, options: newFacility.options });
@@ -4433,6 +4583,7 @@ export function Workroom({
       book,
       brain,
       brief.members,
+      clientAskTo,
       context.accountName,
       context.mode,
       creating,
@@ -4837,6 +4988,13 @@ export function Workroom({
       /* THE MANIFEST AS IT STANDS RIGHT NOW, not as it stood when this handler
          was built. See `entriesRef`: this is the commitment drop. */
       const before = entriesRef.current;
+      /* AND WHAT THIS ONE WALKS OVER, read BEFORE it lands. A second figure on
+         the same field and the same member is a correction, so the rail takes
+         the new one in place of the old (`manifest.ts`, founder stress script
+         2026-09-12, MODIFICATION 3.k). A replacement the room did not say out
+         loud is a change the banker cannot see, so the confirm names the figure
+         that went. */
+      const replaced = supersededBy(before, delta);
       const staged = addEntry(before, delta);
       entriesRef.current = staged;
       const { reply, challenge, options } = engine.acknowledge(delta, staged);
@@ -4874,7 +5032,7 @@ export function Workroom({
          through the same field, and all four are counted the same way. */
       const totalBefore = figuresFor(before, baseline).committedMM * 1e6;
       const totalAfter = figuresFor(staged, baseline).committedMM * 1e6;
-      const said = cutTail(
+      const confirmed = cutTail(
         committedSentence({
           reply: armConfirmSentence(delta, reply),
           delta,
@@ -4884,6 +5042,7 @@ export function Workroom({
         vocabulary.nextMove,
         true,
       );
+      const said = replaced ? `${confirmed} That replaces the earlier ${replaced.after}.` : confirmed;
       /* ============ THE FOUR FIELDS nCINO PRICES ON (founder, 2026-09-02)
 
          A confirmed amount or term change leaves a version nobody can price
@@ -6224,9 +6383,19 @@ export function Workroom({
                     the room's own beat stands down: whatever is breathing on the
                     glass is where the sentence will land. */}
                 {thinking && !narration.pending && (
-                  <div className="wk-compose" role="status" aria-label="Composing an answer">
+                  <div
+                    className="wk-compose"
+                    role="status"
+                    aria-label="Composing an answer"
+                    /* WHICH HALF OF THE SILENCE THIS IS (B2). Reading until the
+                       first token lands, writing after it. The accessible name
+                       does not move: a status that renamed itself mid-wait
+                       would be announced twice for one answer. */
+                    data-desk={writing ? "writing" : "reading"}
+                  >
                     <LiquidMark />
-                    <span>Composing…</span>
+                    <span>{writing ? "Writing…" : "Composing…"}</span>
+                    {reaching && <span data-reaching="org">{REACHES_THE_ORG}</span>}
                   </div>
                 )}
                 {/* ============ THE SHEET THE CARD GREW INTO (founder, 2026-09-06)
