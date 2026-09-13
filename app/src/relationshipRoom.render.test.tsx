@@ -160,7 +160,15 @@ function open(args: {
 }
 
 const buttons = () => [...document.body.querySelectorAll("button")];
-const byText = (re: RegExp) => buttons().find((b) => re.test(b.textContent ?? ""));
+/* THE RECAP LINES ARE NOT ANSWERS (founder, 2026-09-13: "only the current
+   action is nicely shown in the chat"). Each collapsed step now says what it
+   recorded, in one quiet line, so a by-text hunt for a chip would find the line
+   ABOVE the chip that carries the same word. The line is a way back into the
+   history, never an answer, and this harness reaches for answers. */
+const byText = (re: RegExp) =>
+  buttons()
+    .filter((b) => !b.hasAttribute("data-recap"))
+    .find((b) => re.test(b.textContent ?? ""));
 const click = (el: Element | undefined) => act(() => el!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 const settle = async () => {
   await act(async () => {

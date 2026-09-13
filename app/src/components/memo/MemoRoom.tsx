@@ -47,6 +47,8 @@ import type { MemoGreeting } from "./memoGreeting";
 import type { MemoRequestSource, MemoTrigger } from "./memoSession";
 import { DEADLINES, byDeadline, isDeadline, narrateDeadlineLine, steerDeadlineLine, withDeadline } from "../workroom/deadline";
 import { RoomBoundary } from "../workroom/RoomBoundary";
+import { condenseThread } from "../workroom/threadCondense";
+import { ThreadRecap } from "../workroom/ThreadCondensed";
 import "../../styles/workroom.css";
 import "../../styles/memo.css";
 
@@ -399,6 +401,9 @@ export function MemoRoom({ ctx, dossier, changes, greeting, filed, settled = tru
    * read of the last render, which is one section behind by construction, so
    * every writer goes through here and the ref is always exact.
    */
+  /* THE ONE RECAP LINE THE BANKER HAS OPENED (founder, 2026-09-13). One at a
+     time by construction: opening a second replaces the first. */
+  const [openRecap, setOpenRecap] = useState<string | null>(null);
   const itemsRef = useRef<ThreadItem[]>(items);
   const commit = useCallback((fn: (prev: readonly ThreadItem[]) => ThreadItem[]) => {
     itemsRef.current = fn(itemsRef.current);
@@ -1025,7 +1030,15 @@ export function MemoRoom({ ctx, dossier, changes, greeting, filed, settled = tru
                     hangs above it on hover, `.wk-bub` for the bubble, and
                     `<Words>` for the word-by-word speech. Not one class of its
                     own: three rooms, one grammar. */}
-                {items.map((item, i) => {
+                {condenseThread(items, {
+                  opened: openRecap ? new Set([openRecap]) : undefined,
+                  /* THIS ROOM MODELS ITS OWN EXCHANGES, and holds two of them
+                     live (founder, 2026-09-04). The condensation reads both
+                     rather than imposing a second reading of the same rule. */
+                  turnKey: (i) => i.ex,
+                  liveTurns: STAGE_CAP,
+                }).map((view, i) => {
+                  const item = view.item;
                   const inWave = finaleState === "off" ? null : finaleAttrs(i, finaleState);
                   /* THE SETTLED ROW ITSELF NEVER LEAVES. It is what replaces an
                      exchange, not part of one, so it always stands `on`. */
@@ -1034,7 +1047,17 @@ export function MemoRoom({ ctx, dossier, changes, greeting, filed, settled = tru
                     settle.heightOf(item.id),
                   );
                   return (
-                    <div key={item.id} data-ex-id={item.id} {...withFinale(attrs, inWave)}>
+                    <div
+                      key={item.id}
+                      data-ex-id={item.id}
+                      /* CONDENSED HISTORY, LIVE PRESENT (founder, 2026-09-13).
+                         Only the exchange the banker is in renders in full;
+                         every earlier one is ONE recap line, mounted and one
+                         click from coming back. */
+                      data-recap-line={view.show === "recap" ? "" : undefined}
+                      data-spent={view.show === "none" ? "" : undefined}
+                      {...withFinale(attrs, inWave)}
+                    >
                       {/* THE INNER ROW IS WHAT COLLAPSES. A grid track can only
                           squeeze a child that will let it, so the row owns the
                           overflow and the wrapper owns the height transition. */}
@@ -1043,7 +1066,13 @@ export function MemoRoom({ ctx, dossier, changes, greeting, filed, settled = tru
                             memo cannot render leaves its own gap marker and the
                             timeline above and below it keeps working. */}
                         <RoomBoundary what={`this ${item.kind}`}>
-                          {item.kind === "settled" ? (
+                          {view.show === "none" ? null : view.show === "recap" ? (
+                            <ThreadRecap
+                              id={view.id}
+                              recap={view.recap}
+                              onToggle={(id) => setOpenRecap((was) => (was === id ? null : id))}
+                            />
+                          ) : item.kind === "settled" ? (
                             <SettledLine
                               row={item.row}
                               open={settle.isOpen(item.id)}

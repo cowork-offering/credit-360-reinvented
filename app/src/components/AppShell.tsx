@@ -17,7 +17,7 @@ import { SpreadingRoomHost } from "./workroom/SpreadingRoom";
 import { buildWorklistRows } from "../data/worklistRows";
 import { useKeepAlive } from "../channel/keepAlive";
 import { useOpenRefresh } from "../channel/openRefresh";
-import { GRANT_WARMUP_DELAY_MS, warmConnectorGrants } from "../channel/grantWarmup";
+import { GRANT_WARMUP_DELAY_MS, GRANT_WARMUP_ENABLED, warmConnectorGrants } from "../channel/grantWarmup";
 import { afsMapping } from "../memo/afsMapping";
 import { CockpitState } from "../state/cockpitState";
 import { HealthLine } from "./HealthLine";
@@ -113,6 +113,7 @@ export function AppShell() {
   const warmupRef = useRef(warmup);
   warmupRef.current = warmup;
   useEffect(() => {
+    if (!GRANT_WARMUP_ENABLED) return;
     const timer = setTimeout(() => void warmConnectorGrants(warmupRef.current), GRANT_WARMUP_DELAY_MS);
     return () => clearTimeout(timer);
   }, []);

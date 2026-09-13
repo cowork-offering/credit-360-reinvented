@@ -1,0 +1,45 @@
+/* =============================================================================
+   THE CONDENSED HISTORY — how a stack of recap lines sits in a thread.
+
+   FOUNDER, 2026-09-13: "the chips with earlier read etc etc. they basically pile
+   up so that the answer is always directly above the chat ... i wanted to have
+   it that only the current action is nicely shown in the chat".
+
+   The recap line itself is the rooms' own `.wk-settled` pill and is styled once,
+   in workroom.css. What is here is the two things that are true of a LIST of
+   them and of nothing else: they read as one line each, and they sit as a list
+   rather than as a run of steps. Tokens only; no colour of its own.
+   ============================================================================= */
+
+/* ONE LINE, ALWAYS, AND NO WIDER THAN A BUBBLE. A recap that wrapped to three
+   lines would be the paragraph it replaced, and one that ran the whole column
+   would be the clutter. `.wk-msg` is 78% and a recap keeps the same column
+   discipline; the turn is one click away and that is where the detail lives. */
+.wk-settled[data-recap] {
+  max-width: 78%;
+}
+.wk-settled[data-recap] .wk-settled-w {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* A LIST, NOT A RUN OF STEPS. The thread's own rhythm (38px between blocks,
+   32px inside a step) is the air a bubble needs; four one-line receipts under
+   each other need a tenth of it, and the air belongs to the live turn under
+   them. The pull-up is the difference, so the rhythm stays in one place. */
+.wk-step > [data-recap-line] + [data-recap-line] {
+  margin-top: -22px;
+}
+.wk-thread > [data-recap-line] + [data-recap-line] {
+  margin-top: -28px;
+}
+
+/* SPENT, AND STILL MOUNTED. A chip row nobody can press again, or a block that
+   an earlier turn's recap line now stands for: off the glass, still in the
+   document, and back on it the moment the recap above it is opened. The rooms'
+   own grammar for "off stage, not gone". */
+.wk-ex[data-spent] {
+  display: none;
+}

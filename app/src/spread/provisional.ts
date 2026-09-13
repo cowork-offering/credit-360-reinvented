@@ -13,15 +13,19 @@
    which input is missing.
 
    THE FORMULAS MIRROR THE ON-FILE READ, deliberately. Boom's own ratio layer
-   reports interest coverage as operating profit over interest expense
-   (verified against client-360/assets/boom-ratios.json: 2,838 over 1,076 is
-   2.64) and leverage as total debt over EBITDA. A provisional figure computed
-   a different way would not be comparable with the one it is printed beside,
-   which is the whole point of printing them together.
+   reports interest coverage as operating profit over interest expense and
+   leverage as total debt over EBITDA. The coverage formula is not written here:
+   `spread/coverage.ts` is the one definition of it, carrying the proof against
+   Boom's own snapshot, and it is read by this module, by the post-read and by
+   the publish that lands the spread on the book, so no two surfaces can print
+   two figures for one ratio. A provisional figure computed a different way
+   would not be comparable with the one it is printed beside, which is the whole
+   point of printing them together.
    ============================================================================= */
 
 import type { Boom } from "../data/contract";
 import { fmtMoney, fmtPct } from "../data/format";
+import { interestCoverageOf } from "./coverage";
 import type { RelationshipSpreadContext } from "./preRead";
 import type { FilePreRead, PreReadLine, ProvisionalRead } from "./types";
 
@@ -185,10 +189,7 @@ export function provisionalRead(
   const ebitdaMarginPct = ebitda !== null && revenue ? (ebitda / revenue) * 100 : null;
   const totalDebt = shortTermDebt !== null || longTermDebt !== null ? (shortTermDebt ?? 0) + (longTermDebt ?? 0) : null;
   const leverage = ebitda !== null && ebitda > 0 && totalDebt !== null ? totalDebt / ebitda : null;
-  const interestCoverage =
-    operatingProfit !== null && interestExpense !== null && Math.abs(interestExpense) > 0
-      ? operatingProfit / Math.abs(interestExpense)
-      : null;
+  const interestCoverage = interestCoverageOf(operatingProfit, interestExpense);
 
   const figures: Record<string, number | null> = {
     revenue,

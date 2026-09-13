@@ -2,11 +2,22 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NOT_CONNECTED_CLARIFY, UNREADABLE_CLARIFY, askBrain, type BrainEnvelope } from "./channel/brainLane";
 import { ALWAYS_BLOCK_IDS, DOCTRINE_BLOCKS } from "./channel/doctrine";
-import { DESK_RULES, askDesk, deskAvailable, deskContext } from "./channel/deskAsk";
-import { acquireSample, resetSessionDoor, type SampleOptions } from "./channel/sampleDoor";
+import {
+  DESK_PORTFOLIO_RULES,
+  DESK_RULES,
+  DESK_TIMEOUT_MS,
+  askDesk,
+  askDeskPortfolio,
+  deskAvailable,
+  deskContext,
+  deskTimeoutAnswer,
+} from "./channel/deskAsk";
+import { DECLINE_NOTICE, acquireSample, resetSessionDoor, type SampleOptions } from "./channel/sampleDoor";
 import { createChannel } from "./channel/adapter";
 import { mcpAvailable } from "./channel/mcp";
 import type { ActionHistoryRow, BorrowerBundle, C360Data } from "./data/contract";
+import { deriveQueue } from "./data/queue";
+import { DeadlineExpired } from "./components/workroom/deadline";
 import live from "../../artifact/live-data.json";
 
 /* =============================================================================
@@ -310,7 +321,16 @@ describe("A9: the trail this cockpit filed reaches the desk (rule 1)", () => {
 describe("A10-A12: the chat's degrades name a next step and never the plumbing", () => {
   it("FIXED 2026-09-12: every banker-facing chat string is sober and carries a move", async () => {
     const chat = await import("./components/ChatPanel");
-    for (const said of [chat.CHAT_ASK_FAILED, chat.CHAT_EMPTY_ANSWER, chat.CHAT_OFF_BODY]) {
+    for (const said of [
+      chat.CHAT_ASK_FAILED,
+      chat.CHAT_EMPTY_ANSWER,
+      chat.CHAT_OFF_BODY,
+      // ADDED 2026-09-13 with the never-silent lane: a declined door and a door
+      // that timed the call out are two more sentences a banker reads, and they
+      // are held to the same rule as the three that were already here.
+      chat.CHAT_DESK_OFF,
+      deskTimeoutAnswer(75),
+    ]) {
       expect(said).not.toMatch(/gateway|connector|claude\.ai|settings|gpt|copilot/i);
       expect(said).not.toMatch(/[—–!]/);
       expect(said).toMatch(/ask again|room|tabs/i);
@@ -321,6 +341,86 @@ describe("A10-A12: the chat's degrades name a next step and never the plumbing",
     const { CHAT_OFF_BODY } = await import("./components/ChatPanel");
     expect(CHAT_OFF_BODY).toMatch(/already read/i);
     expect(CHAT_OFF_BODY).not.toMatch(/open the cockpit through the agent/i);
+  });
+});
+
+/* ========================================================= FINDING A13
+
+   THE LANDING HAD NO LANE AT ALL.
+
+   The desk was tried only where `account?.accountId` AND a resolved bundle were
+   both in hand, so a question typed on the worklist view fell past the desk,
+   past a connector that is not in every view, and into the legacy prompt
+   bridge, which throws where nothing is wired. The banker asked the first
+   surface the cockpit opens on and got a note with no answer in it.          */
+
+describe("A13: the book lane is bounded and refuses exactly like the relationship lane", () => {
+  const state = () => ({ data, queue: deriveQueue(data, false) });
+  const ask = (deadlineMs?: number) =>
+    askDeskPortfolio({ state: state(), question: "who needs attention today?", deadlineMs });
+
+  it("FIXED 2026-09-13: the book travels with the ask, under the book's own rules", async () => {
+    const seen: string[] = [];
+    await openDesk(
+      Object.assign(async (input: string) => {
+        seen.push(input);
+        return { text: "Start with Brightwater.", truncated: false, modelTierApplied: "quick" as const };
+      }, {}),
+    );
+    await ask(500);
+    expect(seen[0].startsWith(DESK_PORTFOLIO_RULES)).toBe(true);
+    expect(seen[0]).toContain("The book on this page is 5 relationships");
+    expect(seen[0]).toContain("Brightwater Foods Group");
+  });
+
+  it("a door that never answers resolves inside the deadline, with the wait named", async () => {
+    await openDesk(never());
+    const said = await ask(40);
+    expect(said).toMatch(/has not come back/i);
+    expect(said).toMatch(/ask again/i);
+  });
+
+  it("a door that refuses still throws, carrying the code the panel branches on", async () => {
+    await openDesk(throws("not_granted"));
+    await expect(ask(500)).rejects.toMatchObject({ code: "not_granted", permanent: true });
+  });
+});
+
+/* ========================================================= FINDING A14
+
+   EVERY SessionFailure ON THE DESK LANE WAS SWALLOWED.
+
+   `catch {}`, with a comment saying the gateway path would answer, on a view
+   that frequently has no gateway path. `takeDeclineNotice()` had no caller
+   anywhere in the app, so a door the viewer had DECLINED was indistinguishable
+   from a door that was merely slow: both left "Composing..." and then nothing.
+   The three kinds of failure are three different next moves, so they are three
+   different sentences.                                                       */
+
+describe("A14: a desk failure is never swallowed, and the three kinds read differently", () => {
+  it("FIXED 2026-09-13: timeout, refusal and breakage each have their own sentence", async () => {
+    const { CHAT_ASK_FAILED, CHAT_DESK_OFF, deskFailureSentence } = await import("./components/ChatPanel");
+    const seconds = Math.round(DESK_TIMEOUT_MS / 1000);
+
+    expect(deskFailureSentence({ code: "timeout" })).toBe(deskTimeoutAnswer(seconds));
+    // The rooms' own typed clock, which reaches this lane through a caller's
+    // signal rather than through the platform.
+    expect(deskFailureSentence(new DeadlineExpired("the desk", 75_000, "narrate"))).toBe(deskTimeoutAnswer(seconds));
+    // A declined door never says "ask again": that would loop on a decision the
+    // banker has already made, which is what rule 5 forbids.
+    expect(deskFailureSentence({ code: "not_granted", permanent: true })).toBe(CHAT_DESK_OFF);
+    expect(CHAT_DESK_OFF).not.toMatch(/ask again/i);
+    expect(deskFailureSentence({ code: "upstream_error" })).toBe(CHAT_ASK_FAILED);
+    // A door that throws a shape nobody recognised is still a bubble.
+    expect(deskFailureSentence(new Error("no shape at all"))).toBe(CHAT_ASK_FAILED);
+  });
+
+  it("the decline notice is the door's own sentence, said once per view", async () => {
+    const { takeDeclineNotice } = await import("./channel/sampleDoor");
+    await openDesk(throws("not_granted"));
+    await expect(askDesk({ bundle: bundle(), accountName: NAME, question: "hi", deadlineMs: 500 })).rejects.toBeTruthy();
+    expect(takeDeclineNotice()).toBe(DECLINE_NOTICE);
+    expect(takeDeclineNotice()).toBeNull();
   });
 });
 

@@ -43,6 +43,16 @@ import { laneOf } from "./laneHealth";
 /** How long after the shell mounts the warm-up goes out. Past the first paint
  *  and past the landing's own first read, well before a banker can be standing
  *  in a room whose connector would otherwise prompt them there. */
+/* OFF BY DEFAULT (orchestrator, 2026-09-13). The founder's first real-host run of
+   0.9.20 saw the cockpit chat sit on "Composing" for over three minutes and a
+   workroom stop answering. The chat's own deadline is 75 s, so something outside
+   the page held those calls, and the one thing this release added at open is
+   four connector reads fired 1.2 s after first paint, each of which raises the
+   host's consent dialog. Until a real-host run proves the host does not queue
+   the session door behind an open dialog, the warm-up stays armed but not
+   fired: the prompts return to arriving on first use, which the founder had
+   before. Flip to true after that run (backlog row 31). */
+export const GRANT_WARMUP_ENABLED = false;
 export const GRANT_WARMUP_DELAY_MS = 1_200;
 
 /** One warm-up's wall clock. It covers the consent dialog, not a round trip. */

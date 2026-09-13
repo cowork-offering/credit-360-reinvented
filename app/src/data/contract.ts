@@ -108,7 +108,7 @@ export const PROVENANCE = {
   "borrower.boom.ratios.ebitda": { kind: "BOOM", source: "boom_get_ratios — spread EBITDA" },
   "borrower.boom.ratios.ebitdaMargin": { kind: "BOOM", source: "boom_get_ratios — EBITDA ÷ revenue" },
   "borrower.boom.ratios.totalLeverage": { kind: "BOOM", source: "boom_get_ratios — debt ÷ EBITDA" },
-  "borrower.boom.ratios.interestCoverage": { kind: "BOOM", source: "boom_get_ratios — EBITDA ÷ interest expense" },
+  "borrower.boom.ratios.interestCoverage": { kind: "BOOM", source: "boom_get_ratios, operating profit ÷ interest expense, NOT EBITDA ÷ interest expense: Boom's own snapshot strikes 2,838,000 ÷ 1,076,000 and publishes 2.637546468401487 for a period whose EBITDA is 5,234,000. Restruck on the spread by spread/publishSpread.ts when a drop lands the newest period; the definition and the proof live in spread/coverage.ts" },
   "borrower.boom.ratios.asOf": { kind: "BOOM", source: "boom_get_ratios: the period those ratios were computed for. EBITDA is bound to it and to no other period" },
   "borrower.boom.ratios.raw": { kind: "BOOM", source: "boom_get_ratios: `raw` verbatim, the numeric contract (margins as FRACTIONS). The display fields beside it are DERIVED from this by client-360/render/boom-normalise.mjs" },
   "borrower.boom.spread.sourceFile": { kind: "BOOM", source: "boom_get_spread — originating workbook filename" },

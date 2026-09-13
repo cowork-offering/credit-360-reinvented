@@ -151,7 +151,7 @@ describe("a provably clean parse keeps its instant card", () => {
     const brain = reply(CLARIFY);
     const { room } = open({ brain });
     await settle();
-    await typeInto(room, "take the Line of Credit to $19M");
+    await typeInto(room, "take the 15M line of credit to $19M");
 
     expect(brain).not.toHaveBeenCalled();
     expect(room.querySelector(".wk-chip")).toBeTruthy();
@@ -250,7 +250,7 @@ describe("a bad round trip never leaves the room worse than the fast lane", () =
     const { room } = open({ brain: (e) => askBrain(e, { send: async () => "I think you should raise it." }) });
     await settle();
     // Multi-clause, so it routes to the desk; the desk answers with prose.
-    await typeInto(room, "take the Line of Credit to $19M and give the Equipment a 240 month term");
+    await typeInto(room, "take the 15M line of credit to $19M and give the Equipment a 240 month term");
 
     // The degrade sentence is NOT what the banker gets: the parse is.
     expect(room.textContent).not.toMatch(/I could not read that answer/);
@@ -337,7 +337,7 @@ describe("with no bridge the room is exactly the room that shipped", () => {
     // A multi-clause line still goes to the parser: there is no second lane to
     // hold it for, and holding it would be a room that got WORSE when a
     // connector was absent.
-    await typeInto(room, "take the Line of Credit to $19M and give the Equipment a 240 month term");
+    await typeInto(room, "take the 15M line of credit to $19M and give the Equipment a 240 month term");
     expect(room.querySelectorAll(".wk-chip").length).toBeGreaterThan(0);
     expect(room.textContent).not.toMatch(/desk|has not come back|could not read that answer/i);
     // The composer is live: nothing waited on a bridge that was never there.

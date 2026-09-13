@@ -4,6 +4,13 @@ import { isProvisionalPeriod, mergeDisplayPeriods, newPeriodOf, publishSpread } 
 import { adaptBoomSpread } from "../memo/dossier";
 import type { BoomFinancialStatement } from "./types";
 import type { Boom } from "../data/contract";
+import { readFileSync } from "node:fs";
+
+/** Boom's own published ratio set for Piedmont's FY2025 column. */
+const boomRatios = JSON.parse(
+  readFileSync(new URL("../../../client-360/assets/boom-ratios.json", import.meta.url), "utf8"),
+) as { raw: { interestCoverage: number } };
+const BOOM_COVERAGE = boomRatios.raw.interestCoverage;
 
 /* =============================================================================
    ITEM 18: THE SPREAD LANDS IN THE BOOK.
@@ -13,11 +20,16 @@ import type { Boom } from "../data/contract";
 
      IT APPENDS THE PERIOD, ONCE. Twice is a duplicated column in the Financials
      tab and a second point on the trend for one filing.
-     IT INVENTS NO RATIO. Boom's account-code chart carries no depreciation and
-     amortisation line, so EBITDA, leverage and interest coverage cannot be
-     recomputed from statements alone. They travel through unchanged, `asOf`
-     included, and the new period stays silent on them rather than printing a
-     figure nothing supports.
+     IT INVENTS NO RATIO. EBITDA and the leverage struck against it cannot be
+     recomputed from a dropped statement, so they travel through unchanged,
+     `asOf` included, and the new period stays silent on them rather than
+     printing a figure nothing supports.
+     IT RESTRIKES THE ONE RATIO THE STATEMENTS DO SUPPORT. Boom's own interest
+     coverage is operating profit over interest expense, two coded rows of the
+     income statement, and leaving the book's behind is what made the Spreading
+     room print 3.09x while the Financials tab printed 2.95x for the same
+     provisional period (founder review, 2026-09-13). The figure below is
+     checked against Boom's own published ratio for the same file.
      IT SAYS WHERE THE PERIOD CAME FROM. A period the stub produced is marked
      provisional; a period Boom produced is not.
      IT NEVER CLEARS. Nothing to publish leaves the book exactly as it was.
@@ -175,11 +187,44 @@ describe("the consumers of bundle.boom all see it", () => {
 });
 
 describe("no ratio is invented", () => {
-  it("leaves the on-file ratios and their asOf exactly where they were", () => {
+  it("leaves every on-file ratio but the coverage, and the asOf, exactly where they were", () => {
     const before = bookThroughFy2024();
     const after = publishSpread({ onFile: before, statements: fy2025(), provenance: "stub-provisional" });
-    expect(after?.ratios).toEqual(before.ratios);
+    expect(after?.ratios).toEqual({
+      ...before.ratios,
+      interestCoverage: BOOM_COVERAGE,
+      raw: { ...before.ratios?.raw, interestCoverage: BOOM_COVERAGE },
+    });
     expect(after?.ratios?.asOf).toBe("2024-12-31");
+  });
+
+  /* THE CROSS-CHECK THE STANDING RULE ASKS FOR: the ratio this module derives
+     is Boom's own, to the last digit, over the same file. `boom-ratios.json` is
+     Boom's published ratio set for the FY2025 column `fy2025()` carries, and
+     `boom-spread.json` is the statement it was struck from. */
+  it("strikes the coverage Boom itself publishes for that period", () => {
+    const after = publishSpread({ onFile: bookThroughFy2024(), statements: fy2025(), provenance: "stub-provisional" });
+    expect(after?.ratios?.interestCoverage).toBe(boomRatios.raw.interestCoverage);
+    expect(BOOM_COVERAGE).toBe(2_838_000 / 1_076_000);
+  });
+
+  it("leaves the ratio set alone where the spread back-fills an older period", () => {
+    const before = bookThroughFy2024();
+    const older: BoomFinancialStatement[] = [
+      {
+        id: "older-is",
+        statementType: "income_statement",
+        endDate: "2022-12-31",
+        validationStatus: "not_validated",
+        periods: [period("older-p1", "2022-12-31")],
+        lineItems: [
+          line("older-l1", "Income from Operations", "operating_profit", { "older-p1": 3_100_000 }),
+          line("older-l2", "Interest Expense", "interest_expense", { "older-p1": -1_200_000 }),
+        ],
+      },
+    ];
+    const after = publishSpread({ onFile: before, statements: older, provenance: "stub-provisional" });
+    expect(after?.ratios).toEqual(before.ratios);
   });
 
   it("prints no EBITDA and no margin on the new period, because nothing supports one", () => {

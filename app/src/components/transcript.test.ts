@@ -44,6 +44,22 @@ describe("threadToMarkdown", () => {
     expect(md).toContain("**Filed:** Commitment → $18.0M");
   });
 
+  it("says WHAT a receipt recorded and HOW, in the row's own two fields", () => {
+    /* THE GLASS CONDENSES, THE TRANSCRIPT DOES NOT (2026-09-13). `SettledRow` is
+       {what, how, kicker} and carries none of the names the generic label hunt
+       looks for, so every receipt in the founder's bucket transcript read
+       "[settled]" — the record of what was decided, lost where it mattered. */
+    const md = threadToMarkdown(
+      [
+        { id: "s1", step: 1, kind: "settled", row: { what: "$15M → $35M", how: "confirmed" } },
+        { id: "s2", step: 2, kind: "settled", row: { what: "Annual", how: "recorded", kicker: "Step 1 of 6" } },
+      ],
+      meta,
+    );
+    expect(md).toContain("**Filed:** $15M → $35M · confirmed");
+    expect(md).toContain("**Filed:** Step 1 of 6 · Annual · recorded");
+  });
+
   it("does not throw on an unknown item kind and marks it", () => {
     const md = threadToMarkdown([{ id: "x", step: 0, kind: "future_kind" }], meta);
     expect(md).toContain("_[future_kind]_");

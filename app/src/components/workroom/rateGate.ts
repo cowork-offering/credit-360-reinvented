@@ -246,6 +246,26 @@ export function readRateKeepWord(line: string): boolean {
   );
 }
 
+/**
+ * THE CHIP'S OWN LABEL, TYPED BACK (founder bug bug-1789294443785).
+ *
+ * The room offers "Hold 6.58%" and the banker typed "Hold 6.58%". That is the
+ * same answer the chip makes, and the room read it as a new instruction, skipped
+ * the whole pricing gate and closed on "I could not match that to anything on
+ * this package". {@link readRateKeepWord} cannot take it: it refuses a line with
+ * a digit in it, because "keep it at 7%" carries a figure and the figure wins.
+ * THE FIGURE HERE IS THE ROOM'S OWN, so the two rules agree rather than
+ * compete - this is a hold only where the number is the rate on file.
+ */
+export function readRateHoldLabel(line: string, onFile: RateOnFile | null): boolean {
+  if (!onFile) return false;
+  const hit =
+    /^(?:hold|keep)\s+(?:it\s+(?:at|on)\s+)?(\d{1,2}(?:\.\d{1,4})?)\s*(?:%|percent|pct)?\s*(?:fixed|variable|floating)?\s*(?:,?\s*paid\s+\w+)?\s*[.]?$/i.exec(
+      (line ?? "").trim(),
+    );
+  return hit ? Math.abs(Number(hit[1]) - onFile.pct) < 0.005 : false;
+}
+
 /** "Set the rate on the $15.0MM Line of Credit myself". */
 export function readRateNew(line: string, members: ElicitMember[]): string | null {
   const hit = /^set the rate on the (.+?) myself$/i.exec((line ?? "").trim());
@@ -298,9 +318,17 @@ export function readRateIndexPick(
 const AFFIRM =
   /^\s*(?:(?:yes|yep|yeah|yup|sure|ok|okay|correct|right|agreed|confirmed|please|go\s+with|let'?s\s+(?:go\s+with|say|use|do))\b[\s,.:;-]*)+/i;
 
-/** The correction a banker opens an amendment on. Mirrors `elicit.ts`. */
+/**
+ * The correction a banker opens an amendment on. Mirrors `elicit.ts`.
+ *
+ * THE VERBS A BANKER MOVES A RATE WITH (founder bug bug-1789294443785). "yes
+ * increase to 7.25%" carried the figure and was read as no answer at all,
+ * because `increase` was not on this list and the plain-figure rule needs the
+ * line to OPEN on the number. Widening the opener is safe: nothing stages
+ * unless what is left is a bare percentage inside the plausible band.
+ */
 const RATE_CORRECTION =
-  /^\s*(?:(?:no|actually|instead|rather|sorry)[,\s]+)*(?:(?:let'?s\s+)?(?:change|make|set|put|move|use)\s+(?:it|that|the\s+rate)?\s*)?(?:to\s+|at\s+|it\s+)?/i;
+  /^\s*(?:(?:no|actually|instead|rather|sorry)[,\s]+)*(?:(?:let'?s\s+)?(?:change|make|set|put|move|use|increase|raise|lift|bump|reduce|lower|drop|cut)\s+(?:it|that|the\s+rate)?\s*)?(?:to\s+|at\s+|it\s+)?/i;
 
 /** The tail a banker adds to a rate and the room does not need. */
 const RATE_TAIL = /\s*(?:all[-\s]?in|fixed|variable|floating)?\s*(?:,?\s*paid\s+\w+)?\s*[.]?$/i;

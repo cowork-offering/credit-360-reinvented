@@ -318,6 +318,12 @@ export type IntentResult =
        *  clicking one SAYS it, and the said value flows through the same parser
        *  and the same validation as a typed one. Never a gate, never a form. */
       options?: Array<{ label: string; say: string }>;
+      /** THE ROOM'S OWN QUESTION, resolved deterministically and already
+       *  carrying every legal answer as a chip. "Which of the two lines of
+       *  credit?" is exactly what a desk would be asked, so asking one costs a
+       *  round trip to be told what is already on the glass. The shell keeps
+       *  these on the fast lane. */
+      ownAsk?: true;
     };
 
 /**

@@ -160,7 +160,13 @@ const memberChip = (room: HTMLElement, label: string) =>
 const confirmButton = (room: HTMLElement) =>
   [...room.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.trim() === "Confirm");
 
-const settledRows = (room: HTMLElement) => [...room.querySelectorAll<HTMLElement>(".wk-settled")];
+/* RECEIPTS, NOT RECAP LINES (founder, 2026-09-13: "only the current action is
+   nicely shown in the chat"). A collapsed STEP now says what it recorded in one
+   line, in the same quiet register as a receipt and marked `data-recap`. It is a
+   way back into the history; these helpers are about the receipts an exchange
+   leaves in the live thread. */
+const settledRows = (room: HTMLElement) =>
+  [...room.querySelectorAll<HTMLElement>(".wk-settled:not([data-recap])")];
 const onStage = (room: HTMLElement) => [...room.querySelectorAll<HTMLElement>('[data-settle-state="on"]')];
 const settledAway = (room: HTMLElement) => [...room.querySelectorAll<HTMLElement>('[data-settle-state="settled"]')];
 
@@ -627,7 +633,7 @@ describe("the relationship room settles its steps the same way (rule 5)", () => 
 
     await relAnswer(room);
 
-    const rows = [...room.querySelectorAll<HTMLElement>(".wk-settled")];
+    const rows = settledRows(room);
     expect(rows.length).toBeGreaterThanOrEqual(1);
     // The number travels on the row: a banker three questions into six should
     // not have to count rows to find out how far through the review they are.
@@ -641,7 +647,7 @@ describe("the relationship room settles its steps the same way (rule 5)", () => 
     expect(rows[0].tagName).toBe("DIV");
 
     await relType(room, "The relationship is performing to plan and the position is unchanged.");
-    const both = [...room.querySelectorAll<HTMLElement>(".wk-settled")];
+    const both = settledRows(room);
     expect(both.length).toBeGreaterThanOrEqual(2);
     const second = both[1] as HTMLButtonElement;
     expect(second.tagName).toBe("BUTTON");
@@ -675,7 +681,9 @@ describe("the compile card resolves in place, never into a second card", () => {
   async function driveToPlan(room: HTMLElement) {
     // The annual review's four answers, on the chips the room offers.
     const pick = async (re: RegExp) => {
-      const b = [...document.body.querySelectorAll("button")].find((x) => re.test(x.textContent ?? ""));
+      const b = [...document.body.querySelectorAll("button")]
+        .filter((x) => !x.hasAttribute("data-recap"))
+        .find((x) => re.test(x.textContent ?? ""));
       relClick(b!);
       await settle();
       await settle();

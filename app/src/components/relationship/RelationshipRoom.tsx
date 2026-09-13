@@ -39,7 +39,7 @@ import {
 import { FINALE_SWEEP_MS, finaleAttrs, useFinale, withFinale } from "../workroom/finale";
 import { FILED_SECTION_MS, FiledList, type FiledLine } from "../workroom/FiledList";
 import type { BrainEnvelope, BrainMail, BrainReply, BrainTurn } from "../../channel/brainLane";
-import { askBrain, brainReachable, isDegrade, unreadableClarify } from "../../channel/brainLane";
+import { NOT_CONNECTED_CLARIFY, askBrain, brainReachable, isDegrade, unreadableClarify } from "../../channel/brainLane";
 import { rungFor } from "../../channel/ladder";
 import { readCatalog, type OrgCatalog } from "../../channel/catalog";
 import { Narration, useNarration } from "../../channel/Narration";
@@ -128,6 +128,8 @@ import { ComposerPlus } from "../composer/ComposerPlus";
 import { EMPTY_BOOK } from "../workroom/elicit";
 import { packagePick, type PackageEntry } from "../../book/packages";
 import { awaitFiling, FILED_FAILED, FILING_IN_FLIGHT, LIVE_SETTLE, STILL_WRITING } from "../workroom/settleExecution";
+import { condenseThread } from "../workroom/threadCondense";
+import { ThreadRecap } from "../workroom/ThreadCondensed";
 import "../../styles/workroom.css";
 import "../../styles/package-anchor.css";
 import "../../styles/relationship.css";
@@ -738,6 +740,10 @@ export function RelationshipRoom({
   const [ask, setAsk] = useState<RelRouterQuestion | null>(() => router?.question ?? null);
   const [items, setItems] = useState<RelItem[]>([]);
   const [step, setStep] = useState(0);
+  /* THE ONE RECAP LINE THE BANKER HAS OPENED (founder, 2026-09-13). One at a
+     time by construction: opening a second replaces the first rather than
+     adding to it, the same promise the room makes about live exchanges. */
+  const [openRecap, setOpenRecap] = useState<string | null>(null);
   /* THE THREAD, THE THIRD TIER AND THE LIVE QUESTION'S NUMBER, read through
      refs. The settle names the items it covers without the callbacks that
      settle depending on the thread's identity, which is rebuilt on every word
@@ -1838,6 +1844,43 @@ export function RelationshipRoom({
         answerAndReturn({ kind: "read", id: nextId("read"), card });
         return;
       }
+      /* ============ AND A READ THE BOOK CANNOT ANSWER IS STILL A READ
+
+         FOUNDER, 2026-09-13. "show me the pledges on this loan", asked inside a
+         valuation, came back as a settled row reading "show me the pledges on
+         this loan, recorded": the room had filed the QUESTION as the answer to
+         the live step. U1's recap line is what put it on the glass, but the
+         defect is older than the recap.
+
+         THE CAUSE IS THAT THIS LANE WAS CARD-OR-NOTHING. `readTopic` recognised
+         the line perfectly well; `buildReadCard` returned null because the book
+         carries no pledge on the facilities in scope, and a null card fell past
+         every guard below to the step machine, where an open text or date step
+         records whatever it is handed. A governance record was being written out
+         of a question.
+
+         THE FACILITY ROOM ALREADY ANSWERS THIS WAY (`answerAsked`, Workroom.tsx):
+         the book, then the desk, then an honest account of what is missing. One
+         lane, three outcomes, and the step is never one of them. The live
+         question is restated under the answer, so the banker is not left looking
+         for where they were. */
+      if (topic !== null) {
+        if (brain) {
+          setStep(mine);
+          setHistOpen(false);
+          setItems((prev) => [...prev, relBankerLine(mine, (said ?? heard).trim(), opts?.fed)]);
+          await runRelBrain(text, mine, {
+            degrade: () =>
+              setItems((prev) => [
+                ...prev,
+                { kind: "agent", id: nextId("agent"), step: mine, text: readGap(topic, ctx.accountName) },
+              ]),
+          });
+          return;
+        }
+        answerAndReturn({ kind: "agent", id: nextId("agent"), text: readGap(topic, ctx.accountName) });
+        return;
+      }
 
       /* AND THIS ROOM'S OWN THREE, AFTER the shared five have declined the
          line. "what is the risk rating", "when was the last review" and "what
@@ -1937,10 +1980,26 @@ export function RelationshipRoom({
         return;
       }
 
-      /* A QUESTION IS NOT AN ANSWER TO A STEP. Without a bridge the line still
-         reaches the step machine exactly as it did before this lane existed,
-         which is the channel-none contract. */
-      if (isQuestion(text) && brain) {
+      /* A QUESTION IS NOT AN ANSWER TO A STEP, AND THAT NO LONGER DEPENDS ON A
+         DESK (founder, 2026-09-13).
+
+         It used to read `isQuestion(text) && brain`, and the comment called the
+         fall-through the channel-none contract. It was not a contract, it was
+         the same defect as the read above wearing a different coat: with no
+         bridge the question went to the step machine, and an open text or date
+         step records whatever it is handed, so the question became the step's
+         value. Channel-none parity is about not CHANGING what the room can do;
+         filing a question as a governance answer is not something the room
+         should do down either lane.
+
+         The desk answers it where there is one. Where there is not, the room
+         says so in the sentence it already uses for a question it cannot take
+         anywhere, and the live question is restated under it. */
+      if (isQuestion(text)) {
+        if (!brain) {
+          answerAndReturn({ kind: "agent", id: nextId("agent"), text: NOT_CONNECTED_CLARIFY.text });
+          return;
+        }
         setStep(mine);
         setHistOpen(false);
         setItems((prev) => [...prev, relBankerLine(mine, (said ?? heard).trim(), opts?.fed)]);
@@ -1952,7 +2011,7 @@ export function RelationshipRoom({
                 kind: "agent",
                 id: nextId("agent"),
                 step: mine,
-                text: topic !== null ? readGap(topic, ctx.accountName) : unreadableClarify("relationship").text,
+                text: unreadableClarify("relationship").text,
               },
             ]),
         });
@@ -2288,6 +2347,13 @@ export function RelationshipRoom({
      would hide the five chips in the same gesture that said "pick one". */
   const shows = (g: { step: number }) => g.step === liveStep || (!!ask && g.step === 0);
   const hidden = grouped.filter((g) => !shows(g));
+  /* WHAT THE COLLAPSED STEPS SAY, one line each (founder, 2026-09-13). The
+     steps themselves stay exactly as they were: mounted, collapsed, and one
+     click from coming back in full. */
+  const earlier = condenseThread(
+    hidden.flatMap((g) => g.items),
+    { pinned: (i) => !!relTierOf(i, detailIdRef.current), liveTurns: 0 },
+  ).flatMap((v) => (v.show === "recap" ? [{ id: v.id, recap: v.recap }] : []));
   /** The tiers that left the stage, and whether they are back on it. */
   const tiersLeft = choreo.left;
   const tiersShown = choreo.summoned || histOpen;
@@ -2493,7 +2559,47 @@ export function RelationshipRoom({
                 data-finale={finaleState === "still" ? "still" : undefined}
                 ref={threadRef}
               >
-                {grouped.map((group) => (
+                {/* ============ THE EARLIER STEPS, AS LINES (founder, 2026-09-13)
+
+                    "i wanted to have it that only the current action is nicely
+                    shown in the chat."
+
+                    The steps behind the live one have collapsed since rule 31,
+                    and what stood for them was a counter: "earlier steps (3)".
+                    A counter is not a recap. Each one is now the line a banker
+                    would say back: its number, what was recorded, and how.
+
+                    THE LINES READ, THE COUNTER OPENS. They carry no control of
+                    their own — the counter beside them already is the one way
+                    back into the earlier steps, and a second control for one
+                    intent is the busyness this pass exists to remove. */}
+                {earlier.length > 0 && !histOpen && (
+                  <div className="wk-step" data-earlier="recap">
+                    {earlier.map((view) => (
+                      <div key={view.id} data-recap-line="">
+                        <ThreadRecap id={view.id} recap={{ ...view.recap, control: false }} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {grouped.map((group) => {
+                  /* ============ CONDENSED HISTORY, LIVE PRESENT (founder, 2026-09-13)
+
+                     "the chips with earlier read etc etc. they basically pile
+                     up ... i wanted to have it that only the current action is
+                     nicely shown in the chat."
+
+                     ONE TURN IS THE PRESENT AND EVERY EARLIER TURN IS ONE LINE,
+                     in the room's own settled register, with the whole turn one
+                     click under it. The steps BEHIND the live one keep the
+                     collapse they have had since rule 31: that is the room's
+                     own answer for a step nobody is in, and this is the answer
+                     for the turns piling up inside the one they are. */
+                  const views = condenseThread(group.items, {
+                    opened: openRecap ? new Set([openRecap]) : undefined,
+                    pinned: (i) => !!relTierOf(i, detailId),
+                  });
+                  return (
                   <div
                     className={`wk-step ${shows(group) || histOpen ? "" : "wk-gone"}`}
                     key={`step-${group.step}-${group.items[0].id}`}
@@ -2512,10 +2618,18 @@ export function RelationshipRoom({
                         {summonLabel(tiersLeft.length, tiersShown)}
                       </button>
                     )}
-                    {group.items.map((item) => {
+                    {views.map((view) => {
+                      const item = view.item;
                       /* ONE BAD ITEM IS ONE BAD ITEM (2026-09-05). Per item,
                          not per room: the rest of the thread really is fine. */
-                      const block = (
+                      const block =
+                        view.show === "none" ? null : view.show === "recap" ? (
+                        <ThreadRecap
+                          id={view.id}
+                          recap={view.recap}
+                          onToggle={(id) => setOpenRecap((was) => (was === id ? null : id))}
+                        />
+                      ) : (
                         <RoomBoundary what={`this ${item.kind}`}>
                           <RelBlock
                             item={item}
@@ -2579,6 +2693,11 @@ export function RelationshipRoom({
                             data-ex-id={item.id}
                             data-finale-card={star ? "" : undefined}
                             data-finale-after={after ? "" : undefined}
+                            /* CONDENSED, OR SPENT. A recap line stands for its
+                               whole turn; a spent row has nothing left to say
+                               and lays out no longer, mounted either way. */
+                            data-recap-line={view.show === "recap" ? "" : undefined}
+                            data-spent={view.show === "none" ? "" : undefined}
                             {...withFinale(
                               settleAttrs(
                                 item.kind === "settled" ? "on" : settle.stateOf(item.id),
@@ -2593,7 +2712,7 @@ export function RelationshipRoom({
                                 overflow that lets the track squeeze it. */}
                             <div className="wk-ex-in">
                               {block}
-                              <Narration view={narration.viewFor(item.id)} />
+                              {view.show === "full" && <Narration view={narration.viewFor(item.id)} />}
                             </div>
                           </div>
                         );
@@ -2630,7 +2749,8 @@ export function RelationshipRoom({
                       />
                     )}
                   </div>
-                ))}
+                  );
+                })}
                 {thinking && (
                   <div
                     className="wk-compose"

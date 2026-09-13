@@ -20,6 +20,7 @@ import { isActiveFacility } from "../data/worklist";
 import type { BorrowerBundle, C360Data, Covenant, Facility } from "../data/contract";
 import {
   createMissLedger,
+  heardBack,
   heardPreface,
   holdComposed,
   readableError,
@@ -54,6 +55,7 @@ import {
   type Awaiting,
   type ParseContext,
   type ParsedValue,
+  type ParseOutcome,
 } from "./parseModify";
 import { greetingFor } from "./viewer";
 import type { SourceChip, WhyRow } from "./scripts";
@@ -327,7 +329,9 @@ function clarifyChips(
   options: string[] | undefined,
 ): Array<{ label: string; say: string }> | undefined {
   const chips: Array<{ label: string; say: string }> = [];
-  if (awaiting && SCALAR_TERM_TYPES.has(awaiting.field.type)) {
+  // A MEMBER QUESTION HAS NOTHING TO KEEP. Its chips are the members, and a
+  // "Keep as booked" beside them would hold a field nobody has named yet.
+  if (awaiting && !awaiting.member && SCALAR_TERM_TYPES.has(awaiting.field.type)) {
     const cur = currentValue(awaiting.field, awaiting.facility);
     const known = !cur.startsWith("not ") && !cur.includes("not staged");
     chips.push({ label: known ? `Keep ${cur}` : "Keep as booked", say: "keep it" });
@@ -1361,6 +1365,9 @@ export function createModifyEngine(args: {
    */
   function withCurrent(question: string, awaiting?: Awaiting): string {
     if (!awaiting) return question;
+    // A MEMBER QUESTION IS ABOUT NO FIELD YET. Today's figure and the reason the
+    // field matters both belong to the question that comes after it.
+    if (awaiting.member) return question;
     const today = awaiting.facility ? currentValue(awaiting.field, awaiting.facility) : "";
     const reads = today && !today.startsWith("not ") && !today.includes("not staged") ? ` Today it reads ${today}.` : "";
     // AND WHY THE ROOM IS ASKING. A question with today's figure beside it says
@@ -1396,6 +1403,9 @@ export function createModifyEngine(args: {
         // org's own picklist values, capped so a long list is not a wall of
         // forty buttons.
         options: chips,
+        // A MEMBER QUESTION IS THE ROOM'S OWN. Every legal answer is on it
+        // already, so a desk round trip would only hand back the same list.
+        ...(outcome.awaiting?.member ? { ownAsk: true as const } : {}),
       };
     }
     if (outcome.kind === "none") return null;
@@ -1518,6 +1528,21 @@ export function createModifyEngine(args: {
     return result;
   }
 
+  /**
+   * THE MEMBER THE ROOM IS NOW STANDING ON.
+   *
+   * A change that landed on exactly one member is where the conversation is, so
+   * the next line that names none belongs to it. Without this the room asked
+   * "which member should this land on?" about the facility it had been working
+   * for five turns, which is the room forgetting what it had just done.
+   */
+  function stand(outcome: ParseOutcome): void {
+    if (outcome.kind !== "amendments") return;
+    const on = [...new Set(outcome.amendments.map((a) => a.facility?.loanId).filter(Boolean))];
+    if (on.length !== 1) return;
+    focus = outcome.amendments.find((a) => a.facility?.loanId === on[0])?.facility ?? focus;
+  }
+
   async function parseIntent(text: string): Promise<IntentResult> {
     // NOT UNTIL THE ROOM IS ANCHORED. An amendment across two packages is one no
     // single credit action can carry, so it is refused before it is parsed
@@ -1540,7 +1565,17 @@ export function createModifyEngine(args: {
       if (answered) {
         const result = toResult(answered, deltaSeq, text);
         if (result) {
-          awaiting = answered.kind === "clarify" ? (answered.awaiting ?? awaiting) : null;
+          /* AN ANSWER OUT OF ORDER DOES NOT CLOSE THE QUESTION IT JUMPED. The
+             banker priced the facility while the term was still open: the rate
+             is staged, and the term is still the thing the room needs, so it is
+             put back under the chip rather than dropped (D3, 2026-09-13). */
+          const jumped =
+            answered.kind === "amendments" &&
+            !!onTheTable &&
+            !before.member &&
+            answered.amendments.every((a) => a.field.id !== before.field.id);
+          awaiting = answered.kind === "clarify" ? (answered.awaiting ?? awaiting) : jumped ? before : null;
+          if (jumped) result.reply = `${result.reply} Back to it: ${onTheTable}`;
           /* THE SAME QUESTION, PUT AGAIN, IS A MISS AND IS SAID AS ONE. A
              clarify that MOVED ON (the pledge's next missing half) is progress,
              not a miss, so the two are told apart on the question itself. */
@@ -1549,6 +1584,7 @@ export function createModifyEngine(args: {
           } else {
             misses.clear();
             if (answered.kind !== "clarify") lastAnswered = before;
+            stand(answered);
           }
           return settle(result);
         }
@@ -1569,6 +1605,7 @@ export function createModifyEngine(args: {
         // the same route out as one typed into a question.
         const only = parsed.amendments.length === 1 ? parsed.amendments[0] : null;
         lastAnswered = only ? { field: only.field, facility: only.facility } : null;
+        stand(parsed);
       }
       return settle(direct);
     }
@@ -1589,8 +1626,19 @@ export function createModifyEngine(args: {
       );
       const restated = await deps.restate(text, words);
       if (restated) {
-        const second = toResult(parseModify(restated, parseContext()), deltaSeq, restated);
-        if (second) return settle(second);
+        /* THE ASSIST MAY ANSWER, NEVER ASK (D3, orchestrator drive 2026-09-13).
+           A restatement that only raises a QUESTION has not read the banker's
+           line: the words in the question are the gateway's, not theirs, so the
+           room ends up asking about a sentence nobody said. On the drive that
+           put one identical question up for "7.25%", "asdf", "keep it" and "no
+           change" alike, because a gateway answering with commentary restates
+           every line as the same commentary. Only amendments are taken; every
+           other outcome falls through to the room's own honest miss. */
+        const second = parseModify(restated, parseContext());
+        if (second.kind === "amendments") {
+          const result = toResult(second, deltaSeq, restated);
+          if (result) return settle(result);
+        }
       }
     }
 
@@ -1621,11 +1669,16 @@ export function createModifyEngine(args: {
           }. If that is what you are correcting, say "remove the ${lastAnswered.field.label.toLowerCase()}" and then name it again with the new figure.`
         : "";
     asked = true;
+    /* AND THE DEAD END QUOTES THE LINE, so two misses in a row are two
+       sentences rather than one sentence twice (golden rule 5, D3 drive
+       2026-09-13). It said nothing about what the banker had typed, so "7.25%"
+       and "asdf" came back word for word identical and the room read as deaf.
+       The branch above already differs: it names the member it read. */
     return {
       kind: "unparsed",
       reply: named.length
         ? `I read the ${named.map(memberName).join(" and the ")}, but not what should change on ${named.length === 1 ? "it" : "them"}. ${scope}${correcting}`
-        : `I could not map that onto this package: it names no member I hold and no field I file. Name one of the members above and what should change on it. ${scope}${correcting}`,
+        : `I could not map that onto this package: it names no member I hold and no field I file. Nothing in ${heardBack(text)} is a member or a change. Name one of the members above and what should change on it. ${scope}${correcting}`,
     };
   }
 

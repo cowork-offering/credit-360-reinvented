@@ -25,6 +25,7 @@ import type { Boom, BoomPeriod } from "../data/contract";
 import { covenantUnit, type CovenantUnit } from "../data/finance";
 import { fmtMoney, fmtPct } from "../data/format";
 import { sentence, type RelationshipSpreadContext } from "./preRead";
+import { interestCoverageOf } from "./coverage";
 import { covenantDirection, onFileBoomFigures, thresholdSide, thresholdWord } from "./provisional";
 import type { BoomFinancialStatement } from "./types";
 
@@ -179,8 +180,7 @@ function figuresAt(index: AfterIndex, day: string): PostReadFigures {
     interestExpense: interest === null ? null : Math.abs(interest),
     totalDebt,
     leverage: ebitda !== null && ebitda > 0 && totalDebt !== null ? totalDebt / ebitda : null,
-    interestCoverage:
-      operatingProfit !== null && interest !== null && Math.abs(interest) > 0 ? operatingProfit / Math.abs(interest) : null,
+    interestCoverage: interestCoverageOf(operatingProfit, interest),
     ebitdaMarginPct: pct(ebitda, revenue),
     operatingMarginPct: pct(operatingProfit, revenue),
     totalAssets,

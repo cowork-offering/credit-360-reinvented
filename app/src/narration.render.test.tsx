@@ -340,7 +340,7 @@ describe("a remark that fails leaves the room exactly as it was", () => {
     installSession(() => Promise.reject({ code: "upstream_error", message: "down" }));
     const room = await openRoom(reply(CLARIFY));
     await settle();
-    await typeInto(room, "take the line of credit to 20000000");
+    await typeInto(room, "take the 15M line of credit to 20000000");
 
     expect(room.querySelector(".wk-narr")).toBeNull();
     // The card the parser staged is still there. Nothing is worse than today.
@@ -373,7 +373,7 @@ describe("channel-none renders exactly today's sentences", () => {
   it("shows no remark and no pulse with no session door and no brain", async () => {
     const room = await openRoom(undefined);
     await settle();
-    await typeInto(room, "take the line of credit to 20000000");
+    await typeInto(room, "take the 15M line of credit to 20000000");
 
     expect(room.querySelector(".wk-narr")).toBeNull();
     expect(room.querySelector(".wk-narr-wait")).toBeNull();
@@ -407,7 +407,7 @@ describe("the model's four channels each render through the room's own component
     installSession(async () => "Both are open; the seasonal line is the smaller of the two.");
     const room = await openRoom(reply(CLARIFY));
     await settle();
-    await typeInto(room, "raise the line");
+    await typeInto(room, "bump the big revolver by five million");
 
     const opts = [...room.querySelectorAll(".wk-opt")].map((b) => b.textContent);
     expect(opts).toEqual(expect.arrayContaining(["Revolving line, $15.0MM", "Seasonal line, $2.5MM"]));

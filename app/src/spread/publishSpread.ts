@@ -31,13 +31,31 @@
    statement carrying a single period would never reach the memo's Boom graph.
    See `mergeStatement` below.
 
-   WHAT IS NOT RECOMPUTED, AND WHY. `ratios` travels through UNCHANGED, `asOf`
-   included. Boom's account-code chart carries no depreciation and amortisation
-   line, so EBITDA is not derivable from statements alone; leverage and interest
-   coverage are derived from EBITDA. Recomputing any of the three here would
-   print a figure nothing in the spread supports. The normaliser already puts
-   EBITDA on the ratios' own period and on no other, so the new period shows the
-   revenue the statements DO carry and stays silent on the rest.
+   WHAT IS NOT RECOMPUTED, AND WHY. `ratios` travels through unchanged apart
+   from its interest coverage, `asOf` included. Boom's account-code chart
+   carries no depreciation and amortisation line, so EBITDA is not derivable
+   from statements alone and neither is the leverage struck against it.
+   Recomputing either here would print a figure nothing in the spread supports.
+   The normaliser already puts EBITDA on the ratios' own period and on no other,
+   so the new period shows the revenue the statements DO carry and stays silent
+   on the rest.
+
+   INTEREST COVERAGE IS THE ONE EXCEPTION, because it is the one of the three
+   the statements DO support. Boom strikes it as operating profit over interest
+   expense, both of which are rows on the income statement with account codes of
+   their own, so nothing is invented by restriking it here. `spread/coverage.ts`
+   carries the definition and the proof against Boom's own snapshot.
+
+   LEAVING IT BEHIND IS WHAT MADE THE COCKPIT PRINT TWO FIGURES FOR ONE RATIO
+   (founder review, 2026-09-13: the Spreading room's panel read 3.09x and the
+   Financials tab's Key ratios read 2.95x for the same provisional period, on
+   one page). The room reads the drop through the provisional read; the tab and
+   the memo read `ratios`, and `ratios` was still the period before the drop.
+
+   AND ONLY WHERE THIS SPREAD IS THE NEWEST THING ON THE BOOK. A banker
+   back-filling an older year has not restated the period the ratio set
+   describes, so an older drop moves nothing. Where the book carries no ratio
+   set at all, none is invented: a relationship with no ratios prints none.
 
    IDEMPOTENT ON THE PERIOD. A period is merged in by its own id and its own end
    date, so publishing the same spread twice adds one column and not two. The
@@ -61,6 +79,7 @@
 
 import { normaliseBoom } from "../../../client-360/render/boom-normalise.mjs";
 import type { Boom, BoomPeriod } from "../data/contract";
+import { interestCoverageAt, newestEndDate } from "./coverage";
 import type { BoomFinancialStatement } from "./types";
 
 /** Where a published spread came from. The stub's spread is built from the
@@ -281,6 +300,35 @@ function newestSpreadLast(periods: BoomPeriod[], moved: Map<string, BoomPeriod>)
   return [...periods.slice(0, at), ...behind, periods[at]];
 }
 
+/**
+ * THE RATIO SET THIS SPREAD LEAVES ON THE BOOK.
+ *
+ * The set on file with its interest coverage restruck on the merged spread,
+ * where this spread carried the newest period the book now holds. Returned
+ * unchanged in every other case, and never conjured where there was none.
+ *
+ * Both copies move together: `normaliseBoom` prefers `raw` over the display
+ * field and the memo's dossier does the same, so updating one and not the other
+ * is how the two surfaces would disagree again.
+ */
+function ratiosWithCoverage(
+  ratios: Boom["ratios"],
+  merged: BoomFinancialStatement[],
+  incoming: BoomFinancialStatement[],
+): Boom["ratios"] {
+  if (!ratios) return ratios;
+  const newest = newestEndDate(merged);
+  if (!newest || newestEndDate(incoming) !== newest) return ratios;
+  const coverage = interestCoverageAt(merged, newest);
+  if (coverage === null) return ratios;
+  const raw = ratios.raw;
+  return {
+    ...ratios,
+    interestCoverage: coverage,
+    ...(raw ? { raw: { ...raw, interestCoverage: coverage } } : {}),
+  };
+}
+
 export interface PublishSpreadArgs {
   /** The spread on file, normalised, as `bundle.boom` holds it. */
   onFile: Boom | null | undefined;
@@ -323,7 +371,7 @@ export function publishSpread(args: PublishSpreadArgs): Boom | null {
      Boom would produce. */
   const next = normaliseBoom({
     ...(onFile ?? {}),
-    ratios: onFile?.ratios,
+    ratios: ratiosWithCoverage(onFile?.ratios, merged.financialStatements, statements),
     spread: { ...(onFile?.spread ?? {}), file: merged },
   });
   if (!next) return onFile ?? null;

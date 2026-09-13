@@ -90,8 +90,18 @@ function itemLine(item: unknown): string {
       return `**Room (notice): ${str(item.title)}** ${str(item.body)}`.trim();
     case "trouble":
       return `**Runtime:** ${text}`;
-    case "settled":
-      return `**Filed:** ${label(item.row) || "[settled]"}`;
+    case "settled": {
+      /* THE RECEIPT'S OWN TWO FIELDS (2026-09-13). `SettledRow` is {what, how}
+         and carries none of the names `label` looks for, so every receipt in
+         the founder's bucket transcript read "[settled]" and the record of what
+         was decided was lost exactly where it mattered. The glass condenses;
+         the transcript does not. */
+      const row = isRec(item.row) ? item.row : {};
+      const what = [str(row.kicker), str(row.what)].map((s) => s.trim()).filter(Boolean).join(" · ");
+      const how = str(row.how).trim();
+      const said = [what, how].filter(Boolean).join(" · ");
+      return `**Filed:** ${said || label(item.row) || "[settled]"}`;
+    }
     case "dossier":
       return `_[dossier]_`;
     case "opening":

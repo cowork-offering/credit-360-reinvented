@@ -2,6 +2,37 @@
 
 ## Changelog
 
+- **0.9.22 (2026-09-13)** THE LOCK, THE PILE-UP, THE CHAT. Founder feedback bucket
+  `bug-1789294443785` (Hartwell modification, 0.9.20 in the real host): after "Hold 6.58%" every
+  later line was refused with "One decision at a time" and no card on screen; the cockpit chat sat
+  on "Composing" for over three minutes; spent chips and "Filed: [settled]" rows piled above the
+  live question; the memo's opening chips read cluttered. ROOT CAUSE OF THE LOCK: settled
+  exchanges stay mounted off the glass, and `openGates` counted every live item in the thread
+  array, so any card a multi-chip Confirm settled off-screen became an invisible open gate for
+  the rest of the session. Now: the gate counts only what is on stage; the refusal, where it is
+  still right, names its card ("The rate card above is still open: pick Hold 6.58%, a new all-in
+  rate or index plus spread"); questions are answered from the book inside an open gate and the
+  decision is restated; "yes increase to 7.25%" after a hold re-opens the rate and stages it; an
+  invariant test says a refusal implies something on the glass; the transcript is a repro test
+  (`oneDecisionLock.repro.test.tsx`, 5 of 11 failed before the fix). THE CHAT: the new word
+  pacer painted the bubble empty on mount and filled it from animation frames, so in a throttled
+  or hidden view it stayed blank (jsdom reports reduced motion, which is why no test saw it); it
+  now lands whole after 1.2 s without a frame, an empty desk answer gets the honest sentence, and
+  the chat now asks the desk on the WORKLIST view too, with a portfolio context (the queue rows loudest first with reasons, grade, exposure, coverage, next test and maturity; the book totals with their scope; a standing honesty list; capped at 5,000 chars, 2,819 on the real book), so "who needs attention today", "which relationship has the thinnest coverage" and "how much is committed across the book" answer from the page's own figures; every desk failure lands a bubble (a declined door says the notice once and then what still answers; a timeout says the wait it spent; anything else says the ask did not reach the desk; one console.info carries the failure code for the next real-host report), and the composer is enabled only for a lane the send will actually try. The connector grant warm-up added in 0.9.20 (four reads at open, each raising a host
+  consent dialog) is OFF by default (`GRANT_WARMUP_ENABLED=false`) until a real-host run proves
+  the host does not queue the session door behind an open dialog. CONDENSED THREAD, LIVE PRESENT:
+  only the current turn renders in full; every earlier turn is one recap line in the settled
+  register ("Commitment amount: $15M to $35M, confirmed · challenged, acknowledged"), one click
+  re-opens it, spent chip rows leave the glass, nothing unmounts; wired in the facility, the
+  relationship and the memo rooms; the Feedback transcript now prints what each receipt recorded
+  instead of "[settled]"; the memo's opening chip row and chips are capped to the workroom chip
+  register. In the facility room the condensed thread keeps a spent block mounted off the glass (the room's absence grammar; a confirmed chip is its own receipt) and pins any turn that asks something, so a refusal that says "the open card above" never has its card condensed away; the earlier-step recap lines sit directly in the column so the step census stays honest. RELATIONSHIP ROOM READS: a recognised read question whose card comes back empty (Hartwell's pledges sit outside the anchored package) used to fall through the step machine and be FILED as the step's answer ("show me the pledges on this loan, recorded"); a read is now always answered as a read (card, else desk, else the honest gap sentence) and the live step is restated, on the desk lane and on the no-desk lane alike (`relationshipRoomQuestion.render.test.tsx`, fails on the old code with the founder's literal string in the settled row). ONE RATIO, ONE DEFINITION: after a stub spread the room panel printed coverage from the drop's own lines while the Financials tab and the memo kept the on-file LTM ratio (3.09x beside 2.95x on one page); Boom's definition is operating profit over interest expense, proved against Piedmont's own snapshot, stated once in `spread/coverage.ts`, restruck on publish only when the spread carries the newest period and never invented where the book has none (`coverageParity.e2e.test.tsx`: room, rendered tab and memo are the identical number). STRESS SCRIPTS ON THE BUILT PAGE (not in the founder's transcript, same class): a singular "the line of credit" on a package with two of them now asks which, one chip per member (a plural reference stays a selection; a figure in the sentence still narrows out loud); a bps token or a percentage with a move verb is a rate move ("add 50bps": 6.58% to 7.08%, "take 25 bps off" down); a rate typed into another field's open question stages the rate and restates the question; a signed figure is refused with both readings computed off the book and chips; an unreadable answer quotes what the room heard instead of repeating the question; "keep it" and "no change" land as the keep chip; a member question holds until answered; the gateway assist's restatement is accepted only when it produces an amendment (the stub's canned paragraph was being read as a term question). NEW GATE: `design/probes/workroom-e2e.mjs` drives the built page with the
+  probe stub lanes plus Hartwell's real book, types the founder's transcript and the
+  stress-script lines into the real composer, takes Confirm and Acknowledge like the banker did,
+  and asserts every turn replies, no reply repeats, no refusal without a visible card, no em
+  dash; on 0.9.21 it reproduced the founder's breakage, on 0.9.22 it passes. Fixtures and the
+  spread drive ship under `design/probes/`. Gates: tsc 0; vitest 209 files, 4,932 passed, 0 failed, 11 todo; bundle 1,996,730 B (1.904 MiB, under the soft gate); IRIS 0; spread drive csv/xlsx/pdf green (ladder complete, provisional badge, coverage 3.09x on every surface); workroom drive founderTranscript / stressRate / relativeAndSign: findings [] and no page errors. Warm-up stays OFF. Follow-ups in backlog rows 37 (a bare date at an idle room), 38 to 40 (0.9.23: shape and undo the version, create room), 42 (Key ratios card period labels).
+
 - **0.9.21 (2026-09-13)** THE MEMO'S KEY METRICS TABLE (founder review of the Piedmont memo). Before:
   one "as of" ratio set repeated across every fiscal column and stamped "(unchanged)" in a fourth,
   three columns cap (Hartwell's FY2023 fell off silently), nCino's last covenant test printed inside

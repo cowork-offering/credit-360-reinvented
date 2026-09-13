@@ -10,11 +10,23 @@
    PAGE-AGNOSTIC BY CONSTRUCTION: the context is the relationship, never the
    tab. Figures come from the bundle the cockpit already read from the bank's
    systems; nothing here calls a tool, so nothing here can invent a read.
+
+   TWO CONTEXTS, ONE DOOR (2026-09-13). {@link deskContext} is the relationship,
+   for a view with one open; {@link deskPortfolioContext} is the BOOK, for the
+   worklist view, which had no context of its own and therefore no desk at all.
+   Both travel through {@link askThroughDoor}, so the deadline, the guard and
+   the failure shapes are identical wherever the banker asked.
    ============================================================================= */
 
+import { bookTotalsOf } from "../book/livePortfolio";
 import { MODIFICATION_IN_PROGRESS } from "../book/packages";
-import type { ActionHistoryRow, BorrowerBundle } from "../data/contract";
+import type { ActionHistoryRow, BorrowerBundle, C360Data, ReasonCode } from "../data/contract";
+import { fmtRatio } from "../data/finance";
 import { fmtDate, fmtMoney } from "../data/format";
+import { queueSentence, type Queue } from "../data/queue";
+import { overdueTestIds } from "../data/worklist";
+import { buildWorklistRows, type WorklistRow } from "../data/worklistRows";
+import { REASON_META } from "../components/reasons";
 import { threadDigest } from "../components/workroom/readBlocks";
 import { RECOMMEND_ONLY_WHEN_GROUNDED, VOICE } from "./doctrine";
 import type { BrainReadBlocks, BrainTurn } from "./brainLane";
@@ -301,8 +313,8 @@ export function deskContext(
  * cut notice is, because the envelope's `notCarried` never leaves either: the
  * one line that lets an answer refuse by name must not be the line that is cut.
  */
-function assemble(parts: ContextPart[], standing = ""): string {
-  const budget = CONTEXT_CAP - NOTICE_RESERVE - standing.length;
+function assemble(parts: ContextPart[], standing = "", cap = CONTEXT_CAP): string {
+  const budget = cap - NOTICE_RESERVE - standing.length;
   const kept: string[] = [];
   const lost: string[] = [];
   let size = 0;
@@ -320,6 +332,178 @@ function assemble(parts: ContextPart[], standing = ""): string {
     ? ` This context was cut to fit, so it does not carry ${lost.join(", ")}. Say that it is not in front of you rather than reading what is here as the whole book.`
     : "";
   return `${kept.join(" ")}${notice}${standing ? ` ${standing}` : ""}`;
+}
+
+/* ========================================================= THE BOOK, NOT A DEAL
+
+   THE WORKLIST VIEW ASKED NOBODY (founder 2026-09-13, the "Composing" report;
+   W1's finding (a)). The desk was tried only where an account was open AND a
+   bundle resolved, so a question asked on the landing fell past the desk, past
+   a connector that is not in every view, and into the legacy prompt bridge,
+   which throws "no agent channel" where nothing is wired. The banker got a note
+   and no answer, on the first surface the cockpit opens on.
+
+   THE LANDING HAS A BOOK, AND IT IS ENOUGH TO ANSWER FROM. The page already
+   derives the queue, ranks it, counts the quiet rest and sums the totals the
+   KPI band prints. "Who needs attention today", "which relationship has the
+   thinnest coverage", "how much is committed across the book" are all answered
+   off that, and none of them needs a facility.
+
+   SAME DISCIPLINE, SMALLER SCOPE. Every figure is printed by the function the
+   glass prints it with ({@link bookTotalsOf}, `fmtMoney`, `fmtRatio`,
+   `queueSentence`), so the chat and the landing can never state two books. What
+   a book-level read CANNOT say is refused standing, by name, with the move that
+   would get it: open the relationship.                                        */
+
+/** The widest a portfolio context may travel. A fifth of the relationship
+ *  budget because a book row is one line of an already-summarised read, not a
+ *  facility, a covenant and a pledge each. MEASURED, not guessed: the real book
+ *  (`artifact/live-data.json`, five relationships) spends 2,819 of it, and a
+ *  60-relationship book fills it and is cut at rank 21 with the cut named. The
+ *  widest prompt this makes is 8,955 B against a 48,000 B cap. */
+export const PORTFOLIO_CONTEXT_CAP = 5_000;
+
+/** How many quiet relationships travel by name. The quiet rest is a count with
+ *  a few names on it, never a second queue. */
+const QUIET_NAMED = 8;
+
+/** The model's standing instruction on the landing. The two rules that hold
+ *  every surface ({@link RECOMMEND_ONLY_WHEN_GROUNDED}, {@link VOICE}) are the
+ *  pack's own constants, imported rather than paraphrased, exactly as
+ *  {@link DESK_RULES} carries them: one rule, now three surfaces. */
+export const DESK_PORTFOLIO_RULES =
+  "You are the credit desk for this banker's whole book. Answer in plain prose, no headings, no markdown, no bullet characters. " +
+  "Use only the figures in the context; when something is not there, say this view does not carry it, in one clause, and name the one move that would get it. " +
+  "Never mention tabs, views or where the reader is standing. A rundown is a lead sentence, then the facts that matter, at most six sentences. " +
+  "Every figure here is BOOK LEVEL: the portfolio read's own total per relationship, and the queue the page ranks from it. A relationship's facilities, covenant values and collateral are read one relationship at a time and are not here, so name the relationship and the room rather than reaching for a figure this view does not hold. " +
+  "Lead with the current figure on file. Where the banker is deciding where to start, name the relationship, the reason it is on the queue and the figure that makes it matter, then the real options. " +
+  RECOMMEND_ONLY_WHEN_GROUNDED +
+  " " +
+  "Close on the next step, in one clause: the relationship to open, or the question that follows. Never leave the banker with nothing to do. " +
+  VOICE;
+
+/** WHAT A BOOK-LEVEL READ CANNOT STATE, said standing rather than only when a
+ *  cut happens to reach it, and ending on the one move that gets all four. */
+const BOOK_NOT_CARRIED = [
+  "the facilities on any one relationship, their commitments, rates and maturities",
+  "covenant values and the thresholds they test against",
+  "collateral, its valuations and what it secures",
+  "the obligor group, the guarantors and who is on each deal",
+];
+
+/** The honesty list for the landing, as one sentence, reserved out of the
+ *  budget the way the relationship desk reserves its own. */
+const BOOK_NOT_CARRIED_SAID = `This view does not carry ${BOOK_NOT_CARRIED.join(
+  "; ",
+)}. Refuse those by name; the move that gets any of them is to open the relationship for those.`;
+
+/** A day count as a banker reads it, or nothing where the read carries no date. */
+function dayClause(days: number | null): string {
+  if (days === null) return "";
+  if (days === 0) return " (today)";
+  return days > 0 ? ` (in ${days} days)` : ` (${Math.abs(days)} days ago)`;
+}
+
+/** One reason, as the code AND the words the chip on the landing says, so the
+ *  answer and the row a banker is looking at use one vocabulary. */
+const reasonSaid = (code: ReasonCode): string => `${code} (${REASON_META[code].label.toLowerCase()})`;
+
+/**
+ * ONE QUEUE ROW.
+ *
+ * THE SCOPE RIDES EVERY TOTAL, for the same reason it does on the relationship
+ * desk: `portfolio.accounts[].tce` is the portfolio read's rollup and a
+ * relationship's own exposure read sums its active facilities. On Hartwell that
+ * is $54.0M here and $57.0M in the room, both honest, and a figure with no
+ * scope on it is how one relationship reads as two.
+ */
+function bookRowLine(row: WorklistRow, rank: number, overdue: boolean, coverage: string | null): string {
+  const reasons = row.reasons.map(reasonSaid);
+  return line([
+    `${rank}. ${row.name}`,
+    reasons.length ? `on the queue for ${reasons.join(" and ")}` : "on the queue with no reason code carried",
+    overdue ? "the test is overdue" : null,
+    row.riskRating != null ? `risk grade ${row.riskRating}` : null,
+    typeof row.tce === "number" ? `${fmtMoney(row.tce)} total credit exposure as the portfolio read carries it` : null,
+    typeof row.outstanding === "number" ? `${fmtMoney(row.outstanding)} drawn` : null,
+    coverage ? `collateral coverage ${coverage} as the org computes it across that relationship` : null,
+    row.nextTestDate ? `next covenant test ${fmtDate(row.nextTestDate)}${dayClause(row.nextTestDays)}` : null,
+    row.maturityDate ? `nearest maturity ${fmtDate(row.maturityDate)}${dayClause(row.maturityDays)}` : null,
+  ]);
+}
+
+/** What the landing holds: the book, the queue and the quiet rest. The panel
+ *  hands this straight off `useApp`, so the chat reads the page's own state
+ *  rather than deriving a second one. */
+export interface DeskPortfolioState {
+  data: C360Data;
+  queue: Queue;
+}
+
+/**
+ * THE WHOLE BOOK AS PROSE, at the landing's own scope.
+ *
+ * Cut the way the relationship context is cut: at a whole line, from the end,
+ * naming the part of the book that did not travel. The queue is emitted loudest
+ * first, so a cut reaches the quietest rows first and the work at the top of
+ * the banker's day always survives it.
+ */
+export function deskPortfolioContext(state: DeskPortfolioState): string {
+  const { data, queue } = state;
+  const accounts = data.portfolio?.accounts ?? [];
+  const totals = bookTotalsOf(accounts);
+  const rows = buildWorklistRows(data, queue.worklist);
+  const overdue = overdueTestIds(data);
+  const byId = new Map(accounts.map((a) => [a.accountId, a]));
+
+  const parts: ContextPart[] = [];
+  const push = (text: string, what: string) => parts.push({ text, what });
+
+  const count = totals.accountCount ?? accounts.length;
+  push(
+    line([
+      `The book on this page is ${count} ${count === 1 ? "relationship" : "relationships"}`,
+      typeof totals.totalCommitted === "number" ? `${fmtMoney(totals.totalCommitted)} committed` : null,
+      typeof totals.totalOutstanding === "number" ? `${fmtMoney(totals.totalOutstanding)} drawn` : null,
+      typeof totals.utilizationPct === "number" ? `${totals.utilizationPct}% drawn against commitment` : null,
+      "summed over the rows on this page and over nothing else",
+    ]),
+    "the book totals",
+  );
+
+  push(queueSentence(queue.summary), "the queue's own count");
+  push(
+    "The rows below are in the queue's own order, loudest signal first: a client request waiting, then a covenant breach, a recorded exception, an overdue test, a test due, a maturity inside the window, a modification cluster, a guarantor signal, a recent modification. Position is the severity; there is no other scale.",
+    "the order the queue ranks in",
+  );
+
+  rows.forEach((row, i) => {
+    const bundle = data.borrowers?.[row.accountId];
+    const ratio = bundle?.exposure?.coverageRatio;
+    push(
+      bookRowLine(row, i + 1, overdue.has(row.accountId), typeof ratio === "number" ? fmtRatio(ratio) : null),
+      "the rest of the needs-action queue",
+    );
+  });
+
+  if (queue.summary.quiet > 0) {
+    const named = queue.quiet
+      .slice(0, QUIET_NAMED)
+      .map((id) => {
+        const a = byId.get(id);
+        if (!a) return null;
+        return typeof a.tce === "number" ? `${a.name} (${fmtMoney(a.tce)})` : a.name;
+      })
+      .filter((n): n is string => Boolean(n));
+    push(
+      `${queue.summary.quiet} ${queue.summary.quiet === 1 ? "relationship carries" : "relationships carry"} no signal today${
+        named.length ? `, the largest being ${named.join(", ")}` : ""
+      }. Quiet is not clear: it means no reason code fired on this read.`,
+      "the quiet rest of the book",
+    );
+  }
+
+  return assemble(parts, BOOK_NOT_CARRIED_SAID, PORTFOLIO_CONTEXT_CAP);
 }
 
 /* ----------------------------------------------------------- the conversation
@@ -416,6 +600,37 @@ export async function askDesk(args: {
   const prompt = `${DESK_RULES}\n\nContext:\n${deskContext(args.bundle, args.accountName, { history: args.history })}${deskThread(
     args.thread,
   )}\n\nQuestion: ${args.question}`;
+  return askThroughDoor(prompt, args);
+}
+
+/**
+ * ASK THE DESK ABOUT THE BOOK, from a view with no relationship open.
+ *
+ * The same door, the same deadline and the same guard as {@link askDesk}: the
+ * two surfaces differ in the context they carry and in nothing else, so a
+ * failure, a timeout or an empty answer behaves identically wherever the banker
+ * asked it.
+ */
+export async function askDeskPortfolio(args: {
+  state: DeskPortfolioState;
+  question: string;
+  /** The conversation so far, oldest first, WITHOUT this question. */
+  thread?: readonly BrainTurn[];
+  signal?: AbortSignal;
+  deadlineMs?: number;
+  onText?: (update: { text: string }) => void;
+}): Promise<string> {
+  const prompt = `${DESK_PORTFOLIO_RULES}\n\nContext:\n${deskPortfolioContext(args.state)}${deskThread(
+    args.thread,
+  )}\n\nQuestion: ${args.question}`;
+  return askThroughDoor(prompt, args);
+}
+
+/** The door, the deadline and the guard, shared by both desk surfaces. */
+async function askThroughDoor(
+  prompt: string,
+  args: { signal?: AbortSignal; deadlineMs?: number; onText?: (update: { text: string }) => void },
+): Promise<string> {
   const deadlineMs = args.deadlineMs ?? DESK_TIMEOUT_MS;
 
   const controller = new AbortController();

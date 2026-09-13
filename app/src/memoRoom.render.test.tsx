@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -430,6 +432,25 @@ describe("the greeting on the glass", () => {
   it("offers Draft and Steer, and the stored memo only when there is one", () => {
     const { room } = openRoom({ rows: [trailRow(STEPS)] });
     expect([...room.querySelectorAll(".mm-chip")].map(text)).toEqual(["Draft", "Steer"]);
+  });
+
+  it("keeps the greeting chips in the workroom's own chip register", () => {
+    /* FOUNDER, 2026-09-13: "please check also credit memo the chips in the
+       beginning are too wide. it looks cluttered." The chip FACE is `.wk-opt`
+       and is styled once, in workroom.css; what this room adds may cap the row
+       and cap a chip, and may not restate the register — a second font size or
+       a second padding here is how two rooms drift into two chips. */
+    const { room } = openRoom({ rows: [trailRow(STEPS)] });
+    const row = room.querySelector(".wk-opts.mm-chips")!;
+    expect(row).toBeTruthy();
+    for (const chip of [...room.querySelectorAll(".mm-chip")]) {
+      expect(chip.className).toContain("wk-opt");
+    }
+    const css = readFileSync(resolve(process.cwd(), "src/styles/memo.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const block = css.slice(css.indexOf(".mm-chips {"), css.indexOf(".mm-chip {") + css.slice(css.indexOf(".mm-chip {")).indexOf("}") + 1);
+    expect(block).toContain("max-width: 78%");
+    expect(block).toContain("text-overflow: ellipsis");
+    expect(block).not.toMatch(/font-size|padding|border-radius|background/);
   });
 
   it("says what asked for the memo, when an instruction did", () => {

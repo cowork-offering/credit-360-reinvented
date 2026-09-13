@@ -10,6 +10,7 @@ import {
   rateSay,
   readRateFreeText,
   readRateHold,
+  readRateHoldLabel,
   readRateIndexOpen,
   readRateIndexPick,
   readRateNew,
@@ -211,5 +212,48 @@ describe("the chips read back as themselves", () => {
     // Not a question about the offer.
     expect(asksRateOptions("7.25%")).toBe(false);
     expect(asksRateOptions("increase the 15M line of credit to 20M")).toBe(false);
+  });
+});
+
+/* =============================================================================
+   THE CHIP'S OWN LABEL, TYPED (founder bug bug-1789294443785). The room offered
+   "Hold 6.58%", the banker typed "Hold 6.58%", and the room answered "I could
+   not match that to anything on this package".
+   ============================================================================= */
+
+describe("the hold chip, typed back word for word", () => {
+  const onFile = { pct: 6.58, basis: null, frequency: null, from: "loan" as const };
+
+  it("takes the label the room printed, in the forms a banker types it", () => {
+    expect(readRateHoldLabel("Hold 6.58%", onFile)).toBe(true);
+    expect(readRateHoldLabel("hold 6.58", onFile)).toBe(true);
+    expect(readRateHoldLabel("keep it at 6.58%", onFile)).toBe(true);
+    expect(readRateHoldLabel("Hold 6.58% fixed, paid monthly", onFile)).toBe(true);
+  });
+
+  it("is a hold only where the figure is the one on file", () => {
+    // A different figure is a NEW rate, and the free-text reader stages it.
+    expect(readRateHoldLabel("hold 7.25%", onFile)).toBe(false);
+    // With no rate on the read there is nothing to hold.
+    expect(readRateHoldLabel("hold 6.58%", null)).toBe(false);
+    // And an instruction is never one of these.
+    expect(readRateHoldLabel("hold the construction loan at its maturity", onFile)).toBe(false);
+  });
+});
+
+describe("a change of mind, in the verbs a banker uses", () => {
+  const read = (text: string) => readRateFreeText(text, { onFile: 6.58 });
+
+  it("reads the figure behind an increase, a raise or a cut", () => {
+    expect(read("yes increase to 7.25%")).toEqual({ pct: "7.25", index: null });
+    expect(read("raise it to 7.25%")).toEqual({ pct: "7.25", index: null });
+    expect(read("lower the rate to 6.10%")).toEqual({ pct: "6.10", index: null });
+  });
+
+  it("still refuses a line that carries no rate behind the verb", () => {
+    expect(read("increase the 15M line of credit to 35M")).toBeNull();
+    expect(read("increase the commitment")).toBeNull();
+    // A bare integer is an amortisation, and the same composer reaches this lane.
+    expect(read("increase to 240")).toBeNull();
   });
 });

@@ -350,8 +350,23 @@
 .mm-col-l .wk-thread > .wk-ex:first-child {
   margin-top: 8px;
 }
+/* A CHIP IS A CHIP EVERYWHERE (founder, 2026-09-13: "the chips in the beginning
+   are too wide. it looks cluttered"). The greeting's chips are `.wk-opt` and
+   take the workroom's register unchanged — 12px type, 6px/11px, the 6px gap —
+   and this pins the two things a chip row standing on its own in a narrow
+   column does not get from it: the row never runs wider than the bubbles above
+   it (`.wk-msg` is 78%), and no one chip may take the whole row. A label longer
+   than that is cut rather than wrapped: the chip carries the choice, the bubble
+   above it carries the sentence. */
 .mm-chips {
   margin-top: 10px;
+  max-width: 78%;
+}
+.mm-chip {
+  max-width: 14rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* --------------------------------------------------------------- the finale

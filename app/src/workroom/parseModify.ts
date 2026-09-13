@@ -1,10 +1,13 @@
 import type { Facility, LegalEntity } from "../data/contract";
 import { facilityProduct, shortFacilityLabel } from "../data/facilityStage";
+import { fmtMoney } from "../data/format";
 import { catalogField, isFileable, matchCatalog, type CatalogField, type CatalogMatch, type CatalogType } from "./fieldCatalog";
 import { LOAN_FIELD_INDEX, type IndexedField } from "./fieldIndex.gen";
 
 /** The only money field the modification tool carries. See `inferAmount`. */
 const FILEABLE_AMOUNT = catalogField("loan.amount")!;
+/** The only priced field it carries. See `inferRate`. */
+const FILEABLE_RATE = catalogField("loan.interestRate")!;
 
 /* =============================================================================
    THE DETERMINISTIC PARSE.
@@ -169,6 +172,16 @@ export interface Awaiting {
    * settled, a bare line is the mitigant rather than a new instruction.
    */
   exception?: ExceptionRead;
+  /**
+   * A MEMBER QUESTION IS ANSWERED WITH A MEMBER, and the line that raised it is
+   * still the instruction.
+   *
+   * "Increase the line of credit by 20M" on a package carrying two of them
+   * names neither, so the room asks which. The answer is "the $15M one" and
+   * nothing else, because a banker does not write the whole instruction twice.
+   * The line that asked is held here and re-read against the member they pick.
+   */
+  member?: { said: string; choices: Facility[] };
 }
 
 /** What a fee line has settled so far. Every field is optional because a fee
@@ -248,6 +261,14 @@ export interface ParseContext {
    * clicked, which is the room forgetting what the banker did one turn ago.
    */
   focus?: Facility | null;
+  /**
+   * THE MEMBER THE BANKER JUST PICKED OUT OF A "WHICH ONE?".
+   *
+   * Set only while the line that raised that question is being re-read. It
+   * settles the target outright: re-reading the line's own words would fit the
+   * same two members again and ask the same question forever.
+   */
+  picked?: Facility[] | null;
 }
 
 /* ------------------------------------------------------------------- money */
@@ -431,6 +452,40 @@ function namedFacilities(lower: string, ctx: ParseContext): NameMatch {
   };
 }
 
+/**
+ * DOES THE LINE ITSELF TELL THESE MEMBERS APART?
+ *
+ * "the 2.5M line of credit" carries a figure written against the product word,
+ * and on a package with two lines that figure names one of them. The reference
+ * is not ambiguous and asking "which one?" over it would be the room failing to
+ * read what the banker wrote.
+ *
+ * THE NARROWING IS NOT DONE HERE. `qualifierFilter` in
+ * `components/workroom/dispatch.ts` does it over the staged deltas and says
+ * which member it read; one rule said out loud in one place beats the same rule
+ * kept in two. This only decides whether there is a question to ask.
+ *
+ * THE FIGURE HAS TO SIT AGAINST THE PRODUCT WORD. A figure further down the
+ * sentence is the new value: "take the line of credit to $2.5M" names no
+ * member at all, and reading its target as a name would silence the question.
+ */
+function figureNamesAMember(bookable: Facility[], lower: string, relationship: string): boolean {
+  const tokens = moneyTokens(lower);
+  if (!tokens.length) return false;
+  return bookable.some((f) => {
+    if (typeof f.committed !== "number") return false;
+    const words = facilityProduct(f, relationship)
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length > 3);
+    return tokens.some((t) => {
+      if (t.value !== f.committed) return false;
+      const next = /^[\s-]*([a-z]+)/.exec(lower.slice(t.index + t.text.length));
+      return !!next && words.includes(next[1]);
+    });
+  });
+}
+
 /** WHICH MEMBERS A LINE NAMED, for a refusal that can say what it DID read.
  *  "I could not read an amendment in that" is a true answer and a useless one;
  *  "I read the Line of Credit, but not what should change on it" is the same
@@ -540,11 +595,43 @@ function readOwnership(lower: string): number | undefined {
 
 /* ------------------------------------------------------------------- parse */
 
+/**
+ * DID THE BANKER COUNT MORE THAN ONE?
+ *
+ * "The equipment facilities" and "both lines" are a selection: the banker said
+ * plural and meant it. "The line of credit" is singular and definite, and on a
+ * package carrying two of them it names NEITHER. Reading it as both stages a
+ * change set nobody asked for, on a member nobody named.
+ */
+const PLURAL_REFERENCE = /\b(?:both|all|each|every|facilities|lines|loans|notes|revolvers|commitments)\b/;
+
+/** A member, named for a chip: the product and what it commits today. */
+function memberChipLabel(f: Facility, relationship: string): string {
+  const product = facilityProduct(f, relationship);
+  return typeof f.committed === "number" ? `${product} ${fmtMoney(f.committed)}` : product;
+}
+
+/** The scalar terms a move lands on ONE member. A commitment, a rate, a term or
+ *  a maturity is a figure per facility, so "Both" is never an honest option for
+ *  one; a covenant, a pledge or a guarantor legitimately rides several. */
+const PER_MEMBER_SCALAR = new Set<CatalogType>(["currency", "percent", "months", "date"]);
+
+type TargetAsk = { question: string; options?: string[]; choices?: Facility[] };
+
+/** The question that resolves an ambiguous reference, with one chip per member
+ *  the reference fits. "Both" only where the ask could honestly ride both. */
+function whichMember(question: string, choices: Facility[], ctx: ParseContext, fields: CatalogField[]): TargetAsk {
+  const options = choices.map((f) => memberChipLabel(f, ctx.relationship));
+  const shared = fields.length > 0 && fields.every((f) => !PER_MEMBER_SCALAR.has(f.type));
+  if (shared) options.push(choices.length === 2 ? "Both" : "All of them");
+  return { question, options, choices };
+}
+
 /** Which member(s) an amendment lands on, or the question that resolves it. */
-function resolveTarget(
-  lower: string,
-  ctx: ParseContext,
-): { facilities: Facility[] } | { question: string } {
+function resolveTarget(lower: string, ctx: ParseContext, fields: CatalogField[] = []): { facilities: Facility[] } | TargetAsk {
+  // ALREADY ANSWERED. The banker picked one out of a "which one?" and this is
+  // the line that raised it, being read again against what they picked.
+  if (ctx.picked?.length) return { facilities: ctx.picked };
   const named = namedFacilities(lower, ctx);
   if (named.facilities.length) {
     // BOOKED AND OPEN, OR NOT AT ALL. nCino accepts a credit action only against
@@ -560,15 +647,19 @@ function resolveTarget(
         } ${stages.length ? `at ${stages.join(", ")}` : "not staged as booked in this read"}, and a credit action only runs against a booked facility. Nothing there can be modified.`,
       };
     }
-    // A NICKNAME THAT FITS SEVERAL NAMES NONE OF THEM. "The revolver" on a deal
-    // with two lines of credit is a question; "the equipment facilities" is a
-    // selection, because the banker said the product.
-    if (named.how === "alias" && bookable.length > 1) {
-      return {
-        question: `This package has ${bookable.length} of those: ${bookable
+    // A SINGULAR REFERENCE THAT FITS SEVERAL NAMES NONE OF THEM. "The revolver"
+    // and "the line of credit" on a deal with two lines are both questions;
+    // "the equipment facilities" and "both lines" are selections, because the
+    // banker counted.
+    if (bookable.length > 1 && !PLURAL_REFERENCE.test(lower) && !figureNamesAMember(bookable, lower, ctx.relationship)) {
+      return whichMember(
+        `This package carries ${bookable.length} of those: ${bookable
           .map((f) => shortFacilityLabel(f, ctx.relationship))
           .join(", ")}. Which one?`,
-      };
+        bookable,
+        ctx,
+        fields,
+      );
     }
     return { facilities: bookable };
   }
@@ -582,8 +673,44 @@ function resolveTarget(
     };
   }
   const names = ctx.booked.map((f) => shortFacilityLabel(f, ctx.relationship)).filter(Boolean);
+  return whichMember(
+    `Which member should this land on? The package has ${ctx.booked.length}: ${names.join(", ")}.`,
+    ctx.booked,
+    ctx,
+    fields,
+  );
+}
+
+/**
+ * WHICH OF THE CHOICES AN ANSWER NAMES, out of the set the question offered.
+ *
+ * The chip's own label first, then the org's label and the record id, then the
+ * committed figure in whatever form it was written: "the $15M one", "15
+ * million" and "Line of Credit $15M" are all the same answer.
+ */
+function pickMembers(text: string, choices: Facility[], relationship: string): Facility[] {
+  const lower = text.toLowerCase().trim();
+  if (/^(?:both|all)\b/.test(lower)) return choices;
+  const byName = choices.filter((f) =>
+    [memberChipLabel(f, relationship), shortFacilityLabel(f, relationship), f.name ?? "", f.loanId ?? ""]
+      .map((t) => t.toLowerCase().trim())
+      .some((t) => t.length > 2 && lower.includes(t)),
+  );
+  if (byName.length) return byName;
+  const tokens = moneyTokens(lower);
+  return tokens.length
+    ? choices.filter((f) => typeof f.committed === "number" && tokens.some((t) => t.value === f.committed))
+    : [];
+}
+
+/** The clarify a member question becomes: the question, its chips, and the line
+ *  that raised it, held so the answer completes it rather than restating it. */
+function memberClarify(ask: TargetAsk, said: string, field: CatalogField): ParseOutcome {
   return {
-    question: `Which member should this land on? The package has ${ctx.booked.length}: ${names.join(", ")}.`,
+    kind: "clarify",
+    question: ask.question,
+    options: ask.options,
+    awaiting: ask.choices?.length ? { field, facility: null, member: { said, choices: ask.choices } } : undefined,
   };
 }
 
@@ -1242,7 +1369,7 @@ function readException(
 /** Words that move a figure UP. */
 const MOVE_UP = /\b(increase[sd]?|increasing|raise[sd]?|raising|add|adds|added|adding|plus|bump|bumps|bumped|up)\b/i;
 /** Words that move a figure DOWN. */
-const MOVE_DOWN = /\b(reduce[sd]?|reducing|lower|lowers|lowered|lowering|cut|cuts|decrease[sd]?|decreasing|drop|drops|dropped|shave[sd]?|down|minus|less)\b/i;
+const MOVE_DOWN = /\b(reduce[sd]?|reducing|lower|lowers|lowered|lowering|cut|cuts|decrease[sd]?|decreasing|drop|drops|dropped|shave[sd]?|down|minus|less|off)\b/i;
 /** A target marker. "take it to $19M" and "price it at 810 bps" are absolutes. */
 const NAMES_A_TARGET = /\b(?:to|at|becomes?|of)\s+(?:\$\s*)?\d/i;
 
@@ -1492,6 +1619,54 @@ function readValue(
  * room that answered it with "which member?" would be a room asking about the
  * thing the banker had pointed at.
  */
+/** A figure quoted in basis points. `bps` sits inside `50bps`, so the catalog's
+ *  word-bounded synonyms never see it. */
+const BPS_TOKEN = /\d\s*(?:bps|bp|basis\s+points?)\b/;
+
+/**
+ * THE SECOND INFERENCE, over the same closed set.
+ *
+ * "add 50bps on the line of credit" names a member and a move and no field at
+ * all. A BASIS POINT IS A PRICE: nothing else this room files is quoted in one,
+ * so a bps token is the rate and reading it as anything else is the room
+ * inventing a field. A bare percentage needs the move verb as well, because a
+ * percentage beside a member could be a great many things, and only a move
+ * makes it a price.
+ *
+ * The value itself is read by the rate field's own reader, so a spread, a minus
+ * and a move off the figure on file all behave exactly as they do when the
+ * banker says the word "rate".
+ */
+function inferRate(text: string, lower: string, ctx: ParseContext): ParseOutcome | null {
+  if (!percentTokens(lower).length) return null;
+  // A BARE PERCENTAGE IS A PRICE ONLY WHERE THE ROOM IS ALREADY STANDING ON ONE
+  // MEMBER. "8%" on its own, one line after a change landed on the $15M line, is
+  // that facility's rate; typed into an idle room it is a fact about the deal.
+  if (!BPS_TOKEN.test(lower) && moveDirection(lower) === 0 && !ctx.focus) return null;
+  const resolved = resolveTarget(lower, ctx, [FILEABLE_RATE]);
+  if ("question" in resolved) return memberClarify(resolved, text, FILEABLE_RATE);
+  const scrubbed = scrubIdentity(text, resolved.facilities, ctx.relationship);
+  const scrubbedLower = scrubbed.toLowerCase();
+  const at: CatalogMatch = { field: FILEABLE_RATE, matched: "", index: 0 };
+  const amendments: Amendment[] = [];
+  const said = percentTokens(scrubbedLower).at(-1)!;
+  for (const facility of resolved.facilities) {
+    // A MINUS IS TWO INSTRUCTIONS, and the room says both readings with the
+    // figure each lands on rather than refusing with one of them.
+    if (negated(scrubbedLower, said.index)) {
+      const ask = signedFigureAsk(said, facility);
+      return { kind: "clarify", question: ask.question, options: ask.options.length ? ask.options : undefined };
+    }
+    const read = readValue(FILEABLE_RATE, scrubbed, scrubbedLower, at, facility, ctx);
+    if ("question" in read) {
+      return { kind: "clarify", question: read.question, awaiting: { field: FILEABLE_RATE, facility } };
+    }
+    if (read.value === null) return null;
+    amendments.push({ field: FILEABLE_RATE, facility, value: read.value, matched: read.value.text, op: "change" });
+  }
+  return amendments.length ? { kind: "amendments", amendments } : null;
+}
+
 function inferAmount(lower: string, ctx: ParseContext): ParseOutcome | null {
   const named = namedFacilities(lower, ctx).facilities;
   const established = named.length ? named : ctx.focus ? [ctx.focus] : [];
@@ -1502,8 +1677,8 @@ function inferAmount(lower: string, ctx: ParseContext): ParseOutcome | null {
   const target = moneyTokens(scrubbed).find((t) => t.index > to);
   if (!target) return null;
   // THROUGH THE SAME GATE as a named field: booked only, nicknames resolved.
-  const resolved = resolveTarget(lower, ctx);
-  if ("question" in resolved) return { kind: "clarify", question: resolved.question };
+  const resolved = resolveTarget(lower, ctx, [FILEABLE_AMOUNT]);
+  if ("question" in resolved) return memberClarify(resolved, lower, FILEABLE_AMOUNT);
   return {
     kind: "amendments",
     amendments: resolved.facilities.map((facility) => ({
@@ -1533,10 +1708,127 @@ function inferAmount(lower: string, ctx: ParseContext): ParseOutcome | null {
 const KEEP_CURRENT =
   /^(?:hold|keep(?:\s+(?:it|current|the\s+same|as[-\s]?is|as\s+it\s+is))?|no\s+change|don'?t\s+change(?:\s+it)?|leave\s+(?:it|as[-\s]?is|as\s+it\s+is|unchanged)?|unchanged|same|as[-\s]?is|stet)\b/i;
 
+/**
+ * A SIGNED FIGURE IS TWO INSTRUCTIONS AND THE ROOM WILL NOT PICK ONE.
+ *
+ * "-5%" against a facility is the rate down five points, or the commitment cut
+ * by five per cent. Those are different credit actions with different figures,
+ * so both readings are stated with what they land on, computed off the book,
+ * and the banker takes one. Where the read carries neither figure there is
+ * nothing to ground a reading in, and the refusal says only what it could not
+ * read.
+ */
+function signedFigureAsk(said: Scalar, facility: Facility): { question: string; options: string[] } {
+  const rate =
+    typeof facility.interestRate === "number" ? Math.round((facility.interestRate - said.value) * 1e6) / 1e6 : null;
+  const cut = typeof facility.committed === "number" ? Math.round(facility.committed * (1 - said.value / 100)) : null;
+  const readings: string[] = [];
+  const options: string[] = [];
+  if (rate !== null && rate > 0) {
+    readings.push(`the rate down ${said.value} points, to ${rate}%`);
+    options.push(`Lower the rate to ${rate}%`);
+  }
+  if (cut !== null && cut > 0) {
+    readings.push(`the commitment cut ${said.value}%, to ${exactMoney(cut)}`);
+    options.push(`Reduce the commitment to ${exactMoney(cut)}`);
+  }
+  return readings.length
+    ? {
+        // QUOTED WITH ITS SIGN. The tokeniser drops the minus and the minus is
+        // the whole reason this is a question.
+        question: `"-${said.text}" could be ${readings.join(", or ")}. Those are different changes, so say which.`,
+        options,
+      }
+    : {
+        question: `I will not read a minus off the line as a move. Say the all-in rate, or say the move in words, for example "lower it by ${said.value}%".`,
+        options: [],
+      };
+}
+
+/**
+ * A PRICE READ OFF A LINE TYPED INTO ANOTHER FIELD'S QUESTION, or the question
+ * that has to be settled before it can be one.
+ *
+ * Null where the line carries no percentage, or carries a length or a date:
+ * those belong to whatever question is actually open. Exported because the
+ * PRICING GATE's open question is the SHELL's own (`Workroom.tsx`) rather than
+ * this module's `Awaiting`, and a rate typed into it is the same out-of-order
+ * answer either way.
+ */
+export type RateAside = { value: ParsedValue } | { question: string; options: string[] };
+
+export function readRateAside(text: string, facility: Facility | null | undefined): RateAside | null {
+  if (!facility) return null;
+  const trimmed = text.trim();
+  const lower = trimmed.toLowerCase();
+  if (!lower || monthTokens(lower).length || readDate(lower)?.iso) return null;
+  const pcts = percentTokens(lower);
+  if (!pcts.length) return null;
+  const last = pcts.at(-1)!;
+  if (negated(lower, last.index)) return signedFigureAsk(last, facility);
+  const at: CatalogMatch = { field: FILEABLE_RATE, matched: "", index: 0 };
+  const alone: ParseContext = { facilities: [facility], booked: [facility], relationship: "", entities: [] };
+  const read = readValue(FILEABLE_RATE, trimmed, lower, at, facility, alone);
+  if ("question" in read) return { question: read.question, options: read.options ?? [] };
+  return read.value?.kind === "percent" ? { value: read.value } : null;
+}
+
+/**
+ * THE ANSWER THAT BELONGS TO ANOTHER FIELD.
+ *
+ * A banker who types a rate while the term question is open has answered the
+ * rate, out of order; they have not typed noise. Re-asking the term over it
+ * loses the figure they just gave, which is the loop that made the room feel
+ * deaf. So the figure is staged on the field it could only have been about, on
+ * the member the open question is about, and the engine puts the open question
+ * back underneath it.
+ *
+ * TWO SHAPES ONLY, and both are unambiguous on this package: a percentage or a
+ * basis-point figure is the rate, and money is the commitment. A length and a
+ * date are read by the open field itself and never reach here.
+ */
+function readOutOfOrder(awaiting: Awaiting, text: string, lower: string, ctx: ParseContext): ParseOutcome | null {
+  const facility = awaiting.facility;
+  if (!facility) return null;
+  if (monthTokens(lower).length || readDate(lower)?.iso) return null;
+  if (percentTokens(lower).length && awaiting.field.type !== "percent") {
+    const aside = readRateAside(text, facility);
+    if (!aside) return null;
+    if ("question" in aside) {
+      return { kind: "clarify", question: aside.question, options: aside.options.length ? aside.options : undefined };
+    }
+    return {
+      kind: "amendments",
+      amendments: [{ field: FILEABLE_RATE, facility, value: aside.value, matched: aside.value.text, op: "change" }],
+    };
+  }
+  if (moneyTokens(lower).length && awaiting.field.type !== "currency") {
+    const at: CatalogMatch = { field: FILEABLE_AMOUNT, matched: "", index: 0 };
+    const read = readValue(FILEABLE_AMOUNT, text, lower, at, facility, ctx);
+    if ("question" in read) {
+      return { kind: "clarify", question: read.question, awaiting: { field: FILEABLE_AMOUNT, facility } };
+    }
+    if (read.value === null) return null;
+    return {
+      kind: "amendments",
+      amendments: [{ field: FILEABLE_AMOUNT, facility, value: read.value, matched: read.value.text, op: "change" }],
+    };
+  }
+  return null;
+}
+
 export function parseAnswer(awaiting: Awaiting, text: string, ctx: ParseContext): ParseOutcome | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
   const lower = trimmed.toLowerCase();
+
+  // THE ANSWER TO "WHICH ONE?" IS A MEMBER, and the instruction is the line that
+  // raised the question. It is read again against the member they picked rather
+  // than asked for again, which is what makes "the $15M one" a complete reply.
+  if (awaiting.member) {
+    const chosen = pickMembers(trimmed, awaiting.member.choices, ctx.relationship);
+    return chosen.length ? parseModify(awaiting.member.said, { ...ctx, picked: chosen }) : null;
+  }
 
   // THE ANSWER TO "WHICH ENTITY?" IS A NAME, and the op, the role and the member
   // were all read off the line that asked. Resolved against the deal's own
@@ -1651,6 +1943,12 @@ export function parseAnswer(awaiting: Awaiting, text: string, ctx: ParseContext)
   const at: CatalogMatch = { field: awaiting.field, matched: "", index: 0 };
   const read = readValue(awaiting.field, trimmed, lower, at, awaiting.facility, ctx);
   if ("question" in read) {
+    // AN ANSWER TO A DIFFERENT QUESTION IS STILL AN ANSWER. A banker who types a
+    // percentage while the term is open has answered the rate, out of order; the
+    // room takes the figure and puts the open question back underneath it
+    // instead of losing what they just said.
+    const elsewhere = readOutOfOrder(awaiting, trimmed, lower, ctx);
+    if (elsewhere) return elsewhere;
     // KEEP CURRENT IS AN ANSWER, NOT A NON-ANSWER. "hold" / "keep it" / "no
     // change" / "leave as is" to a term question means the field does not move,
     // and re-asking the same question over it is the loop that made the room
@@ -1744,8 +2042,8 @@ function indexFallback(trimmed: string, lower: string, ctx: ParseContext): Parse
   if (!best) return null;
 
   const field = indexEntry(best.row);
-  const target = resolveTarget(lower, ctx);
-  if ("question" in target) return { kind: "clarify", question: target.question };
+  const target = resolveTarget(lower, ctx, [field]);
+  if ("question" in target) return memberClarify(target, trimmed, field);
   const facility = target.facilities[0] ?? null;
   const scrubbed = scrubIdentity(trimmed, target.facilities, ctx.relationship);
   const scrubbedLower = scrubbed.toLowerCase();
@@ -1827,12 +2125,14 @@ export function parseModify(text: string, ctx: ParseContext): ParseOutcome {
 
   const matches = claimExceptionClause(matchCatalog(trimmed));
   if (!matches.length) {
+    const priced = inferRate(trimmed, lower, ctx);
+    if (priced) return priced;
     const inferred = inferAmount(lower, ctx);
     if (inferred) return inferred;
     return indexFallback(trimmed, lower, ctx) ?? { kind: "none" };
   }
 
-  const target = resolveTarget(lower, ctx);
+  const target = resolveTarget(lower, ctx, matches.map((m) => m.field));
   const amendments: Amendment[] = [];
 
   for (const match of matches) {
@@ -1842,7 +2142,7 @@ export function parseModify(text: string, ctx: ParseContext): ParseOutcome {
     // deal, not one facility, and asking which member would be the wrong
     // question. Everything else needs a member before it needs a value.
     const memberScoped = field.category !== "party" && field.category !== "package";
-    if (memberScoped && "question" in target) return { kind: "clarify", question: target.question };
+    if (memberScoped && "question" in target) return memberClarify(target, trimmed, field);
     // A party amendment is deal-scoped by default, BUT a line that NAMES a member
     // binds to it — that is what makes the involvement change fileable, because
     // the org anchors every involvement row on one loan.

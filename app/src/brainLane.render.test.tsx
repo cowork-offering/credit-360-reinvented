@@ -284,7 +284,7 @@ describe("the polite command still stages, and the question still asks", () => {
     const brain = reply(STRUCTURE);
     const room = openWithBrain(brain);
     await settle();
-    await typeInto(room, "can you increase the Line of Credit to $19M?");
+    await typeInto(room, "can you increase the 15M line of credit to $19M?");
 
     // The desk was never troubled: this was always an instruction.
     expect(brain).not.toHaveBeenCalled();

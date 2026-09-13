@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Facility, LegalEntity } from "../data/contract";
+import { catalogField } from "./fieldCatalog";
 import { parseAnswer, parseModify, type ParseContext } from "./parseModify";
 
 /* =============================================================================
@@ -44,6 +45,9 @@ const line25: Facility = {
   stage: "Booked",
   status: "Active",
   committed: 2_500_000,
+  // Priced, like every booked member of this package: a rate move that names
+  // the product has two real rates to land on, not one.
+  interestRate: 6.83,
   maturityDate: "2026-06-30",
 };
 
@@ -650,6 +654,200 @@ describe("a length whose own label states the unit", () => {
     const out = parseModify("shorten the amortisation", single);
     expect(out.kind).toBe("clarify");
     if (out.kind !== "clarify") return;
+    expect(out.question).toMatch(/months or years/i);
+  });
+});
+
+/* =============================================================================
+   ONE REFERENCE, TWO MEMBERS (D1, orchestrator drive 2026-09-13).
+
+   "Increase the line of credit by 20M USD" on Hartwell's package staged TWO
+   amount cards, $15M to $35M and $2.50M to $22.50M, each with its own Confirm,
+   and the drive confirmed both. A product word spreading across every member
+   carrying it is right for "the equipment facilities", where the banker
+   counted. It is wrong for a singular, definite reference: "the line of credit"
+   on a package with two of them names NEITHER, and staging both is a change set
+   nobody asked for on a member nobody named.
+   ============================================================================= */
+
+describe("a singular reference that fits two members", () => {
+  it("ASKS which one, and names each of them on a chip", () => {
+    const out = parseModify("Increase the line of credit by 20M USD", ctx);
+    if (out.kind !== "clarify") throw new Error(out.kind);
+    expect(out.question).toMatch(/Line of Credit - \$15,000,000\.00/);
+    expect(out.question).toMatch(/Line of Credit - \$2,500,000\.00/);
+    // One chip per member, by product and what it commits today.
+    expect(out.options).toEqual(["Line of Credit $15M", "Line of Credit $2.50M"]);
+    // AN AMOUNT MOVE NEVER RIDES BOTH. Twenty million on each is two different
+    // credit actions, so there is no honest "Both" to offer.
+    expect(out.options).not.toContain("Both");
+    // And the line itself is held, so the answer is a member and nothing else.
+    expect(out.awaiting?.member?.said).toBe("Increase the line of credit by 20M USD");
+    expect(out.awaiting?.member?.choices.map((f) => f.loanId)).toEqual([line15.loanId, line25.loanId]);
+  });
+
+  it("stages the ask on the member the answer names, off the held line", () => {
+    const asked = parseModify("Increase the line of credit by 20M USD", ctx);
+    if (asked.kind !== "clarify") throw new Error(asked.kind);
+    const answered = parseAnswer(asked.awaiting!, "Line of Credit $15M", ctx);
+    if (answered?.kind !== "amendments") throw new Error(String(answered?.kind));
+    expect(answered.amendments).toHaveLength(1);
+    expect(answered.amendments[0].facility?.loanId).toBe(line15.loanId);
+    // A move, computed off the figure on file: $15M + $20M.
+    expect(answered.amendments[0].value).toMatchObject({ kind: "currency", amount: 35_000_000 });
+  });
+
+  it("reads the member out of a figure the banker wrote instead of the chip", () => {
+    const asked = parseModify("Increase the line of credit by 20M USD", ctx);
+    if (asked.kind !== "clarify") throw new Error(asked.kind);
+    const answered = parseAnswer(asked.awaiting!, "the $2.5M one", ctx);
+    if (answered?.kind !== "amendments") throw new Error(String(answered?.kind));
+    expect(answered.amendments[0].facility?.loanId).toBe(line25.loanId);
+  });
+
+  it("keeps a PLURAL reference a selection, because the banker counted", () => {
+    const out = parseModify("take the lines of credit to $20,000,000", ctx);
+    if (out.kind !== "amendments") throw new Error(out.kind);
+    expect(out.amendments.map((a) => a.facility?.loanId)).toEqual([line15.loanId, line25.loanId]);
+  });
+
+  it("offers Both where the ask could honestly ride both members", () => {
+    const out = parseModify("add a leverage covenant max 3.5x on the line of credit", ctx);
+    if (out.kind !== "clarify") throw new Error(out.kind);
+    expect(out.options).toEqual(["Line of Credit $15M", "Line of Credit $2.50M", "Both"]);
+    const answered = parseAnswer(out.awaiting!, "Both", ctx);
+    if (answered?.kind !== "amendments") throw new Error(String(answered?.kind));
+    expect(answered.amendments.map((a) => a.facility?.loanId)).toEqual([line15.loanId, line25.loanId]);
+  });
+
+  it("asks nothing where a figure in the line names one of them", () => {
+    // "the 2.5M line of credit" is not ambiguous. The narrowing itself is the
+    // qualifier filter's, in components/workroom/dispatch.ts, which says which
+    // member it read; the parser's job here is only not to ask.
+    const out = parseModify("take the 2.5M line of credit to 4M", ctx);
+    expect(out.kind).toBe("amendments");
+  });
+
+  it("puts the SAME chips under the question when the line names no member", () => {
+    const out = parseModify("increase the commitment to $20,000,000", ctx);
+    if (out.kind !== "clarify") throw new Error(out.kind);
+    expect(out.question).toMatch(/which member/i);
+    expect(out.options).toEqual(["Line of Credit $15M", "Line of Credit $2.50M", "Equipment $8M"]);
+    expect(out.awaiting?.member?.choices).toHaveLength(3);
+  });
+});
+
+/* =============================================================================
+   A BPS MOVE IS A RATE MOVE (D2, orchestrator drive 2026-09-13).
+
+   "add 50bps on the line of credit" staged nothing at all: "bps" sits inside
+   "50bps", so the catalog's word-bounded synonyms never see it, and the room
+   fell through to a question about a term. Nothing on a facility but the price
+   is quoted in basis points.
+   ============================================================================= */
+
+describe("a move quoted in basis points", () => {
+  it("reads an ADD as a move UP off the rate on file", () => {
+    const out = parseModify("add 50bps on the line of credit", single);
+    if (out.kind !== "amendments") throw new Error(out.kind);
+    expect(out.amendments[0].field.id).toBe("loan.interestRate");
+    expect(out.amendments[0].facility?.loanId).toBe(line15.loanId);
+    expect(out.amendments[0].value).toMatchObject({ kind: "percent", rate: 8.1 });
+  });
+
+  it("reads TAKE OFF as a move DOWN, on the member the figure names", () => {
+    const out = parseModify("take 25 bps off the $15M line", ctx);
+    if (out.kind !== "amendments") throw new Error(out.kind);
+    const on15 = out.amendments.find((a) => a.facility?.loanId === line15.loanId);
+    expect(on15?.field.id).toBe("loan.interestRate");
+    expect(on15?.value).toMatchObject({ kind: "percent", rate: 7.35 });
+  });
+
+  it("reads the direction off the verb where the field is named too", () => {
+    const out = parseModify("lower the rate by 50bps", single);
+    if (out.kind !== "amendments") throw new Error(out.kind);
+    expect(out.amendments[0].value).toMatchObject({ kind: "percent", rate: 7.1 });
+  });
+
+  it("REFUSES a signed figure with both readings rather than picking one", () => {
+    const out = parseModify("add -50bps on the line of credit", single);
+    if (out.kind !== "clarify") throw new Error(out.kind);
+    // 7.6% less half a point, and $15,000,000 less half a per cent.
+    expect(out.question).toContain("the rate down 0.5 points, to 7.1%");
+    expect(out.question).toContain("the commitment cut 0.5%, to $14,925,000.00");
+    expect(out.options).toEqual(["Lower the rate to 7.1%", "Reduce the commitment to $14,925,000.00"]);
+  });
+
+  it("asks which line before it prices anything, where the reference fits two", () => {
+    const out = parseModify("add 50bps on the line of credit", ctx);
+    if (out.kind !== "clarify") throw new Error(out.kind);
+    expect(out.options).toEqual(["Line of Credit $15M", "Line of Credit $2.50M"]);
+    const answered = parseAnswer(out.awaiting!, "Line of Credit $15M", ctx);
+    if (answered?.kind !== "amendments") throw new Error(String(answered?.kind));
+    expect(answered.amendments[0].value).toMatchObject({ kind: "percent", rate: 8.1 });
+  });
+
+  it("leaves a bare percentage alone where the line states no move", () => {
+    // "810 bps" beside a member is a price; "5%" with no verb is a fact about
+    // the deal, and the room does not stage facts.
+    expect(parseModify("5% on the line of credit", single).kind).toBe("none");
+  });
+});
+
+/* =============================================================================
+   AN ANSWER OUT OF ORDER IS STILL AN ANSWER (D3, orchestrator drive 2026-09-13).
+
+   With the term question open, "7.25%", "asdf", "-5%", "actually 8%" and "no
+   change" each got the identical sentence back. A rate typed into a term
+   question is the banker answering the next field early; re-asking the term
+   over it loses the figure they just gave.
+   ============================================================================= */
+
+describe("a figure that belongs to another field, typed into an open question", () => {
+  const onTerm = { field: catalogField("loan.termMonths")!, facility: line15 };
+
+  it("stages the RATE on the member in focus", () => {
+    const out = parseAnswer(onTerm, "7.25%", single);
+    if (out?.kind !== "amendments") throw new Error(String(out?.kind));
+    expect(out.amendments[0].field.id).toBe("loan.interestRate");
+    expect(out.amendments[0].facility?.loanId).toBe(line15.loanId);
+    expect(out.amendments[0].value).toMatchObject({ kind: "percent", rate: 7.25 });
+  });
+
+  it("supersedes it on a correction", () => {
+    const out = parseAnswer(onTerm, "actually 8%", single);
+    if (out?.kind !== "amendments") throw new Error(String(out?.kind));
+    expect(out.amendments[0].value).toMatchObject({ kind: "percent", rate: 8 });
+  });
+
+  it("REFUSES a signed figure with both readings and the figure each lands on", () => {
+    const out = parseAnswer(onTerm, "-5%", single);
+    if (out?.kind !== "clarify") throw new Error(String(out?.kind));
+    // 7.6% less five points, and $15,000,000 less five per cent.
+    expect(out.question).toContain("the rate down 5 points, to 2.6%");
+    expect(out.question).toContain("the commitment cut 5%, to $14,250,000.00");
+    expect(out.options).toEqual(["Lower the rate to 2.6%", "Reduce the commitment to $14,250,000.00"]);
+  });
+
+  it("still reads the open field's OWN answer first", () => {
+    const out = parseAnswer(onTerm, "240 months", single);
+    if (out?.kind !== "amendments") throw new Error(String(out?.kind));
+    expect(out.amendments[0].field.id).toBe("loan.termMonths");
+    expect(out.amendments[0].value).toMatchObject({ kind: "months", months: 240 });
+  });
+
+  it("still takes a keep-current word as the answer it is", () => {
+    for (const said of ["keep it", "keep as booked", "no change", "leave it", "hold"]) {
+      const out = parseAnswer(onTerm, said, single);
+      if (out?.kind !== "hold") throw new Error(`${said}: ${String(out?.kind)}`);
+      expect(out.field.id).toBe("loan.termMonths");
+      expect(out.facility?.loanId).toBe(line15.loanId);
+    }
+  });
+
+  it("asks again, naming what it heard, where the line is neither", () => {
+    const out = parseAnswer(onTerm, "asdf", single);
+    if (out?.kind !== "clarify") throw new Error(String(out?.kind));
     expect(out.question).toMatch(/months or years/i);
   });
 });

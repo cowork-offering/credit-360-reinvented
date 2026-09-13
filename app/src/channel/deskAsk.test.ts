@@ -1,12 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   DESK_ANSWER_WORDS,
+  DESK_PORTFOLIO_RULES,
+  DESK_THREAD_CAP,
   DESK_THREAD_TURNS,
+  PORTFOLIO_CONTEXT_CAP,
   deskAnswer,
   deskContext,
+  deskPortfolioContext,
   deskThread,
 } from "./deskAsk";
-import type { BorrowerBundle, C360Data } from "../data/contract";
+import { PROMPT_CAP_BYTES, RECOMMEND_ONLY_WHEN_GROUNDED, VOICE } from "./doctrine";
+import type { AccountRow, BorrowerBundle, C360Data } from "../data/contract";
+import { deriveQueue } from "../data/queue";
 import live from "../../../artifact/live-data.json";
 
 /* =============================================================================
@@ -135,6 +141,170 @@ describe("the context names what it had to cut (finding I8)", () => {
     const said = deskContext(bundle(), bundle().snapshot!.name!);
     expect(said).not.toMatch(/cut to fit/);
     expect(said.length).toBeLessThan(7_000);
+  });
+});
+
+/* =============================================================================
+   THE BOOK CONTEXT, ON THE REAL BOOK (founder 2026-09-13, the "Composing"
+   report; W1 finding (a)).
+
+   The landing had no context of its own, so the desk could not be asked there
+   at all. Everything below is measured against `artifact/live-data.json`, the
+   book the cockpit actually opens on, and the three questions the founder
+   named are each asserted by the facts their answer stands on.
+   ============================================================================= */
+
+describe("the landing's own book reaches the desk", () => {
+  const state = () => ({ data, queue: deriveQueue(data, false) });
+  const said = () => deskPortfolioContext(state());
+
+  it("WHO NEEDS ATTENTION: every queue row, by name, with its reason code and the words the chip says", () => {
+    const text = said();
+    for (const name of [
+      "Hartwell Precision Manufacturing LLC",
+      "Piedmont Precision Components, Inc.",
+      "Brightwater Foods Group",
+      "Sterling Fabrication Co.",
+      "Kingsley Precision Works",
+    ]) {
+      expect(text).toContain(name);
+    }
+    expect(text).toContain("CLIENT_REQUEST (client request waiting)");
+    expect(text).toContain("COVENANT_BREACH (covenant breach)");
+    expect(text).toContain("MODIFICATION_CLUSTER (modification cluster)");
+    // An overdue test is told apart from one merely due, which is the half-step
+    // the queue itself ranks on.
+    expect(text).toContain("the test is overdue");
+  });
+
+  it("severity is the ORDER, and the context says so rather than inventing a scale", () => {
+    const text = said();
+    expect(text).toMatch(/Position is the severity; there is no other scale/);
+    // The client request outranks the breach, which outranks the overdue tests.
+    const at = (name: string) => text.indexOf(name);
+    expect(at("Sterling Fabrication Co.")).toBeLessThan(at("Brightwater Foods Group"));
+    expect(at("Brightwater Foods Group")).toBeLessThan(at("Hartwell Precision Manufacturing LLC"));
+    expect(text).toContain("1. Sterling Fabrication Co.");
+  });
+
+  it("HOW MUCH IS COMMITTED: the book totals, summed the way the KPI band sums them", () => {
+    const text = said();
+    // $135M is the sum of the five rows on the page. The org's own bookTotals
+    // says $127M because it spans accounts this page does not show, and the
+    // chat may not state a book the landing does not.
+    expect(text).toContain("The book on this page is 5 relationships, $135M committed, $97.75M drawn");
+    expect(text).toContain("summed over the rows on this page and over nothing else");
+    expect(text).toContain("5 relationships need action");
+  });
+
+  it("THE THINNEST COVERAGE: the org's own ratio on every staged relationship", () => {
+    const text = said();
+    expect(text).toContain("collateral coverage 0.96×"); // Brightwater, the thinnest
+    expect(text).toContain("collateral coverage 1.02×");
+    expect(text).toContain("collateral coverage 1.09×");
+    expect(text).toContain("collateral coverage 1.55×");
+    expect(text).toContain("collateral coverage 1.65×");
+    expect(text).toMatch(/as the org computes it across that relationship/);
+  });
+
+  it("says every total's scope, so the landing and a room never read as two books", () => {
+    // Hartwell is $54.0M here (the portfolio read's rollup) and $57.0M in the
+    // relationship room (its own active facilities). Both honest; the scope is
+    // what stops them being two relationships.
+    expect(said()).toContain("$54M total credit exposure as the portfolio read carries it");
+    expect(deskContext(bundle(), "Hartwell Precision Manufacturing LLC")).toContain(
+      "Facilities across the relationship, every package included",
+    );
+  });
+
+  it("refuses what a book-level read cannot state, by name, and names the move", () => {
+    const text = said();
+    expect(text).toMatch(/This view does not carry the facilities on any one relationship/);
+    expect(text).toMatch(/covenant values and the thresholds they test against/);
+    expect(text).toMatch(/collateral, its valuations and what it secures/);
+    expect(text).toMatch(/the obligor group, the guarantors and who is on each deal/);
+    expect(text).toMatch(/open the relationship for those/);
+  });
+
+  it("carries the quiet rest as a count rather than a second queue", () => {
+    // The live book is all queue, so the quiet line is absent rather than an
+    // empty fact. An absent block is never a zero.
+    expect(said()).not.toMatch(/carr(y|ies) no signal today/);
+
+    const quiet = structuredClone(data);
+    quiet.worklist = { accountIds: [quiet.portfolio.accounts[0].accountId], reasons: {} };
+    quiet.borrowers = {};
+    quiet.borrower = { snapshot: { accountId: "none" } } as unknown as C360Data["borrower"];
+    const text = deskPortfolioContext({ data: quiet, queue: deriveQueue(quiet, true) });
+    expect(text).toMatch(/relationships carry no signal today/);
+    expect(text).toContain("Brightwater Foods Group");
+    expect(text).toMatch(/Quiet is not clear/);
+  });
+});
+
+describe("the book context is budgeted, and says when it was cut", () => {
+  /** A book far past the portfolio budget: 60 relationships, all on the queue. */
+  const wide = (): C360Data => {
+    const accounts: AccountRow[] = Array.from({ length: 60 }, (_, i) => ({
+      accountId: `001WIDE${String(i).padStart(10, "0")}`,
+      name: `Wide Industrial Holdings ${i} Incorporated`,
+      industry: "Manufacturing",
+      riskRating: "5",
+      tce: 10_000_000 + i,
+      outstanding: 5_000_000 + i,
+    }));
+    return {
+      ...data,
+      portfolio: { ...data.portfolio, accounts },
+      worklist: {
+        accountIds: accounts.map((a) => a.accountId),
+        reasons: Object.fromEntries(accounts.map((a) => [a.accountId, ["COVENANT_DUE"]])),
+      },
+      borrowers: {},
+    } as unknown as C360Data;
+  };
+
+  it("cuts at a whole line, names the part of the book that did not travel, and keeps the loudest rows", () => {
+    const text = deskPortfolioContext({ data: wide(), queue: deriveQueue(wide(), true) });
+    expect(text.length).toBeLessThanOrEqual(PORTFOLIO_CONTEXT_CAP);
+    expect(text).toContain("This context was cut to fit, so it does not carry");
+    expect(text).toMatch(/the rest of the needs-action queue/);
+    // The totals and the top of the queue survive the cut; the tail is what
+    // goes. Rank one is the largest exposure, which is the queue's own
+    // tie-break between rows carrying the same reason.
+    expect(text).toContain("The book on this page is 60 relationships");
+    expect(text).toContain("1. Wide Industrial Holdings 59 Incorporated");
+    expect(text).not.toContain("Wide Industrial Holdings 0 Incorporated");
+    expect(text).toMatch(/Say that it is not in front of you rather than reading what is here as the whole book/);
+    expect(text.trim().endsWith(".")).toBe(true);
+    // The honesty list is reserved out of the budget, so a cut never eats it.
+    expect(text).toMatch(/open the relationship for those/);
+  });
+
+  it("says nothing about a cut on the book that fits", () => {
+    expect(deskPortfolioContext({ data, queue: deriveQueue(data, false) })).not.toMatch(/cut to fit/);
+  });
+
+  it("the WIDEST book prompt sits well inside the prompt cap", () => {
+    const context = deskPortfolioContext({ data: wide(), queue: deriveQueue(wide(), true) });
+    const thread = deskThread(
+      Array.from({ length: DESK_THREAD_TURNS }, (_, i) => ({ who: "banker" as const, text: "x".repeat(400) + i })),
+    );
+    const question = "x".repeat(500);
+    const prompt = `${DESK_PORTFOLIO_RULES}\n\nContext:\n${context}${thread}\n\nQuestion: ${question}`;
+    // MEASURED, NOT GUESSED (the doctrine file's own discipline).
+    console.info(
+      `[budget] portfolio prompt ${prompt.length} B = rules ${DESK_PORTFOLIO_RULES.length} + context ${context.length} (cap ${PORTFOLIO_CONTEXT_CAP}) + thread ${thread.length} (cap ${DESK_THREAD_CAP}) + question ${question.length}; cap ${PROMPT_CAP_BYTES}`,
+    );
+    expect(context.length).toBeLessThanOrEqual(PORTFOLIO_CONTEXT_CAP);
+    expect(prompt.length).toBeLessThan(PROMPT_CAP_BYTES);
+  });
+
+  it("carries the one rule and the one voice the other two surfaces carry", () => {
+    expect(DESK_PORTFOLIO_RULES).toContain(RECOMMEND_ONLY_WHEN_GROUNDED);
+    expect(DESK_PORTFOLIO_RULES).toContain(VOICE);
+    expect(DESK_PORTFOLIO_RULES).toMatch(/never leave the banker with nothing to do/i);
+    expect(DESK_PORTFOLIO_RULES).toMatch(/name the relationship and the room/i);
   });
 });
 

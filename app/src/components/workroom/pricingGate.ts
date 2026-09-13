@@ -335,6 +335,24 @@ export function readPricingDecline(line: string, members: ElicitMember[]): strin
   return members.find((m) => m.label.toLowerCase() === said || (m.shortName ?? "").toLowerCase() === said)?.id ?? null;
 }
 
+/**
+ * A KEEP WORD, ANSWERING THE GATE (D4, orchestrator drive 2026-09-13).
+ *
+ * "keep it", "no change", "leave it", "hold": a banker's way of declining to
+ * move a field. The org holds BOTH pricing fields blank on every loan on this
+ * relationship, so keeping what is booked IS leaving the pricing for later, and
+ * the word lands on that chip rather than falling through to the general parser
+ * as a line it cannot read.
+ *
+ * Anchored at both ends, so "leave pricing for later on the ..." (the chip's own
+ * sentence, read by `readPricingDecline`) is never swallowed here.
+ */
+export function readPricingKeep(line: string): boolean {
+  return /^(?:hold|keep(?:\s+(?:it|as\s+booked|current|the\s+same|as[-\s]?is))?|no\s+change|leave\s+(?:it|as[-\s]?is)?|unchanged|same|as[-\s]?is)\s*$/i.test(
+    (line ?? "").trim(),
+  );
+}
+
 /** "Set the amortisation term on the $15.0MM Line of Credit myself". */
 export function readPricingOther(line: string, members: ElicitMember[]): PricingNeed | null {
   const hit = /^set the (amortisation term|first payment date) on the (.+?) myself$/i.exec((line ?? "").trim());

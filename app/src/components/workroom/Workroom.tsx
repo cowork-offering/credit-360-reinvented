@@ -105,10 +105,14 @@ import {
   readPricingAnother,
   readPricingDecline,
   readPricingFreeText,
+  readPricingKeep,
   readPricingLine,
   readPricingOther,
   type PricingNeed,
 } from "./pricingGate";
+import { matchCatalog } from "../../workroom/fieldCatalog";
+import { heardPreface } from "../../workroom/engine";
+import { readRateAside } from "../../workroom/parseModify";
 import { subjectFor } from "../../channel/narrate";
 import {
   committedSentence,
@@ -126,7 +130,9 @@ import {
   readTypeChoice,
   readTypeRefusal,
   reconcileNarrative,
+  dollarFigures,
   retypeEntry,
+  singleClause,
   stampRemovalRoles,
   typeChoiceSay,
   type MisreadMember,
@@ -199,6 +205,7 @@ import {
   rateSay,
   readRateFreeText,
   readRateHold,
+  readRateHoldLabel,
   readRateKeepWord,
   readRateIndexOpen,
   readRateIndexPick,
@@ -228,6 +235,8 @@ import {
   type SettledRow,
 } from "./settle";
 import { useStageGate } from "./stage";
+import { condenseThread } from "./threadCondense";
+import { ThreadRecap } from "./ThreadCondensed";
 import { FINALE_SWEEP_MS, finaleAttrs, finaleCardHoldMs, useFinale, withFinale } from "./finale";
 import { FILED_SECTION_MS, FiledList, filedLinesFor, type FiledLine } from "./FiledList";
 import { FiledSheet } from "./FiledSheet";
@@ -732,6 +741,41 @@ function asksSomething(item: ThreadItem): boolean {
   if (item.kind === "challenge") return !item.acked;
   if (item.kind === "agent") return !!item.options?.length;
   return false;
+}
+
+/**
+ * THE MOVE THE ROOM IS WAITING ON, NAMED (founder bug bug-1789294443785).
+ *
+ * "One decision at a time. The open card above, or the review chip under it,
+ * carries the next move." names nothing, so a banker holding three refusals in
+ * a row has no way to tell WHICH card the room means, or to notice that the
+ * card it means is not on the glass at all.
+ *
+ * The gate comes first, because a gate is what actually blocks a new
+ * instruction; where nothing gates, the question on the table is named instead.
+ * NULL where the stage holds nothing: the refusal must not fire at all then,
+ * and that is an invariant rather than a copy decision.
+ */
+function openMoveLine(items: ThreadItem[], onStage: (item: ThreadItem) => boolean): string | null {
+  const waiting = items.filter((i) => onStage(i) && asksSomething(i));
+  if (!waiting.length) return null;
+  const at = [...waiting].reverse().find(isLive) ?? waiting[waiting.length - 1];
+  if (at.kind === "challenge") {
+    return `The ${at.challenge.verdict} check above is still open: acknowledge it and I will carry on.`;
+  }
+  if (at.kind === "chips") {
+    const held = at.chips.find((c) => c.state === "open" && c.delta)?.delta;
+    return held
+      ? `The ${held.title} card above is still open: confirm it or discard it.`
+      : "The card above is still open: confirm it or discard it.";
+  }
+  if (at.kind === "agent" && at.options?.length) {
+    const asked = (at.text.split(/(?<=[.?])\s/)[0] ?? at.text).trim();
+    const picks = at.options.map((o) => o.label);
+    const list = picks.length > 1 ? `${picks.slice(0, -1).join(", ")} or ${picks[picks.length - 1]}` : picks[0];
+    return `"${asked}" is still open: pick ${list}.`;
+  }
+  return null;
 }
 
 /** THE AGENT SPEAKS, NEVER PASTES (rule 65). Each word condenses out of the
@@ -1289,6 +1333,10 @@ export function Workroom({
   routerRef.current = router;
 
   const [items, setItems] = useState<ThreadItem[]>([]);
+  /* THE ONE RECAP LINE THE BANKER HAS OPENED (founder, 2026-09-13). One at a
+     time by construction: opening a second replaces the first rather than
+     adding to it, the same promise the room makes about live exchanges. */
+  const [openRecap, setOpenRecap] = useState<string | null>(null);
   const [step, setStep] = useState(0);
 
   /**
@@ -1385,6 +1433,10 @@ export function Workroom({
      that it asked and was answered. `rateIndex` is the index a banker said they
      price off, held until the all-in figure lands so the card can note it. */
   const [rateHeld, setRateHeld] = useState<ReadonlySet<string>>(() => new Set<string>());
+  /** THE FACILITY WHOSE RATE WAS HELD LAST. A hold is an answer and it stages
+   *  nothing, so a banker who changes their mind a line later names no facility
+   *  and the parser has nothing to stand on. This is what it stands on. */
+  const heldRateAt = useRef<string | null>(null);
   /* ============ THE MANIFEST, READ SYNCHRONOUSLY (founder, 2026-09-03)
 
      "It kind of forgets to add the commitment to the modification sometimes."
@@ -1946,7 +1998,23 @@ export function Workroom({
   }, [thinking]);
 
   /* ---- derived state. Nothing below is stored twice. */
-  const openGates = items.reduce((n, item) => (isLive(item) ? n + 1 : n), 0);
+  /* ============ A GATE THE BANKER CANNOT SEE IS NOT A GATE (founder bug
+     bug-1789294443785, 2026-09-13).
+
+     THE LOCK. After the rate was held the room refused every following line
+     with "One decision at a time" and there was no open card anywhere on the
+     glass. `openGates` counted EVERY live item in the thread, and a settled
+     item is still in the thread: `settle.ts` keeps a settled exchange MOUNTED
+     and aria-hidden so it can be summoned back from its row. So any live card
+     that an exchange settle walked over - `confirmChip` settles ONE chip and
+     then settles the WHOLE block it sits in, and a block can carry several -
+     went off the glass still counting as a gate, and nothing the banker could
+     do would ever close it.
+
+     THE GATE IS WHAT IS ON THE STAGE. Same test the stage cap already makes,
+     so the count that BLOCKS and the count that renders cannot disagree. */
+  const liveGates = items.filter((item) => isLive(item) && settle.stateOf(item.id) !== "settled");
+  const openGates = liveGates.length;
   const checksArrived = items.filter((i) => i.kind === "challenge").length;
   const checksAcked = items.filter((i) => i.kind === "challenge" && i.acked).length;
   /**
@@ -2245,6 +2313,30 @@ export function Workroom({
     (staged: WorkroomDelta[]) =>
       pricingNeed({ entries: staged, facilities: facilityRead, declined: pricingDeclined, held: rateHeld }),
     [facilityRead, pricingDeclined, rateHeld],
+  );
+
+  /**
+   * A CHANGE OF MIND AFTER A HOLD (founder bug bug-1789294443785).
+   *
+   * "Hold 6.58%" closes the rate question, and one line later the banker typed
+   * "yes increase to 7.25%". With the question closed there was no gate to take
+   * it, the line fell through to the parser, and the room asked which of six
+   * members it should land on - over a facility it had been standing on for
+   * four turns. A correction supersedes (0.9.19): the rate decision RE-OPENS on
+   * the facility that was held and the new figure stages on it.
+   *
+   * ONLY A FIGURE RE-OPENS IT. A line that names no rate is an ordinary
+   * instruction and keeps the lane it always had.
+   */
+  const reopensHeldRate = useCallback(
+    (line: string): { need: PricingNeed; pct: string; index: RateIndex | null } | null => {
+      const memberId = heldRateAt.current;
+      if (!memberId || !rateHeld.has(memberId)) return null;
+      const figure = readRateFreeText(line, { onFile: rateOnFile(facilityRead.get(memberId))?.pct ?? null });
+      if (!figure?.pct) return null;
+      return { need: { memberId, slot: "rate" }, pct: figure.pct, index: figure.index };
+    },
+    [facilityRead, rateHeld],
   );
 
   /** THE PLAN: what this session already put up, open on a chip or staged on
@@ -2913,6 +3005,44 @@ export function Workroom({
   );
 
   /**
+   * A QUESTION, ANSWERED (golden rule 3).
+   *
+   * The book first, because the room is holding the read and a desk round trip
+   * to be told what is already on the glass is the slowest possible way to be
+   * wrong; then the desk; then an honest account of what this view can do. ONE
+   * function, because the room answers questions from two places now - where
+   * the line arrives clean, and where it arrives while a card is open - and two
+   * copies of this would drift.
+   */
+  const answerAsked = useCallback(
+    async (instruction: string, mine: number): Promise<void> => {
+      const topic = readTopic(instruction);
+      const card = topic !== null && reads ? buildReadCard(topic, reads, readNarrowing(topic, instruction)) : null;
+      if (card) {
+        setItems((prev) => [...prev, { kind: "read", id: nextId("read"), step: mine, card }]);
+        return;
+      }
+      if (brain) {
+        await runBrain(instruction, mine);
+        return;
+      }
+      setItems((prev) => [
+        ...prev,
+        {
+          kind: "agent",
+          id: nextId("agent"),
+          step: mine,
+          text:
+            topic !== null
+              ? readGap(topic, context.accountName)
+              : `${whatICanDo(context.accountName)} This view is not connected to the bank's systems, so I cannot take the question itself any further than that.`,
+        },
+      ]);
+    },
+    [brain, context.accountName, reads, runBrain],
+  );
+
+  /**
    * THE INVERTED DISPATCH, for a line the room has to ACT on.
    *
    * The parser runs FIRST and it runs silently. Its result is accepted without
@@ -2952,10 +3082,17 @@ export function Workroom({
            policy" was answered as a question about the exception already on
            file, with nothing staged. A REFUSAL still goes to the desk, because
            a refusal is not a question. */
+        /* AND SO IS "WHICH OF THE TWO LINES OF CREDIT?" (D1, 2026-09-13). The
+           parser already carries every legal answer as a chip, so a round trip
+           would only hand the same list back a second later. A MULTI-CLAUSE
+           line is still the desk's: one clause resolving cleanly says nothing
+           about the others. */
         const ownAsk =
           result !== null &&
           result.kind !== "refusal" &&
-          (readExceptionOpen(instruction, elicitMembers) !== null || readFeeOpen(instruction, elicitMembers) !== null);
+          ((result.kind === "unparsed" && result.ownAsk === true && singleClause(instruction)) ||
+            readExceptionOpen(instruction, elicitMembers) !== null ||
+            readFeeOpen(instruction, elicitMembers) !== null);
         const clean =
           result !== null &&
           (ownAsk ||
@@ -3741,24 +3878,50 @@ export function Workroom({
         (readRateFreeText(trimmed, { onFile: rateOnFile(facilityRead.get(openGate.memberId))?.pct ?? null }) !== null ||
           readRateHold(trimmed, elicitMembers) !== null ||
           readRateKeepWord(trimmed) ||
+          readRateHoldLabel(trimmed, rateOnFile(facilityRead.get(openGate.memberId))) ||
           readRateNew(trimmed, elicitMembers) !== null ||
           readRateIndexOpen(trimmed, elicitMembers) !== null ||
           readRateIndexPick(trimmed, elicitMembers) !== null ||
           asksRateOptions(trimmed));
       const answersPricing =
         answersRate ||
+        /* A CORRECTION OF AN ANSWER IS NOT A SECOND DECISION. Changing the rate
+           the room was told to hold is the same decision, re-opened. */
+        reopensHeldRate(trimmed) !== null ||
         readPricingLine(trimmed, elicitMembers) !== null ||
         readPricingDecline(trimmed, elicitMembers) !== null ||
         readPricingOther(trimmed, elicitMembers) !== null ||
         (openGate !== null &&
           openGate.slot !== "rate" &&
-          (readPricingFreeText(trimmed, openGate.slot) !== null || readPricingAnother(trimmed, openGate.slot)));
-      if (openGates > 0 && !opts?.settled && !answersPricing) {
+          (readPricingFreeText(trimmed, openGate.slot) !== null ||
+            readPricingAnother(trimmed, openGate.slot) ||
+            readPricingKeep(trimmed) ||
+            /* A PRICE TYPED INTO THE TERM QUESTION IS THE SAME DECISION,
+               CONTINUED, so it must not meet "one decision at a time" over the
+               card that raised the question. */
+            readRateAside(trimmed, facilityRead.get(openGate.memberId)) !== null));
+      /* WHAT THE ROOM IS WAITING ON, NAMED. Null where the stage holds nothing,
+         and then there is nothing to refuse over: a gate the banker cannot see
+         is not a gate (see `openGates`). */
+      const waitingOn = openGates > 0 ? openMoveLine(items, (i) => settle.stateOf(i.id) !== "settled") : null;
+      if (waitingOn && !opts?.settled && !answersPricing) {
         const ack = readAcknowledgment(trimmed);
-        const checks = items.filter((i) => i.kind === "challenge" && !i.acked);
+        const checks = liveGates.filter((i) => i.kind === "challenge");
         if (!ack || !checks.length || checks.length !== openGates) {
           const here = items.length ? items[items.length - 1].step : 0;
           setItems((prev) => [...prev, bankerLine(here, (said ?? heard).trim(), opts?.fed)]);
+          /* A QUESTION IS NEVER A SECOND DECISION (golden rule 3, founder bug
+             bug-1789294443785). "what borrowers are on this loan already?" and
+             "show me the pledges on this loan" were both refused with "one
+             decision at a time" while the banker was mid-decision. A question
+             asks the room to READ, it stages nothing and it decides nothing, so
+             it is answered from the book where it stands and the open decision
+             is restated under the answer rather than in place of it. */
+          if (!politeCommand(trimmed) && (readTopic(trimmed) !== null || isQuestion(trimmed))) {
+            await answerAsked(trimmed, here);
+            setItems((prev) => [...prev, { kind: "agent", id: nextId("agent"), step: here, text: waitingOn }]);
+            return;
+          }
           /* THE OPEN CARD IS AMENDABLE, AND THAT IS NOT A SECOND DECISION.
              "actually make it 1.30x" is the SAME decision, corrected, so it
              lands on the card that is already open instead of being refused
@@ -3771,7 +3934,7 @@ export function Workroom({
               kind: "agent",
               id: nextId("agent"),
               step: here,
-              text: "One decision at a time. The open card above, or the review chip under it, carries the next move.",
+              text: `One decision at a time. ${waitingOn}`,
             },
           ]);
           return;
@@ -4223,11 +4386,36 @@ export function Workroom({
          settles as SKIPPED, the room says the consequence once in the row, and
          the line goes through to the parser exactly as it would have if the
          question had never been asked. */
-      if (gate && !answersPricing) {
+      /* AND A LINE THE ROOM CANNOT READ IS NOT A NEW INSTRUCTION (D3,
+         orchestrator drive 2026-09-13). The rule above settled the ask as
+         skipped on ANY line that was not an answer, so "asdf" typed into the
+         amortisation question took the question off the table and every good
+         answer after it had nothing to land on. A line has to name a field, a
+         figure or a member before it can stand for "not today". */
+      const instructs =
+        matchCatalog(instruction).length > 0 ||
+        dollarFigures(instruction).length > 0 ||
+        elicitMembers.some((m) => instruction.toLowerCase().includes(m.key.toLowerCase()));
+      if (gate && !answersPricing && instructs) {
         setPricingDeclined((prev) => new Set([...prev, gate.memberId]));
         setPricingPending(null);
         const asked = [...itemsRef.current].reverse().find((i) => i.kind === "agent" && !!i.options?.length);
         if (asked) settleExchange({ what: PRICING_SKIPPED, how: "skipped" }, { upTo: asked.id });
+      } else if (gate && !answersPricing && !isQuestion(instruction)) {
+        /* THE ROOM SAYS WHAT IT COULD NOT READ, AND ASKS AGAIN. Not the same
+           sentence twice: the banker's own line is quoted, so two unreadable
+           lines in a row are two different answers (golden rule 5). */
+        const back = gateAsk(gate, entries);
+        if (back) {
+          setPricingPending(gate);
+          answer({
+            kind: "agent",
+            id: nextId("agent"),
+            text: `${heardPreface(instruction, gate.slot === "amortisedTerm" ? "a length in months or years" : "a date")} ${back.text}`,
+            options: back.options,
+          });
+          return;
+        }
       }
       /* ============ THE RATE GATE'S OWN ANSWERS (founder, 2026-09-03)
 
@@ -4236,6 +4424,19 @@ export function Workroom({
          "I have a new all-in rate" was reported as a supplied rate with no
          figure anywhere. Every branch below either stages a FIGURE or asks for
          one; none of them reports success without a number. */
+      /* ============ THE HOLD IS NOT A LOCK (founder bug bug-1789294443785)
+
+         The rate question is closed and the banker has said a new rate anyway.
+         The facility is the one they held, the figure is the one they just
+         said, and it stages exactly as it would have from the open question. */
+      if (!gate) {
+        const again = reopensHeldRate(instruction);
+        if (again) {
+          if (again.index) rateIndexOf.current.set(again.need.memberId, again.index);
+          await landPricing(again.need, again.pct, mine);
+          return;
+        }
+      }
       if (gate?.slot === "rate") {
         const on = elicitMembers.find((m) => m.id === gate.memberId);
         /* THE FIGURE, IN ANY FORM A BANKER WRITES IT (founder, 2026-09-03).
@@ -4262,9 +4463,13 @@ export function Workroom({
         // The chip says the whole sentence; a banker who just types "hold" or
         // "keep it" at this FORCED ask means the same, on the member the gate is
         // already standing on. Both land here, so a word and a click agree.
-        const held = readRateHold(instruction, elicitMembers) ?? (readRateKeepWord(instruction) ? gate.memberId : null);
+        const onFile = rateOnFile(facilityRead.get(gate.memberId));
+        const held =
+          readRateHold(instruction, elicitMembers) ??
+          (readRateKeepWord(instruction) || readRateHoldLabel(instruction, onFile) ? gate.memberId : null);
         if (held) {
           setRateHeld((prev) => new Set([...prev, held]));
+          heldRateAt.current = held;
           setPricingPending(null);
           answer({
             kind: "agent",
@@ -4324,6 +4529,47 @@ export function Workroom({
                 : `Say the first payment date and I will put it on the ${on?.label ?? "facility"}. "Oct 1, 2026" reads the same as 2026-10-01.`,
           });
           return;
+        }
+        /* A KEEP WORD IS AN ANSWER, NOT A MISS (D4, orchestrator drive
+           2026-09-13). "keep it" and "no change" were read by nothing and fell
+           through to the parser, which has no question open and could only say
+           it had not understood. The org holds both pricing fields blank here,
+           so keeping what is booked is leaving the pricing for later. */
+        if (readPricingKeep(instruction)) {
+          const on = elicitMembers.find((m) => m.id === gate.memberId);
+          setPricingDeclined((prev) => new Set([...prev, gate.memberId]));
+          setPricingPending(null);
+          answer({ kind: "agent", id: nextId("agent"), text: on ? pricingDeclinedLine(on) : PRICING_WHY });
+          return;
+        }
+        /* AND A RATE TYPED INTO A TERM QUESTION IS AN ANSWER OUT OF ORDER (D3).
+           The banker priced the facility early; re-asking the term over it loses
+           the figure they just gave. The price lands on the member the question
+           is about and the question goes back up underneath it. */
+        if (gate.slot !== "rate") {
+          const aside = readRateAside(instruction, facilityRead.get(gate.memberId));
+          if (aside && "question" in aside) {
+            setPricingPending(gate);
+            answer({
+              kind: "agent",
+              id: nextId("agent"),
+              text: aside.question,
+              options: aside.options.map((say) => ({ label: say, say })),
+            });
+            return;
+          }
+          if (aside && aside.value.kind === "percent") {
+            await landPricing({ memberId: gate.memberId, slot: "rate" }, String(aside.value.rate), mine);
+            // AND THE QUESTION IT JUMPED GOES BACK UP. The price is on the
+            // plan; the term is still what the room needs before anything can
+            // be composed, so it is asked again under the card.
+            const back = gateAsk(gate, entries);
+            if (back) {
+              setPricingPending(gate);
+              answer({ kind: "agent", id: nextId("agent"), text: back.text, options: back.options });
+            }
+            return;
+          }
         }
       }
       const pricingLater = readPricingDecline(instruction, elicitMembers);
@@ -4557,19 +4803,7 @@ export function Workroom({
          never reaches it — it goes to the desk, which is the component built to
          answer it, or it is answered honestly where there is no desk. */
       if (!commanded && (topic !== null || isQuestion(instruction))) {
-        if (brain) {
-          await runBrain(instruction, mine);
-          return;
-        }
-        if (topic !== null) {
-          answer({ kind: "agent", id: nextId("agent"), text: readGap(topic, context.accountName) });
-          return;
-        }
-        answer({
-          kind: "agent",
-          id: nextId("agent"),
-          text: `${whatICanDo(context.accountName)} This view is not connected to the bank's systems, so I cannot take the question itself any further than that.`,
-        });
+        await answerAsked(instruction, mine);
         return;
       }
 
@@ -4577,6 +4811,7 @@ export function Workroom({
     },
     [
       amendOpenCard,
+      answerAsked,
       ask,
       askCreate,
       awake,
@@ -4593,7 +4828,10 @@ export function Workroom({
       entries,
       items,
       landPricing,
+      liveGates,
       openGates,
+      reopensHeldRate,
+      settle,
       lockedRoute,
       pricingDeclined,
       pricingOutstanding,
@@ -5797,6 +6035,13 @@ export function Workroom({
   const shows = (g: { step: number; items: ThreadItem[] }) =>
     g.step === liveStep || g.items.some(isLive) || (!!ask && g.step === 0);
   const hidden = grouped.filter((g) => !shows(g));
+  /* WHAT THE COLLAPSED STEPS SAY, one line each (founder, 2026-09-13). The
+     steps themselves stay exactly as they were: mounted, collapsed, and one
+     click from coming back in full. */
+  const earlier = condenseThread(
+    hidden.flatMap((g) => g.items),
+    { pinned: (i) => !!tierOf(i), liveTurns: 0 },
+  ).flatMap((v) => (v.show === "recap" ? [{ id: v.id, recap: v.recap }] : []));
   /** The tiers that left the stage, and whether they are back on it. Opening
    *  the earlier steps brings them with it: one gesture for "show me what I
    *  already read", never two competing ones. */
@@ -6150,6 +6395,35 @@ export function Workroom({
                 data-finale={finaleState === "still" ? "still" : undefined}
                 ref={threadRef}
               >
+                {/* ============ THE EARLIER STEPS, AS LINES (founder, 2026-09-13)
+
+                    "i wanted to have it that only the current action is nicely
+                    shown in the chat."
+
+                    The steps behind the live one have collapsed since rule 31,
+                    and what stood for them was a counter: "earlier steps (3)".
+                    A counter is not a recap. Each one is now the line a banker
+                    would say back: its number, what was recorded, and how.
+
+                    THE LINES READ, THE COUNTER OPENS. They carry no control of
+                    their own. The counter above them already is the one way back
+                    into the earlier steps, and a second control for one intent is
+                    the busyness this pass exists to remove.
+
+                    AND THEY ARE NOT A STEP. The relationship room hangs them off
+                    a `.wk-step` for its 32px rhythm; here that class is
+                    load-bearing, because rule 31 counts `.wk-step` nodes to say
+                    how many steps have happened and how many are on the glass,
+                    and a container wearing it would report a step nobody took.
+                    The lines sit directly in the column instead, which is the
+                    case recap.css's `.wk-thread >` pull-up was written for. */}
+                {earlier.length > 0 &&
+                  !histOpen &&
+                  earlier.map((view) => (
+                    <div key={view.id} data-recap-line="" data-earlier="recap">
+                      <ThreadRecap id={view.id} recap={{ ...view.recap, control: false }} />
+                    </div>
+                  ))}
                 {/* THE PAST COLLAPSES, IT DOES NOT UNMOUNT. A step behind the
                     live exchange keeps its place in the thread and is hidden,
                     so opening the history is a class change rather than a
@@ -6186,7 +6460,36 @@ export function Workroom({
                         {summonLabel(tiersLeft.length, tiersShown)}
                       </button>
                     )}
-                    {group.items.map((item, at) => {
+                    {/* ============ CONDENSED HISTORY, LIVE PRESENT (founder, 2026-09-13)
+
+                        "the chips with earlier read etc etc. they basically pile
+                        up so that the answer is always directly above the chat
+                        ... i wanted to have it that only the current action is
+                        nicely shown in the chat."
+
+                        ONE TURN IS THE PRESENT AND EVERY EARLIER TURN IS ONE
+                        LINE, in the room's own settled register, with the whole
+                        turn one click under it. The steps BEHIND the live one
+                        keep the collapse they have had since rule 31: that is
+                        the room's own answer for a step nobody is in, and this
+                        is the answer for the turns piling up inside the one they
+                        are. One view per item, in thread order, so `at` still
+                        reads the item after this one. */}
+                    {condenseThread(group.items, {
+                      opened: openRecap ? new Set([openRecap]) : undefined,
+                      /* THE PIN MOVES, BY THE ROOM'S OWN RULE (2026-09-13, the
+                         same founder feedback). The entry tiers pin because
+                         they have a summon of their own. What this room adds is
+                         ANYTHING STILL WAITING ON THE BANKER: a refusal lands in
+                         the step it refused and says "the open card above", and
+                         the room already refuses to collapse a step that holds a
+                         gate. Condensing the turn under a recap line would hide
+                         the card the sentence points at, in the same gesture
+                         that pointed at it. A turn nobody has to answer is
+                         history; a turn holding an open chip is the present. */
+                      pinned: (i) => !!tierOf(i) || asksSomething(i),
+                    }).map((view, at) => {
+                      const item = view.item;
                       /* ONE VOICE PER MOMENT (founder drive, 2026-09-02). Where
                          the model is speaking under the card this agent line
                          announced, the room's own explanation steps back to the
@@ -6201,7 +6504,14 @@ export function Workroom({
                          cockpit. The boundary is per ITEM rather than per room
                          because that is the honest render: the rest of the
                          thread really is fine, and it keeps working. */
-                      const block = (
+                      const block =
+                        view.show === "recap" ? (
+                        <ThreadRecap
+                          id={view.id}
+                          recap={view.recap}
+                          onToggle={(id) => setOpenRecap((was) => (was === id ? null : id))}
+                        />
+                      ) : (
                         <RoomBoundary what={`this ${item.kind}`}>
                           <ThreadBlock
                             item={spoken}
@@ -6281,6 +6591,24 @@ export function Workroom({
                                stage, mounted, once the sheet is the room. */
                             data-morph={star ? cardMorph : undefined}
                             data-finale-after={after ? "" : undefined}
+                            /* CONDENSED, OR SPENT. A recap line stands for its
+                               whole turn; a spent block has nothing left to say
+                               and lays out no longer, mounted either way.
+
+                               MOUNTED IS NOT A DETAIL HERE (2026-09-13, founder
+                               feedback of the same day). The relationship room
+                               drops a spent block's content and keeps the
+                               wrapper; this room cannot. Its whole absence
+                               grammar is "off stage, still in the document":
+                               rule 1's settled exchange, the faded entry tiers,
+                               the collapsed steps. And a confirmed chip here
+                               does not hand its evidence to a settled row the
+                               way the relationship room's does, because the chip
+                               IS its own receipt. So the block renders and
+                               `data-spent` takes it off the glass, which is
+                               exactly what recap.css says a spent block is. */
+                            data-recap-line={view.show === "recap" ? "" : undefined}
+                            data-spent={view.show === "none" ? "" : undefined}
                             {...withFinale(
                               settleAttrs(
                                 item.kind === "settled" ? "on" : settle.stateOf(item.id),
@@ -6296,8 +6624,12 @@ export function Workroom({
                                 wrapper owns the height transition. */}
                             <div className="wk-ex-in">
                               {block}
-                              <Narration view={narration.viewFor(item.id)} />
-                              <Narration view={narration.viewFor(`${item.id}::mail`)} />
+                              {/* THE PROSE FOLLOWS THE BLOCK. A recap line is
+                                  not the turn, so the turn's narration does not
+                                  belong under it; a spent block still is the
+                                  turn, hidden, and keeps its own. */}
+                              {view.show !== "recap" && <Narration view={narration.viewFor(item.id)} />}
+                              {view.show !== "recap" && <Narration view={narration.viewFor(`${item.id}::mail`)} />}
                             </div>
                           </div>
                         );

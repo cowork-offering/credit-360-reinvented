@@ -280,15 +280,23 @@ describe("A. modification: an absurd figure is questioned, not staged in silence
 });
 
 describe("A. modification: a loose figure after an answer is not a dead end (3.k)", () => {
-  it("names the field the banker last settled and the words that correct it", async () => {
+  /* SUPERSEDED, ON THE FOUNDER'S OWN DOCTRINE (0.9.19 "a correction supersedes",
+     carried into D3 2026-09-13). This used to assert the dead end: the loose
+     figure was refused and the banker was told to remove the entry and say it
+     again. A correction is one gesture, not three, so the figure now lands on
+     the member the room is standing on and the manifest says what it replaced.
+     The assertion is stronger for it: the change is real and it is said. */
+  it("takes the correction onto the member the room is standing on", async () => {
     const engine = modifyEngine();
     await say(engine, "change the rate on the line of credit", modifyContext);
     await say(engine, "7%", modifyContext);
     const after = await say(engine, "actually 8%", modifyContext);
-    // The rail holds one entry per sentence (manifest.ts), so the room does NOT
-    // restage it silently; it says which entry is in the way and how to correct it.
-    expect(after.reply).toContain("The last figure you settled was interest rate on the Line of Credit");
-    expect(after.reply).toContain('say "remove the interest rate"');
+    const deltas = after.deltas ?? [];
+    expect(after.kind).toBe("deltas");
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0].title).toContain("Interest rate");
+    expect(deltas[0].after).toContain("8%");
+    expect(deltas[0].target).toContain("Line of Credit");
   });
 });
 

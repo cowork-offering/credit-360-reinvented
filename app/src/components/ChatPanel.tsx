@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { askDesk, deskAvailable } from "../channel/deskAsk";
+import { askDesk, askDeskPortfolio, deskAvailable, DESK_TIMEOUT_MS, deskTimeoutAnswer } from "../channel/deskAsk";
+import { takeDeclineNotice } from "../channel/sampleDoor";
 import { startPacer } from "../channel/streamPacer";
 import { prefersReducedMotion } from "../data/motion";
 import { openFacilityRoom } from "./workroom/roomSession";
@@ -19,8 +20,30 @@ import { BrandGlyph } from "./brand";
 import { BugCopyButton } from "./BugCopyButton";
 import { chatToMarkdown } from "./transcript";
 import { GooFilter, LiquidMark } from "./workroom/Liquid";
+import { isDeadline } from "./workroom/deadline";
 
 type SendState = "idle" | "sending" | "handedOff" | "answered" | "error";
+
+/**
+ * HOW LONG A PACED ANSWER MAY SIT STILL BEFORE IT LANDS WHOLE.
+ *
+ * FOUNDER, 2026-09-13: "the chat is also not coming back with an answer."
+ *
+ * The pacer is driven by `requestAnimationFrame`, and rAF does not fire in a
+ * hidden or throttled view. The desk's own deadline is 75 seconds, which is
+ * long enough for the banker to look somewhere else, and the panel commits the
+ * answer bubble and drops "Composing..." in the SAME batch: so the answer
+ * arrives, the indicator goes, the pacer never ticks, and the bubble is empty
+ * with nothing on the glass to say why. The first tick releases no words either
+ * (26 words a second is under one word a frame), so even a live view is blank
+ * for two or three frames.
+ *
+ * A TIMER FIRES WHERE A FRAME DOES NOT. This one is re-armed by every emit the
+ * pacer makes, so it only ever fires when the pacer has actually stalled, and
+ * then the answer lands whole rather than not at all. Silence is the one thing
+ * the chat may never do with an answer it is holding.
+ */
+const LAND_WHOLE_MS = 1200;
 
 /**
  * THE ANSWER ARRIVES, IT DOES NOT APPEAR (rule 9).
@@ -67,9 +90,42 @@ function ChatWords({ text }: { text: string }) {
       setVisible("");
       return;
     }
-    const pacer = startPacer({ emit: (v) => setVisible(v), instant: prefersReducedMotion() });
+    let net = 0;
+    let landed = false;
+    let seen = -1;
+    const land = () => {
+      if (landed) return;
+      landed = true;
+      pacer.cancel();
+      setVisible(text);
+    };
+    const arm = () => {
+      window.clearTimeout(net);
+      net = window.setTimeout(land, LAND_WHOLE_MS);
+    };
+    const pacer = startPacer({
+      emit: (v, done) => {
+        setVisible(v);
+        if (done) {
+          landed = true;
+          window.clearTimeout(net);
+          return;
+        }
+        // Re-armed only where the pacer actually released a word, so a stalled
+        // clock is told apart from a slow one.
+        if (v.length !== seen) {
+          seen = v.length;
+          arm();
+        }
+      },
+      instant: prefersReducedMotion(),
+    });
+    arm();
     pacer.finish(text);
-    return () => pacer.cancel();
+    return () => {
+      window.clearTimeout(net);
+      pacer.cancel();
+    };
   }, [text]);
 
   const parts = useMemo(() => visible.split(/(\s+)/).filter((p) => p !== ""), [visible]);
@@ -135,10 +191,36 @@ function ConnectionDetails() {
    is the golden rule's: say what could not be done, then the move that still
    exists on this page.                                                        */
 
-/** Whether the chat can take an ask at all, over any of its three doors, in the
- *  order `send` tries them: the session desk, the connector, the prompt bridge. */
+/** The three doors, in the order `send` tries them. */
+export type ChatLane = "desk" | "connector" | "bridge" | "none";
+
+/**
+ * THE LANE `send` WILL ACTUALLY TRY IN THIS VIEW.
+ *
+ * THE GATE AND THE SEND READ ONE FUNCTION (founder 2026-09-13). They used to
+ * count doors separately and disagree in two places: the gate counted the desk
+ * on every view while `send` tried it only where an account was open with a
+ * resolvable bundle, and the gate counted `channel.available()` while
+ * `channel.request` refuses the connector namespace by construction. Either way
+ * the composer took a question it could not send. The desk now answers on every
+ * view (relationship context with an account open, book context without one),
+ * and the bridge is counted only where it is really a bridge.
+ */
+export function chatLane(channel: AgentChannel): ChatLane {
+  if (deskAvailable()) return "desk";
+  if (mcpAvailable()) return "connector";
+  return bridgeUsable(channel) ? "bridge" : "none";
+}
+
+/** A prompt bridge `request` will actually attempt. `kind() === "mcp"` is the
+ *  connector namespace reporting itself as a channel, and `request` throws on
+ *  it rather than sending, so counting it would enable the composer for a door
+ *  that refuses before it reaches the host. */
+const bridgeUsable = (channel: AgentChannel): boolean => channel.available() && channel.kind() !== "mcp";
+
+/** Whether the chat can take an ask at all, over any of its three doors. */
 export function chatReachable(channel: AgentChannel): boolean {
-  return deskAvailable() || mcpAvailable() || channel.available();
+  return chatLane(channel) !== "none";
 }
 
 /** The ask did not reach any door, or the one it reached refused. */
@@ -148,6 +230,34 @@ export const CHAT_ASK_FAILED =
 /** A door answered with nothing at all. */
 export const CHAT_EMPTY_ANSWER =
   "The desk came back with nothing on that one. Ask again, or open the relationship room, where the same book travels with the question.";
+
+/** The session door is off for the rest of this view, so "ask again" would be a
+ *  loop on a decision the banker already made. This says what still answers. */
+export const CHAT_DESK_OFF =
+  "That question did not reach the desk, and it will not while this view lasts. The tabs on this page are already read from the bank, and the relationship room carries the same book, so put the question there.";
+
+/** The {@link SessionFailure} code, or the contract's own transient default. */
+function failureCode(err: unknown): string {
+  const e = (err ?? {}) as { code?: unknown };
+  return typeof e.code === "string" ? e.code : "upstream_error";
+}
+
+/** Whether this failure took the door away for the rest of the view. */
+function failurePermanent(err: unknown): boolean {
+  return ((err ?? {}) as { permanent?: unknown }).permanent === true;
+}
+
+/** WHAT THE BANKER READS WHEN THE DESK LANE DID NOT ANSWER. One sentence per
+ *  kind of failure, because a door that refused, a door that timed out and a
+ *  door that broke are three different next moves.
+ *
+ *  The desk's OWN deadline resolves with {@link deskTimeoutAnswer} rather than
+ *  throwing, so the timeout branch is for a clock that expired elsewhere: the
+ *  rooms' typed `DeadlineExpired`, or the platform's own timeout code. */
+export function deskFailureSentence(err: unknown): string {
+  if (isDeadline(err) || failureCode(err) === "timeout") return deskTimeoutAnswer(Math.round(DESK_TIMEOUT_MS / 1000));
+  return failurePermanent(err) ? CHAT_DESK_OFF : CHAT_ASK_FAILED;
+}
 
 /** No door of the three is in this view. */
 export const CHAT_OFF_BODY =
@@ -228,7 +338,7 @@ function SuggestionChips({
 }
 
 export function ChatPanelBody() {
-  const { data, worklist, channel, state, dispatch } = useApp();
+  const { data, worklist, queue, channel, state, dispatch } = useApp();
   const [sendState, setSendState] = useState<SendState>("idle");
 
   const account =
@@ -325,6 +435,15 @@ export function ChatPanelBody() {
     await send(s.prompt);
   }
 
+  /** One agent bubble on the glass. Every lane ends in this, answer or not:
+   *  silence is the one thing the chat may never do with a question it took. */
+  function pushAgent(id: string, text: string) {
+    dispatch({
+      type: "PUSH_MESSAGE",
+      message: { id, role: "agent", text, ts: new Date().toISOString(), context: { accountId: account?.accountId } },
+    });
+  }
+
   /**
    * SEND, WITH THE CONVERSATION SO FAR.
    *
@@ -365,39 +484,63 @@ export function ChatPanelBody() {
     setSendState("sending");
     setLastQuestion(prompt);
 
-    // THE SESSION BRAIN FIRST (founder, 2026-09-03): the desk answers with the
-    // whole relationship in view, page-agnostic, exactly like the rooms. The
-    // gateway path below stays as the fallback where no session is attached.
-    if (account?.accountId && deskAvailable()) {
-      const bundle = resolveBundle(data, account.accountId);
-      if (bundle) {
-        try {
-          const answerText = await askDesk({
-            bundle,
-            accountName: account.name ?? "this relationship",
-            question: prompt,
-            thread,
-            /* WHAT THIS COCKPIT HAS ALREADY FILED. The desk named it in its own
-               cut notice and no caller ever passed it, so the block was
-               unreachable by construction (2026-09-12). */
-            history: state.actionHistory[account.accountId],
-          });
-          dispatch({
-            type: "PUSH_MESSAGE",
-            message: {
-              id: `${requestId}-answer`,
-              role: "agent",
-              text: answerText,
-              ts: new Date().toISOString(),
-              context: { accountId: account.accountId },
-            },
-          });
-          setStreamedId(`${requestId}-answer`);
+    /* THE SESSION BRAIN FIRST (founder, 2026-09-03): the desk answers with the
+       whole relationship in view, page-agnostic, exactly like the rooms.
+
+       AND ON THE WORKLIST VIEW TOO (founder 2026-09-13, the "Composing" report;
+       W1 finding (a)). This lane used to require an open account AND a resolved
+       bundle, so a question asked on the landing fell past the desk into a
+       connector that is not in every view and then into the legacy bridge,
+       which throws where nothing is wired: the banker got a note and no answer
+       on the first surface the cockpit opens on. The book is enough to answer
+       from, so the desk takes the ask either way and the CONTEXT is what
+       changes: the relationship where one is open, the book where none is. */
+    if (deskAvailable()) {
+      const bundle = account?.accountId ? resolveBundle(data, account.accountId) : null;
+      try {
+        const answerText =
+          bundle && account?.accountId
+            ? await askDesk({
+                bundle,
+                accountName: account.name ?? "this relationship",
+                question: prompt,
+                thread,
+                /* WHAT THIS COCKPIT HAS ALREADY FILED. The desk named it in its
+                   own cut notice and no caller ever passed it, so the block was
+                   unreachable by construction (2026-09-12). */
+                history: state.actionHistory[account.accountId],
+              })
+            : await askDeskPortfolio({ state: { data, queue }, question: prompt, thread });
+        pushAgent(
+          `${requestId}-answer`,
+          /* AN EMPTY ANSWER IS STILL AN ANSWER TO SHOW. `deskAnswer` can return
+             "" (a tool-only turn, a guarded answer clipped to nothing), and the
+             bubble then rendered blank with the composer already idle. */
+          answerText || CHAT_EMPTY_ANSWER,
+        );
+        setStreamedId(`${requestId}-answer`);
+        setSendState("idle");
+        return;
+      } catch (err) {
+        /* NEVER SILENT (founder 2026-09-13; W1 finding (b)). Every failure on
+           this lane was swallowed by a bare `catch {}`, so a door that REFUSED
+           and a door that was merely slow left the banker the same nothing, and
+           `takeDeclineNotice` existed with no caller. */
+        console.info(`[C360-CHAT] desk lane did not answer: ${failureCode(err)}`);
+        // Said ONCE per view, whatever answers next: a door that is off for the
+        // rest of this view is a fact about the page, not about this question.
+        const notice = takeDeclineNotice();
+        /* THE RUNGS BELOW THE DESK, re-read now rather than trusted from the
+           render: a permanent refusal has just taken the desk out of the lane
+           order altogether. Where one of them exists it still gets its turn and
+           IT produces the bubble; where none does, this lane says so itself. */
+        const below = mcpAvailable() || bridgeUsable(channel);
+        if (!below) {
+          pushAgent(`${requestId}-answer`, [notice, deskFailureSentence(err)].filter(Boolean).join(" "));
           setSendState("idle");
           return;
-        } catch {
-          // The door refused or the session is gone; the gateway path answers.
         }
+        if (notice) pushAgent(`${requestId}-notice`, notice);
       }
     }
 
@@ -412,15 +555,7 @@ export function ChatPanelBody() {
           tab: tabLabel,
           question: prompt,
         });
-        dispatch({
-          type: "PUSH_MESSAGE",
-          message: {
-            id: `${requestId}-answer`,
-            role: "agent",
-            text: answer.text || CHAT_EMPTY_ANSWER,
-            ts: new Date().toISOString(),
-          },
-        });
+        pushAgent(`${requestId}-answer`, answer.text || CHAT_EMPTY_ANSWER);
         setAnswerMeta({ model: answer.model, costUsd: answer.costUsd });
         setStreamedId(`${requestId}-answer`);
         setSendState("answered");

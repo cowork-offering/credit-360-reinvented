@@ -286,8 +286,16 @@ export function createMissLedger(): MissLedger {
 export function heardPreface(said: string, what: string): string {
   const line = said.trim().replace(/\s+/g, " ");
   if (!line) return `That came through with nothing in it, so there is nothing for me to read as ${what}.`;
-  const quoted = line.length > HEARD_CHARS ? `${line.slice(0, HEARD_CHARS)}...` : line;
-  return `I heard "${quoted}", and I cannot read it as ${what}.`;
+  return `I heard ${heardBack(line)}, and I cannot read it as ${what}.`;
+}
+
+/** The banker's own line, trimmed to a quotable length and wrapped in quotes.
+ *  A miss carrying it is a different sentence from the miss before it, which is
+ *  what keeps two unreadable lines in a row from reading as a loop. */
+export function heardBack(said: string): string {
+  const line = said.trim().replace(/\s+/g, " ");
+  if (!line) return '""';
+  return line.length > HEARD_CHARS ? `"${line.slice(0, HEARD_CHARS)}..."` : `"${line}"`;
 }
 
 export interface WorkroomEngine {
