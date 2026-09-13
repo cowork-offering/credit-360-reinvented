@@ -1763,8 +1763,28 @@ export function readInto(draft: Draft, line: string, ctx: ElicitContext, opts: {
   }
 
   /* ---- the scope, LAST, so the create's own figures cannot be mistaken for a
-          facility. A scope word is honoured or asked about, never narrowed. */
-  const scope = readScope(text, ctx.members, claimed);
+          facility. A scope word is honoured or asked about, never narrowed.
+
+          AND A PARTY'S OWN NAME IS NOT A FACILITY EITHER (D1, the three-book
+          matrix, 2026-09-13). `productWords` indexes each member by its key AND
+          by the key's FIRST WORD, which is what lets "equipment" name the
+          equipment loans. On a book whose loans are not named
+          `<Borrower> - <Product> - <$Amount>` the key keeps the borrower's name
+          on the front, so that first word is the BORROWER'S: on Kingsley,
+          "kingsley" names all three facilities at once. "add Kingsley Family
+          Trust as guarantor on the 8M Kingsley Working Capital Revolver"
+          therefore asked which of the three it should land on, over a line that
+          had already named one, because by the time the scope was read the
+          facility phrase had been scrubbed out and the GUARANTOR'S OWN NAME was
+          the only thing left carrying the word.
+
+          Same judgement as `claimed` above, one slot further along: a word this
+          surface has already settled as the PARTY cannot also be the facility. */
+  const settledParty = next.surface === "involvement" ? String(next.slots.party ?? "").trim() : "";
+  const forScope = settledParty
+    ? text.replace(new RegExp(settledParty.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), " ")
+    : text;
+  const scope = readScope(forScope, ctx.members, claimed);
   if (scope.word) {
     next.scopeWord = true;
     next.scope = scope.ids;

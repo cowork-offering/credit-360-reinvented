@@ -586,6 +586,14 @@ global with sharing class ExecuteDiscardVersion {
      * Marks the version's trail rows Withdrawn. They are never deleted: the trail is the audit of
      * what the banker asked for, and it outlives the thing it audited.
      *
+     * THE SET IS THE CONFIRMED ONE, and since 2026-09-13 it is a union of two (backlog row 45): the
+     * rows anchored on the version in `cm_Product_Package__c`, and the row that FILED the version,
+     * which is anchored on the SOURCE package and is tied to this version only by
+     * `cm_Result_Record_Id__c` naming one of the facilities about to be deleted. It comes off the
+     * STAGED plan rather than off a fresh query for the same reason the parents do: by the time a
+     * stopped run is resumed those facilities are already gone, and a fresh query on their ids would
+     * find nothing and quietly leave the row reading Completed for a version nobody can open.
+     *
      * `cm_Status__c` is a RESTRICTED picklist and this org does not offer Withdrawn as of
      * 2026-09-13, so the value is read from the org first. When it is absent the rows are LEFT AS
      * THEY STAND and the step is reported as not attempted, naming the missing value. Stamping a

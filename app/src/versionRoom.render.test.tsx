@@ -300,18 +300,32 @@ describe("the relationship room's package ask, on a version route", () => {
     expect(document.body.querySelector(".wk-pkgask-h")?.textContent).toBe("Which version does this land on?");
   });
 
-  it("keeps blocking the unbooked version on a review, exactly as it did", async () => {
-    /* THE REVIEW ASKS ONLY WHERE NOTHING IS ANCHORED, so this book stages no
-       snapshot anchor. The version route asks whatever the anchor is, because
-       the snapshot's anchor is the BOOKED package and that is the one thing an
-       amendment is never allowed to land on. */
+  /* RESTATED 0.9.24 (backlog row 49, founder 2026-09-13). This case used to
+     assert that a REVIEW standing on an unanchored book still put the package
+     ask up and still blocked the unbooked version in it. A review asks for no
+     package at all now: the covenant review and the collateral valuation are
+     anchored on the account and list everything the relationship carries, with
+     the packages shown on each row. So what is pinned here is the absence of
+     the question, and the version route beside it is untouched. */
+  it("asks a review NO package, on the same book the version route asks about", async () => {
     const loose = bundleOf();
     const bundle = { ...loose, snapshot: { ...loose.snapshot, productPackageId: undefined } } as BorrowerBundle;
     open("valuation", bundle);
     await settle();
+    expect(document.body.querySelector(".wk-pkgask")).toBeNull();
+    // And the header names the relationship rather than a package the room
+    // never asked for.
+    expect(document.body.querySelector<HTMLElement>(".wk-pkgline")!.dataset.pkgline).toBe("account");
+  });
+
+  it("still blocks the unbooked version on the AMENDMENT, exactly as it did", async () => {
+    const loose = bundleOf();
+    const bundle = { ...loose, snapshot: { ...loose.snapshot, productPackageId: undefined } } as BorrowerBundle;
+    open("versionPledge", bundle);
+    await settle();
     const rows = packageRows();
-    expect(rows.find((r) => r.id === VERSION)!.blocked).toBe(true);
-    expect(rows.find((r) => r.id === SOURCE)!.blocked).toBe(false);
+    expect(rows.find((r) => r.id === VERSION)!.blocked).toBe(false);
+    expect(rows.find((r) => r.id === SOURCE)!.blocked).toBe(true);
   });
 
   it("refuses the route outright once the org has taken the version to approval", async () => {

@@ -568,4 +568,98 @@ private class StageExecuteCollateralValuationTest {
         System.assert(again.error.message.contains('already carries valuation'),
             'The refusal should name the incumbent record: ' + again.error.message);
     }
+
+    // -------------------------------------------------------------------------------------------
+    // Backlog row 49: the relationship is the anchor and a package is an association.
+    // -------------------------------------------------------------------------------------------
+
+    /** The same request, anchored on the relationship rather than on the deal. */
+    private static StageCollateralValuation.Request accountReq(Id collateralId, String key) {
+        StageCollateralValuation.Request r = req(collateralId, key);
+        r.productPackageId = null;
+        r.accountId = C360TestFixture.existingAccount().Id;
+        return r;
+    }
+
+    @IsTest
+    static void theRelationshipIsTheAnchorAndNeedsNoPackage() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Collateral__c coll = C360TestFixture.existingCollateral();
+
+        Test.startTest();
+        StageCollateralValuation.Response res = StageCollateralValuation.stage(
+            new List<StageCollateralValuation.Request>{ accountReq(coll.Id, C360TestFixture.key('cv-acct')) })[0];
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'An asset the relationship owns is valuable without naming a deal, got ' + why(res));
+        System.assertEquals(String.valueOf(C360TestFixture.existingAccount().Id), res.result.accountId);
+        System.assertEquals(null, res.result.productPackageId,
+            'The asset is pledged nowhere, so this plan touches no package and there is no deal to deep-link to.');
+        System.assertEquals('[]', res.result.items[0].associations,
+            'An unpledged asset carries an EMPTY association list, which is a real answer about it: ' +
+            res.result.items[0].associations);
+
+        cm_Action_Staging__c row = [
+            SELECT cm_Account__c, cm_Product_Package__c FROM cm_Action_Staging__c WHERE Id = :res.result.stagingId
+        ];
+        System.assertEquals(C360TestFixture.existingAccount().Id, row.cm_Account__c);
+        System.assertEquals(null, row.cm_Product_Package__c);
+    }
+
+    @IsTest
+    static void anAssetThatReachesTheRelationshipThroughNeitherRouteIsRefusedByName() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Collateral__c theirs = strangerCollateral();
+
+        Test.startTest();
+        StageCollateralValuation.Response res = StageCollateralValuation.stage(
+            new List<StageCollateralValuation.Request>{ accountReq(theirs.Id, C360TestFixture.key('cv-stranger')) })[0];
+        Test.stopTest();
+
+        System.assertEquals(false, res.ok, 'A batch is anchored on one relationship.');
+        System.assertEquals('VALIDATION_FAILED', res.error.code);
+        System.assert(res.error.message.contains('does not reach relationship'),
+            'The refusal names the anchor it failed to reach: ' + res.error.message);
+        System.assert(res.error.message.contains('item 1 of 1'),
+            'And which item failed: ' + res.error.message);
+    }
+
+    @IsTest
+    static void eachItemCarriesTheFacilitiesAndPackagesItIsPledgedTo() {
+        C360TestFixture.armCalloutMock();
+        Account a = C360TestFixture.existingAccount();
+        LLC_BI__Product_Package__c pkg = C360TestFixture.existingPackage();
+        LLC_BI__Collateral__c coll = C360TestFixture.existingCollateral();
+
+        LLC_BI__Loan__c facility = new LLC_BI__Loan__c(
+            LLC_BI__Account__c = a.Id,
+            LLC_BI__Product_Package__c = pkg.Id,
+            LLC_BI__Stage__c = 'Qualification',
+            LLC_BI__Status__c = 'Open',
+            LLC_BI__Amount__c = 400000
+        );
+        insert facility;
+        LLC_BI__Loan_Collateral_Aggregate__c agg = new LLC_BI__Loan_Collateral_Aggregate__c(Name = 'ZZ-WP2-TEST Aggregate');
+        insert agg;
+        insert new LLC_BI__Loan_Collateral2__c(
+            LLC_BI__Loan__c = facility.Id,
+            LLC_BI__Collateral__c = coll.Id,
+            LLC_BI__Loan_Collateral_Aggregate__c = agg.Id,
+            LLC_BI__Amount_Pledged__c = 100000
+        );
+
+        Test.startTest();
+        StageCollateralValuation.Response res = StageCollateralValuation.stage(
+            new List<StageCollateralValuation.Request>{ accountReq(coll.Id, C360TestFixture.key('cv-assoc')) })[0];
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'stage should succeed, got ' + why(res));
+        String associations = res.result.items[0].associations;
+        System.assert(associations.contains(String.valueOf(facility.Id)),
+            'The item names the facility the asset is pledged to: ' + associations);
+        System.assert(associations.contains(String.valueOf(pkg.Id)) && associations.contains(pkg.Name),
+            'And the package that facility sits on, by id and by name: ' + associations);
+        System.assertEquals(String.valueOf(pkg.Id), res.result.productPackageId,
+            'Exactly one package is touched, so the staging row names it and the room has a deal to deep-link to.');
+    }
 }

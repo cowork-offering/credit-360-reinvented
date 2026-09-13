@@ -44,6 +44,15 @@
  * and NARRATES it: execution of a renewal is held, so the facilities are planned, hashed and
  * confirmed rather than filed. The modification is the route that executes one today.
  *
+ * THE ARMS (backlog row 49, founder 2026-09-13). The renewal takes `covenantAddsJson`,
+ * `covenantAttachesJson` and `pledgeAddsJson`, the same three arms and the same JSON shapes
+ * `stage_loan_modification` takes, parsed by its own public parsers so the two cannot answer the
+ * same payload differently (LESSONS 55). They land on the CLONE of the targeted facility, or on a
+ * net-new facility by its label. EXECUTE_RENEWAL IS NOT DEPLOYED, so the plan VALIDATES them against
+ * the org - the covenant type catalog, the collateral type and its advance rate, the borrower's
+ * ownership of the asset - and narrates them, and says in the plan that execution is not deployed. A
+ * future execute wave inherits a plan it can honour rather than a story it has to contradict.
+ *
  * INPUT SHAPE AND THE required=true TRAP (lesson 16aa). `required=true` on an @InvocableVariable is
  * enforced by the REST Actions API BEFORE Apex runs, and NO Apex unit test can see it, because a
  * direct test invocation constructs the Request itself. A tool that grows an alternative input shape
@@ -74,6 +83,12 @@ global with sharing class StageRenewal {
         global Decimal requestedRate;
         @InvocableVariable(label='New Facilities JSON' description='Optional. NET-NEW FACILITIES filed on the NEW package version this renewal creates: [{"label"? ("new:1", defaulted by position), "product" (an exact Commercial Loan record-type product: Construction, Deposit, Equipment, HELOC, Line of Credit, Purchase), "amount", "termMonths", "purpose", "amortizedTermMonths"?, "firstPaymentDate"? (YYYY-MM-DD)}]. A renewal versions the whole package, and new money on the version being approved is ordinary nCino practice. EXECUTION OF A RENEWAL IS HELD, so this plan NARRATES the facilities rather than filing them: the shape is validated against the org here so a future execute wave inherits a plan it can honour rather than a story it has to contradict.')
         global String newFacilitiesJson;
+        @InvocableVariable(label='Covenant Adds JSON' description='Optional. JSON list of net-new covenants to create and attach: [{"typeName" or "typeId", "threshold", "operator" (< <= = >= >), "frequency"?, "effectiveDate"? (YYYY-MM-DD), "targetLoanId"?}]. Each is created Pending/Active on the borrower account and attached to the CLONE of the targeted facility on the new package version, never to the booked parent. targetLoanId may be omitted when exactly one facility is selected, and may name a label from newFacilitiesJson. EXECUTION OF A RENEWAL IS HELD, so this plan validates and narrates the arms rather than filing them.')
+        global String covenantAddsJson;
+        @InvocableVariable(label='Covenant Attaches JSON' description='Optional. ASSOCIATE AN EXISTING COVENANT to a facility: [{"covenantId", "targetLoanId"?}]. A junction-only create on the CLONE. No covenant is inserted and nothing is deleted; this is the instrument for a relationship-level covenant that carries no loan junction. The covenant must belong to the borrower on this package. EXECUTION OF A RENEWAL IS HELD, so this plan validates and narrates the arm rather than filing it.')
+        global String covenantAttachesJson;
+        @InvocableVariable(label='Pledge Adds JSON' description='Optional. COLLATERAL PLEDGES authored on the CLONE: [{"collateralId"? (an existing LLC_BI__Collateral__c the BORROWER owns), "newCollateral"? {"description", "collateralType", "value"}, "advanceRate"?, "advanceRateReason"?, "amountPledged"?, "authoriseOverPledge"?, "lienPosition"?, "targetLoanId"?}]. EXACTLY ONE of collateralId and newCollateral per entry. An existing collateral must be owned by the borrower through LLC_BI__Account_Collateral__c and must not already be pledged to that facility. advanceRate is REQUIRED on a create; amountPledged defaults to the asset\'s lendable value at the rate the pledge resolves to, and a figure above it is refused unless the same entry sends "authoriseOverPledge": true. EXECUTION OF A RENEWAL IS HELD, so this plan validates and narrates the arms rather than filing them.')
+        global String pledgeAddsJson;
     }
 
     global class PlanStep {
@@ -157,6 +172,12 @@ global with sharing class StageRenewal {
         global Integer newFacilityCount;
         @InvocableVariable(label='New Facility Labels' description='The labels the plan names them by, in the order they were sent.')
         global List<String> newFacilityLabels;
+        @InvocableVariable(label='Covenant Add Count' description='Net-new covenants this plan would create and attach to the clones. Zero is the ordinary answer. Execution is held, so they are planned rather than filed.')
+        global Integer covenantAddCount;
+        @InvocableVariable(label='Covenant Attach Count' description='Existing covenants this plan would associate to the clones by junction only.')
+        global Integer covenantAttachCount;
+        @InvocableVariable(label='Pledge Add Count' description='Collateral pledges this plan would author on the clones.')
+        global Integer pledgeAddCount;
         @InvocableVariable(label='Replayed')
         global Boolean replayed;
         @InvocableVariable(label='Token Rotated' description='True when this call re-issued the confirmation token for a plan the org already held at Staged: the earlier token, which the caller never received, is void. At most one valid token exists per staging row.')
@@ -180,7 +201,7 @@ global with sharing class StageRenewal {
      */
     @InvocableMethod(
         label='stage_renewal'
-        description='Validate a package-anchored facility renewal and return an immutable execution plan with a plan hash. Takes either the single loanId or facilityIds, the member facilities of the package, never both. NET-NEW FACILITIES may ride the same request in newFacilitiesJson and are validated against the org\'s own product catalog, though a renewal NARRATES them rather than filing them. Writes nothing. Execution is HELD in this wave: a credit action requires a Booked facility, and Booked is unreachable through the API because nCino requires a human Submit for Approval.'
+        description='Validate a package-anchored facility renewal and return an immutable execution plan with a plan hash. Takes either the single loanId or facilityIds, the member facilities of the package, never both. NET-NEW FACILITIES may ride the same request in newFacilitiesJson, and NET-NEW COVENANTS, EXISTING-COVENANT ASSOCIATIONS AND COLLATERAL PLEDGES may ride it in covenantAddsJson, covenantAttachesJson and pledgeAddsJson, in the same JSON shapes stage_loan_modification takes; all of them are validated against the org\'s own catalogs, and a renewal NARRATES them rather than filing them. Writes nothing. Execution is HELD in this wave: a credit action requires a Booked facility, and Booked is unreachable through the API because nCino requires a human Submit for Approval.'
     )
     global static List<Response> stage(List<Request> requests) {
         List<Response> out = new List<Response>();
@@ -193,6 +214,9 @@ global with sharing class StageRenewal {
                 res.ok = false;
                 res.error = err('VALIDATION_FAILED', e.getMessage(), null, req.idempotencyKey);
             } catch (C360NewFacilities.NewFacilityException e) {
+                res.ok = false;
+                res.error = err('VALIDATION_FAILED', e.getMessage(), null, req.idempotencyKey);
+            } catch (StageLoanModification.ToolException e) {
                 res.ok = false;
                 res.error = err('VALIDATION_FAILED', e.getMessage(), null, req.idempotencyKey);
             } catch (C360Facilities.SelectionException e) {
@@ -235,6 +259,26 @@ global with sharing class StageRenewal {
         // cannot answer the same request differently.
         List<C360NewFacilities.NewFacility> newFacilities =
             C360NewFacilities.parse(req.newFacilitiesJson, 'renewal');
+
+        // THE ARMS (backlog row 49, founder 2026-09-13). A renewal that takes a covenant or a pledge
+        // in the same plan is one decision rather than two, and the arms are the modification's own:
+        // its parsers carry the org resolution and are public for exactly this reason (LESSONS 55).
+        // They land on the CLONE of the targeted facility, or on a net-new facility by its label.
+        StageLoanModification.Request armReq = new StageLoanModification.Request();
+        armReq.idempotencyKey = req.idempotencyKey;
+        armReq.productPackageId = req.productPackageId;
+        armReq.rationale = req.rationale;
+        armReq.covenantAddsJson = req.covenantAddsJson;
+        armReq.covenantAttachesJson = req.covenantAttachesJson;
+        armReq.pledgeAddsJson = req.pledgeAddsJson;
+
+        List<String> armWarnings = new List<String>();
+        List<StageLoanModification.CovenantAdd> covenantAdds =
+            StageLoanModification.parseCovenantAdds(armReq, facilities, newFacilities, armWarnings);
+        List<StageLoanModification.CovenantAttach> covenantAttaches =
+            StageLoanModification.parseCovenantAttaches(armReq, facilities, newFacilities, armWarnings);
+        List<StageLoanModification.PledgeAdd> pledgeAdds =
+            StageLoanModification.parsePledgeAdds(armReq, facilities, newFacilities);
 
         // nCino package methodology (founder correction, 2026-08-30): a renewal never versions a
         // loan alone. The credit action rolls the WHOLE package: every eligible member is cloned
@@ -353,6 +397,14 @@ global with sharing class StageRenewal {
         }
         resolved.put('newFacilityCount', newFacilities.size());
 
+        Map<Id, String> facilityNameById = new Map<Id, String>();
+        for (LLC_BI__Loan__c f : facilities) {
+            facilityNameById.put(f.Id, f.Name);
+        }
+        C360FacilityArms.plan(
+            resolved, steps, facilityNameById, newFacilities, covenantAdds, covenantAttaches, pledgeAdds
+        );
+
         steps.add(
             new C360Plan.Step('observe_side_effects', C360Plan.TYPE_OBSERVED, 'A new Opportunity is auto-created on every renewal')
                 .wakes(new List<String>{ 'nCino renewal automation' })
@@ -387,6 +439,17 @@ global with sharing class StageRenewal {
         );
         warnings.add('LLC_BI__Renewal_Number__c must be set explicitly or left to the invocable. A blank number yields a facility named _Rnull and breaks core sync.');
         warnings.addAll(C360NewFacilities.warnings(newFacilities, 'the new package version'));
+        warnings.addAll(C360FacilityArms.warnings(covenantAdds, covenantAttaches, pledgeAdds, 'the renewed clone'));
+        warnings.addAll(armWarnings);
+        if (!covenantAdds.isEmpty() || !covenantAttaches.isEmpty() || !pledgeAdds.isEmpty()) {
+            warnings.add(
+                'EXECUTE_RENEWAL IS NOT DEPLOYED, so the covenants and pledges above are PLANNED AND VERIFIED against the ' +
+                'org, not filed. Every one of them was resolved here against the org\'s own catalogs - the covenant type, ' +
+                'the collateral type and its advance rate, the borrower\'s ownership of the asset - so the plan a future ' +
+                'execute wave runs is the one confirmed today. To file a covenant or a pledge on a facility now, run it as a ' +
+                'modification, which executes, or as a new facility, which executes.'
+            );
+        }
         if (!newFacilities.isEmpty()) {
             warnings.add(
                 'EXECUTION IS HELD, so the ' + String.valueOf(newFacilities.size()) + ' net-new ' +
@@ -428,6 +491,10 @@ global with sharing class StageRenewal {
             (newFacilities.isEmpty() ? '' : String.valueOf(newFacilities.size()) + ' NET-NEW ' +
                 (newFacilities.size() == 1 ? 'facility is' : 'facilities are') + ' planned on the new version beside the clones: ' +
                 C360NewFacilities.labelList(newFacilities) + '. ') +
+            (covenantAdds.isEmpty() && covenantAttaches.isEmpty() && pledgeAdds.isEmpty()
+                ? ''
+                : 'The plan also carries ' + armSummary(covenantAdds.size(), covenantAttaches.size(), pledgeAdds.size()) +
+                  ' onto the clones, validated against the org here and planned rather than filed because execute_renewal is not deployed. ') +
             'NOTHING IS WRITTEN AND NOTHING WILL BE: execution is held. ' + heldReason;
 
         String planJson = C360Plan.serializePlan(summary, steps, warnings, provenance, resolved);
@@ -458,8 +525,26 @@ global with sharing class StageRenewal {
         for (C360NewFacilities.NewFacility nf : newFacilities) {
             r.newFacilityLabels.add(nf.label);
         }
+        r.covenantAddCount = covenantAdds.size();
+        r.covenantAttachCount = covenantAttaches.size();
+        r.pledgeAddCount = pledgeAdds.size();
         r.steps = toWireSteps(steps);
         return r;
+    }
+
+    /** The arms this plan carries, in banker language, for the summary. */
+    private static String armSummary(Integer adds, Integer attaches, Integer pledges) {
+        List<String> said = new List<String>();
+        if (adds > 0) {
+            said.add(adds + ' net-new covenant' + (adds == 1 ? '' : 's'));
+        }
+        if (attaches > 0) {
+            said.add(attaches + ' existing covenant association' + (attaches == 1 ? '' : 's'));
+        }
+        if (pledges > 0) {
+            said.add(pledges + ' collateral pledge' + (pledges == 1 ? '' : 's'));
+        }
+        return String.join(said, ', ');
     }
 
     private static List<PlanStep> toWireSteps(List<C360Plan.Step> steps) {

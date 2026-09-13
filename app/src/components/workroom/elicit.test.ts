@@ -12,6 +12,7 @@ import {
   handoffEntry,
   mirrorChips,
   namedTest,
+  nextAsk,
   openCreate,
   planAmendmentFor,
   readAssetType,
@@ -1334,5 +1335,60 @@ describe("a net-new pledge already on the plan (2026-09-02)", () => {
     });
     expect(planAmendmentFor(KOKOMO, elsewhere)).toBeNull();
     expect(awarenessFor(KOKOMO, elsewhere).fresh).toEqual([CONSTRUCTION]);
+  });
+});
+
+/* =============================================================================
+   A PARTY'S OWN NAME IS NOT A FACILITY SCOPE.
+
+   D1, the three-book drive matrix (2026-09-13, backlog row 51). `productWords`
+   indexes each member by its key AND by the key's first word, which is what
+   lets "equipment" name the equipment loans. On a book whose loans are not
+   named `<Borrower> - <Product> - <$Amount>` the key keeps the borrower's name
+   on the front, so that first word is the BORROWER'S: on Kingsley, "kingsley"
+   names all three facilities at once.
+
+   "add Kingsley Family Trust as guarantor on the 8M Kingsley Working Capital
+   Revolver" therefore came back asking which of the three it should land on,
+   over a line that had already named one: by the time the scope is read the
+   facility phrase has been scrubbed out of the text, and the guarantor's own
+   name was the only thing left carrying the word.
+   ============================================================================= */
+
+describe("a guarantor whose name carries the borrower's", () => {
+  const kgsl: ElicitMember[] = [
+    { id: "a1XSAMPLEKGSL001", key: "Kingsley Equipment Term Loan A", label: "Kingsley Equipment Term Loan A", orgName: "Kingsley Equipment Term Loan A", shortName: "Kingsley Equipment Term Loan A", committed: 10_000_000 },
+    { id: "a1XSAMPLEKGSL002", key: "Kingsley Working Capital Revolver", label: "Kingsley Working Capital Revolver", orgName: "Kingsley Working Capital Revolver", shortName: "Kingsley Working Capital Revolver", committed: 8_000_000 },
+    { id: "a1XSAMPLEKGSL003", key: "Kingsley CapEx Facility II", label: "Kingsley CapEx Facility II", orgName: "Kingsley CapEx Facility II", shortName: "Kingsley CapEx Facility II", committed: 4_000_000 },
+  ];
+  const kctx = ctxWith({ members: kgsl, relationship: "Kingsley Precision Works" });
+
+  it("reads the borrower's name inside a member key as a scope, which is what the scrub is for", () => {
+    /* The behaviour the fix works around, asserted so a change to `productWords`
+       shows up here rather than as a mystery in the drive. */
+    const raw = readScope("add Kingsley Family Trust as guarantor", kgsl);
+    expect(raw.word).toBe(true);
+    expect(raw.ids).toEqual([]);
+  });
+
+  it("does not read the party's own name as the facility once the surface has settled it", () => {
+    const draft = openCreate("add Kingsley Family Trust as guarantor", kctx)!;
+    expect(draft.surface).toBe("involvement");
+    expect(draft.slots.party).toBe("Kingsley Family Trust");
+    /* The line named no facility, so the room asks the plain scope question
+       rather than the "more than one reading of that" one, which is about a word
+       the banker actually wrote. */
+    expect(draft.scopeWord).toBe(false);
+    expect(nextAsk(draft, kctx)?.text).not.toMatch(/more than one reading of that/);
+  });
+
+  it("still reads a facility the line DOES name", () => {
+    const draft = openCreate("add Kingsley Family Trust as guarantor on the 8M Kingsley Working Capital Revolver", kctx)!;
+    expect(draft.scope).toEqual(["a1XSAMPLEKGSL002"]);
+  });
+
+  it("leaves a book whose loans follow the naming convention exactly as it was", () => {
+    const draft = openCreate("add James Hartwell as guarantor on the 15M line of credit", ctxWith())!;
+    expect(draft.scope).toEqual([LOC15]);
   });
 });

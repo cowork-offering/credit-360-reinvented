@@ -999,4 +999,82 @@ private class StageExecuteDiscardVersionTest {
         System.assertEquals(false, res[1].ok, 'Element 1 belongs to the booked package.');
         System.assertEquals('PACKAGE_BOOKED', res[1].error.code, 'Refusal code was ' + why(res[1]));
     }
+
+    // -------------------------------------------------------------------------------------------
+    // Backlog row 45: the row that FILED the version is withdrawn too.
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * A discard must withdraw BOTH shapes of trail row, and the fixture carries both.
+     *
+     * The @TestSetup row is anchored on the VERSION, which is every action a banker ran inside it.
+     * The row added here is the other shape: the loan modification that FILED the version, anchored
+     * on the SOURCE package because that is the package the banker was looking at, and tied to the
+     * version only by `cm_Result_Record_Id__c` naming the clone this discard deletes. Before row 45
+     * it stayed Completed, so the action that created a version nobody can open any more still read
+     * as finished work.
+     */
+    @IsTest
+    static void theRowThatFiledTheVersionIsWithdrawnBesideTheRowsAnchoredOnIt() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        Id cloneId = cloneLoan().Id;
+
+        cm_Action_Staging__c filer = new cm_Action_Staging__c(
+            cm_Action_Id__c = 'loan-modification',
+            cm_Idempotency_Key__c = 'ZZ-DISCARD-TEST-filer-' + String.valueOf(Crypto.getRandomLong()),
+            cm_Plan_Hash__c = 'feedface',
+            cm_Plan_JSON__c = '{}',
+            cm_Status__c = 'Completed',
+            cm_Account__c = borrower().Id,
+            cm_Product_Package__c = bookedPackageId(),
+            cm_Result_Record_Id__c = String.valueOf(cloneId)
+        );
+        insert filer;
+        Id anchoredId = [
+            SELECT Id FROM cm_Action_Staging__c
+            WHERE cm_Product_Package__c = :versionId AND cm_Action_Id__c = 'loan-modification' LIMIT 1
+        ].Id;
+
+        String k = key('row45');
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, why(staged));
+
+        Boolean saysTwo = false;
+        for (String w : staged.result.warnings) {
+            if (w.contains('2 action trail rows')) {
+                saysTwo = true;
+            }
+        }
+        System.assertEquals(true, saysTwo,
+            'The banker confirms a count, so the plan must promise BOTH rows before the run touches either: ' +
+            staged.result.warnings);
+
+        // The stage's own reads stay outside the window: a stage plus a full execute do not fit one
+        // governor budget otherwise (LESSONS 8j).
+        Test.startTest();
+        ExecuteDiscardVersion.Response done = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, done.ok, 'The discard should run, got ' + whyExec(done));
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Loan__c WHERE Id = :cloneId],
+            'The clone is gone, which is what makes the filing row stale in the first place.');
+
+        Map<Id, cm_Action_Staging__c> back = new Map<Id, cm_Action_Staging__c>([
+            SELECT Id, cm_Status__c FROM cm_Action_Staging__c WHERE Id IN :new Set<Id>{ filer.Id, anchoredId }
+        ]);
+        System.assertEquals(2, back.size(), 'Neither row is ever deleted: the trail is the audit.');
+
+        Boolean offered = C360Picklist.activeValues('cm_Action_Staging__c', 'cm_Status__c')
+            .contains(StageDiscardVersion.WITHDRAWN);
+        if (offered) {
+            System.assertEquals(StageDiscardVersion.WITHDRAWN, back.get(anchoredId).cm_Status__c,
+                'The row anchored on the version is withdrawn, as it always was.');
+            System.assertEquals(StageDiscardVersion.WITHDRAWN, back.get(filer.Id).cm_Status__c,
+                'Row 45: the row that FILED the version is withdrawn too, though it is anchored on the source package.');
+        } else {
+            System.assertEquals('Completed', back.get(filer.Id).cm_Status__c,
+                'With no Withdrawn value in the org the rows are left exactly as they stood, never restamped.');
+        }
+    }
 }

@@ -741,6 +741,39 @@ function whichMember(question: string, choices: Facility[], ctx: ParseContext, f
   return { question, options, choices };
 }
 
+/**
+ * THE ONE SENTENCE FOR A PACKAGE A CREDIT ACTION CANNOT RUN AGAINST.
+ *
+ * It was written inline inside `resolveTarget` and therefore only ever reached
+ * the lines that go THROUGH `resolveTarget`, which is every member-scoped
+ * amendment and none of the deal-scoped ones. See `nothingToModify` below.
+ */
+const NOTHING_TO_MODIFY =
+  "No booked facility is staged on this package, and a credit action only runs against a booked one. There is nothing here I can modify.";
+
+/**
+ * A PACKAGE WITH NOTHING BOOKED TAKES NO CHANGE OF ANY KIND (D1, the three-book
+ * matrix, 2026-09-13).
+ *
+ * `resolveTarget` has refused a commitment, a rate, a maturity and a term on an
+ * unbooked package since the wave shipped. A PARTY and a PACKAGE field are not
+ * member-scoped (a guarantor joins the deal, not one facility), so neither of
+ * them ever asked `resolveTarget` for a member, and neither of them ever met the
+ * refusal. On Piedmont, whose three facilities are all at Final Review, the room
+ * therefore refused "increase the line of credit" with the org's own reason and
+ * in the same breath put "remove Margaret Holloway" on the manifest: a carry
+ * exclusion against a version that cannot exist, on a plan nCino would refuse
+ * whole.
+ *
+ * The rule is the package's, not the field's, so it is asked here by both lanes.
+ * An AMEND room is unaffected: its `booked` is every member still below the
+ * approval rung (`modifyEngine.ts`), which is never empty on a version it can
+ * shape.
+ */
+function nothingToModify(ctx: ParseContext): ParseOutcome | null {
+  return ctx.booked.length === 0 ? { kind: "clarify", question: NOTHING_TO_MODIFY } : null;
+}
+
 /** Which member(s) an amendment lands on, or the question that resolves it. */
 function resolveTarget(lower: string, ctx: ParseContext, fields: CatalogField[] = []): { facilities: Facility[] } | TargetAsk {
   // ALREADY ANSWERED. The banker picked one out of a "which one?" and this is
@@ -780,12 +813,7 @@ function resolveTarget(lower: string, ctx: ParseContext, fields: CatalogField[] 
   const focused = ctx.focus && ctx.booked.find((b) => b.loanId === ctx.focus!.loanId);
   if (focused) return { facilities: [focused] };
   if (ctx.booked.length === 1) return { facilities: ctx.booked };
-  if (ctx.booked.length === 0) {
-    return {
-      question:
-        "No booked facility is staged on this package, and a credit action only runs against a booked one. There is nothing here I can modify.",
-    };
-  }
+  if (ctx.booked.length === 0) return { question: NOTHING_TO_MODIFY };
   const names = ctx.booked.map((f) => shortFacilityLabel(f, ctx.relationship)).filter(Boolean);
   return whichMember(
     `Which member should this land on? The package has ${ctx.booked.length}: ${names.join(", ")}.`,
@@ -2343,6 +2371,10 @@ const rosterNames = (ctx: ParseContext): string[] => [
 ];
 
 function partyAmendment({ field, matched, trimmed, lower, ctx, target }: PartyLine): ParseOutcome {
+  /* A PARTY IS A CHANGE TO THE PACKAGE, so it meets the package's own gate
+     before anything else is read off the line. See `nothingToModify`. */
+  const barren = nothingToModify(ctx);
+  if (barren) return barren;
   const op = operationFor(field, lower);
   const role = readRole(lower);
   const ownership = readOwnership(lower);
@@ -2436,7 +2468,34 @@ function partyAmendment({ field, matched, trimmed, lower, ctx, target }: PartyLi
         awaiting: { field, facility: null, member: { said: trimmed, choices: held.map((h) => h.facility) } },
       };
     }
-    facilities = hers.length ? hers : said;
+    const landing = hers.length ? hers : said;
+    /* A SINGULAR REFERENCE THAT FITS SEVERAL NAMES NONE OF THEM (D1, the
+       three-book matrix, 2026-09-13). `resolveTarget` has asked "which one?"
+       over exactly this shape since the wave shipped; the party lane resolves
+       its own member and therefore never reached the question, so a line whose
+       words happened to fit three facilities staged three carry exclusions.
+
+       KINGSLEY IS WHERE IT SHOWS. Its loans are not named `<Borrower> - <Product>
+       - <$Amount>`, so the relationship prefix is not stripped and the product
+       word of every member begins "Kingsley": "remove Owen Kingsley from this
+       loan" matched all three by the guarantor's own surname and took him off
+       each of them. On a book whose loan names follow the convention the party's
+       name never touches the product and the fan-out is invisible.
+
+       A PLURAL IS STILL A SELECTION ("take them off both lines"), and a figure
+       written against the product still names one. Only the singular reference
+       that fits several becomes a question. */
+    if (landing.length > 1 && !PLURAL_REFERENCE.test(lower) && !figureNamesAMember(landing, lower, ctx.relationship)) {
+      return {
+        kind: "clarify",
+        question: `This package carries ${landing.length} of those: ${landing
+          .map((f) => shortFacilityLabel(f, ctx.relationship))
+          .join(", ")}. Which one should ${party} ${op === "remove" ? "come off" : "go on"}?`,
+        options: landing.map((f) => memberChipLabel(f, ctx.relationship)),
+        awaiting: { field, facility: null, member: { said: trimmed, choices: landing } },
+      };
+    }
+    facilities = landing;
   } else if (op === "remove" && held.length === 1 && POINTS_AT_A_MEMBER.test(lower)) {
     // ONE FACILITY CARRIES THE ROW, so "this loan" names it and nothing is asked.
     facilities = [held[0].facility];
@@ -2543,6 +2602,14 @@ export function parseModify(text: string, ctx: ParseContext): ParseOutcome {
     // question. Everything else needs a member before it needs a value.
     const memberScoped = field.category !== "party" && field.category !== "package";
     if (memberScoped && "question" in target) return memberClarify(target, trimmed, field);
+    /* AND A PACKAGE-LEVEL CHANGE MEETS THE PACKAGE'S OWN GATE: a package with no
+       booked member carries nothing a credit action can fork, whatever the
+       change is about. The party lane asks the same question inside
+       `partyAmendment`, which is also where the INFERRED removals arrive. */
+    if (field.category === "package") {
+      const barren = nothingToModify(ctx);
+      if (barren) return barren;
+    }
     /* A PARTY AMENDMENT RESOLVES ON THE PARTY, not on the package. It names an
        entity, and the org's own involvement rows say which facilities that
        entity sits on; see `partyAmendment`. */

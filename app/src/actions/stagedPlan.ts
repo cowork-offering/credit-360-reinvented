@@ -57,6 +57,27 @@ export interface PlanStep {
  * Nothing derives an inventory locally, so a row without `object` is simply not
  * an inventory row.
  */
+/**
+ * WHAT A COVENANT OR AN ASSET IS TIED TO (0.9.24, backlog row 49).
+ *
+ * The account is the anchor of a covenant review and of a collateral valuation:
+ * nCino holds covenants on the Account with loan junctions and collateral on the
+ * Account with pledges across packages. So each planned row carries the
+ * facilities and the packages it is associated with, and the org delivers that
+ * as a JSON STRING on `associations`, parsed by `channel/writeTools.ts`.
+ *
+ * AN ASSOCIATION IS A FACT ON THE ROW, NEVER A FILTER (founder, 2026-09-13).
+ * Nothing reads this to narrow a list; every surface reads it to SAY what the
+ * row hangs off. Every field is optional because a relationship-level covenant
+ * legitimately hangs off no facility at all, and that absence is the fact.
+ */
+export interface StagedAssociation {
+  loanId?: string;
+  loanName?: string;
+  productPackageId?: string;
+  packageName?: string;
+}
+
 export interface StagedItem {
   collateralId?: string;
   collateralName?: string;
@@ -72,6 +93,8 @@ export interface StagedItem {
   name?: string;
   /** Why this row goes, in the org's words. Rendered verbatim. */
   reason?: string;
+  /** The facilities and packages this asset is pledged to (0.9.24). */
+  associations?: StagedAssociation[];
 }
 
 /** One facility inside a package-anchored credit action, with the step ids that
@@ -124,6 +147,9 @@ export interface StagedCovenant {
   statusStepId?: string;
   verifyStepId?: string;
   generationStepId?: string;
+  /** The facilities and packages this covenant is tied to (0.9.24). An empty
+   *  array is the fact that the covenant is relationship-level. */
+  associations?: StagedAssociation[];
 }
 
 export interface StagedOutput {
@@ -265,6 +291,19 @@ function isInventoryId(path: string): boolean {
   return /^items\[\d+\]\.id$/.test(path);
 }
 
+/**
+ * AN ASSOCIATION'S OWN FACILITY ID (0.9.24).
+ *
+ * `associations[n].loanId` names the facility a covenant hangs off or an asset
+ * is pledged to. That loan was booked long before this plan was staged, so
+ * finding one proves the opposite of what the fence looks for, exactly as
+ * `facilityId` does on a credit action. Path-shaped rather than key-shaped: a
+ * stray `loanId` anywhere else in a plan must still be flagged.
+ */
+function isAssociationLoanId(path: string): boolean {
+  return /\.associations\[\d+\]\.loanId$/.test(path);
+}
+
 export function assertNoRecordIds(plan: StagedOutput): string[] {
   const violations: string[] = [];
 
@@ -282,7 +321,14 @@ export function assertNoRecordIds(plan: StagedOutput): string[] {
       }
 
       // 2. Otherwise only flag ids outside the known carriers.
-      if (ID_CARRYING_KEYS.has(key) || isProvenanceCitation(path) || isTransitionState(path) || isInventoryId(path)) return;
+      if (
+        ID_CARRYING_KEYS.has(key) ||
+        isProvenanceCitation(path) ||
+        isTransitionState(path) ||
+        isInventoryId(path) ||
+        isAssociationLoanId(path)
+      )
+        return;
       violations.push(`${path} looks like an org record id (${value})`);
       return;
     }

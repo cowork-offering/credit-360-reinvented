@@ -998,9 +998,34 @@ export function createModifyEngine(args: {
       ? members.filter((f) => !atOrPastApproval(f))
       : bookedFacilities(bundle).filter((f) => members.some((m) => m.loanId === f.loanId));
   const covenants = packageCovenantRows(bundle, members);
-  const entities = (bundle?.graph?.legalEntities ?? []).filter(
+  /* WHO IS ON THE DEAL, AND THE FILTER MUST NOT BE ABLE TO EMPTY IT (D1, the
+     three-book matrix, 2026-09-13).
+
+     The involvement rows are scoped to the package the room stands in, which is
+     right on a relationship whose graph and exposure name the same package ids.
+     It is a TRAPDOOR on one that does not: the filter returned nothing, and with
+     `ctx.entities` empty `inferPartyRemoval` bails on its first line, `roster`
+     has nothing to offer and `partyNamed` resolves nobody. The room then answers
+     "remove Owen Kingsley from this loan" with "I read the Term Loan A, but not
+     what should change on it" WHILE ITS OWN READ CARD, two lines above, lists
+     Owen Kingsley as a guarantor. One room, two answers, from the same bundle.
+
+     TWO REAL READS PRODUCE THIS. A version package's members are clones with
+     ids of their own, so involvement rows anchored on the source package name
+     none of them; and the sample bundles in `artifact/live-data.json` carry a
+     `packageId` on the graph rows that no facility on the book names
+     (`a5FSAMPLE000KGSL1` against `a5FSAMPLE00000KGSL`).
+
+     So the scope is a NARROWING, never a gate: where it leaves nothing and the
+     relationship carries rows, the relationship's own rows stand.
+     `readCard.ts:structureCard` has made exactly this judgement since 0.9.22
+     ("The rows are still this relationship's, so they are shown"); this is the
+     same rule on the parser's side of the room. */
+  const graphEntities = bundle?.graph?.legalEntities ?? [];
+  const onThisPackage = graphEntities.filter(
     (e) => !context.productPackageId || !e.packageId || e.packageId === context.productPackageId,
   );
+  const entities = onThisPackage.length ? onThisPackage : graphEntities;
   const committed = members.reduce((sum, f) => sum + (typeof f.committed === "number" ? f.committed : 0), 0);
   // The SAME population `committed` sums — every member, not just the booked
   // ones — so the utilization tier of `deriveNextMove` divides two figures

@@ -863,3 +863,21 @@ Section B (discard):
 Follow-ups found by the proof: the loan-modification row that FILED the version (STG-151) is not
 marked Withdrawn, only the amend row anchored on the version is (backlog 45); pledge aggregate shells
 (backlog 46). Raw responses: `knowledge/proofs/0923-discard-stage.json`, `0923-discard-exec.json`.
+
+## D. 0.9.24 org proof, account-anchored reviews (orchestrator, 2026-09-13, evening)
+
+Deploy 0Afbb00000Dvb8DCAR (quick deploy of validation 0Afbb00000DvaorCAB, 216/216 tests): StageCovenantReview
+and StageCollateralValuation anchored on `accountId` with `productPackageId` optional; `associations` per
+item; covenant / pledge arms on StageNewFacility (+ execute) and StageRenewal (held); C360FacilityArms;
+discard marks the filing modification row Withdrawn.
+- `stage_covenant_review` with `accountId` only + one assessment (COV-000646 Compliant 1.38): `scopeCount 7`
+  across BOTH Hartwell packages (six original covenants plus the proof covenant then still on the book), each
+  with its associations (COV-000646 to the $6.5M Purchase on the Real Estate package; COV-000650 to the $15M
+  Line of Credit on the C&I package; COV-000651 to the Construction; relationship-level rows `[]`), planned 1,
+  refused 0, staging row anchored on the account with the single touched package set, summary naming the
+  package. Stage only; row removed afterwards. Note: `assessments` is a LIST of Assessment records on the
+  invocable, not a JSON string (a string is refused by the platform as a malformed SObject).
+- `stage_collateral_valuation` with `accountId` only (COL-000774 at 2,100,000, 2026-09-13): ok, associations
+  to the $1.5M Equipment on the Real Estate package, staging row anchored on the account. Stage only; row removed.
+- Residue removed: the proof covenant COV-000727 (created by the amend proof in section C; the discard keeps
+  covenant records by design) deleted by hand; Hartwell back to six covenants.

@@ -239,13 +239,22 @@ function structureCard(src: ReadSource, opts: ReadOptions = {}): ReadCardModel |
   // and one name, and "6 guarantors" over four people is the multiplicity bug
   // moved into a number.
   const total = new Set(groups.flatMap((g) => g.rows).map((r) => r.label)).size;
+  /* "EACH ONCE" IS A PROMISE ABOUT A LIST, and a list of one has nothing to
+     promise (D1, the three-book matrix, 2026-09-13). It is there because the org
+     stores one involvement row per loan and the card deduplicates them, which is
+     worth saying over three guarantors and reads as filler over one: Kingsley's
+     card said "1 guarantor is on this package today, each once with the role the
+     org wrote". The claim the sentence exists for is the ROLE, and that half is
+     said either way. */
+  const once = total === 1 ? "" : ", each once";
+  const onceNoComma = total === 1 ? "" : " each once";
   return {
     topic: "structure",
     lede: narrowed
-      ? `${total} ${total === 1 ? "guarantor is" : "guarantors are"} on ${where} today, each once with the role the org wrote. Limited guarantors are guarantors: the cap is on the amount, not on the obligation.`
+      ? `${total} ${total === 1 ? "guarantor is" : "guarantors are"} on ${where} today,${onceNoComma} with the role the org wrote. Limited guarantors are guarantors: the cap is on the amount, not on the obligation.`
       : opts.role === "guarantor"
         ? `This read carries no guaranty rows on ${where}. What it does carry is ${total} ${total === 1 ? "party" : "parties"}, with the role each holds.`
-        : `${total} ${total === 1 ? "party is" : "parties are"} on ${where} today, each once, with the role it holds and the facilities behind it.`,
+        : `${total} ${total === 1 ? "party is" : "parties are"} on ${where} today${once}, with the role it holds and the facilities behind it.`,
     groups,
     followUp: "Who should be added or taken off, and on which facility?",
   };

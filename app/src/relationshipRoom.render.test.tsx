@@ -920,14 +920,27 @@ describe("a route that can only refuse says so before it asks", () => {
     expect(room.querySelector(".wk-propose")).toBeNull();
   });
 
-  it("refuses the VALUATION on the anchor and asks nothing under it", async () => {
-    /* The drive caught the room rendering NO_PACKAGE_ANCHOR under the brief and
-       then asking "which collateral are we valuing?" underneath it. */
-    const { room } = open({ route: "valuation", bundle: { snapshot: { accountId: "001X", name: "Hartwell" } } as never });
+  /* RESTATED 0.9.24 (backlog row 49). The drive caught the room rendering a
+     package-anchor refusal under the brief and then asking "which collateral
+     are we valuing?" underneath it, so this case pins that a REFUSED route asks
+     nothing. The refusal it used to use is gone with the package anchor, so the
+     valuation's own refusal carries it: a relationship with nothing pledged. */
+  it("refuses the VALUATION with nothing pledged, and asks nothing under it", async () => {
+    const { room } = open({ route: "valuation", bundle: { exposure: { facilities: [] } } as never });
     await settle();
-    expect(room.textContent).toContain("anchored on the product package");
+    expect(room.textContent).toContain("pledges no collateral");
     expect(room.textContent).not.toContain("Which collateral are we valuing?");
     expect(room.querySelector(".wk-propose")).toBeNull();
+  });
+
+  it("no longer refuses either review for want of a package anchor", async () => {
+    const loose = { snapshot: { accountId: "001X", name: "Hartwell Precision Manufacturing LLC" } } as never;
+    for (const route of ["covenant", "valuation"] as const) {
+      const { room } = open({ route, bundle: loose });
+      await settle();
+      expect(room.textContent, route).not.toContain("anchored on the product package");
+      act(() => root?.unmount());
+    }
   });
 
   it("still runs the review where the rows are there", async () => {
@@ -1165,15 +1178,19 @@ describe("the plan's own refusals reach the glass, by index and verbatim", () =>
 });
 
 describe("a blocked route does not claim everything is collected", () => {
+  /* RESTATED 0.9.24 (backlog row 49): the block used to be the missing package
+     anchor, which no longer blocks anything. The covenant route's own refusal,
+     a relationship whose covenants carry no compliance row, carries the same
+     invariant. */
   it("repeats the refusal rather than pointing at a chip that is not there", async () => {
     const { room } = open({
       route: "covenant",
-      bundle: { snapshot: { accountId: "001X", name: "Hartwell" } } as never,
+      bundle: { covenants: { covenants: [{ covenantId: "cov1", covenantType: "Debt Service Coverage" }] } } as never,
     });
     await settle();
     await type(room, "go on then");
     await settle();
-    expect(room.textContent).toContain("anchored on the product package");
+    expect(room.textContent).toContain("no open test period on any of the 1 covenant");
     expect(room.textContent).not.toContain("The review chip below carries the next move");
     expect(room.querySelector(".wk-propose")).toBeNull();
   });

@@ -22,11 +22,26 @@
  * and are enforced the same way, for the same reason plus one more: a platform-level refusal returns
  * REQUIRED_FIELD_MISSING and nothing else, where Apex can name the field, the reason and the item.
  *
- * WHAT THIS WAVE HARDENED, AND WHY EACH ONE MATTERED.
- *   1. PACKAGE ANCHOR. The tool used to derive its account and package by reading whichever pledge
- *      it happened to see first, which meant a batch could span deals and nothing said so. The deal
- *      anchor is now supplied, and every item is proved to belong to it: pledged to a loan of the
- *      package, or owned by the package's borrower through the Collateral Ownership junction.
+ * THE ANCHOR IS THE RELATIONSHIP, 2026-09-13 (founder: "covenants and collateral are driven from
+ * the relationship; a package is an association, never a filter"). A bank's collateral belongs to
+ * the BORROWER: LLC_BI__Collateral__c carries no account lookup at all and reaches the relationship
+ * only through LLC_BI__Account_Collateral__c, while a pledge ties it to a facility and, through that
+ * facility, to a package. So `accountId` is the anchor and the scope is every asset the account
+ * owns, wherever it is pledged; `productPackageId` is OPTIONAL and, where given, is a narrowing THE
+ * CALLER CHOSE. Every item reports its ASSOCIATIONS - the facilities it is pledged to and the
+ * packages those facilities sit on - as data the room shows on the row, never as a filter.
+ *
+ * BACK-COMPAT IS DELIBERATE. A caller sending `productPackageId` alone keeps working: the borrower
+ * is derived from the package's own LLC_BI__Account__c and becomes the anchor, and membership is
+ * proved against the package exactly as before. The deployed cockpit 0.9.23 sends the package.
+ *
+ * WHAT THE 2026-08-22 WAVE HARDENED, AND WHY EACH ONE MATTERED.
+ *   1. AN ANCHOR AT ALL. The tool used to derive its account and package by reading whichever
+ *      pledge it happened to see first, which meant a batch could span relationships and nothing
+ *      said so. Every item is now proved to reach the anchor before anything is staged: owned by
+ *      the relationship, or pledged to one of its facilities. Where the caller narrows to a package
+ *      the narrower package test runs in place of it, because the package scope is a strict subset
+ *      and the refusal should name the deal the banker is working with.
  *   2. BATCH CAP OF 20. items[] was unbounded. 24 org-local *CDC triggers enqueue one
  *      EventBridgeCallout queueable PER RECORD against a platform ceiling of 50 queued jobs per
  *      synchronous transaction, so a 51-item call raised "Too many queueable jobs added to the
@@ -83,7 +98,9 @@ global with sharing class StageCollateralValuation {
         global String idempotencyKey;
         @InvocableVariable(label='Rationale' description='Why this valuation is being filed. Feeds the audit ledger.' required=true)
         global String rationale;
-        @InvocableVariable(label='Product Package Id' description='The deal anchor. Every collateral valued must be pledged to a loan of this package or owned by the package\'s borrower. Required in practice, enforced in Apex so the refusal can name the item that fails.')
+        @InvocableVariable(label='Account Id' description='THE ANCHOR. The relationship that owns the assets being valued: every collateral in the batch must be owned by it through LLC_BI__Account_Collateral__c, wherever it happens to be pledged. Required in Apex unless productPackageId is supplied, in which case the borrower is derived from the package.')
+        global String accountId;
+        @InvocableVariable(label='Product Package Id' description='OPTIONAL NARROWING, never an anchor. Supply it to work one deal and every collateral must additionally reach that package, by pledge to one of its loans or by ownership through its borrower. Omit it and the scope is every asset the relationship owns. Each item reports the facilities and packages it is pledged to either way; the association is shown, never used to filter.')
         global String productPackageId;
         @InvocableVariable(label='Collateral Id' description='Single-item path. Supply this and value, OR items, never both. Not flagged required=true because items supersedes it; requiredness is enforced in Apex.')
         global String collateralId;
@@ -142,6 +159,8 @@ global with sharing class StageCollateralValuation {
         global String collateralName;
         @InvocableVariable(label='Value')
         global Decimal value;
+        @InvocableVariable(label='Associations' description='The facilities and packages this asset is pledged to, as JSON: [{"loanId","loanName","productPackageId","packageName"}]. An empty list means the asset is owned but pledged nowhere, which is a real answer about an unencumbered asset rather than a gap. This is DATA THE ROOM SHOWS on the row; it is never a filter and never a narrowing control.')
+        global String associations;
         @InvocableVariable(label='Write Step Id')
         global String writeStepId;
         @InvocableVariable(label='Verify Step Id')
@@ -165,11 +184,11 @@ global with sharing class StageCollateralValuation {
         global List<String> warnings;
         @InvocableVariable(label='Provenance JSON')
         global String provenanceJson;
-        @InvocableVariable(label='Account Id')
+        @InvocableVariable(label='Account Id' description='The relationship this plan is anchored on, and the anchor the staging row carries.')
         global String accountId;
-        @InvocableVariable(label='Product Package Id')
+        @InvocableVariable(label='Product Package Id' description='The single package this plan touches, where every asset it values is pledged into exactly one. Null where they span several packages or none: there is then no one deal to deep-link to, and the staging row carries no package either.')
         global String productPackageId;
-        @InvocableVariable(label='Items' description='One entry per valuation in the batch, with the plan step ids that belong to it.')
+        @InvocableVariable(label='Items' description='One entry per valuation in the batch, with its associations and the plan step ids that belong to it.')
         global List<PlannedItem> items;
         @InvocableVariable(label='Item Count')
         global Integer itemCount;
@@ -197,7 +216,7 @@ global with sharing class StageCollateralValuation {
      */
     @InvocableMethod(
         label='stage_collateral_valuation'
-        description='Validate a collateral valuation against the org contract and return an immutable execution plan with a plan hash and a single-use decision token. Writes NO domain record: the valuation itself is created only by execute_collateral_valuation behind the token gate.'
+        description='Validate a collateral valuation against the org contract and return an immutable execution plan with a plan hash and a single-use decision token. accountId is the anchor: the scope is every asset the RELATIONSHIP owns, wherever it is pledged, plus anything pledged to its facilities. productPackageId is an OPTIONAL narrowing the caller chooses, never a requirement, and a caller that sends only a package still works because the borrower is derived from it. Every item reports the facilities and packages it is pledged to, as data to show rather than as a filter. Writes NO domain record: the valuation itself is created only by execute_collateral_valuation behind the token gate.'
     )
     global static List<Response> stage(List<Request> requests) {
         List<Response> out = new List<Response>();
@@ -231,13 +250,14 @@ global with sharing class StageCollateralValuation {
         if (String.isBlank(req.rationale)) {
             throw new ToolException('rationale is required. It feeds the audit ledger.');
         }
-        if (String.isBlank(req.productPackageId)) {
+        if (String.isBlank(req.accountId) && String.isBlank(req.productPackageId)) {
             throw new ToolException(
-                'productPackageId is required. It is the deal anchor, and every collateral valued must be provably part of it: ' +
-                'pledged to a loan of the package, or owned by the package\'s borrower. Without it a batch could span deals and nothing would say so.'
+                'accountId is required. It is the anchor, and every collateral valued must be provably owned by it through the ' +
+                'Collateral Ownership junction: LLC_BI__Collateral__c carries no account lookup of its own. productPackageId is only ' +
+                'a narrowing the caller chooses; send it alone and the borrower is derived from it.'
             );
         }
-        Id packageId = C360Facilities.packageId(req.productPackageId);
+        Id packageId = String.isBlank(req.productPackageId) ? null : C360Facilities.packageId(req.productPackageId);
 
         List<ValuationItem> items = normalise(req);
         if (items.isEmpty()) {
@@ -296,12 +316,31 @@ global with sharing class StageCollateralValuation {
             }
         }
 
-        Id accountId = assertPackageMembership(items, collateralById, packageId);
+        Id accountId = anchorAccount(req, packageId);
+        assertReachesAnchor(items, collateralById, accountId, packageId);
         assertNoSameDateValuation(items, collateralById);
+
+        // THE ASSOCIATIONS. One query over every asset in the batch, deliberately NOT constrained by
+        // the caller's package: an association is what the row SHOWS, so narrowing it to the package
+        // the caller happened to name would hide exactly the cross-deal pledges the room exists to
+        // surface (three of Hartwell's four assets are pledged to two facilities each).
+        Map<Id, List<C360Facilities.Association>> associations = pledgeAssociations(collateralById.keySet());
+        List<C360Facilities.Association> allAssociations = new List<C360Facilities.Association>();
+        for (ValuationItem it : items) {
+            if (associations.containsKey(it.collateralId)) {
+                allAssociations.addAll(associations.get(it.collateralId));
+            }
+        }
+        Map<Id, String> touchedPackages = C360Facilities.packagesIn(allAssociations);
+        Id anchorPackageId = touchedPackages.size() == 1
+            ? new List<Id>(touchedPackages.keySet())[0]
+            : null;
 
         Map<String, Object> resolved = new Map<String, Object>{
             'itemCount' => items.size(),
-            'productPackageId' => String.valueOf(packageId)
+            'accountId' => String.valueOf(accountId),
+            'productPackageId' => packageId == null ? null : String.valueOf(packageId),
+            'anchorPackageId' => anchorPackageId == null ? null : String.valueOf(anchorPackageId)
         };
         List<C360Plan.Step> steps = new List<C360Plan.Step>();
         List<PlannedItem> planned = new List<PlannedItem>();
@@ -346,6 +385,7 @@ global with sharing class StageCollateralValuation {
             pi.collateralId = it.collateralId;
             pi.collateralName = coll.Name;
             pi.value = it.value;
+            pi.associations = C360Facilities.associationsJson(associations.get(it.collateralId));
             pi.writeStepId = 'write_valuation_' + n;
             pi.verifyStepId = 'verify_valuation_' + n;
             pi.rollupStepId = 'verify_rollup_' + n;
@@ -362,9 +402,24 @@ global with sharing class StageCollateralValuation {
                 'so a failure on one is reported against that collateral and does not silently discard the others.'
             );
         }
+        List<String> packageNames = new List<String>();
+        for (Id p : touchedPackages.keySet()) {
+            packageNames.add(touchedPackages.get(p) == null ? String.valueOf(p) : touchedPackages.get(p));
+        }
+        packageNames.sort();
         warnings.add(
-            'Every collateral in this batch was proved to belong to the named product package, by pledge to one of its loans or by ownership through the borrower. ' +
-            'The batch is anchored on one deal.'
+            'Every asset in this batch was proved to reach this relationship before anything was staged: owned through the ' +
+            'Collateral Ownership junction, which is the only account anchor LLC_BI__Collateral__c has, or pledged to one of ' +
+            'the relationship\'s facilities. ' +
+            (packageId == null
+                ? 'No product package was named: the caller is valuing the relationship\'s assets rather than one deal\'s. '
+                : 'The caller narrowed the batch to one package, and every asset was proved to reach it too. ') +
+            (packageNames.isEmpty()
+                ? 'None of these assets is pledged anywhere, so no facility\'s coverage moves.'
+                : (packageNames.size() == 1
+                    ? 'They are pledged into package ' + packageNames[0] + '.'
+                    : 'They are pledged across ' + packageNames.size() + ' packages: ' + String.join(packageNames, ', ') +
+                      '. That is what each item\'s associations report, and it is shown rather than filtered on.'))
         );
 
         Map<String, Object> provenance = new Map<String, Object>{
@@ -385,7 +440,7 @@ global with sharing class StageCollateralValuation {
         String planHash = C360Plan.hash('collateral-valuation', steps, resolved);
 
         C360ActionStaging.Staged staged = C360ActionStaging.stagePlan(
-            'collateral-valuation', req.idempotencyKey, accountId, packageId, planJson, planHash
+            'collateral-valuation', req.idempotencyKey, accountId, anchorPackageId, planJson, planHash
         );
 
         StageResult r = new StageResult();
@@ -398,7 +453,7 @@ global with sharing class StageCollateralValuation {
         r.warnings = warnings;
         r.provenanceJson = JSON.serialize(provenance);
         r.accountId = accountId;
-        r.productPackageId = packageId;
+        r.productPackageId = anchorPackageId;
         r.items = planned;
         r.itemCount = planned.size();
         r.steps = toWireSteps(steps);
@@ -441,36 +496,128 @@ global with sharing class StageCollateralValuation {
     }
 
     /**
-     * Proves every collateral in the batch belongs to the named package, and returns the package's
-     * borrower for the staging anchor.
+     * The relationship this plan anchors on.
      *
-     * Two membership routes, because nCino models two. A collateral reaches a deal through the
-     * PLEDGE (LLC_BI__Loan_Collateral2__c to a loan on the package) and it reaches a borrower
-     * through the OWNERSHIP junction (LLC_BI__Account_Collateral__c). Collateral Mgmt carries no
-     * account lookup of its own, so ownership is the only relationship anchor the object has. An
-     * unpledged asset owned by the borrower is a legitimate revaluation target, and refusing it
-     * would refuse most pre-close work.
+     * The caller's `accountId` where one was sent. Otherwise the package's own borrower, which is
+     * what keeps the deployed cockpit's package-only call working without a second plan shape. When
+     * BOTH arrive they must agree: a package on another relationship is refused by name rather than
+     * silently anchored on one of the two.
+     *
+     * @param req The staged request.
+     * @param packageId The caller's narrowing, already parsed, or null.
+     * @return The anchor account.
+     */
+    private static Id anchorAccount(Request req, Id packageId) {
+        Id said = null;
+        if (String.isNotBlank(req.accountId)) {
+            try {
+                said = Id.valueOf(req.accountId);
+            } catch (Exception e) {
+                throw new ToolException('accountId ' + req.accountId + ' is not a record id.');
+            }
+            if (said.getSObjectType() != Account.SObjectType) {
+                throw new ToolException('accountId ' + said + ' is not an account id.');
+            }
+        }
+        if (packageId == null) {
+            return said;
+        }
+
+        List<LLC_BI__Product_Package__c> pkgs = [
+            SELECT Id, Name, LLC_BI__Account__c FROM LLC_BI__Product_Package__c WHERE Id = :packageId WITH USER_MODE LIMIT 1
+        ];
+        if (pkgs.isEmpty()) {
+            throw new ToolException('Product package ' + packageId + ' was not found, or is not visible to you.');
+        }
+        Id owner = pkgs[0].LLC_BI__Account__c;
+        if (said == null) {
+            if (owner == null) {
+                throw new ToolException(
+                    'Product package ' + pkgs[0].Name + ' carries no account, so no relationship can be derived from it. Supply accountId.'
+                );
+            }
+            return owner;
+        }
+        if (owner != said) {
+            throw new ToolException(
+                'Product package ' + pkgs[0].Name + ' belongs to relationship ' + owner + ', not to ' + said +
+                '. A package is a narrowing WITHIN a relationship, so one that sits on another relationship narrows nothing.'
+            );
+        }
+        return said;
+    }
+
+    /**
+     * Proves every collateral in the batch reaches the anchor, and names the item that does not.
+     *
+     * THE ANCHOR IS THE RELATIONSHIP, and an asset reaches it two ways, which are nCino's own two:
+     * the borrower OWNS it (`LLC_BI__Account_Collateral__c`, the only account anchor the collateral
+     * object has, since `LLC_BI__Collateral__c` carries no account lookup at all), or it is PLEDGED
+     * to one of the relationship's facilities, wherever that facility sits. The second arm is what
+     * admits a guarantor's asset taken as security for this borrower's deal.
+     *
+     * WHERE THE CALLER NARROWED TO A PACKAGE, THE PACKAGE TEST IS THE ONLY ONE THAT RUNS, and it is
+     * unchanged from the 2026-08-22 wave: pledged to a loan of that package, or owned by that
+     * package's borrower. That is deliberate rather than lazy. The package scope is a strict SUBSET
+     * of the relationship scope - a package's loans are the relationship's loans and a package's
+     * borrower is the relationship - so passing the narrower test implies passing the wider one, and
+     * running both would only replace a refusal that names the deal the banker is working with a
+     * vaguer one about the relationship.
      *
      * @param items The batch.
      * @param collateralById The collateral records, for names in the refusal.
-     * @param packageId The deal anchor.
-     * @return The package's borrower account id, or null when the package carries none.
+     * @param accountId The anchor relationship.
+     * @param packageId The caller's narrowing, or null.
      */
-    private static Id assertPackageMembership(
+    private static void assertReachesAnchor(
         List<ValuationItem> items,
         Map<Id, LLC_BI__Collateral__c> collateralById,
+        Id accountId,
         Id packageId
     ) {
+        Set<Id> collateralIds = collateralById.keySet();
+        Set<Id> member = new Set<Id>();
+
+        if (packageId == null) {
+            for (LLC_BI__Account_Collateral__c own : [
+                SELECT LLC_BI__Collateral__c
+                FROM LLC_BI__Account_Collateral__c
+                WHERE LLC_BI__Collateral__c IN :collateralIds AND LLC_BI__Account__c = :accountId
+                WITH USER_MODE
+            ]) {
+                member.add(own.LLC_BI__Collateral__c);
+            }
+            for (LLC_BI__Loan_Collateral2__c pledge : [
+                SELECT LLC_BI__Collateral__c
+                FROM LLC_BI__Loan_Collateral2__c
+                WHERE LLC_BI__Collateral__c IN :collateralIds
+                  AND LLC_BI__Loan__r.LLC_BI__Account__c = :accountId
+                WITH USER_MODE
+            ]) {
+                member.add(pledge.LLC_BI__Collateral__c);
+            }
+            for (Integer i = 0; i < items.size(); i++) {
+                Id cid = items[i].collateralId;
+                if (!member.contains(cid)) {
+                    throw new ToolException(
+                        'Collateral ' + collateralById.get(cid).Name + ' does not reach relationship ' + accountId +
+                        ' (item ' + (i + 1) + ' of ' + items.size() + '). The relationship does not own it through the ' +
+                        'Collateral Ownership junction, which is the only account anchor LLC_BI__Collateral__c has on this org, ' +
+                        'and it is pledged to none of the relationship\'s facilities. A valuation batch is anchored on one ' +
+                        'relationship, so an asset that reaches it through neither route is refused rather than filed against ' +
+                        'the wrong borrower.'
+                    );
+                }
+            }
+            return;
+        }
+
         List<LLC_BI__Product_Package__c> packages = [
-            SELECT Id, Name, LLC_BI__Account__c FROM LLC_BI__Product_Package__c WHERE Id = :packageId WITH USER_MODE LIMIT 1
+            SELECT Id, Name FROM LLC_BI__Product_Package__c WHERE Id = :packageId WITH USER_MODE LIMIT 1
         ];
         if (packages.isEmpty()) {
             throw new ToolException('Product package ' + packageId + ' was not found, or is not visible to you.');
         }
-        Id accountId = packages[0].LLC_BI__Account__c;
-        Set<Id> collateralIds = collateralById.keySet();
-
-        Set<Id> member = new Set<Id>();
         for (LLC_BI__Loan_Collateral2__c pledge : [
             SELECT LLC_BI__Collateral__c
             FROM LLC_BI__Loan_Collateral2__c
@@ -484,25 +631,62 @@ global with sharing class StageCollateralValuation {
             for (LLC_BI__Account_Collateral__c owned : [
                 SELECT LLC_BI__Collateral__c
                 FROM LLC_BI__Account_Collateral__c
-                WHERE LLC_BI__Collateral__c IN :collateralIds
-                  AND LLC_BI__Account__c = :accountId
+                WHERE LLC_BI__Collateral__c IN :collateralIds AND LLC_BI__Account__c = :accountId
                 WITH USER_MODE
             ]) {
                 member.add(owned.LLC_BI__Collateral__c);
             }
         }
-
         for (Integer i = 0; i < items.size(); i++) {
             Id cid = items[i].collateralId;
             if (!member.contains(cid)) {
                 throw new ToolException(
                     'Collateral ' + collateralById.get(cid).Name + ' is not part of product package ' + packages[0].Name +
                     ' (item ' + (i + 1) + ' of ' + items.size() + '). It is pledged to no loan on this package, and it is not owned by the package\'s borrower. ' +
-                    'A valuation batch is anchored on one deal, so a collateral that reaches it through neither route is refused rather than filed against the wrong package.'
+                    'A valuation batch is anchored on one deal, so a collateral that reaches it through neither route is refused rather than filed against the wrong package. ' +
+                    'Omit productPackageId to value the relationship\'s assets without narrowing to one deal.'
                 );
             }
         }
-        return accountId;
+    }
+
+    /**
+     * Every facility each asset is pledged to, with the package behind each facility.
+     *
+     * ONE query for the whole batch. This is the ASSOCIATION the row shows, so it is read for every
+     * pledge the asset carries, across every package, rather than for the one the caller named.
+     *
+     * @param collateralIds The assets in the batch.
+     * @return Collateral id to its associations, ordered by facility name. An asset pledged nowhere
+     *         is simply absent from the map, and renders as an empty list.
+     */
+    private static Map<Id, List<C360Facilities.Association>> pledgeAssociations(Set<Id> collateralIds) {
+        Map<Id, List<C360Facilities.Association>> out = new Map<Id, List<C360Facilities.Association>>();
+        if (collateralIds.isEmpty()) {
+            return out;
+        }
+        for (LLC_BI__Loan_Collateral2__c p : [
+            SELECT LLC_BI__Collateral__c, LLC_BI__Loan__c, LLC_BI__Loan__r.Name,
+                   LLC_BI__Loan__r.LLC_BI__Product_Package__c,
+                   LLC_BI__Loan__r.LLC_BI__Product_Package__r.Name
+            FROM LLC_BI__Loan_Collateral2__c
+            WHERE LLC_BI__Collateral__c IN :collateralIds AND LLC_BI__Loan__c != null
+            WITH USER_MODE
+            ORDER BY LLC_BI__Loan__r.Name ASC
+        ]) {
+            if (!out.containsKey(p.LLC_BI__Collateral__c)) {
+                out.put(p.LLC_BI__Collateral__c, new List<C360Facilities.Association>());
+            }
+            out.get(p.LLC_BI__Collateral__c).add(C360Facilities.association(
+                p.LLC_BI__Loan__c,
+                p.LLC_BI__Loan__r == null ? null : p.LLC_BI__Loan__r.Name,
+                p.LLC_BI__Loan__r == null ? null : p.LLC_BI__Loan__r.LLC_BI__Product_Package__c,
+                p.LLC_BI__Loan__r == null || p.LLC_BI__Loan__r.LLC_BI__Product_Package__r == null
+                    ? null
+                    : p.LLC_BI__Loan__r.LLC_BI__Product_Package__r.Name
+            ));
+        }
+        return out;
     }
 
     /**

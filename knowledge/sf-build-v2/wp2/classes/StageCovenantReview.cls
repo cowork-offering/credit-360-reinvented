@@ -1,13 +1,29 @@
 /**
  * StageCovenantReview - MCP tool: stage_covenant_review.
  *
- * PACKAGE-ANCHORED BULK. One call, one plan, one plan hash, one decision token, N covenant
- * assessments. The anchor is the PRODUCT PACKAGE and the unit of action is still the covenant:
- * nCino is explicit that "the product package shows an aggregated list of the covenants included in
- * the loans within the package. The user still needs to manage the covenants at the individual loan
- * or Relationship level" (kb:kAHHu000000XZTaOAO). So this is N compliance assessments under one
- * governed plan, never a single package-level verdict. Resolution and the write precondition live in
- * C360Covenants, shared with execute_covenant_review so the two cannot drift.
+ * RELATIONSHIP-ANCHORED BULK. One call, one plan, one plan hash, one decision token, N covenant
+ * assessments. The anchor is the ACCOUNT and the unit of action is the covenant.
+ *
+ * THE ANCHOR MOVED, 2026-09-13 (founder: "covenants and collateral are driven from the
+ * relationship; a package is an association, never a filter"). Until this wave the tool REQUIRED a
+ * product package, which made the room ask "which deal?" before it could show a banker a covenant
+ * test that has nothing to do with a deal. nCino itself says the package is a read aggregation:
+ * "the product package shows an aggregated list of the covenants included in the loans within the
+ * package. The user still needs to manage the covenants at the individual loan or Relationship
+ * level" (kb:kAHHu000000XZTaOAO). So `accountId` is the anchor, `productPackageId` is OPTIONAL and,
+ * when given, is a narrowing THE CALLER CHOSE. Each covenant in the result carries its
+ * ASSOCIATIONS - the facilities it is junctioned to and the packages those facilities sit on - as
+ * data the room shows on the row. An association is never a filter and never a control.
+ *
+ * BACK-COMPAT IS DELIBERATE AND IT IS NOT A SECOND SHAPE. A caller that still sends
+ * `productPackageId` alone keeps working: the borrower is DERIVED from the package's own
+ * LLC_BI__Account__c and becomes the anchor, and the package narrows the scope exactly as it did
+ * before. The deployed cockpit 0.9.23 sends the package, so breaking that would break the room in
+ * production for no gain. Sending both is legal and means "this relationship, narrowed to this
+ * deal"; the package must belong to the account or the request is refused by name.
+ *
+ * Resolution and the write precondition live in C360Covenants, shared with execute_covenant_review
+ * so the two cannot drift.
  *
  * THE OLD SINGLE SHAPE IS GONE, DELIBERATELY. `accountId` + `covenantComplianceId` + `result` were
  * dropped rather than kept alongside the bulk shape. Keeping them was not cheap: the old shape
@@ -17,7 +33,9 @@
  * been a second plan shape with a second execute branch that silently skipped both new guards, which
  * is worse than a breaking change. Lesson 16aa applies to the removal too: the superseded fields
  * carried `required=true`, and leaving them would have made the new shape unreachable on the wire.
- * Callers move to productPackageId + assessments[].
+ * Callers move to accountId (or productPackageId) + assessments[]. `accountId` is back on the
+ * request as of 2026-09-13, and it is a DIFFERENT field from the one dropped here: it names the
+ * relationship the survey runs over, not a compliance row's account.
  *
  * WHAT CHANGED IN THE SAFETY ARGUMENT, AND WHY THE OLD HEADER WAS WRONG.
  * The previous header asserted "OUR TOOLS CANNOT START THE BANK'S APPROVAL CHAIN BY CONSTRUCTION",
@@ -70,11 +88,13 @@ global with sharing class StageCovenantReview {
     global class Request {
         @InvocableVariable(label='Idempotency Key' required=true)
         global String idempotencyKey;
-        @InvocableVariable(label='Product Package Id' description='The deal anchor. Covenants are resolved as the union of the loan-level and relationship-level junctions reaching this package.' required=true)
+        @InvocableVariable(label='Account Id' description='THE ANCHOR. The relationship whose covenants are under review: every covenant on the borrower and every covenant of its facilities, across every package. Required in Apex unless productPackageId is supplied, in which case the borrower is derived from the package. It is not flagged required on the invocable because the package-only shape the deployed cockpit sends must keep working.')
+        global String accountId;
+        @InvocableVariable(label='Product Package Id' description='OPTIONAL NARROWING, never an anchor. Supply it to work one deal and the scope becomes the covenants the package aggregates: the union of its loans\' junctions and its borrowers\' junctions. Omit it and every covenant on the relationship is surveyed. Each covenant reports the packages it is associated with either way; the association is shown, never used to filter.')
         global String productPackageId;
         @InvocableVariable(label='Rationale' required=true)
         global String rationale;
-        @InvocableVariable(label='Covenant Ids' description='Optional member selection. Omit it and every covenant of the package is surveyed.')
+        @InvocableVariable(label='Covenant Ids' description='Optional member selection. Omit it and every covenant in scope is surveyed, which is the whole relationship unless productPackageId narrowed it.')
         global List<Id> covenantIds;
         @InvocableVariable(label='Assessments' description='One entry per covenant to assess. A covenant in scope with no assessment is surveyed and reported, never written.')
         global List<Assessment> assessments;
@@ -124,6 +144,8 @@ global with sharing class StageCovenantReview {
         global String covenantType;
         @InvocableVariable(label='Attachment' description='loan, relationship, or both. An empty loan junction is the fact that the covenant is relationship-level, not a gap.')
         global String attachment;
+        @InvocableVariable(label='Associations' description='The facilities and packages this covenant is tied to, as JSON: [{"loanId","loanName","productPackageId","packageName"}]. An empty list means the covenant carries no facility junction at all, which is a real answer about a relationship-level covenant rather than a gap. This is DATA THE ROOM SHOWS on the row; it is never a filter and never a narrowing control.')
+        global String associations;
         @InvocableVariable(label='Covenant Compliance Id' description='The row a review would act on: the open one with the earliest due date, or the most recent row when none is open.')
         global String covenantComplianceId;
         @InvocableVariable(label='Current Compliance Status' description='The row status BEFORE this plan runs. Only Pending advances the schedule.')
@@ -161,11 +183,11 @@ global with sharing class StageCovenantReview {
         global List<String> warnings;
         @InvocableVariable(label='Provenance JSON')
         global String provenanceJson;
-        @InvocableVariable(label='Account Id')
+        @InvocableVariable(label='Account Id' description='The relationship this plan is anchored on, and the anchor the staging row carries.')
         global String accountId;
-        @InvocableVariable(label='Product Package Id')
+        @InvocableVariable(label='Product Package Id' description='The single package this plan touches, where the covenants it writes are all associated with exactly one. Null where they span several packages or none: there is then no one deal to deep-link to, and the staging row carries no package either.')
         global String productPackageId;
-        @InvocableVariable(label='Covenants' description='Every covenant of the package in scope, planned or refused, each with its own state and reason.')
+        @InvocableVariable(label='Covenants' description='Every covenant in scope, planned or refused, each with its own state, reason and associations.')
         global List<PlannedCovenant> covenants;
         @InvocableVariable(label='Assessed Count' description='Covenants this plan will write.')
         global Integer assessedCount;
@@ -196,7 +218,7 @@ global with sharing class StageCovenantReview {
      */
     @InvocableMethod(
         label='stage_covenant_review'
-        description='Survey the covenants of a product package, the union of its loan-level and relationship-level junctions, and return an immutable execution plan for N covenant assessments under one plan hash and one single-use decision token. Writes nothing. Updates only existing compliance records; never creates one. Refuses per covenant when the compliance row is not Pending, because only a Pending row advances the nCino schedule.'
+        description='Survey the covenants of a RELATIONSHIP - every covenant on the borrower and every covenant of its facilities, across every package - and return an immutable execution plan for N covenant assessments under one plan hash and one single-use decision token. accountId is the anchor; productPackageId is an OPTIONAL narrowing the caller chooses, never a requirement, and a caller that sends only a package still works because the borrower is derived from it. Every covenant reports the facilities and packages it is associated with, as data to show rather than as a filter. Writes nothing. Updates only existing compliance records; never creates one. Refuses per covenant when the compliance row is not Pending, because only a Pending row advances the nCino schedule.'
     )
     global static List<Response> stage(List<Request> requests) {
         List<Response> out = new List<Response>();
@@ -230,8 +252,11 @@ global with sharing class StageCovenantReview {
     }
 
     private static StageResult build(Request req) {
-        if (String.isBlank(req.productPackageId)) {
-            throw new ToolException('productPackageId is required. It is the deal anchor: the covenants of a package are the union of its loan-level and relationship-level junctions.');
+        if (String.isBlank(req.accountId) && String.isBlank(req.productPackageId)) {
+            throw new ToolException(
+                'accountId is required. It is the anchor: covenants are driven from the relationship, and a productPackageId ' +
+                'is only a narrowing the caller chooses. Supply accountId, or supply productPackageId alone and the borrower is derived from it.'
+            );
         }
         if (String.isBlank(req.rationale)) {
             throw new ToolException('rationale is required. It feeds the audit ledger.');
@@ -250,14 +275,18 @@ global with sharing class StageCovenantReview {
             );
         }
 
-        Id packageId = C360Facilities.packageId(req.productPackageId);
+        Id packageId = String.isBlank(req.productPackageId) ? null : C360Facilities.packageId(req.productPackageId);
+        Id accountId = anchorAccount(req, packageId);
         Boolean allowNonPending = req.allowNonPending == true;
 
-        List<C360Covenants.Resolved> scope = C360Covenants.resolveScope(packageId, req.covenantIds);
+        List<C360Covenants.Resolved> scope = C360Covenants.resolveScope(accountId, packageId, req.covenantIds);
         if (scope.isEmpty()) {
             throw new ToolException(
-                'Product package ' + packageId + ' aggregates no covenants. nCino attaches covenants to loans and to relationships, not to the package itself, ' +
-                'so an empty scope means neither junction reaches this package.'
+                packageId == null
+                    ? ('Relationship ' + accountId + ' holds no covenants. nCino attaches a covenant to the borrower and to facilities, ' +
+                       'so an empty scope means this account carries none on its own record, none through an account junction, and none on any of its facilities.')
+                    : ('Product package ' + packageId + ' aggregates no covenants. nCino attaches covenants to loans and to relationships, not to the package itself, ' +
+                       'so an empty scope means neither junction reaches this package. Omit productPackageId to survey the whole relationship.')
             );
         }
         Map<Id, C360Covenants.Resolved> byCovenant = new Map<Id, C360Covenants.Resolved>();
@@ -290,7 +319,8 @@ global with sharing class StageCovenantReview {
             }
             if (!byCovenant.containsKey(cid)) {
                 throw new ToolException(
-                    'Covenant ' + cid + ' is not in scope for this plan' + itemRef + '. It is either not a covenant of package ' + packageId +
+                    'Covenant ' + cid + ' is not in scope for this plan' + itemRef + '. It is either not a covenant of ' +
+                    (packageId == null ? ('relationship ' + accountId) : ('package ' + packageId)) +
                     ', a covenant template, or it was excluded by covenantIds.'
                 );
             }
@@ -318,10 +348,19 @@ global with sharing class StageCovenantReview {
             );
         }
 
-        Id accountId = accountFor(packageId);
+        // THE PACKAGES THIS PLAN TOUCHES, read off the associations rather than off the request.
+        // The staging row anchors on the ACCOUNT and names a package only where exactly one is
+        // touched: a covenant review that spans two deals has no single deal to deep-link to, and
+        // writing one of them onto the row would make the trail claim a narrowing nobody chose.
+        Map<Id, String> touchedPackages = C360Covenants.packagesTouched(planned);
+        Id anchorPackageId = touchedPackages.size() == 1
+            ? new List<Id>(touchedPackages.keySet())[0]
+            : null;
 
         Map<String, Object> resolved = new Map<String, Object>{
-            'productPackageId' => String.valueOf(packageId),
+            'accountId' => String.valueOf(accountId),
+            'productPackageId' => packageId == null ? null : String.valueOf(packageId),
+            'anchorPackageId' => anchorPackageId == null ? null : String.valueOf(anchorPackageId),
             'itemCount' => planned.size(),
             'allowNonPending' => allowNonPending
         };
@@ -417,16 +456,29 @@ global with sharing class StageCovenantReview {
         }
 
         Map<String, Object> provenance = new Map<String, Object>{
-            'productPackageId' => new Map<String, String>{ 'prefill' => 'NCINO_RECORD', 'provenance' => 'NCINO', 'citation' => String.valueOf(packageId) },
-            'targetId' => new Map<String, String>{ 'prefill' => 'NCINO_RECORD', 'provenance' => 'NCINO', 'citation' => 'Open compliance rows resolved from the package covenant scope.' },
+            'accountId' => new Map<String, String>{ 'prefill' => 'NCINO_RECORD', 'provenance' => 'NCINO', 'citation' => String.valueOf(accountId) },
+            'productPackageId' => new Map<String, String>{ 'prefill' => 'NCINO_RECORD', 'provenance' => 'NCINO', 'citation' => packageId == null ? 'No package was named: the scope is the whole relationship.' : String.valueOf(packageId) },
+            'targetId' => new Map<String, String>{ 'prefill' => 'NCINO_RECORD', 'provenance' => 'NCINO', 'citation' => 'Open compliance rows resolved from the covenant scope, which is the relationship unless the caller narrowed it.' },
             'LLC_BI__Status__c' => new Map<String, String>{ 'prefill' => 'BANKER', 'provenance' => null, 'citation' => null },
             'LLC_BI__Historic_Financial_Indicator__c' => new Map<String, String>{ 'prefill' => 'BANKER', 'provenance' => null, 'citation' => null },
             'Agentic_AI_Response__c' => new Map<String, String>{ 'prefill' => 'AGENT_NARRATIVE', 'provenance' => 'AGENT', 'citation' => 'Agent-drafted assessment.' }
         };
 
+        List<String> packageNames = new List<String>();
+        for (Id p : touchedPackages.keySet()) {
+            packageNames.add(touchedPackages.get(p) == null ? String.valueOf(p) : touchedPackages.get(p));
+        }
+        packageNames.sort();
+
         String summary =
             'Records ' + planned.size() + (planned.size() == 1 ? ' covenant assessment' : ' covenant assessments') +
-            ' on product package covenants: ' + String.join(assessedNames, ', ') + '. ' +
+            ' on the relationship\'s covenants: ' + String.join(assessedNames, ', ') + '. ' +
+            (packageNames.isEmpty()
+                ? 'None of them is tied to a facility, so no product package is touched. '
+                : (packageNames.size() == 1
+                    ? 'They are associated with package ' + packageNames[0] + '. '
+                    : 'They are associated with ' + packageNames.size() + ' packages: ' + String.join(packageNames, ', ') + '. ')) +
+            (packageId == null ? '' : 'The caller narrowed the survey to one package; the associations above are what each covenant is actually tied to. ') +
             (refused > 0 ? String.valueOf(refused) + ' further assessed covenants are refused and reported with a reason each. ' : '') +
             'Each assessment updates one existing compliance record with the narrative, the observed value and the status. ' +
             'No compliance record is created by this tool, and no credit decision is made or implied.';
@@ -435,7 +487,7 @@ global with sharing class StageCovenantReview {
         String planHash = C360Plan.hash('covenant-review', steps, resolved);
 
         C360ActionStaging.Staged staged = C360ActionStaging.stagePlan(
-            'covenant-review', req.idempotencyKey, accountId, packageId, planJson, planHash
+            'covenant-review', req.idempotencyKey, accountId, anchorPackageId, planJson, planHash
         );
 
         StageResult r = new StageResult();
@@ -448,7 +500,7 @@ global with sharing class StageCovenantReview {
         r.warnings = warnings;
         r.provenanceJson = JSON.serialize(provenance);
         r.accountId = accountId;
-        r.productPackageId = packageId;
+        r.productPackageId = anchorPackageId;
         r.covenants = toWireCovenants(scope, assessmentByCovenant, planned);
         r.assessedCount = planned.size();
         r.refusedCount = refused;
@@ -457,14 +509,57 @@ global with sharing class StageCovenantReview {
         return r;
     }
 
-    /** The package's borrower, for the staging anchor and the deep link. */
-    private static Id accountFor(Id packageId) {
-        for (LLC_BI__Product_Package__c p : [
-            SELECT LLC_BI__Account__c FROM LLC_BI__Product_Package__c WHERE Id = :packageId WITH USER_MODE LIMIT 1
-        ]) {
-            return p.LLC_BI__Account__c;
+    /**
+     * The relationship this plan anchors on.
+     *
+     * The caller's `accountId` where one was sent. Otherwise the package's own borrower, which is
+     * what keeps the deployed cockpit's package-only call working without a second plan shape. When
+     * BOTH arrive they must agree: a package on another relationship is refused by name rather than
+     * silently anchored on one of the two, because the trail row would then claim a borrower the
+     * caller never named.
+     *
+     * @param req The staged request.
+     * @param packageId The caller's narrowing, already parsed, or null.
+     * @return The anchor account.
+     */
+    private static Id anchorAccount(Request req, Id packageId) {
+        Id said = null;
+        if (String.isNotBlank(req.accountId)) {
+            try {
+                said = Id.valueOf(req.accountId);
+            } catch (Exception e) {
+                throw new ToolException('accountId ' + req.accountId + ' is not a record id.');
+            }
+            if (said.getSObjectType() != Account.SObjectType) {
+                throw new ToolException('accountId ' + said + ' is not an account id.');
+            }
         }
-        return null;
+        if (packageId == null) {
+            return said;
+        }
+
+        List<LLC_BI__Product_Package__c> pkgs = [
+            SELECT Id, Name, LLC_BI__Account__c FROM LLC_BI__Product_Package__c WHERE Id = :packageId WITH USER_MODE LIMIT 1
+        ];
+        if (pkgs.isEmpty()) {
+            throw new ToolException('Product package ' + packageId + ' was not found, or is not visible to you.');
+        }
+        Id owner = pkgs[0].LLC_BI__Account__c;
+        if (said == null) {
+            if (owner == null) {
+                throw new ToolException(
+                    'Product package ' + pkgs[0].Name + ' carries no account, so no relationship can be derived from it. Supply accountId.'
+                );
+            }
+            return owner;
+        }
+        if (owner != said) {
+            throw new ToolException(
+                'Product package ' + pkgs[0].Name + ' belongs to relationship ' + owner + ', not to ' + said +
+                '. A package is a narrowing WITHIN a relationship, so one that sits on another relationship narrows nothing.'
+            );
+        }
+        return said;
     }
 
     /** The refusal reasons, so a wholly-refused plan says why rather than just refusing. */
@@ -504,6 +599,7 @@ global with sharing class StageCovenantReview {
             p.generatesNextRow = r.generatesNextRow;
             Assessment a = assessmentByCovenant.get(r.covenantId);
             p.assessedStatus = a == null ? null : a.status;
+            p.associations = C360Covenants.associationsJson(r);
             if (stepIndex.containsKey(r.covenantId)) {
                 String n = String.valueOf(stepIndex.get(r.covenantId));
                 p.writeStepId = 'write_assessment_' + n;

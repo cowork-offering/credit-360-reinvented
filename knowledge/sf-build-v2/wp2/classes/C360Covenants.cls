@@ -1,5 +1,13 @@
 /**
- * C360Covenants - package-anchored covenant resolution and the compliance-row precondition.
+ * C360Covenants - relationship-anchored covenant resolution and the compliance-row precondition.
+ *
+ * THE ANCHOR IS THE ACCOUNT (founder, 2026-09-13: "covenants and collateral are driven from the
+ * relationship; a package is an association, never a filter"). A covenant belongs to a borrower, not
+ * to a deal: nCino attaches it to the ACCOUNT and to LOANS, and the package is a read aggregation
+ * over those loans. So the scope of a covenant review is every covenant on the relationship, and a
+ * product package, where the caller names one, is a NARROWING THE CALLER CHOSE rather than a
+ * required anchor. Each covenant carries its associations - the facilities and packages it is tied
+ * to - so the room can show them on the row without ever filtering on them.
  *
  * Lives here rather than inside StageCovenantReview because execute_covenant_review has to apply
  * the SAME precondition again at write time, on org state that may have moved since staging. Two
@@ -72,43 +80,106 @@ public with sharing class C360Covenants {
         public String frequencyTemplateType;
         public String state;
         public String reason;
+        /** Every facility junction this covenant carries, with the package each facility sits on.
+            An association is shown on the row; it is NEVER a filter (founder, 2026-09-13). The shape
+            lives in C360Facilities because collateral valuation surfaces the same one. */
+        public List<C360Facilities.Association> associations = new List<C360Facilities.Association>();
+    }
+
+    /** The associations of one covenant, as the `[{loanId, loanName, productPackageId, packageName}]` wire string. */
+    public static String associationsJson(Resolved r) {
+        return C360Facilities.associationsJson(r.associations);
     }
 
     /**
-     * Resolves the covenants of a product package: loan junctions UNION account junctions, deduped.
+     * The packages the covenants in a plan are associated with, id to name.
      *
-     * @param packageId The deal anchor.
-     * @param selection Optional member selection. Null or empty means every covenant of the package.
-     * @return The covenants in scope, ordered by covenant name. Templates are excluded: they live in
-     *         the same table as live covenants and counting them inflates every sweep.
+     * @param planned The covenants this plan will write.
+     * @return Package id to package name, empty when the covenants reach no package at all.
      */
-    public static List<Resolved> resolveScope(Id packageId, List<Id> selection) {
+    public static Map<Id, String> packagesTouched(List<Resolved> planned) {
+        List<C360Facilities.Association> all = new List<C360Facilities.Association>();
+        for (Resolved r : planned) {
+            all.addAll(r.associations);
+        }
+        return C360Facilities.packagesIn(all);
+    }
+
+    /**
+     * Resolves the covenants in scope for a review.
+     *
+     * THE ACCOUNT IS THE ANCHOR AND THE PACKAGE IS A NARROWING (founder, 2026-09-13). With no
+     * package the scope is EVERY covenant on the relationship:
+     *
+     *     account -> LLC_BI__Account_Covenant__c            -> covenant   (relationship-level)
+     *     account -> its facilities, across every package,
+     *                -> LLC_BI__Loan_Covenant__c            -> covenant   (loan-level)
+     *     account -> LLC_BI__Covenant2__c.LLC_BI__Account__c -> covenant   (the covenant's own owner)
+     *
+     * deduped by covenant id, because nCino's stated best practice is one covenant linked to many
+     * loans and a naive facility-by-facility fan-out double-counts. The third arm matters because a
+     * covenant can carry the borrower on its own lookup and no junction at all, and "every covenant
+     * on the account" has to mean that one too.
+     *
+     * With a package the traversal is the one nCino's own package view aggregates - its loans'
+     * junctions UNION its borrowers' junctions - and it is a SUBSET of the relationship scope. It is
+     * offered because a caller may deliberately want to work one deal, never because a covenant
+     * needs a deal to exist.
+     *
+     * @param accountId The relationship anchor. Required unless a package is supplied, in which
+     *        case the package's own borrower stands in for it.
+     * @param packageId Optional narrowing the caller chose. Null means the whole relationship.
+     * @param selection Optional member selection. Null or empty means every covenant in scope.
+     * @return The covenants in scope, ordered by covenant name, each carrying its associations.
+     *         Templates are excluded: they live in the same table as live covenants and counting
+     *         them inflates every sweep.
+     */
+    public static List<Resolved> resolveScope(Id accountId, Id packageId, List<Id> selection) {
         Set<Id> loanIds = new Set<Id>();
         Set<Id> borrowerIds = new Set<Id>();
+        Set<Id> ownedByAccount = new Set<Id>();
 
-        for (LLC_BI__Product_Package__c p : [
-            SELECT Id, LLC_BI__Account__c FROM LLC_BI__Product_Package__c WHERE Id = :packageId WITH USER_MODE LIMIT 1
-        ]) {
-            if (p.LLC_BI__Account__c != null) {
-                borrowerIds.add(p.LLC_BI__Account__c);
+        if (packageId != null) {
+            List<LLC_BI__Product_Package__c> pkgs = [
+                SELECT Id, LLC_BI__Account__c FROM LLC_BI__Product_Package__c WHERE Id = :packageId WITH USER_MODE LIMIT 1
+            ];
+            if (pkgs.isEmpty()) {
+                throw new ResolutionException('Product package ' + packageId + ' was not found, or is not visible to you.');
             }
-        }
-        if (borrowerIds.isEmpty() && [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :packageId WITH USER_MODE] == 0) {
-            throw new ResolutionException('Product package ' + packageId + ' was not found, or is not visible to you.');
-        }
-
-        for (LLC_BI__Loan__c l : [
-            SELECT Id, LLC_BI__Account__c FROM LLC_BI__Loan__c
-            WHERE LLC_BI__Product_Package__c = :packageId WITH USER_MODE
-        ]) {
-            loanIds.add(l.Id);
-            if (l.LLC_BI__Account__c != null) {
-                borrowerIds.add(l.LLC_BI__Account__c);
+            if (pkgs[0].LLC_BI__Account__c != null) {
+                borrowerIds.add(pkgs[0].LLC_BI__Account__c);
+            }
+            for (LLC_BI__Loan__c l : [
+                SELECT Id, LLC_BI__Account__c FROM LLC_BI__Loan__c
+                WHERE LLC_BI__Product_Package__c = :packageId WITH USER_MODE
+            ]) {
+                loanIds.add(l.Id);
+                if (l.LLC_BI__Account__c != null) {
+                    borrowerIds.add(l.LLC_BI__Account__c);
+                }
+            }
+        } else {
+            if (accountId == null) {
+                throw new ResolutionException(
+                    'accountId is required when no product package narrows the scope. Covenants are driven from the relationship.'
+                );
+            }
+            borrowerIds.add(accountId);
+            for (LLC_BI__Loan__c l : [
+                SELECT Id FROM LLC_BI__Loan__c WHERE LLC_BI__Account__c = :accountId WITH USER_MODE
+            ]) {
+                loanIds.add(l.Id);
+            }
+            for (LLC_BI__Covenant2__c c : [
+                SELECT Id FROM LLC_BI__Covenant2__c
+                WHERE LLC_BI__Account__c = :accountId AND LLC_BI__Is_Template__c = false WITH USER_MODE
+            ]) {
+                ownedByAccount.add(c.Id);
             }
         }
 
         Set<Id> loanLevel = new Set<Id>();
-        Set<Id> relationshipLevel = new Set<Id>();
+        Set<Id> relationshipLevel = new Set<Id>(ownedByAccount);
         if (!loanIds.isEmpty()) {
             for (LLC_BI__Loan_Covenant__c lc : [
                 SELECT LLC_BI__Covenant2__c FROM LLC_BI__Loan_Covenant__c
@@ -134,8 +205,11 @@ public with sharing class C360Covenants {
             for (Id requested : wanted) {
                 if (!scope.contains(requested)) {
                     throw new ResolutionException(
-                        'Covenant ' + requested + ' is not a covenant of product package ' + packageId + '. ' +
-                        'The package aggregates the covenants of its loans and of its borrower relationships; this one reaches it through neither.'
+                        packageId == null
+                            ? ('Covenant ' + requested + ' is not a covenant of relationship ' + accountId + '. ' +
+                               'The relationship holds the covenants on its own account and the covenants of its facilities across every package; this one reaches it through none of those.')
+                            : ('Covenant ' + requested + ' is not a covenant of product package ' + packageId + '. ' +
+                               'The package aggregates the covenants of its loans and of its borrower relationships; this one reaches it through neither.')
                     );
                 }
             }
@@ -170,6 +244,8 @@ public with sharing class C360Covenants {
             WITH USER_MODE
             ORDER BY Name ASC
         ]);
+
+        Map<Id, List<C360Facilities.Association>> associations = hydrateAssociations(covenants.keySet());
 
         Map<Id, LLC_BI__Covenant_Compliance2__c> openRow = new Map<Id, LLC_BI__Covenant_Compliance2__c>();
         Map<Id, LLC_BI__Covenant_Compliance2__c> latestRow = new Map<Id, LLC_BI__Covenant_Compliance2__c>();
@@ -207,7 +283,50 @@ public with sharing class C360Covenants {
                 r.complianceStatus = row.LLC_BI__Status__c;
             }
             r.state = STATE_NOT_ASSESSED;
+            if (associations.containsKey(c.Id)) {
+                r.associations = associations.get(c.Id);
+            }
             out.add(r);
+        }
+        return out;
+    }
+
+    /**
+     * Every facility junction each covenant carries, with the package behind each facility.
+     *
+     * ONE query for the whole scope, and it is deliberately NOT constrained by the caller's package:
+     * an association is what the row shows, so narrowing it to the package the caller happened to
+     * name would hide exactly the cross-deal ties the room exists to surface. A covenant with no
+     * junction gets an empty list, which is a real answer and renders as "not tied to a facility".
+     *
+     * @param scope The covenant ids in scope.
+     * @return Covenant id to its associations, ordered by facility name.
+     */
+    private static Map<Id, List<C360Facilities.Association>> hydrateAssociations(Set<Id> scope) {
+        Map<Id, List<C360Facilities.Association>> out = new Map<Id, List<C360Facilities.Association>>();
+        if (scope.isEmpty()) {
+            return out;
+        }
+        for (LLC_BI__Loan_Covenant__c j : [
+            SELECT LLC_BI__Covenant2__c, LLC_BI__Loan__c, LLC_BI__Loan__r.Name,
+                   LLC_BI__Loan__r.LLC_BI__Product_Package__c,
+                   LLC_BI__Loan__r.LLC_BI__Product_Package__r.Name
+            FROM LLC_BI__Loan_Covenant__c
+            WHERE LLC_BI__Covenant2__c IN :scope AND LLC_BI__Loan__c != null
+            WITH USER_MODE
+            ORDER BY LLC_BI__Loan__r.Name ASC
+        ]) {
+            if (!out.containsKey(j.LLC_BI__Covenant2__c)) {
+                out.put(j.LLC_BI__Covenant2__c, new List<C360Facilities.Association>());
+            }
+            out.get(j.LLC_BI__Covenant2__c).add(C360Facilities.association(
+                j.LLC_BI__Loan__c,
+                j.LLC_BI__Loan__r == null ? null : j.LLC_BI__Loan__r.Name,
+                j.LLC_BI__Loan__r == null ? null : j.LLC_BI__Loan__r.LLC_BI__Product_Package__c,
+                j.LLC_BI__Loan__r == null || j.LLC_BI__Loan__r.LLC_BI__Product_Package__r == null
+                    ? null
+                    : j.LLC_BI__Loan__r.LLC_BI__Product_Package__r.Name
+            ));
         }
         return out;
     }

@@ -11,7 +11,7 @@ import { classifyCovenant } from "../../domain/covenantStatus";
 import { resolveBundle } from "../../actions/registry";
 import { executedActivityEntry } from "../../actions/executedActivity";
 import { useApp } from "../../state/appState";
-import type { StagedCovenant, StagedOutput } from "../../actions/stagedPlan";
+import type { StagedAssociation, StagedCovenant, StagedOutput } from "../../actions/stagedPlan";
 import type { ExecuteResult, WriteActionId } from "../../channel/writeTools";
 import type { C360Data } from "../../data/contract";
 import { BrandGlyph } from "../brand";
@@ -42,12 +42,15 @@ import { FILED_SECTION_MS, FiledList, type FiledLine } from "../workroom/FiledLi
 import type { BrainEnvelope, BrainMail, BrainReply, BrainTurn } from "../../channel/brainLane";
 import { NOT_CONNECTED_CLARIFY, askBrain, brainReachable, isDegrade, unreadableClarify } from "../../channel/brainLane";
 import { rungFor } from "../../channel/ladder";
+import { buildBriefing } from "../../channel/relationshipBriefing";
+import { RelationshipBriefing } from "./Briefing";
 import { readCatalog, type OrgCatalog } from "../../channel/catalog";
 import { Narration, useNarration } from "../../channel/Narration";
 import { subjectFor } from "../../channel/narrate";
 import { ManifestRail } from "../rail/ManifestRail";
 import { REL_ROUTE_WORDS, buildRelEnvelope } from "./relBrain";
 import { NO_COMPLIANCE_ROW_CHIP, relBookFor, type RelBook } from "./relBook";
+import { pickedList } from "./relStep";
 import { COVENANT_REVIEW, FIELD_EXAM_OFFER, STAGE_A_FIELD_EXAM, asksForFieldExam } from "./fieldExam";
 import { buildRelReadCard, readRelTopic, relReadGap } from "./relReads";
 import { RoomBoundary } from "../workroom/RoomBoundary";
@@ -119,6 +122,7 @@ import {
   type StagedRelPlan,
 } from "./reviewFlows";
 import { intakeRows } from "./intakeFlows";
+import { associationLine, packagesTouched } from "./relAssociations";
 import {
   anchorRelPackage,
   bindRelRoute,
@@ -169,6 +173,37 @@ import "../../styles/relationship.css";
    THE CHANNEL-NONE DOCTRINE HOLDS THROUGHOUT. No connector means no plan,
    nothing simulated, and no token ever burnt. It gets a surface of its own.
    ============================================================================= */
+
+/* --------------------------------------------- the two account-anchored routes
+
+   0.9.24, backlog row 49. The covenant review and the collateral valuation run
+   on the whole relationship: no package question, no package chip, and each row
+   showing what it is tied to. Everything in this file that has to know which
+   routes those are asks HERE, so the header, the trail and the payload cannot
+   drift apart about it.                                                      */
+
+/** TRUE for the two reviews anchored on the account rather than on a package. */
+function accountAnchoredRoute(route: RelRoute | null): boolean {
+  return route === "covenant" || route === "valuation";
+}
+
+/**
+ * THE ASSOCIATIONS OF THE ROWS THE BANKER ACTUALLY PICKED, off the book.
+ *
+ * The fallback behind the org's own `associations`: a 0.9.23 org answers a
+ * staged plan without them, and a trail row that then named no package would be
+ * a worse answer than the junctions the read is already holding.
+ */
+function bookAssociations(route: RelRoute, ctx: RelContext, answers: Answers): StagedAssociation[] {
+  if (!accountAnchoredRoute(route)) return [];
+  const book = relBookFor(ctx);
+  if (route === "covenant") {
+    const picked = new Set(pickedList(answers, "covenants"));
+    return book.covenants.filter((c) => picked.has(c.covenantId)).flatMap((c) => c.associations);
+  }
+  const picked = new Set(pickedList(answers, "records"));
+  return book.assets.filter((a) => picked.has(a.collateralId)).flatMap((a) => a.associations);
+}
 
 /** VERBATIM SHELL COPY. The review's own package question, and the word for a
  *  relationship that stages none. */
@@ -787,7 +822,14 @@ export function RelationshipRoom({
    * The room hands over what it already holds; the entry is minted in actions/
    * where every other executed action's entry is minted.
    */
-  onFiled?: (filed: { actionId: WriteActionId; result: ExecuteResult }) => void;
+  onFiled?: (filed: {
+    actionId: WriteActionId;
+    result: ExecuteResult;
+    /** THE PACKAGES THE EXERCISE TOUCHED (0.9.24, backlog row 49). Set only by
+     *  the two account-anchored reviews, where the trail row has to name the
+     *  reach of something the room never scoped to a package. */
+    packages?: string[];
+  }) => void;
 }) {
   const reduced = prefersReducedMotion();
   const brief = useMemo(() => briefFor(ctx), [ctx]);
@@ -2347,7 +2389,22 @@ export function RelationshipRoom({
       /* THE TRAIL, BEFORE THE TOAST THAT CLAIMS IT. The org's own result, its
          own ids and its own sentence; nothing here is composed from what the
          room hoped would happen. */
-      onFiled?.({ actionId: REL_FLOWS[route].actionId, result });
+      /* AND THE PACKAGES IT TOUCHED, FOR THE TWO ACCOUNT-ANCHORED REVIEWS. The
+         org's own associations on the plan lead; the book's own reading of the
+         same junctions stands in where the org sent none, so a trail row on the
+         0.9.23 org still names the reach. */
+      const staged = flow?.staging?.plan ?? null;
+      const touched = accountAnchoredRoute(route)
+        ? packagesTouched(
+            [
+              ...(staged?.covenants ?? []).flatMap((c) => c.associations ?? []),
+              ...(staged?.items ?? []).flatMap((i) => i.associations ?? []),
+              ...bookAssociations(route, ctx, answers),
+            ],
+            ctx.accountName,
+          )
+        : undefined;
+      onFiled?.({ actionId: REL_FLOWS[route].actionId, result, packages: touched });
       setFiledIds(laneOrgIds(route, laneRows, result));
       setPhase("filed");
       setFlow(null);
@@ -2429,6 +2486,12 @@ export function RelationshipRoom({
      The facility room's control, in this room's header. Both package-anchored
      reviews scope to one package's facilities, so a banker has to be able to
      read which one that is and to move between them. */
+  /* THE TWO ROUTES THAT RUN ON THE WHOLE RELATIONSHIP (0.9.24, backlog row 49).
+     Derived from the route alone, never from the read: a covenant review is
+     account-anchored on a relationship staging one package exactly as it is on
+     one staging three, and a header that changed shape with the book would be
+     telling the banker something about the book instead of about the review. */
+  const accountAnchored = accountAnchoredRoute(route);
   const anchoredEntry = ctx.packages.find((p) => p.id === ctx.productPackageId) ?? null;
   const packageLineLabel = packagePending
     ? `choose one of ${ctx.packages.length}`
@@ -2496,8 +2559,36 @@ export function RelationshipRoom({
      the remark took 78% of the greeting's 78% and sat flush under it; as a
      sibling in the step column it takes the step gap and the full bubble width,
      like every other exchange. */
+  /* THE BRIEFING (backlog 50, founder 2026-09-13). Composed from the book the
+     room already holds, the trail it was handed and the anchored package; the
+     inbox is not loaded in this room today and the builder names that gap
+     rather than filling it; no memo dossier is read here. */
+  const briefing = useMemo(
+    () =>
+      buildBriefing(route, ctx.bundle, {
+        asOf: ctx.asOf ?? "",
+        history: ctx.history,
+        inbox: undefined,
+        memo: null,
+        productPackageId: ctx.productPackageId,
+      }),
+    [route, ctx.bundle, ctx.asOf, ctx.history, ctx.productPackageId],
+  );
+
   const openingItem = (
     <React.Fragment key="opening">
+    <RelationshipBriefing briefing={briefing} />
+    {/* ============ BRIEFING MOUNT POINT: R2 OWNS WHAT GOES HERE (0.9.24)
+
+        Backlog row 50, founder 2026-09-13: "yes ok it is a covenant review, but
+        for what". The opening briefing composed by `channel/relationshipBriefing.ts`
+        renders HERE, as a sibling of the greeting bubble and ABOVE the route
+        question below it, so the banker reads what is due and what it means
+        before the room offers a single chip. Nothing in this file composes it
+        and nothing in this file reads it; R2 mounts its component at this line.
+
+        The route question, its chips and the "Why" peek below are unchanged and
+        stay where they are: the briefing leads, the ask stays last. */}
     <div className="wk-msg wk-agent" data-who="Agent">
       <div className="wk-bub">
         <div className="wk-headline">
@@ -2579,19 +2670,39 @@ export function RelationshipRoom({
           <header className="wk-head">
             <BrandGlyph />
             <span className="wk-title">{title}</span>
-            {/* THE PACKAGE LINE. The same control the facility room carries: the
-                anchor stated on the glass, and the way between the packages
+            {/* THE ANCHOR, STATED ON THE GLASS.
+
+                ON AN ACCOUNT-ANCHORED ROUTE IT IS THE RELATIONSHIP (0.9.24,
+                backlog row 49). The covenant review and the collateral
+                valuation run on everything the borrower carries, so a package
+                in the header would name a scope the room never asked for and
+                does not have. It is a STATEMENT, not a control: there is
+                nothing here to switch, because nothing is being narrowed.
+
+                Everywhere else it is the package line the facility room
+                carries, unchanged: the anchor, and the way between the packages
                 where the relationship stages more than one. */}
-            <button
-              type="button"
-              className="wk-pkgline"
-              data-pkgline={ctx.productPackageId ?? (packagePending ? "pending" : "none")}
-              aria-label={`Package: ${packageLineLabel}`}
-              onClick={(e) => openPackagePeek(e.currentTarget)}
-            >
-              <span className="wk-pkgline-k">Package</span>
-              <span className="wk-pkgline-v">{packageLineLabel}</span>
-            </button>
+            {accountAnchored ? (
+              <span
+                className="wk-pkgline"
+                data-pkgline="account"
+                aria-label={`Relationship: ${ctx.accountName}`}
+              >
+                <span className="wk-pkgline-k">Relationship</span>
+                <span className="wk-pkgline-v">{ctx.accountName}</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="wk-pkgline"
+                data-pkgline={ctx.productPackageId ?? (packagePending ? "pending" : "none")}
+                aria-label={`Package: ${packageLineLabel}`}
+                onClick={(e) => openPackagePeek(e.currentTarget)}
+              >
+                <span className="wk-pkgline-k">Package</span>
+                <span className="wk-pkgline-v">{packageLineLabel}</span>
+              </button>
+            )}
             <span className="wk-spacer" />
             <span className="wk-stepper" aria-label="Stage">
               {["Read", "Collect", "Review", "Filed"].map((label, i) => (
@@ -3423,6 +3534,28 @@ function RelFlowCard({
 }) {
   const plan: StagedOutput | null = flow.staging?.plan ?? null;
   const refused = (plan?.covenants ?? []).filter((c) => c.state && c.state !== "planned");
+  /* WHAT EVERY ROW IN THIS PLAN IS TIED TO, IN THE ORG'S OWN READING (0.9.24,
+     backlog row 49). The chooser above already showed the associations off the
+     book; this is the org saying the same thing at plan time, after it has read
+     the junctions itself. A row the org sent no `associations` for is left out
+     rather than printed with an empty line: absent is "the org did not say",
+     never "tied to nothing". Shown, never a control. */
+  const associated: Array<{ key: string; name: string; line: string }> = [
+    ...(plan?.covenants ?? [])
+      .filter((c) => !c.state || c.state === "planned")
+      .map((c) => ({
+        key: `cov-${c.covenantId}`,
+        name: c.covenantName ?? c.covenantType ?? c.covenantId,
+        line: associationLine(c.associations, accountName),
+      })),
+    ...(plan?.items ?? [])
+      .filter((i) => i.collateralId)
+      .map((i) => ({
+        key: `col-${i.collateralId}`,
+        name: i.collateralName ?? i.collateralId ?? "collateral",
+        line: associationLine(i.associations, accountName),
+      })),
+  ].filter((r) => r.line !== "");
   /* WHAT THE PLAN WOULD NOT TAKE, BY INDEX, IN THE ORG'S OWN WORDS.
      A covenant the org already holds is refused by its id, which is what the
      covenant review reports. A CREATE has no id yet, so the intake reports its
@@ -3498,6 +3631,20 @@ function RelFlowCard({
             <div className="rl-warn-t" key={`refusal-${r.index}-${r.reason}`}>
               {r.index >= 0 ? `Number ${r.index + 1} on the list: ` : ""}
               {r.reason}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* WHAT THIS TOUCHES. The facilities and packages behind every row the
+          plan carries, so the banker reads the reach of a relationship-wide
+          exercise before the token is spent. A statement, never a filter. */}
+      {associated.length > 0 && (
+        <div className="rl-warn" data-assoc="plan">
+          <div className="rl-warn-k">What this touches</div>
+          {associated.map((r) => (
+            <div className="rl-warn-t" key={r.key}>
+              {r.name}: {r.line}
             </div>
           ))}
         </div>
@@ -3705,7 +3852,7 @@ export function RelationshipRoomHost() {
      ids are this room's, so it already knows how to name a covenant batch, a
      valuation, a review, a rating and a case. */
   const onFiled = useCallback(
-    (filed: { actionId: WriteActionId; result: ExecuteResult }) => {
+    (filed: { actionId: WriteActionId; result: ExecuteResult; packages?: string[] }) => {
       if (!accountId) return;
       const entry = executedActivityEntry({
         actionId: filed.actionId,
@@ -3713,6 +3860,10 @@ export function RelationshipRoomHost() {
         target: accountName ?? undefined,
         actor: data.meta?.user,
         instanceUrl: data.meta?.instanceUrl,
+        /* THE PACKAGES THE EXERCISE TOUCHED (0.9.24). The trail row for an
+           account-anchored review names them instead of a package the room
+           never asked for; every other action sends none and reads as before. */
+        packages: filed.packages,
       });
       if (entry) dispatch({ type: "LOG_ACTIVITY", accountId, entry });
       /* A REVIEW THAT CAME FROM AN INTENT SPENDS IT. Fire-and-forget; a store

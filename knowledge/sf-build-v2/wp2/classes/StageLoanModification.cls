@@ -111,6 +111,20 @@ global with sharing class StageLoanModification {
         global String policyExceptionAddsJson;
         @InvocableVariable(label='New Facilities JSON' description='Optional. NET-NEW FACILITIES filed on the NEW package version this modification creates: [{"label"? ("new:1", "new:2", defaulted by position), "product" (an exact Commercial Loan record-type product: Construction, Deposit, Equipment, HELOC, Line of Credit, Purchase), "amount", "termMonths", "purpose" (the primary loan purpose), "amortizedTermMonths"?, "firstPaymentDate"? (YYYY-MM-DD)}]. In nCino a modification versions the whole PACKAGE, and adding a facility to the version being approved is ordinary practice; this is that, rather than a separate credit action on the current package. Each facility is filed at Qualification/Open with the borrower on its borrowing structure, carries no chain row and no modification flag because it is a new loan rather than a version of one, and takes the two pricing prerequisites where they are given. The purpose lands on the Loan Detail nCino creates in its own transaction after the filing, so it is written where that record has already appeared and reported as a handoff where it has not. Every other arm of this same request may target a new facility by its LABEL in place of targetLoanId, so a covenant, a party, a pledge, a fee or a field change can be staged onto a facility that has no id yet.')
         global String newFacilitiesJson;
+
+        /**
+         * NOT PART OF THE WIRE CONTRACT, and deliberately not an @InvocableVariable.
+         *
+         * The arm parsers read the borrower off the first SELECTED facility, which is right for a
+         * modification and for an amend because both always select one. stage_new_facility selects
+         * none: its arms land on a facility this plan is about to CREATE, and on the package-first
+         * path there is not even a package to read a borrower from. A sibling stage tool in that
+         * position fills this in, and the parsers use it only when `facilities` is empty.
+         *
+         * Filling it is never a way to override the selection's own borrower: where a facility IS
+         * selected, that facility's account wins and this field is ignored.
+         */
+        public Id armBorrowerId;
     }
 
     /** One of the four scalars, aimed at ONE selected facility. */
@@ -1387,10 +1401,13 @@ global with sharing class StageLoanModification {
                 throw new ToolException('A covenant add needs an operator, one of < <= = >= >. Supplied: ' + a.operator + '.');
             }
             if (a.targetNewLabel == null && a.targetLoanId == null) {
-                if (facilities.size() != 1) {
-                    throw new ToolException('targetLoanId is required on each covenant add when more than one facility is selected.');
+                a.targetNewLabel = soleNewLabel(facilities, newFacilities, 'covenant add');
+                if (a.targetNewLabel == null) {
+                    if (facilities.size() != 1) {
+                        throw new ToolException('targetLoanId is required on each covenant add when more than one facility is selected.');
+                    }
+                    a.targetLoanId = facilities[0].Id;
                 }
-                a.targetLoanId = facilities[0].Id;
             }
             if (a.targetNewLabel == null && !byId.containsKey(a.targetLoanId)) {
                 throw new ToolException(
@@ -1704,7 +1721,7 @@ global with sharing class StageLoanModification {
             );
         }
         Map<Id, LLC_BI__Loan__c> byId = new Map<Id, LLC_BI__Loan__c>(facilities);
-        Id borrowerId = facilities[0].LLC_BI__Account__c;
+        Id borrowerId = armBorrower(req, facilities);
 
         // ONE read for every existing collateral the plan names, and one for every type word, rather
         // than a pair per entry. Staging writes nothing, but it is still the call a banker waits on.
@@ -1782,10 +1799,13 @@ global with sharing class StageLoanModification {
             pa.targetNewLabel = armLabel(m.get('targetLoanId'), newFacilities, 'pledge');
             pa.targetLoanId = pa.targetNewLabel == null ? C360Plan.asId(m.get('targetLoanId')) : null;
             if (pa.targetNewLabel == null && pa.targetLoanId == null) {
-                if (facilities.size() != 1) {
-                    throw new ToolException('targetLoanId is required on each pledge when more than one facility is selected.');
+                pa.targetNewLabel = soleNewLabel(facilities, newFacilities, 'pledge');
+                if (pa.targetNewLabel == null) {
+                    if (facilities.size() != 1) {
+                        throw new ToolException('targetLoanId is required on each pledge when more than one facility is selected.');
+                    }
+                    pa.targetLoanId = facilities[0].Id;
                 }
-                pa.targetLoanId = facilities[0].Id;
             }
             if (pa.targetNewLabel == null && !byId.containsKey(pa.targetLoanId)) {
                 throw new ToolException(
@@ -2804,6 +2824,63 @@ global with sharing class StageLoanModification {
         return label;
     }
 
+    /**
+     * The borrower the arms resolve against.
+     *
+     * The first SELECTED facility's account where this plan selects one, which is every call the
+     * modification and the amend make. Where none is selected the arms are landing on a facility the
+     * plan is about to create, and the calling tool supplies the relationship itself: there is no
+     * record to read it off yet.
+     *
+     * @param req The request, whose `armBorrowerId` is the sibling tool's answer.
+     * @param facilities The selected facilities, which may be empty.
+     * @return The borrower.
+     */
+    private static Id armBorrower(Request req, List<LLC_BI__Loan__c> facilities) {
+        if (!facilities.isEmpty()) {
+            return facilities[0].LLC_BI__Account__c;
+        }
+        if (req.armBorrowerId == null) {
+            throw new ToolException(
+                'This plan selects no existing facility, so the borrower cannot be read off one, and none was supplied. ' +
+                'A tool that lands these arms on a facility it is about to create names the relationship itself.'
+            );
+        }
+        return req.armBorrowerId;
+    }
+
+    /**
+     * The target an arm lands on when its own entry names none.
+     *
+     * Returns the sole NET-NEW facility's label when this plan selects no existing facility, which
+     * is the stage_new_facility shape: one facility, created by this plan, and an arm that names no
+     * target can only mean that one. Returns null when facilities ARE selected, which leaves the
+     * caller's own single-selection rule exactly as it was.
+     *
+     * @param facilities The selected facilities.
+     * @param newFacilities The facilities this plan creates.
+     * @param what The arm being staged, for the banker copy.
+     * @return The label to land on, or null to fall through to the selected-facility rule.
+     */
+    private static String soleNewLabel(
+        List<LLC_BI__Loan__c> facilities,
+        List<C360NewFacilities.NewFacility> newFacilities,
+        String what
+    ) {
+        if (!facilities.isEmpty()) {
+            return null;
+        }
+        if (newFacilities.size() == 1) {
+            return newFacilities[0].label;
+        }
+        throw new ToolException(
+            'targetLoanId is required on each ' + what + ': this plan selects no existing facility and creates ' +
+            (newFacilities.isEmpty()
+                ? 'none, so there is nothing for it to land on'
+                : String.valueOf(newFacilities.size()) + ', so which one it lands on is not implied') + '.'
+        );
+    }
+
     /** How the plan names an arm's target, whether it is a booked member or one this plan creates. */
     private static String armTargetName(
         Id targetLoanId,
@@ -3100,7 +3177,7 @@ global with sharing class StageLoanModification {
             );
         }
         Map<Id, LLC_BI__Loan__c> byId = new Map<Id, LLC_BI__Loan__c>(facilities);
-        Id borrowerId = facilities[0].LLC_BI__Account__c;
+        Id borrowerId = armBorrower(req, facilities);
         Set<String> seen = new Set<String>();
         for (Object o : raw) {
             Map<String, Object> m = (Map<String, Object>) o;
@@ -3113,6 +3190,9 @@ global with sharing class StageLoanModification {
                 );
             }
             ca.targetNewLabel = armLabel(m.get('targetLoanId'), newFacilities, 'covenant association');
+            if (ca.targetNewLabel == null && m.get('targetLoanId') == null) {
+                ca.targetNewLabel = soleNewLabel(facilities, newFacilities, 'covenant association');
+            }
             ca.targetLoanId = ca.targetNewLabel == null
                 ? exclusionTarget(m.get('targetLoanId'), facilities, byId, 'covenant association')
                 : null;

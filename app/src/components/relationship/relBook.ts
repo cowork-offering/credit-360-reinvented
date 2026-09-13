@@ -1,9 +1,16 @@
+import type { StagedAssociation } from "../../actions/stagedPlan";
 import { assetValuation, valuationLine, valuationsOf } from "../../data/collateralValuation";
 import type { Collateral, Covenant } from "../../data/contract";
 import { fmtCovThreshold, fmtCovVal } from "../../data/finance";
 import { fmtMoney } from "../../data/format";
 import { dayDiff } from "../../data/time";
 import { classifyCovenant } from "../../domain/covenantStatus";
+import {
+  collateralAssociationLine,
+  collateralAssociations,
+  covenantAssociationLine,
+  covenantAssociations,
+} from "./relAssociations";
 import { collateralLabel, covenantLabel, reviewableCovenants, valuableCollateral, type RelContext } from "./reviewFlows";
 
 /* =============================================================================
@@ -63,6 +70,12 @@ export interface BookCovenant {
   /** TRUE where a write onto this row is stored and the schedule does NOT
    *  advance. The `allowNonPending` opt-in exists for exactly these. */
   needsNonPendingOptIn: boolean;
+  /** THE FACILITIES AND PACKAGES THIS COVENANT IS TIED TO (0.9.24, backlog row
+   *  49). A fact the row carries, never a control: nothing reads it to narrow
+   *  the list. An EMPTY array is a relationship-level covenant. */
+  associations: StagedAssociation[];
+  /** The same fact as one short line, for the row that prints it. */
+  associationLine: string;
 }
 
 /** One pledged asset, as the book holds it. */
@@ -85,6 +98,10 @@ export interface BookAsset {
    *  it falls due. The card, the chooser and the envelope all print THIS, so no
    *  two surfaces can date one asset differently. */
   valuation: string;
+  /** THE FACILITIES AND PACKAGES THIS ASSET IS PLEDGED TO (0.9.24). Shown on
+   *  the row; never used to narrow the list the row sits in. */
+  associations: StagedAssociation[];
+  associationLine: string;
 }
 
 export interface RelBook {
@@ -164,6 +181,8 @@ export function relBookFor(ctx: RelContext): RelBook {
           ? "The covenant is not active, so Salesforce will not accept an assessment on it."
           : null,
       needsNonPendingOptIn: hasRow && NOT_PENDING(complianceStatus),
+      associations: covenantAssociations(ctx, c),
+      associationLine: covenantAssociationLine(ctx, c),
     };
   });
 
@@ -177,6 +196,8 @@ export function relBookFor(ctx: RelContext): RelBook {
     advanceRateSource: c.advanceRateSource ?? null,
     lastValued: assetValuation(c, valuations).lastValued,
     valuation: valuationLine(c, valuations),
+    associations: collateralAssociations(ctx, c.collateralId as string),
+    associationLine: collateralAssociationLine(ctx, c.collateralId as string),
   }));
 
   const grade = ctx.bundle?.snapshot?.primaryRiskRating;

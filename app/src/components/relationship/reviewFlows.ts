@@ -116,6 +116,8 @@ export interface RelContext {
    * themselves, which is the channel-none doctrine applied to a catalog.
    */
   catalog?: OrgCatalog | null;
+  /** The durable action trail the host handed the room, for the briefing and the roster. */
+  history?: readonly ActionHistoryRow[];
 }
 
 export function relContextFor(args: {
@@ -144,6 +146,7 @@ export function relContextFor(args: {
     accountName: args.accountName,
     bundle: args.bundle,
     packages,
+    history: args.history,
     productPackageId: chosen ?? args.bundle?.snapshot?.productPackageId ?? null,
     asOf: args.data.meta?.generatedAt ?? null,
     approver: resolveApproverUserId(args.data.meta),
@@ -216,7 +219,7 @@ export const REL_FLOWS: Record<RelRoute, RelFlowSpec> = {
     word: "Covenant Review",
     icon: "covenant",
     covers:
-      "The covenant review covers the tests this package carries: each covenant's latest compliance row, its schedule and whether it is measurable this period.",
+      "The covenant review covers every test on this relationship: each covenant's latest compliance row, its schedule, whether it is measurable this period, and the facilities and packages it is tied to.",
     produces:
       "It writes one assessment per covenant onto its compliance row. Only a row sitting at Pending advances the covenant schedule.",
     writeObjectLabel: "covenant assessment",
@@ -230,7 +233,7 @@ export const REL_FLOWS: Record<RelRoute, RelFlowSpec> = {
     word: "Collateral Valuation",
     icon: "collateral",
     covers:
-      "The valuation covers the collateral pledged against this package: the asset, the basis the figure is struck on and where the number came from.",
+      "The valuation covers every asset this borrower owns: the basis the figure is struck on, where the number came from, and the facilities and packages each asset is pledged to.",
     produces:
       "It files one valuation record per asset. Whether the value rolls up onto the collateral record is Salesforce's own automation and is reported, never claimed.",
     writeObjectLabel: "collateral valuation",
@@ -582,7 +585,16 @@ function covenantStep(ctx: RelContext, a: Answers): RelStep | null {
         return {
           label: covenantLabel(c),
           value: c.covenantId!,
-          detail: [verdict.label, held?.rail, c.latestComplianceStatus ? `row at ${c.latestComplianceStatus}` : null]
+          /* WHAT THIS COVENANT IS TIED TO IS ON THE ROW (0.9.24, backlog row
+             49). The review lists EVERY covenant on the relationship, so the
+             facilities and packages behind each one are how a banker places it;
+             the line is a statement and never narrows the list it sits in. */
+          detail: [
+            verdict.label,
+            held?.rail,
+            c.latestComplianceStatus ? `row at ${c.latestComplianceStatus}` : null,
+            held?.associationLine,
+          ]
             .filter(Boolean)
             .join(" · "),
           disabled: held ? !held.assessable : false,
@@ -723,15 +735,24 @@ export const COMPLETE_IS_NOT_OURS =
   "The review is filed at In Progress, not approved. cm_Review_Stage__c and cm_Approved_Date__c are fenced from this cockpit, and submitting it for approval runs through the bank's own process.";
 
 /**
- * DOES THIS REVIEW RUN AGAINST ONE PRODUCT PACKAGE?
+ * DOES THIS ROUTE RUN AGAINST ONE PRODUCT PACKAGE?
  *
- * The covenant batch and the collateral valuation both carry `productPackageId`
- * on their stage payloads and both refuse without one, so both scope to the
- * package's facilities. The annual review, the risk-rating review and the
- * service request are relationship level and never ask.
+ * NOT ANY MORE, FOR THE TWO REVIEWS (0.9.24, backlog row 49; founder
+ * 2026-09-13: "covenants and collaterals should be driven from the relationship
+ * perspective"). nCino holds covenants on the Account with loan junctions and
+ * collateral on the Account with pledges across packages, so the covenant review
+ * and the collateral valuation are relationship work like the annual review, the
+ * risk-rating review and the service request: they ask no package, they list
+ * EVERY covenant and every owned asset on the relationship, and each row SHOWS
+ * the facilities and packages it is tied to. An association is a fact on the
+ * row, never a filter.
+ *
+ * The two VERSION routes are the only ones left that ask, and they are not
+ * reviews: an amendment lands ON a package version, which is the one thing the
+ * banker has to choose before anything is written.
  */
 export function relRouteNeedsPackage(route: RelRoute): boolean {
-  return route === "covenant" || route === "valuation" || isVersionRoute(route);
+  return isVersionRoute(route);
 }
 
 /**
@@ -749,8 +770,13 @@ export function relPackageAsk(route: RelRoute | null): PackageAsk {
 /**
  * The route is anchored on a package and the banker has not chosen which.
  *
- * A REVIEW ASKS WHERE THE RELATIONSHIP STAGES SEVERAL AND NONE IS CHOSEN. A
- * VERSION ROUTE ASKS WHEREVER THE ANCHOR IS NOT ONE IT MAY SHAPE, which is the
+ * FALSE FOR EVERY REVIEW AS OF 0.9.24. The covenant review and the collateral
+ * valuation were the only two that asked, and they no longer do: the account is
+ * the anchor, the room lists everything on the relationship, and the packages
+ * are shown on the rows. The question that used to stand between the brief and
+ * the first step is gone, not deferred.
+ *
+ * A VERSION ROUTE ASKS WHEREVER THE ANCHOR IS NOT ONE IT MAY SHAPE, which is the
  * common case rather than the exception: `relContextFor` falls back to the
  * SNAPSHOT's own anchor, and that is the booked package, the one thing an
  * amendment is never allowed to land on. Asking is what puts the version in
@@ -759,8 +785,7 @@ export function relPackageAsk(route: RelRoute | null): PackageAsk {
  */
 export function relPackagePending(route: RelRoute | null, ctx: RelContext): boolean {
   if (!route || !relRouteNeedsPackage(route)) return false;
-  if (isVersionRoute(route)) return !amendTarget(ctx) && amendablePackages(ctx).length > 0;
-  return !ctx.productPackageId && ctx.packages.length > 1;
+  return !amendTarget(ctx) && amendablePackages(ctx).length > 0;
 }
 
 export function relRouteBlock(route: RelRoute, ctx: RelContext): string | null {
@@ -769,7 +794,10 @@ export function relRouteBlock(route: RelRoute, ctx: RelContext): string | null {
      false for one staging three. The room asks instead; see `relPackagePending`. */
   if (relPackagePending(route, ctx)) return null;
   if (route === "covenant") {
-    if (!ctx.productPackageId) return NO_PACKAGE_ANCHOR;
+    /* NO PACKAGE PRECONDITION (0.9.24). The review is anchored on the account,
+       so a relationship staging two packages, three, or none at all reaches the
+       same first question; what used to be a refusal here was the room asking
+       for an anchor the tool no longer wants. */
     const book = relBookFor(ctx);
     if (book.noComplianceRows) return NO_COMPLIANCE_ROW(book.covenants.length);
     /* AND A QUESTION WITH NO LEGAL ANSWER IS A SEALED ROOM (A2 audit,
@@ -781,7 +809,6 @@ export function relRouteBlock(route: RelRoute, ctx: RelContext): string | null {
     return null;
   }
   if (route === "valuation") {
-    if (!ctx.productPackageId) return NO_PACKAGE_ANCHOR;
     if (!valuableCollateral(ctx).length) return NOTHING_TO_VALUE;
     return null;
   }
@@ -833,6 +860,10 @@ function valuationStep(ctx: RelContext, a: Answers): RelStep | null {
             book?.lendable ? `${book.lendable} lendable` : null,
             book?.advanceRateSource,
             book?.valuation,
+            /* AND ITS PLEDGES (0.9.24). The valuation lists every asset the
+               borrower owns, so which facilities and packages each one secures
+               is the fact that places it. Shown, never a filter. */
+            book?.associationLine,
           ]
             .filter(Boolean)
             .join(" · "),
@@ -1355,9 +1386,6 @@ export function buildStagePayload(route: RelRoute, ctx: RelContext, a: Answers, 
   }
 
   if (route === "covenant") {
-    if (!ctx.productPackageId) {
-      return { ok: false, blocked: NO_PACKAGE_ANCHOR };
-    }
     const picked = [...new Set(pickedList(a, "covenants"))];
     const statuses = perRecord(a, "covenantStatuses");
     const reasons = perRecord(a, "covenantReasons");
@@ -1378,10 +1406,14 @@ export function buildStagePayload(route: RelRoute, ctx: RelContext, a: Answers, 
     if (!assessments.length || assessments.length !== picked.length) {
       return { ok: false, blocked: "Every covenant on the list needs a verdict before the plan can be staged." };
     }
+    /* THE ACCOUNT IS THE ANCHOR AND NO PACKAGE TRAVELS (0.9.24, backlog row
+       49). `productPackageId` is still on the type because the Client Actions
+       panel sends one and the deployed org still accepts a package-only call;
+       this room never does, because it never asked. */
     const payload: StagePayloads["covenant-review"] = {
       idempotencyKey,
       rationale,
-      productPackageId: ctx.productPackageId,
+      accountId: ctx.accountId,
       assessments,
       covenantIds: picked,
     };
@@ -1392,7 +1424,6 @@ export function buildStagePayload(route: RelRoute, ctx: RelContext, a: Answers, 
   }
 
   if (route === "valuation") {
-    if (!ctx.productPackageId) return { ok: false, blocked: NO_PACKAGE_ANCHOR };
     const picked = [...new Set(pickedList(a, "records"))];
     const valuationDate = text(a.valuationDate);
     if (!picked.length || !valuationDate) {
@@ -1411,12 +1442,14 @@ export function buildStagePayload(route: RelRoute, ctx: RelContext, a: Answers, 
       description: text(a.description),
       primary: a.primary === "yes",
     };
+    // THE ACCOUNT IS THE ANCHOR HERE TOO, for the same reason: an asset is
+    // owned by the borrower and pledged across packages, never by one package.
     return {
       ok: true,
       payload: {
         idempotencyKey,
         rationale,
-        productPackageId: ctx.productPackageId,
+        accountId: ctx.accountId,
         items: picked.map((collateralId) => ({ collateralId, value: num(values[collateralId]), ...shared })),
       },
     };
@@ -1507,8 +1540,10 @@ export function relReadyLine(route: RelRoute, ctx: RelContext, answers: Answers)
   return base;
 }
 
-const NO_PACKAGE_ANCHOR =
-  "This review is anchored on the product package and the read stages none for this relationship, so there is nothing to stage against.";
+/* `NO_PACKAGE_ANCHOR` IS GONE (0.9.24). It said "this review is anchored on the
+   product package and the read stages none for this relationship", which is no
+   longer true of either review and was never true of a relationship staging
+   two. The account is the anchor; there is nothing left to refuse. */
 
 /* WHAT THE ROUTE WOULD HAVE HAD NOTHING TO ASK ABOUT. Both name the gap and
    both name the way on, because a refusal without a door is the dead end rule 4
@@ -1517,7 +1552,7 @@ const NOTHING_TO_ASSESS =
   "This package carries no covenant this room can assess: a covenant is assessable here only where Salesforce holds a compliance row against it. " +
   "I can put a new covenant onto the relationship, or run the annual review.";
 const NOTHING_TO_VALUE =
-  "This package carries no pledged collateral, so there is nothing here to value. " +
+  "This relationship pledges no collateral on its active facilities, so there is nothing here to value. " +
   "I can put a new asset onto the relationship, or run the annual review.";
 
 /* ------------------------------------------------------------- the driver */

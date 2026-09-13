@@ -1,31 +1,51 @@
-/* SPREAD FINANCIALS BROWSER E2E (orchestrator gate, 2026-09-12).
+/* SPREAD FINANCIALS BROWSER E2E (orchestrator gate, 2026-09-12; --book 2026-09-13).
    Loads a scratch assembly of the CURRENT bundle with the probe's stub lanes
-   and stub sample door, opens Piedmont, opens the FAB, clicks "Spread
-   financials", drops a real CSV, answers each ask with its first chip, confirms
-   the plan, waits for the stub ladder to complete, then checks the room panel
-   and the Financials tab for the provisional period. Read-only on the repo.
-   Usage: node spread-e2e.mjs <bundle.html> */
+   and stub sample door, opens the chosen relationship, opens the FAB, clicks
+   "Spread financials", drops a real statement file, answers each ask with its
+   first chip, confirms the plan, waits for the stub ladder to complete, then
+   checks the room panel and the Financials tab for the provisional period.
+   Read-only on the repo.
+
+   THE BOOK IS AN ARGUMENT (backlog row 51). `--book <accountId|name>` opens that
+   relationship and patches its own reads onto the lane, exactly as
+   `workroom-e2e.mjs` does and through the same `lib/book.mjs`. The CSV is
+   REWRITTEN under the chosen borrower's own name so the drop and the account
+   agree; the xlsx and pdf fixtures are fixed artefacts and still carry
+   Piedmont's letterhead, which is the honest shape of a banker dropping a file
+   from another matter and is what the room's own period asks are for.
+   Usage: node spread-e2e.mjs [bundle.html] [csv|xlsx|pdf] [--book <id|name>] */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { chromium } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/node_modules/playwright/index.mjs";
 import { serveDir } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/lib/serve.mjs";
+import { bookParams, resolveBook } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/lib/book.mjs";
 
 const ROOT = "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented";
+function takeFlag(name) {
+  const at = process.argv.indexOf(`--${name}`);
+  if (at === -1) return null;
+  const value = process.argv[at + 1] ?? null;
+  process.argv.splice(at, value === null ? 1 : 2);
+  return value;
+}
+const BOOK_ARG = takeFlag("book") || "Hartwell";
 const BUNDLE = process.argv[2] || path.join(ROOT, "app/dist/cockpit.html");
 const KIND = process.argv[3] || "csv";
 const SCRATCH = path.join(ROOT, "design/probes/fixtures");
 const STUB = fs.readFileSync(path.join(ROOT, "design/probes/lib/stub-lanes.js"), "utf8");
 const SAMPLE = fs.readFileSync(path.join(ROOT, "design/probes/lib/stub-sample.js"), "utf8");
-const ACCOUNT = "001bb00001I7FPNAA3";
+const LIVE = JSON.parse(fs.readFileSync(path.join(ROOT, "artifact/live-data.json"), "utf8"));
+const ACCOUNT = resolveBook(LIVE, BOOK_ARG);
+const BOOK = bookParams(LIVE, ACCOUNT);
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "spread-e2e-"));
 fs.mkdirSync(path.join(dir, "b"), { recursive: true });
 execFileSync("node", [path.join(ROOT, "app/scripts/assemble-artifact.mjs"), path.join(ROOT, "artifact/live-data.json"), path.join(dir, "b/index.html"), BUNDLE], { stdio: "ignore" });
 
 const csv = [
-  "Piedmont Precision Components, Inc.",
+  BOOK.relationship,
   "Income Statement (in thousands)",
   "Fiscal year ended December 31,2025,2024",
   "Net sales revenue,71200,64486",
@@ -42,10 +62,11 @@ const csv = [
   "Total liabilities,32000,31500",
   "Total equity,20000,18500",
 ].join("\n");
-let csvPath = path.join(dir, "piedmont-fy2025.csv");
+let csvPath = path.join(dir, "statements-fy2025.csv");
 fs.writeFileSync(csvPath, csv);
 if (KIND === "xlsx") csvPath = path.join(SCRATCH, "piedmont-fy2025.xlsx");
 if (KIND === "pdf") csvPath = path.join(SCRATCH, "piedmont-fy2025.pdf");
+console.log("BOOK:", ACCOUNT, BOOK.relationship);
 console.log("DROPPING:", KIND, csvPath);
 
 const server = await serveDir(dir);
@@ -56,7 +77,18 @@ page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
 page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text().slice(0, 200)); });
 await page.addInitScript(STUB);
 await page.addInitScript(SAMPLE);
-await page.addInitScript(`var __i=setInterval(function(){if(window.__LANES){clearInterval(__i);window.__LANES.relayMs=300;window.__LANES.boom.processingMs=1500;}},0);`);
+/* THE CHOSEN BOOK'S OWN READS BEHIND THE LANE, the same patch `workroom-e2e.mjs` applies, so the
+   coverage ratio the panel and the Financials tab print is computed over THIS relationship's
+   facilities rather than over the lane's single stand-in loan. */
+await page.addInitScript((cfg) => {
+  var i = setInterval(function () {
+    if (!window.__LANES) return;
+    clearInterval(i);
+    window.__LANES.relayMs = 300;
+    window.__LANES.boom.processingMs = 1500;
+    window.__LANES.livePatch = Object.assign({}, window.__LANES.livePatch || {}, cfg.patch);
+  }, 0);
+}, { patch: BOOK.patch });
 
 const t = {};
 const mark = (k, t0) => { t[k] = Math.round(performance.now() - t0); };

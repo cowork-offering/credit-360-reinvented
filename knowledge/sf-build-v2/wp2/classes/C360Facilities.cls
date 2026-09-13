@@ -27,6 +27,71 @@ public with sharing class C360Facilities {
     public class SelectionException extends Exception {}
 
     /**
+     * ONE FACILITY A THING IS TIED TO, AND THE PACKAGE THAT FACILITY SITS ON.
+     *
+     * Founder, 2026-09-13: "covenants and collateral are driven from the relationship; a package is
+     * an association, never a filter." This is that association, and it lives here for the same
+     * reason the selection contract does: covenant review and collateral valuation both surface it,
+     * and two copies of the shape would drift. It travels to the room as a JSON string on the item,
+     * because an @InvocableVariable cannot carry a list of Apex-defined types inside another one.
+     */
+    public class Association {
+        public String loanId;
+        public String loanName;
+        public String productPackageId;
+        public String packageName;
+    }
+
+    /**
+     * Builds one association, with nulls kept as nulls.
+     *
+     * `String.valueOf(null)` is the four-character string 'null', which the room would render as a
+     * package called null and the next reader would try to resolve as an id.
+     *
+     * @param loanId The facility.
+     * @param loanName The facility's org-assigned name.
+     * @param productPackageId The package the facility sits on, which may be null.
+     * @param packageName That package's name, which may be null.
+     * @return The association.
+     */
+    public static Association association(Id loanId, String loanName, Id productPackageId, String packageName) {
+        Association a = new Association();
+        a.loanId = loanId == null ? null : String.valueOf(loanId);
+        a.loanName = loanName;
+        a.productPackageId = productPackageId == null ? null : String.valueOf(productPackageId);
+        a.packageName = packageName;
+        return a;
+    }
+
+    /** The associations of one item, as the wire string the room reads. An empty list serialises as []. */
+    public static String associationsJson(List<Association> associations) {
+        return JSON.serialize(associations == null ? new List<Association>() : associations);
+    }
+
+    /**
+     * The packages a set of associations reaches, id to name.
+     *
+     * The staging row anchors on the ACCOUNT and names a package only where exactly one is touched:
+     * a plan that spans two deals has no single deal to deep-link to, and writing one of them onto
+     * the trail row would make it claim a narrowing nobody chose.
+     *
+     * @param associations Every association across the items this plan will write.
+     * @return Package id to package name. Empty where the items reach no package at all.
+     */
+    public static Map<Id, String> packagesIn(List<Association> associations) {
+        Map<Id, String> out = new Map<Id, String>();
+        if (associations == null) {
+            return out;
+        }
+        for (Association a : associations) {
+            if (a.productPackageId != null) {
+                out.put(Id.valueOf(a.productPackageId), a.packageName);
+            }
+        }
+        return out;
+    }
+
+    /**
      * Validates the product package anchor and returns it as a typed Id.
      *
      * Fails closed on a non-id and on an id belonging to another object: lesson 4b, an id-typed

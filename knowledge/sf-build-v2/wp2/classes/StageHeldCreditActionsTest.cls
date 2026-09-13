@@ -757,4 +757,109 @@ private class StageHeldCreditActionsTest {
         System.assertEquals(rr.error.message, mr.error.message,
             'One catalog, one sentence. Two copies of this rule would drift and the org enforces neither.');
     }
+
+    // -------------------------------------------------------------------------------------------
+    // Backlog row 49, the arms: a renewal can take a covenant and a pledge in the same plan.
+    //
+    // stage_renewal now carries the same three arms stage_loan_modification does, parsed by the
+    // modification's own parsers. What these prove is that the arms are VALIDATED against the org
+    // here, that they plan onto the clone, and that the plan says plainly that no execute_renewal
+    // exists to file them.
+    // -------------------------------------------------------------------------------------------
+
+    /** A covenant type and an owned asset for the renewal's arms to resolve against. */
+    private static Id armCovenantTypeId() {
+        LLC_BI__Covenant_Type__c t = new LLC_BI__Covenant_Type__c(Name = 'ZZ-W2-ARM-DSCR');
+        insert t;
+        return t.Id;
+    }
+
+    private static Id armCollateralId() {
+        LLC_BI__Collateral_Type__c ct = new LLC_BI__Collateral_Type__c(
+            Name = 'ZZ-W2-ARM Type', LLC_BI__Advance_Rate__c = 50);
+        insert ct;
+        LLC_BI__Collateral__c c = new LLC_BI__Collateral__c(
+            LLC_BI__Collateral_Type__c = ct.Id,
+            LLC_BI__Value__c = 1000000,
+            LLC_BI__Description__c = 'ZZ-W2-ARM asset'
+        );
+        insert c;
+        insert new LLC_BI__Account_Collateral__c(
+            LLC_BI__Account__c = C360Wave2Fixture.existingAccount().Id,
+            LLC_BI__Collateral__c = c.Id,
+            LLC_BI__Ownership_Percentage__c = 100,
+            LLC_BI__Primary_Owner__c = true
+        );
+        return c.Id;
+    }
+
+    @IsTest
+    static void aRenewalPlansACovenantAndAPledgeAndSaysExecuteIsNotDeployed() {
+        C360TestFixture.armCalloutMock();
+        Id covTypeId = armCovenantTypeId();
+        Id collateralId = armCollateralId();
+        List<Id> booked = installBookedFacilities(1);
+
+        StageRenewal.Request r = renReq(C360Wave2Fixture.key('ren-arms'));
+        r.covenantAddsJson = '[{"typeId":"' + covTypeId + '","threshold":1.25,"operator":">=","frequency":"Quarterly"}]';
+        r.pledgeAddsJson = '[{"collateralId":"' + collateralId + '","amountPledged":250000}]';
+
+        Test.startTest();
+        StageRenewal.Response res = stageRen(r);
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'A renewal takes the same arms a modification does, got ' + whyRen(res));
+        System.assertEquals(1, res.result.covenantAddCount);
+        System.assertEquals(0, res.result.covenantAttachCount);
+        System.assertEquals(1, res.result.pledgeAddCount);
+
+        Set<String> stepIds = new Set<String>();
+        for (StageRenewal.PlanStep st : res.result.steps) {
+            stepIds.add(st.id);
+        }
+        System.assertEquals(true, stepIds.contains('covenant_create_0') && stepIds.contains('covenant_attach_0')
+                && stepIds.contains('covenant_verify_0'),
+            'The covenant carries its own create, attach and verify steps: ' + stepIds);
+        System.assertEquals(true, stepIds.contains('pledge_add_0') && stepIds.contains('pledge_verify_0'),
+            'And the pledge carries its own: ' + stepIds);
+        System.assertEquals(false, stepIds.contains('collateral_create_0'),
+            'The asset already exists, so nothing creates one.');
+
+        Boolean saidNotDeployed = false;
+        for (String w : res.result.warnings) {
+            if (w.contains('EXECUTE_RENEWAL IS NOT DEPLOYED')) {
+                saidNotDeployed = true;
+            }
+        }
+        System.assertEquals(true, saidNotDeployed,
+            'A plan that let the banker think the covenant was filed would be lying: ' + res.result.warnings);
+        System.assertEquals(true, res.result.executionHeld);
+
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Covenant2__c],
+            'A33.0.1: staging writes no covenant.');
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Loan_Collateral2__c],
+            'And no pledge.');
+    }
+
+    @IsTest
+    static void theRenewalRefusesTheSameBadArmTheModificationRefuses() {
+        C360TestFixture.armCalloutMock();
+        installBookedFacilities(1);
+        String bad = '[{"typeName":"ZZ-W2-NO-SUCH-COVENANT-TYPE","threshold":1.25,"operator":">="}]';
+
+        StageRenewal.Request ren = renReq(C360Wave2Fixture.key('ren-badcov'));
+        ren.covenantAddsJson = bad;
+        StageLoanModification.Request mod = modReq(C360Wave2Fixture.key('mod-badcov'));
+        mod.covenantAddsJson = bad;
+
+        Test.startTest();
+        StageRenewal.Response rr = stageRen(ren);
+        StageLoanModification.Response mr = stageMod(mod);
+        Test.stopTest();
+
+        System.assertEquals(false, rr.ok, 'The renewal refuses it');
+        System.assertEquals(false, mr.ok, 'And so does the modification');
+        System.assertEquals(rr.error.message, mr.error.message,
+            'One catalog, one sentence. Two copies of the covenant-type resolution would drift.');
+    }
 }

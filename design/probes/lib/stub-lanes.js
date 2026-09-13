@@ -281,6 +281,29 @@
       return give(envelope(versionAnswer(tool, one)));
     }
 
+    /* ------------------------------------------ the two relationship reviews
+
+       0.9.24, backlog row 49. `stage_covenant_review` and
+       `stage_collateral_valuation` take `accountId` and each planned row comes
+       back carrying `associations`, a JSON STRING of
+       [{loanId, loanName, productPackageId, packageName}]. The rows are derived
+       from the BOOK THIS LANE IS SERVING - the covenants and exposure bodies the
+       drive patches in - so a drive here exercises the real junctions rather
+       than a table somebody typed. Additive: every other stage tool falls
+       through to the generic plan below, unchanged. */
+    if (tool === "stage_covenant_review" || tool === "stage_collateral_valuation") {
+      var relOne = firstInput(input);
+      var relRow = stageRow(tool, relOne);
+      return give(envelope({ ok: true, result: reviewAnswer(tool, relOne, relRow) }));
+    }
+
+    /* AND THEIR EXECUTES, so a drive can take Confirm the way the banker does.
+       Nothing is simulated beyond the tool's own answer shape: one item per row
+       the plan carried, with the org's own outcome sentence. */
+    if (tool === "execute_covenant_review" || tool === "execute_collateral_valuation") {
+      return give(envelope({ ok: true, result: executedReview(tool, firstInput(input)) }));
+    }
+
     /* THE STAGED PLAN, so a probe can time the room's one write-path round
        trip. The shape is the one lib/stub-connector.js already answers with;
        nothing here executes and nothing here is a figure the room may print. */
@@ -325,6 +348,146 @@
     return sleep(wait).then(function () { return give(body ? envelope(body) : { payload: {} }); });
   }
 
+  /* ------------------------------------------ the two relationship reviews
+
+     THE BOOK THIS LANE IS SERVING, after the drive's own patch. Everything the
+     two account-anchored reviews answer with is derived from it: the covenant
+     junctions, the pledges hanging off each facility, and the package names,
+     composed the way `actions/schemas.ts` composes them so the page's own short
+     word for a package matches what this stub sends. */
+  function servedBook(name) {
+    var body = LIVE[name];
+    var extra = (window.__LANES.livePatch || {})[name];
+    return extra ? Object.assign({}, body, extra) : body;
+  }
+
+  function bookFacilities() {
+    return ((servedBook("Customer360Exposure") || {}).facilities) || [];
+  }
+
+  /** The deal's headline, derived exactly as the page derives it. */
+  function packageNameOf(pkgId) {
+    var facilities = bookFacilities();
+    var ids = [];
+    var anchor = (servedBook("Customer360Snapshot") || {}).productPackageId;
+    if (anchor) ids.push(anchor);
+    facilities.forEach(function (f) { if (f.productPackageId && ids.indexOf(f.productPackageId) === -1) ids.push(f.productPackageId); });
+    var relationship = ((servedBook("Customer360Snapshot") || {}).name || "").trim();
+    var base = relationship ? relationship + " credit package" : "Credit package";
+    if (ids.length <= 1) return base;
+    var on = facilities.filter(function (f) { return f.productPackageId === pkgId; });
+    var products = [];
+    on.forEach(function (f) { var t = (f.productType || "").trim(); if (t && products.indexOf(t) === -1) products.push(t); });
+    if (!products.length) return base;
+    return base + " · " + products.slice(0, 2).join(" and ") + (products.length > 2 ? " and " + (products.length - 2) + " more" : "");
+  }
+
+  /** One association row, off a facility the book carries. */
+  function associationOf(f) {
+    return { loanId: f.loanId, loanName: f.name, productPackageId: f.productPackageId, packageName: packageNameOf(f.productPackageId) };
+  }
+
+  /** The junctions a covenant carries, as the contract sends them: a STRING. */
+  function covenantAssociations(covenantId) {
+    var covenants = ((servedBook("Customer360Covenants") || {}).covenants) || [];
+    var cov = covenants.filter(function (c) { return c.covenantId === covenantId; })[0];
+    var byId = {};
+    bookFacilities().forEach(function (f) { if (f.loanId) byId[f.loanId] = f; });
+    var rows = ((cov || {}).attachedLoans || []).map(function (j) {
+      var f = byId[j.loanId];
+      return f ? associationOf(f) : { loanId: j.loanId, loanName: j.loanName, productPackageId: null, packageName: null };
+    });
+    return JSON.stringify(rows);
+  }
+
+  /** The pledges an asset carries, deduplicated by facility. */
+  function collateralAssociations(collateralId) {
+    var seen = {};
+    var rows = [];
+    bookFacilities().forEach(function (f) {
+      var holds = (f.collateral || []).some(function (c) { return c.collateralId === collateralId; });
+      if (!holds || seen[f.loanId]) return;
+      seen[f.loanId] = true;
+      rows.push(associationOf(f));
+    });
+    return JSON.stringify(rows);
+  }
+
+  function collateralNameOf(collateralId) {
+    var found = null;
+    bookFacilities().forEach(function (f) {
+      (f.collateral || []).forEach(function (c) { if (c.collateralId === collateralId && !found) found = c.collateralName || c.collateralId; });
+    });
+    return found || collateralId;
+  }
+
+  /** The staged plan for one of the two reviews. Anchored on the ACCOUNT the
+   *  caller sent; a `productPackageId` is echoed only where the caller chose
+   *  one, because the relationship room never sends it. */
+  function reviewAnswer(tool, one, row) {
+    var covenant = tool === "stage_covenant_review";
+    var plan = {
+      stagingId: row.id,
+      planHash: "9c41e08bf27a4d10",
+      decisionToken: row.replayed ? null : "4f8ac21e-probe-token",
+      replayed: row.replayed,
+      summary: covenant
+        ? "Assesses the covenants selected on this relationship."
+        : "Files a valuation for each asset selected on this relationship.",
+      steps: [{ id: "w1", type: "write", label: covenant ? "Write the assessments" : "File the valuations", objectName: covenant ? "LLC_BI__Covenant_Compliance2__c" : "LLC_BI__Collateral_Valuation__c" },
+              { id: "v1", type: "verification", label: "Re-query the records", dependsOn: ["w1"] }],
+      warnings: [],
+      accountId: one.accountId,
+    };
+    if (one.productPackageId) plan.productPackageId = one.productPackageId;
+    if (covenant) {
+      var assessments = one.assessments || [];
+      plan.covenants = assessments.map(function (a) {
+        return {
+          covenantId: a.covenantId,
+          covenantName: "COV-" + String(a.covenantId).slice(-6),
+          state: "planned",
+          assessedStatus: a.status,
+          associations: covenantAssociations(a.covenantId),
+        };
+      });
+      plan.assessedCount = plan.covenants.length;
+    } else {
+      var items = one.items || [];
+      plan.items = items.map(function (i) {
+        return {
+          collateralId: i.collateralId,
+          collateralName: collateralNameOf(i.collateralId),
+          value: typeof i.value === "number" ? i.value : null,
+          associations: collateralAssociations(i.collateralId),
+        };
+      });
+      plan.itemCount = plan.items.length;
+    }
+    return plan;
+  }
+
+  /** The executed run, one item per row the plan carried. */
+  function executedReview(tool, one) {
+    var covenant = tool === "execute_covenant_review";
+    var led = window.__LANES.staging;
+    var row = null;
+    led.rows.forEach(function (r) { if (r.stagingId === one.stagingId) row = r; });
+    var out = {
+      stagingId: one.stagingId,
+      terminalState: "success",
+      outcome: covenant
+        ? "The assessments were written and verified."
+        : "The valuations were filed and verified.",
+      recordName: covenant ? "COMP-0489" : "CV-0000000002",
+      accountId: (row || {}).accountId || ACCOUNT,
+      steps: [{ id: "w1", type: "write", label: covenant ? "Write the assessments" : "File the valuations", state: "done" },
+              { id: "v1", type: "verification", label: "Re-query the records", state: "done" }],
+    };
+    if (!covenant) out.valuationId = "a34bb00000PROBE01";
+    return out;
+  }
+
   /* ----------------------------------------------- the version lifecycle
 
      ONE IN-FLIGHT MODIFICATION VERSION, built out of whatever book the lane is
@@ -355,12 +518,24 @@
     return { source: v.source, id: v.id, moved: v.moved || null, name: v.name || null };
   }
 
-  /** The booked members of the source package, off the body being served. */
+  /** The ACTIVE members of the source package, off the body being served.
+   *
+   *  ACTIVE IS THE APP'S OWN WORD (`data/worklist.ts:isActiveFacility`), and it
+   *  read `status !== "Closed"` here until 2026-09-13. That held on Hartwell,
+   *  where every member is Open, and broke on the first book carrying a Paid Off
+   *  loan (Kingsley): the clone set came back one member LARGER than the
+   *  source's active roster, `book/packages.ts:mirrors` refuses a size mismatch,
+   *  and the version was therefore never read as a fork at all. nCino clones
+   *  what is live. */
+  function activeFacility(f) {
+    var s = String((f && f.status) || "").trim().toLowerCase();
+    return s === "" || s === "active" || s === "open";
+  }
   function sourceMembers(body) {
     var spec = versionSpec();
     if (!spec || !body || !body.facilities) return [];
     return body.facilities.filter(function (f) {
-      return f.productPackageId === spec.source && f.status !== "Closed";
+      return f.productPackageId === spec.source && activeFacility(f);
     });
   }
 

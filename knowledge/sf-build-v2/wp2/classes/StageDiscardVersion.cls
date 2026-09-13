@@ -863,10 +863,25 @@ global with sharing class StageDiscardVersion {
      * Group 7: the trail. These rows are NOT deleted. They are the audit of what the banker asked
      * for, and an audit that disappears with the thing it audited is not an audit.
      *
+     * TWO WAYS A TRAIL ROW BELONGS TO A VERSION, and until 2026-09-13 this read only the first
+     * (backlog row 45, org proof C). A row ANCHORED on the version carries it in
+     * `cm_Product_Package__c`, which is every action a banker ran inside the version. But the action
+     * that CREATED the version - the loan modification that filed it - is anchored on the SOURCE
+     * package, because that is the package the banker was looking at when they asked; what ties it
+     * to the version is its RESULT, `cm_Result_Record_Id__c`, which holds one of the loans the
+     * discard is about to delete. Leaving it at Completed meant the row that filed a version nobody
+     * can open any more still read as a finished piece of work.
+     *
+     * The union is computed HERE rather than at execute time so the plan's count, its warning and
+     * its `withdraw_trail` step all promise what the run will actually do, and so the set survives a
+     * resume: by the time a stopped run is continued the version loans may already be gone, and a
+     * fresh query on their ids would find nothing.
+     *
      * This action's own staging row is excluded by construction when a source package exists
      * (it anchors there), and by id when it does not.
      */
     private static void buildTrail(Inventory inv) {
+        Set<Id> found = new Set<Id>();
         for (cm_Action_Staging__c s : [
             SELECT Id, Name, cm_Action_Id__c, cm_Status__c
             FROM cm_Action_Staging__c
@@ -874,8 +889,26 @@ global with sharing class StageDiscardVersion {
               AND cm_Action_Id__c != :ACTION_ID
             WITH USER_MODE
         ]) {
-            inv.stagingRowIds.add(s.Id);
+            found.add(s.Id);
         }
+
+        // `cm_Result_Record_Id__c` is text, so the ids are compared as the strings the field holds.
+        List<String> memberKeys = new List<String>();
+        for (Id m : inv.memberIds) {
+            memberKeys.add(String.valueOf(m));
+        }
+        if (!memberKeys.isEmpty()) {
+            for (cm_Action_Staging__c s : [
+                SELECT Id, Name, cm_Action_Id__c, cm_Status__c, cm_Result_Record_Id__c
+                FROM cm_Action_Staging__c
+                WHERE cm_Result_Record_Id__c IN :memberKeys
+                  AND cm_Action_Id__c != :ACTION_ID
+                WITH USER_MODE
+            ]) {
+                found.add(s.Id);
+            }
+        }
+        inv.stagingRowIds.addAll(found);
     }
 
     /** Warnings the banker must read before confirming a delete. */
@@ -910,8 +943,9 @@ global with sharing class StageDiscardVersion {
         if (!inv.stagingRowIds.isEmpty()) {
             inv.warnings.add(
                 inv.stagingRowIds.size() + ' action trail row' + (inv.stagingRowIds.size() == 1 ? '' : 's') +
-                ' on this version ' + (inv.stagingRowIds.size() == 1 ? 'is' : 'are') + ' KEPT and marked ' + WITHDRAWN +
-                '. The trail is the audit and is never deleted.'
+                ' belonging to this version ' + (inv.stagingRowIds.size() == 1 ? 'is' : 'are') + ' KEPT and marked ' + WITHDRAWN +
+                '. That is every row anchored on the version AND the row that FILED it, which is anchored on the source ' +
+                'package and named one of these facilities as its result. The trail is the audit and is never deleted.'
             );
         }
         if (!inv.withdrawnAvailable) {

@@ -642,6 +642,11 @@ const REMOVAL_ON_CREATED =
 /** What the room says above a read it has just answered in the same words. */
 const SAME_READ = "That is the same read as a moment ago, and nothing on it has moved. Here it is again.";
 
+/** And what it leads with where its ANSWER is the one it just gave, word for
+ *  word: a standing fact about the package is true every time it is asked, and
+ *  reprinting it unmarked reads as a room that did not hear (golden rule 5). */
+const SAME_ANSWER = "That is the same answer as a moment ago, and nothing on the package has moved since.";
+
 /** A demonstrative naming the member the banker is standing on, with no name in
  *  it for a scope reader to resolve: "on this loan", "for this facility". */
 const THIS_MEMBER = /\bthis\s+(?:loan|facility|line|note|one)\b/i;
@@ -2738,7 +2743,28 @@ export function Workroom({
           advisories: advisories.length ? advisories : undefined,
         });
       }
-      setItems((prev) => [...prev, ...landed]);
+      /* THE SAME ANSWER, WORD FOR WORD, IS NOT AN ANSWER THE SECOND TIME (D1,
+         the three-book matrix, 2026-09-13; golden rule 5).
+
+         A refusal that is a standing fact about the package is TRUE every time
+         it is asked. On Piedmont, whose facilities are all at Final Review,
+         three different sentences about the same guarantor each drew the same
+         paragraph back, verbatim, and a banker reading that reads a room that
+         did not hear the second and the third. The answer still goes up,
+         because it is still the answer; it leads with one sober line saying it
+         has not moved. Same judgement `SAME_READ` makes over a repeated card,
+         in the same bubble rather than a second one so the thread does not
+         grow a line per restatement. */
+      setItems((prev) => {
+        const prior = [...prev].reverse().find((i) => i.kind === "agent");
+        const head = landed[0];
+        const again =
+          head.kind === "agent" &&
+          prior?.kind === "agent" &&
+          !!head.text.trim() &&
+          prior.text.trim() === head.text.trim();
+        return [...prev, ...(again ? [{ ...head, id: nextId("agent"), text: `${SAME_ANSWER} ${head.text}` }, ...landed.slice(1)] : landed)];
+      });
       setSuggestion(engine.suggest());
     },
     [book, catalog, committedTotal, context.accountName, engine, memberLabel, qualifierMembers, roomSentence],

@@ -259,15 +259,20 @@ describe("the covenant review is package-anchored bulk", () => {
     });
     const built = buildStagePayload("covenant", ctx, answers, "key-1");
     const p = (built as { payload: StagePayloads["covenant-review"] }).payload;
-    expect(p.productPackageId).toBe(PACKAGE);
+    /* THE ACCOUNT IS THE ANCHOR (0.9.24, backlog row 49). Restated, not
+       weakened: this line read `productPackageId` until the founder moved the
+       contract on 2026-09-13. The room never asks which package, so it never
+       sends one, and the tool anchors on the relationship. */
+    expect(p.accountId).toBe("001X");
+    expect(p).not.toHaveProperty("productPackageId");
     expect(p.covenantIds).toEqual(["cov1", "cov2"]);
     expect(p.assessments).toEqual([
       { covenantId: "cov1", status: "Compliant", observedValue: 1.42, reasonForException: null, narrative: "Q2 statements tested.", comments: null },
       { covenantId: "cov2", status: "Exception", observedValue: null, reasonForException: "Breached", narrative: "Q2 statements tested.", comments: null },
     ]);
-    // The superseded single shape is GONE from the org. Sending its fields makes
-    // the new shape unreachable on the wire, so none of them may appear.
-    expect(p).not.toHaveProperty("accountId");
+    // The superseded single shape is GONE from the org. `covenantComplianceId`
+    // anchored on a compliance ROW and named no covenant; sending it makes the
+    // new shape unreachable on the wire.
     expect(p).not.toHaveProperty("covenantComplianceId");
     // allowNonPending is sent only when the banker turns it on; a false would
     // claim a decision nobody made.
@@ -280,11 +285,23 @@ describe("the covenant review is package-anchored bulk", () => {
     expect((built as { blocked: string }).blocked).toContain("needs a verdict");
   });
 
-  it("refuses to compose without a package anchor, in the org's own terms", () => {
+  /* RESTATED 0.9.24 (backlog row 49). This case used to assert the refusal
+     NO_PACKAGE_ANCHOR on a relationship whose snapshot named no package. The
+     account is the anchor now, so there is nothing to refuse: the same context
+     composes, and the wire carries the relationship. */
+  it("composes on a relationship whose snapshot names no package at all", () => {
     const noPackage = ctxFor({ snapshot: { accountId: "001X", name: "Testco" } as never });
-    const built = buildStagePayload("covenant", noPackage, { covenants: [], covenantStatuses: {} }, "k");
-    expect(built.ok).toBe(false);
-    expect((built as { blocked: string }).blocked).toContain("anchored on the product package");
+    const answers = driveTo("covenant", noPackage, {
+      covenants: ["cov1"],
+      "covenantStatuses.cov1": "Compliant",
+      "covenantObservedValues.cov1": 1.42,
+      assessmentNarrative: "Q2 statements tested.",
+    });
+    const built = buildStagePayload("covenant", noPackage, answers, "k");
+    expect(built.ok).toBe(true);
+    const p = (built as { payload: StagePayloads["covenant-review"] }).payload;
+    expect(p.accountId).toBe("001X");
+    expect(p).not.toHaveProperty("productPackageId");
   });
 });
 
@@ -326,7 +343,11 @@ describe("the collateral valuation is package-anchored bulk too", () => {
     });
     const built = buildStagePayload("valuation", ctx, answers, "key-1");
     const p = (built as { payload: StagePayloads["collateral-valuation"] }).payload;
-    expect(p.productPackageId).toBe(PACKAGE);
+    // THE ACCOUNT IS THE ANCHOR HERE TOO (0.9.24). Restated from
+    // `productPackageId`: an asset is owned by the borrower and pledged across
+    // packages, so a valuation is relationship work.
+    expect(p.accountId).toBe("001X");
+    expect(p).not.toHaveProperty("productPackageId");
     expect(p.items).toHaveLength(2);
     expect(p.items[0]).toEqual({
       collateralId: "a35A",
@@ -850,12 +871,18 @@ describe("the covenant review says what the book cannot do, before it asks", () 
     expect(nextStep("covenant", ctx, {})).toBeNull();
   });
 
-  it("blocks on the package anchor before it reaches the compliance problem", () => {
-    // Hartwell's shipped snapshot carries no productPackageId, so this is the
-    // refusal the founder actually sees on the demo fixture today.
+  /* RESTATED 0.9.24 (backlog row 49). This case used to assert that a missing
+     package anchor blocked BEFORE the compliance problem. There is no package
+     precondition on either route any more, so what it pins now is that the
+     absence of an anchor changes nothing: the covenant route still reaches its
+     own refusal, and the valuation still reaches its own. */
+  it("reaches its own refusal on a relationship whose snapshot names no package", () => {
     const ctx = ctxFor({ ...ROWLESS, snapshot: { accountId: "001X", name: "Testco" } } as never);
-    expect(relRouteBlock("covenant", ctx)).toContain("anchored on the product package");
-    expect(relRouteBlock("valuation", ctx)).toContain("anchored on the product package");
+    expect(ctx.productPackageId).toBeNull();
+    expect(relRouteBlock("covenant", ctx)).toContain("no open test period on any of the 2 covenants");
+    expect(relRouteBlock("covenant", ctx)).not.toContain("anchored on the product package");
+    // The valuation's own book is untouched by the snapshot, so it runs.
+    expect(relRouteBlock("valuation", ctx)).toBeNull();
   });
 
   it("does not block a relationship whose rows are there", () => {
@@ -1297,22 +1324,40 @@ describe("the grade override, and the one thing the org really refuses", () => {
 
 describe("a blocked route asks nothing, on EVERY route it blocks", () => {
   /* THE HEADLESS DRIVE CAUGHT THIS on 2026-09-02, line 5. The covenant route's
-     honesty gate lived inside covenantStep, so the VALUATION route rendered
-     NO_PACKAGE_ANCHOR under its brief and then asked "which collateral are we
-     valuing?" underneath it: the room refusing and interrogating in the same
-     breath. `relRouteBlock` is the one judgement now. */
+     honesty gate lived inside covenantStep, so the VALUATION route rendered its
+     refusal under its brief and then asked "which collateral are we valuing?"
+     underneath it: the room refusing and interrogating in the same breath.
+     `relRouteBlock` is the one judgement now.
+
+     RESTATED 0.9.24 (backlog row 49). The blocked context used to be "no
+     package anchor", which no longer blocks anything: the account is the
+     anchor. The invariant is unchanged and is what matters here, so the two
+     refusals that are still real carry it — a relationship with nothing pledged
+     and one whose covenants carry no compliance row. */
+  const nothingPledged = ctxFor({ exposure: { totalCommitted: 0, facilities: [] } } as never);
+  const noRows = ctxFor({
+    covenants: { covenants: [{ covenantId: "cov1", covenantType: "Debt Service Coverage" }] },
+  } as never);
   const noAnchor = ctxFor({ snapshot: { accountId: "001X", name: "Testco" } } as never);
 
-  it("asks nothing on the valuation with no package anchor", () => {
-    expect(relRouteBlock("valuation", noAnchor)).not.toBeNull();
-    expect(nextStep("valuation", noAnchor, {})).toBeNull();
+  it("asks nothing on the valuation with nothing pledged to value", () => {
+    expect(relRouteBlock("valuation", nothingPledged)).not.toBeNull();
+    expect(nextStep("valuation", nothingPledged, {})).toBeNull();
   });
 
-  it("asks nothing on the covenant review with no package anchor", () => {
-    expect(nextStep("covenant", noAnchor, {})).toBeNull();
+  it("asks nothing on the covenant review with no compliance row to close", () => {
+    expect(relRouteBlock("covenant", noRows)).not.toBeNull();
+    expect(nextStep("covenant", noRows, {})).toBeNull();
   });
 
-  it("still asks on the three routes the anchor does not gate", () => {
+  it("and a missing package anchor no longer blocks either of them", () => {
+    expect(relRouteBlock("covenant", noAnchor)).toBeNull();
+    expect(relRouteBlock("valuation", noAnchor)).toBeNull();
+    expect(nextStep("covenant", noAnchor, {})).not.toBeNull();
+    expect(nextStep("valuation", noAnchor, {})).not.toBeNull();
+  });
+
+  it("still asks on the three routes the anchor never gated", () => {
     expect(nextStep("annual", noAnchor, {})).not.toBeNull();
     expect(nextStep("rating", noAnchor, {})).not.toBeNull();
     expect(nextStep("service", noAnchor, {})).not.toBeNull();

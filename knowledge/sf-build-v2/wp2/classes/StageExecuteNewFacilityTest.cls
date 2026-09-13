@@ -735,4 +735,295 @@ private class StageExecuteNewFacilityTest {
         System.assertEquals('VALIDATION_FAILED', res.error.code);
         System.assert(res.error.message.contains('No staging record found'), res.error.message);
     }
+
+    // -------------------------------------------------------------------------------------------
+    // Backlog row 49, the arms: a facility can be opened WITH its covenant and its pledge.
+    //
+    // One decision, one plan, one confirmation. The arms are the modification's, parsed by its own
+    // public parsers, and they land on a facility that has no id until execute time: the plan names
+    // it `new:1` and the execute resolves that to the facility it just created.
+    // -------------------------------------------------------------------------------------------
+
+    private static Id armCovenantTypeId() {
+        LLC_BI__Covenant_Type__c t = new LLC_BI__Covenant_Type__c(Name = 'ZZ-NF-ARM-DSCR');
+        insert t;
+        return t.Id;
+    }
+
+    private static Id armCollateralId() {
+        LLC_BI__Collateral_Type__c ct = new LLC_BI__Collateral_Type__c(
+            Name = 'ZZ-NF-ARM Type', LLC_BI__Advance_Rate__c = 50);
+        insert ct;
+        LLC_BI__Collateral__c c = new LLC_BI__Collateral__c(
+            LLC_BI__Collateral_Type__c = ct.Id,
+            LLC_BI__Value__c = 1000000,
+            LLC_BI__Description__c = 'ZZ-NF-ARM asset'
+        );
+        insert c;
+        insert new LLC_BI__Account_Collateral__c(
+            LLC_BI__Account__c = C360Wave2Fixture.existingAccount().Id,
+            LLC_BI__Collateral__c = c.Id,
+            LLC_BI__Ownership_Percentage__c = 100,
+            LLC_BI__Primary_Owner__c = true
+        );
+        return c.Id;
+    }
+
+    @IsTest
+    static void theArmsPlanAgainstTheLabelBecauseTheFacilityHasNoIdYet() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Product_Package__c p = C360Wave2Fixture.existingPackage();
+        Id covTypeId = armCovenantTypeId();
+
+        StageNewFacility.Request r = req(p.Id, C360Wave2Fixture.key('nf-armplan'));
+        r.covenantAddsJson = '[{"typeId":"' + covTypeId + '","threshold":1.25,"operator":">=","frequency":"Quarterly"}]';
+
+        Test.startTest();
+        StageNewFacility.Response res = StageNewFacility.stage(new List<StageNewFacility.Request>{ r })[0];
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'stage should succeed, got ' + why(res));
+        System.assertEquals(1, res.result.covenantAddCount);
+        System.assertEquals('new:1', res.result.newFacilityLabel,
+            'The arms target a facility whose id is minted at execute time, so the plan needs a stable handle for it.');
+
+        Boolean namedByLabel = false;
+        for (StageNewFacility.PlanStep st : res.result.steps) {
+            if (st.id == 'covenant_attach_0' && st.label.contains('new:1')) {
+                namedByLabel = true;
+            }
+        }
+        System.assertEquals(true, namedByLabel,
+            'The banker reads what the covenant attaches to, and before the org names the facility that is the label: ' +
+            JSON.serialize(res.result.steps));
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Covenant2__c], 'A33.0.1: staging writes no covenant.');
+    }
+
+    @IsTest
+    static void executeFilesTheFacilityAndItsArmsInOneTransaction() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Product_Package__c p = C360Wave2Fixture.existingPackage();
+        Id covTypeId = armCovenantTypeId();
+        Id collateralId = armCollateralId();
+        String key = C360Wave2Fixture.key('nf-armexec');
+
+        StageNewFacility.Request r = req(p.Id, key);
+        r.covenantAddsJson = '[{"typeId":"' + covTypeId + '","threshold":1.25,"operator":">=","frequency":"Quarterly"}]';
+        r.pledgeAddsJson = '[{"collateralId":"' + collateralId + '","amountPledged":250000}]';
+        StageNewFacility.Response staged = StageNewFacility.stage(new List<StageNewFacility.Request>{ r })[0];
+        System.assertEquals(true, staged.ok, 'stage should succeed, got ' + why(staged));
+
+        Test.startTest();
+        ExecuteNewFacility.Response done = executeStaged(key, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, done.ok,
+            'execute should succeed: ' + (done.error == null ? '' : done.error.code + ' ' + done.error.message));
+        System.assertEquals(1, done.result.covenantsCreated);
+        System.assertEquals(1, done.result.pledgesCreated);
+        System.assertEquals(0, done.result.assetsCreated, 'The borrower already owned the asset.');
+
+        Id loanId = done.result.loanId;
+        System.assertEquals(1,
+            [SELECT COUNT() FROM LLC_BI__Loan_Covenant__c WHERE LLC_BI__Loan__c = :loanId],
+            'The covenant is junctioned onto the facility this action created, not onto anything else.');
+        System.assertEquals(1,
+            [SELECT COUNT() FROM LLC_BI__Account_Covenant__c],
+            'And onto the borrower, the way nCino\'s own UI does it.');
+        LLC_BI__Covenant2__c cov = [
+            SELECT Id, LLC_BI__Financial_Indicator_Value__c, LLC_BI__Covenant_Status__c, LLC_BI__Active__c
+            FROM LLC_BI__Covenant2__c LIMIT 1
+        ];
+        System.assertEquals(1.25, cov.LLC_BI__Financial_Indicator_Value__c);
+        System.assertEquals(true, cov.LLC_BI__Active__c);
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Covenant_Compliance2__c],
+            'A covenant create mints NO compliance row, which is what keeps the org\'s unrecallable approval out of this.');
+
+        List<LLC_BI__Loan_Collateral2__c> pledges = [
+            SELECT Id, LLC_BI__Collateral__c, LLC_BI__Amount_Pledged__c, LLC_BI__Loan_Collateral_Aggregate__c
+            FROM LLC_BI__Loan_Collateral2__c WHERE LLC_BI__Loan__c = :loanId
+        ];
+        System.assertEquals(1, pledges.size(), 'One pledge on the new facility.');
+        System.assertEquals(collateralId, pledges[0].LLC_BI__Collateral__c);
+        System.assertEquals(250000, pledges[0].LLC_BI__Amount_Pledged__c);
+        System.assertNotEquals(null, pledges[0].LLC_BI__Loan_Collateral_Aggregate__c,
+            'A pledge needs three parents, and the aggregate shell is the one nothing else creates (LESSONS 15ac).');
+
+        Map<String, ExecuteNewFacility.StepResult> steps = new Map<String, ExecuteNewFacility.StepResult>();
+        for (ExecuteNewFacility.StepResult st : done.result.steps) {
+            steps.put(st.id, st);
+        }
+        System.assertEquals(C360Plan.STATE_VERIFIED, steps.get('covenant_verify_0').state,
+            'The proof is the re-read, never the insert: ' + steps.get('covenant_verify_0').detail);
+        System.assertEquals(C360Plan.STATE_VERIFIED, steps.get('pledge_verify_0').state,
+            steps.get('pledge_verify_0').detail);
+        System.assert(steps.get('pledge_verify_0').detail.contains('advance rate'),
+            'The advance rate is a formula the org resolves, so it is REPORTED from the row rather than asserted: ' +
+            steps.get('pledge_verify_0').detail);
+    }
+
+    @IsTest
+    static void theArmBudgetIsFivePerKindAndItSaysWhy() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Product_Package__c p = C360Wave2Fixture.existingPackage();
+        Id covTypeId = armCovenantTypeId();
+
+        List<String> six = new List<String>();
+        for (Integer i = 0; i < 6; i++) {
+            six.add('{"typeId":"' + covTypeId + '","threshold":' + (1 + i) + ',"operator":">="}');
+        }
+        StageNewFacility.Request r = req(p.Id, C360Wave2Fixture.key('nf-armcap'));
+        r.covenantAddsJson = '[' + String.join(six, ',') + ']';
+
+        Test.startTest();
+        StageNewFacility.Response res = StageNewFacility.stage(new List<StageNewFacility.Request>{ r })[0];
+        Test.stopTest();
+
+        System.assertEquals(false, res.ok, 'Six covenants plus the facility chain will not fit one transaction.');
+        System.assert(res.error.message.contains('the cap is 5'), 'The refusal names the cap: ' + res.error.message);
+        System.assert(res.error.message.contains('queueable'), 'And the governor reason behind it: ' + res.error.message);
+    }
+
+    /**
+     * The other two shapes an arm can take, on one run: a covenant the borrower ALREADY holds
+     * associated by junction only, and a pledge of an asset that does not exist yet.
+     */
+    @IsTest
+    static void executeAssociatesAnExistingCovenantAndAuthorsTheAssetItPledges() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Product_Package__c p = C360Wave2Fixture.existingPackage();
+        Account a = C360Wave2Fixture.existingAccount();
+
+        LLC_BI__Covenant2__c held = new LLC_BI__Covenant2__c(
+            LLC_BI__Account__c = a.Id,
+            LLC_BI__Covenant_Type__c = armCovenantTypeId(),
+            LLC_BI__Financial_Indicator_Value__c = 1.10,
+            LLC_BI__Active__c = true,
+            LLC_BI__Is_Template__c = false
+        );
+        insert held;
+        LLC_BI__Collateral_Type__c ct = new LLC_BI__Collateral_Type__c(
+            Name = 'ZZ-NF-NEWASSET Type', LLC_BI__Advance_Rate__c = 60);
+        insert ct;
+
+        String key = C360Wave2Fixture.key('nf-armnew');
+        StageNewFacility.Request r = req(p.Id, key);
+        r.covenantAttachesJson = '[{"covenantId":"' + held.Id + '"}]';
+        r.pledgeAddsJson = '[{"newCollateral":{"description":"ZZ-NF new machine line",' +
+            '"collateralType":"' + ct.Id + '","value":800000},"advanceRate":60,' +
+            '"advanceRateReason":"Field exam of the machine line, July."}]';
+        StageNewFacility.Response staged = StageNewFacility.stage(new List<StageNewFacility.Request>{ r })[0];
+        System.assertEquals(true, staged.ok, 'stage should succeed, got ' + why(staged));
+        System.assertEquals(1, staged.result.covenantAttachCount);
+        System.assertEquals(1, staged.result.pledgeAddCount);
+
+        Test.startTest();
+        ExecuteNewFacility.Response done = executeStaged(key, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, done.ok,
+            'execute should succeed: ' + (done.error == null ? '' : done.error.code + ' ' + done.error.message));
+        System.assertEquals(0, done.result.covenantsCreated, 'An association creates no covenant.');
+        System.assertEquals(1, done.result.covenantsAssociated);
+        System.assertEquals(1, done.result.assetsCreated, 'The asset did not exist, so this run authored it.');
+        System.assertEquals(1, done.result.pledgesCreated);
+
+        Id loanId = done.result.loanId;
+        System.assertEquals(1, [SELECT COUNT() FROM LLC_BI__Covenant2__c],
+            'The held covenant is junctioned, never copied.');
+        System.assertEquals(1,
+            [SELECT COUNT() FROM LLC_BI__Loan_Covenant__c WHERE LLC_BI__Loan__c = :loanId AND LLC_BI__Covenant2__c = :held.Id]);
+
+        LLC_BI__Collateral__c asset = [
+            SELECT Id, LLC_BI__Value__c, LLC_BI__Description__c FROM LLC_BI__Collateral__c
+            WHERE LLC_BI__Collateral_Type__c = :ct.Id LIMIT 1
+        ];
+        System.assertEquals(800000, asset.LLC_BI__Value__c);
+        System.assertEquals(1,
+            [SELECT COUNT() FROM LLC_BI__Account_Collateral__c WHERE LLC_BI__Collateral__c = :asset.Id AND LLC_BI__Account__c = :a.Id],
+            'LLC_BI__Collateral__c carries no account lookup, so the ownership junction is the asset\'s only link to the relationship.');
+        System.assertEquals(1,
+            [SELECT COUNT() FROM LLC_BI__Loan_Collateral2__c WHERE LLC_BI__Loan__c = :loanId AND LLC_BI__Collateral__c = :asset.Id]);
+
+        Map<String, ExecuteNewFacility.StepResult> steps = new Map<String, ExecuteNewFacility.StepResult>();
+        for (ExecuteNewFacility.StepResult st : done.result.steps) {
+            steps.put(st.id, st);
+        }
+        System.assertEquals(C360Plan.STATE_VERIFIED, steps.get('covenant_associate_verify_0').state,
+            steps.get('covenant_associate_verify_0').detail);
+        System.assertEquals(C360Plan.STATE_VERIFIED, steps.get('collateral_create_0').state);
+        System.assertEquals(C360Plan.STATE_VERIFIED, steps.get('collateral_own_0').state);
+    }
+
+    @IsTest
+    static void theArmBudgetBindsEveryArmAndTheWarningsNameWhatIsComing() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Product_Package__c p = C360Wave2Fixture.existingPackage();
+        Account a = C360Wave2Fixture.existingAccount();
+
+        // SIX DISTINCT covenants: the same one six times is refused earlier, as a duplicate
+        // junction, and would never reach the budget the test is about.
+        List<LLC_BI__Covenant2__c> heldSix = new List<LLC_BI__Covenant2__c>();
+        for (Integer i = 0; i < 6; i++) {
+            heldSix.add(new LLC_BI__Covenant2__c(
+                LLC_BI__Account__c = a.Id, LLC_BI__Active__c = true, LLC_BI__Is_Template__c = false));
+        }
+        insert heldSix;
+        LLC_BI__Covenant2__c held = heldSix[0];
+
+        List<String> sixAttaches = new List<String>();
+        for (LLC_BI__Covenant2__c c : heldSix) {
+            sixAttaches.add('{"covenantId":"' + c.Id + '"}');
+        }
+        StageNewFacility.Request overAttaches = req(p.Id, C360Wave2Fixture.key('nf-capattach'));
+        overAttaches.covenantAttachesJson = '[' + String.join(sixAttaches, ',') + ']';
+
+        StageNewFacility.Request okAttach = req(p.Id, C360Wave2Fixture.key('nf-okattach'));
+        okAttach.covenantAttachesJson = '[{"covenantId":"' + held.Id + '"}]';
+
+        Test.startTest();
+        List<StageNewFacility.Response> out = StageNewFacility.stage(
+            new List<StageNewFacility.Request>{ overAttaches, okAttach });
+        Test.stopTest();
+
+        System.assertEquals(false, out[0].ok, 'Six associations is over the per-transaction budget.');
+        System.assert(out[0].error.message.contains('covenant associations'),
+            'The refusal names the arm that broke the budget: ' + out[0].error.message);
+
+        System.assertEquals(true, out[1].ok, 'One association is well inside it, got ' + why(out[1]));
+        Boolean saidJunctionOnly = false;
+        for (String w : out[1].result.warnings) {
+            if (w.contains('junction only')) {
+                saidJunctionOnly = true;
+            }
+        }
+        System.assertEquals(true, saidJunctionOnly,
+            'The banker is told an association creates no covenant before confirming: ' + out[1].result.warnings);
+    }
+
+    @IsTest
+    static void aPledgeOverTheLendableValueIsRefusedUnlessTheBankerAuthorisesIt() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Product_Package__c p = C360Wave2Fixture.existingPackage();
+        Id collateralId = armCollateralId();
+
+        StageNewFacility.Request over = req(p.Id, C360Wave2Fixture.key('nf-overpledge'));
+        over.pledgeAddsJson = '[{"collateralId":"' + collateralId + '","amountPledged":900000}]';
+
+        StageNewFacility.Request authorised = req(p.Id, C360Wave2Fixture.key('nf-authpledge'));
+        authorised.pledgeAddsJson =
+            '[{"collateralId":"' + collateralId + '","amountPledged":900000,"authoriseOverPledge":true}]';
+
+        Test.startTest();
+        List<StageNewFacility.Response> out = StageNewFacility.stage(
+            new List<StageNewFacility.Request>{ over, authorised });
+        Test.stopTest();
+
+        System.assertEquals(false, out[0].ok,
+            'The asset is worth 1,000,000 at a 50 percent advance rate, so 900,000 is over its lendable value.');
+        System.assert(out[0].error.message.contains('Authorize'),
+            'The refusal names the org\'s own escape rather than leaving the banker guessing: ' + out[0].error.message);
+        System.assertEquals(true, out[1].ok,
+            'The banker may authorise the over-pledge on the entry, and then it stages: ' + why(out[1]));
+    }
 }

@@ -454,7 +454,7 @@ describe("D. a question with no legal answer is refused up front, not asked", ()
     // THE BREAK: the route was not blocked, so "Which collateral are we
     // valuing?" went out as a chooser with no options, no skip and no escape.
     const block = relRouteBlock("valuation", ctx);
-    expect(block).toContain("no pledged collateral");
+    expect(block).toContain("pledges no collateral");
     expect(block).toContain("I can put a new asset onto the relationship");
     expect(nextStep("valuation", ctx, {})).toBeNull();
   });

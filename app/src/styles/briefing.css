@@ -1,0 +1,92 @@
+/* =============================================================================
+   THE BRIEFING SURFACE - ONLY WHAT IS NEW.
+
+   The relationship room's own material is declared in workroom.css and
+   relationship.css and nothing here restates it. This file styles the one
+   surface the briefing adds: a run of prose sections that open the room.
+
+   IT IS PROSE, SO IT IS TYPESET AS PROSE. A measure the eye can follow, a line
+   height that lets six sentences read as one paragraph, and a label column that
+   is quiet enough to disappear once the banker has learned the order. Nothing
+   here is a card, a tile or a chip: the flatness the founder read came from
+   exactly those, and a paragraph is the cure.
+
+   SOLID, LIKE EVERY OTHER CONTENT SURFACE IN THIS ROOM. Opaque background,
+   hairline border, the card shadow, and NO backdrop-filter, so the glass census
+   is unchanged. The arrival uses the thread's own `wk-in` curve, which the
+   global reduced-motion rule in tokens.css already kills.
+   ============================================================================= */
+
+.bf {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  animation: wk-in 550ms var(--ease-settle) both;
+}
+
+/* THE LEDE. One sentence saying what room this is and what day it is reading
+   from. Slightly larger than the body, because it is the sentence the banker
+   lands on and everything under it is read against. */
+.bf-lede {
+  margin: 0;
+  font-size: 13.4px;
+  line-height: 1.5;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.bf-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* The section label. Same quiet register as `.rl-brief-k`, so the room's two
+   structured surfaces read as one family rather than two designs. */
+.bf-k {
+  margin: 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+
+.bf-p {
+  margin: 0;
+  max-width: 78ch;
+  font-size: 12.4px;
+  line-height: 1.62;
+  color: var(--ink-body);
+}
+.bf-p + .bf-p {
+  margin-top: 7px;
+}
+
+/* THE ASK, IN THE BANKER'S OWN DIRECTION. The ask is the imperative and the
+   reason follows it in the body ink, so a banker scanning for what to do next
+   reads the bold half and stops. */
+.bf-ask {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* A CHANGE IS A SENTENCE, NOT A ROW. The lane rides on the data attribute for
+   anyone inspecting the paragraph; nothing about it is painted, because a
+   colour per lane would turn one paragraph back into eight tiles. */
+.bf-chg {
+  color: inherit;
+}
+
+/* WHAT IS NOT IN FRONT OF THE ROOM. Quieter than the facts and never alarming:
+   a gap is an honest statement of scope, not a warning. */
+.bf-gap {
+  color: var(--ink-muted);
+  font-size: 11.8px;
+}

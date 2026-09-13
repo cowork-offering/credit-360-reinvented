@@ -2,6 +2,39 @@
 
 ## Changelog
 
+- **0.9.24 (2026-09-14)** THE RELATIONSHIP-ROOM RELEASE. Founder, 2026-09-13, from the road: "why
+  are we driving everything from a PP perspective in the relationship workroom; covenants and
+  collateral should be driven from the relationship; a package is an association the row shows,
+  never a filter; and it feels flat and out of touch: yes ok it is a covenant review, but for what,
+  what does the room need from me and why, and it should pull in information from all over the
+  relationship; and it needs to work everywhere, not only Hartwell." Org side (bankinggpt-at,
+  0Afbb00000Dvb8DCAR): `StageCovenantReview` and `StageCollateralValuation` are anchored on the
+  ACCOUNT (`productPackageId` optional, a narrowing the caller chose, never required; a package-only
+  call still derives the borrower so the 0.9.23 cockpit keeps working); every planned covenant and
+  item carries its `associations` (the facilities and packages it is tied to, read off the junctions,
+  unconstrained by any package); the staging row anchors on the account; `StageNewFacility` (and its
+  execute) and `StageRenewal` (held) take the covenant add, covenant attach and pledge add arms of the
+  modification through the shared `C360FacilityArms`; the discard marks the modification row that
+  FILED the version Withdrawn too. Proven on Hartwell (SPEC-0.9.23-ORG-PROOF.md D): a covenant review
+  with `accountId` only scopes all covenants across both packages with their associations. Cockpit:
+  the covenant review and the collateral valuation open on the relationship with no package question
+  and no package chip; every covenant and every owned asset is listed with the facilities and packages
+  it is tied to on the row ("Line of Credit $15M, Construction $12M; Non-RE/RE package",
+  "Relationship level, on no facility"); the plan card says "What this touches"; the trail row says
+  "Covenant review on Hartwell, across the Non-RE and RE packages". THE BRIEFING: the relationship
+  room opens by explaining, not asking: per covenant what it tests, the threshold against the measured
+  figure with its source and date, the last verdict, the next test, the trend where two points exist,
+  the facilities and packages it sits on; what changed on the relationship since, drawn from every lane
+  the cockpit holds (spread and ratios, exposure and drawn balances, pledges and coverage, the trail,
+  signals; the inbox and the memo named as gaps where not loaded); what the room needs from the banker
+  and why; what the committee will ask, derived and never a policy verdict; and what is not in front of
+  it, named. Pure builder (`channel/relationshipBriefing.ts`), tested on all five baked books, never
+  invents; the same shape for the valuation, the annual review, the risk-rating review and the service
+  request; the governed ask stays last. EVERYWHERE, NOT ONLY HARTWELL (founder): the drives now take a book (`--book`, `design/probes/lib/book.mjs` derives every figure a scenario quotes off the baked bundle with the app's own rules) and the gate runs the matrix on Hartwell, Kingsley (one package, one revolver, a Paid Off loan) and Piedmont (nothing booked); a book that cannot ask a question asserts the simple path and says which it took. What the other books surfaced and was fixed: the modification room went blind to every party when the graph named a package the exposure read did not carry (a version, or the sample books), a party change was staged on a package with nothing booked, a singular party reference fanned out over every facility whose name carried the borrower's word, a guarantor's own name was read as the facility scope, "each once" over a single party, the same refusal printed three times word for word, and the probe's version fixture cloned inactive members so the whole version lifecycle was invisible on Kingsley; the relationship reviews on a book with no compliance rows or no pledged asset refuse at the door in the room's own words and the drive asserts that path. Also: the briefing's gaps read as one sentence each, and the no-collateral refusal speaks of the relationship, not a package. The facility workroom stays package-driven (founder:
+  "how it is in the facility room is good already"). Gates: tsc 0; vitest 224 files, 5,285 passed, 0 failed, 11 todo; bundle 2,105,219 B (2.008 MiB; the hard cap moved once from 2.0 to 2.25 MiB with the load reasoning in rename-bundle.mjs, the next move is a trim; baseline moved); IRIS 0; the drive matrix (design/probes/gate.mjs): eleven scenarios on Hartwell, Kingsley and Piedmont plus the three spread files on Kingsley, 36 rows, 0 findings, 0 pending. Backlog: 45, 49, 50 FIXED; 51 FIXED (the matrix is the gate);
+  43 (the cinematic entry) is a design-intent gate, one option in knowledge/DESIGN-0.9.24-ENTRY.md,
+  built only on the founder's yes; 46, 48 open (founder calls).
+
 - **0.9.23 (2026-09-13)** THE VERSION LIFECYCLE, AND A WRITE THAT ALWAYS LANDS. Founder ask on the
   road: shape a modification a day later, undo it whole, never a 502 again. Org side (bankinggpt-at):
   `StageAmendVersion` / `ExecuteAmendVersion` reuse the modification's own arms (scalar and field

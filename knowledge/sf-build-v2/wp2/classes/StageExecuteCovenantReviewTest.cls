@@ -587,4 +587,116 @@ private class StageExecuteCovenantReviewTest {
             System.assertEquals('VALIDATION_FAILED', out[i].error.code);
         }
     }
+
+    // -------------------------------------------------------------------------------------------
+    // Backlog row 49: the account is the anchor and a package is an association.
+    // -------------------------------------------------------------------------------------------
+
+    /** The same request, anchored on the relationship rather than on the deal. */
+    private static StageCovenantReview.Request accountReq(String key, List<StageCovenantReview.Assessment> assessments) {
+        StageCovenantReview.Request r = new StageCovenantReview.Request();
+        r.idempotencyKey = key;
+        r.accountId = C360Wave2Fixture.existingAccount().Id;
+        r.rationale = 'Quarterly covenant test across the relationship.';
+        r.assessments = assessments;
+        return r;
+    }
+
+    @IsTest
+    static void theRelationshipIsTheAnchorAndNeedsNoPackage() {
+        C360TestFixture.armCalloutMock();
+        Id covA = covenant('ZZ-W2-COV-A').Id;
+
+        Test.startTest();
+        StageCovenantReview.Response res = StageCovenantReview.stage(new List<StageCovenantReview.Request>{
+            accountReq(C360Wave2Fixture.key('cov-acct'), new List<StageCovenantReview.Assessment>{ assess(covA, 'Compliant') })
+        })[0];
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'A covenant review needs no deal to exist, got ' + why(res));
+        System.assertEquals(3, res.result.scopeCount,
+            'Every covenant on the relationship is in scope: two through the account junction, one through a facility.');
+        System.assertEquals(String.valueOf(C360Wave2Fixture.existingAccount().Id), res.result.accountId,
+            'The staging row anchors on the relationship.');
+        System.assertEquals(null, res.result.productPackageId,
+            'Covenant A is tied to no facility, so this plan touches no package and there is no deal to deep-link to.');
+
+        cm_Action_Staging__c row = [
+            SELECT cm_Account__c, cm_Product_Package__c FROM cm_Action_Staging__c WHERE Id = :res.result.stagingId
+        ];
+        System.assertEquals(C360Wave2Fixture.existingAccount().Id, row.cm_Account__c);
+        System.assertEquals(null, row.cm_Product_Package__c,
+            'A package on the trail row would claim a narrowing nobody chose.');
+    }
+
+    @IsTest
+    static void everyCovenantCarriesTheFacilitiesAndPackagesItIsTiedTo() {
+        C360TestFixture.armCalloutMock();
+        Id covA = covenant('ZZ-W2-COV-A').Id;
+        Id covB = covenant('ZZ-W2-COV-B').Id;
+        LLC_BI__Loan__c fixtureLoan = C360Wave2Fixture.existingLoan();
+        LLC_BI__Product_Package__c pkg = C360Wave2Fixture.existingPackage();
+
+        Test.startTest();
+        StageCovenantReview.Response res = StageCovenantReview.stage(new List<StageCovenantReview.Request>{
+            accountReq(C360Wave2Fixture.key('cov-assoc'), new List<StageCovenantReview.Assessment>{ assess(covA, 'Compliant') })
+        })[0];
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'stage should succeed, got ' + why(res));
+
+        StageCovenantReview.PlannedCovenant a = find(res.result, covA);
+        System.assertEquals('[]', a.associations,
+            'A relationship-level covenant with no facility junction carries an EMPTY association list. ' +
+            'That is a real answer about the covenant, not a gap: ' + a.associations);
+
+        StageCovenantReview.PlannedCovenant b = find(res.result, covB);
+        System.assert(b.associations.contains(String.valueOf(fixtureLoan.Id)),
+            'A loan-level covenant names the facility it is tied to: ' + b.associations);
+        System.assert(b.associations.contains(String.valueOf(pkg.Id)),
+            'And the package that facility sits on: ' + b.associations);
+        System.assert(b.associations.contains(pkg.Name),
+            'By name, because the row is read by a banker: ' + b.associations);
+        System.assertEquals(C360Covenants.STATE_NOT_ASSESSED, b.state,
+            'Covenant B is surveyed and reported, not written: the association is shown, never used to filter it out.');
+    }
+
+    @IsTest
+    static void thePackageOnlyCallStillWorksAndDerivesTheBorrower() {
+        C360TestFixture.armCalloutMock();
+        Id covA = covenant('ZZ-W2-COV-A').Id;
+
+        Test.startTest();
+        StageCovenantReview.Response res = StageCovenantReview.stage(new List<StageCovenantReview.Request>{
+            req(C360Wave2Fixture.key('cov-pkgonly'), new List<StageCovenantReview.Assessment>{ assess(covA, 'Compliant') })
+        })[0];
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok,
+            'The deployed cockpit sends the package alone, and breaking that would break the room: ' + why(res));
+        System.assertEquals(String.valueOf(C360Wave2Fixture.existingAccount().Id), res.result.accountId,
+            'The borrower is derived from the package, so the plan still anchors on the relationship.');
+    }
+
+    @IsTest
+    static void aPackageOnAnotherRelationshipNarrowsNothingAndIsRefused() {
+        C360TestFixture.armCalloutMock();
+        Id covA = covenant('ZZ-W2-COV-A').Id;
+        Account other = new Account(Name = 'ZZ-W2-TEST Other Borrower');
+        insert other;
+        LLC_BI__Product_Package__c theirs = C360Wave2Fixture.productPackage(other.Id);
+
+        StageCovenantReview.Request r =
+            accountReq(C360Wave2Fixture.key('cov-foreignpkg'), new List<StageCovenantReview.Assessment>{ assess(covA, 'Compliant') });
+        r.productPackageId = theirs.Id;
+
+        Test.startTest();
+        StageCovenantReview.Response res = StageCovenantReview.stage(new List<StageCovenantReview.Request>{ r })[0];
+        Test.stopTest();
+
+        System.assertEquals(false, res.ok, 'A package on another relationship narrows nothing.');
+        System.assertEquals('VALIDATION_FAILED', res.error.code);
+        System.assert(res.error.message.contains('belongs to relationship'),
+            'The refusal says which relationship the package actually sits on: ' + res.error.message);
+    }
 }

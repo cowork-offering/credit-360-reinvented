@@ -28,6 +28,13 @@
  * start a fresh action, it cannot run against a different plan, and it cannot be driven by a
  * different human than the one who confirmed.
  *
+ * THE ARMS (backlog row 49, founder 2026-09-13). When the staged plan carries net-new covenants,
+ * covenant associations or collateral pledges, invocation 1 authors them onto the facility it just
+ * created, in the SAME transaction, and proves every row by re-query. The authoring lives in
+ * C360FacilityArms, which is also what stage_new_facility and stage_renewal build their plans from,
+ * so the plan and the write cannot describe different things. A failure in an arm rolls the facility
+ * back with it: the banker confirmed one decision and gets all of it or none of it.
+ *
  * BORROWING STRUCTURE. A Loan insert creates NO involvement row: proven with a control, where the
  * Loan Detail appeared and involvement rows did not (LESSONS 15u). A facility filed without one has
  * no borrowing structure at all, so invocation 1 also writes the Borrower row on
@@ -123,6 +130,14 @@ global with sharing class ExecuteNewFacility {
         global String involvementId;
         @InvocableVariable(label='Loan Detail Id')
         global String loanDetailId;
+        @InvocableVariable(label='Covenants Created' description='Net-new covenants this action created on the borrower and attached to the facility, each proved by re-query.')
+        global Integer covenantsCreated;
+        @InvocableVariable(label='Covenants Associated' description='Existing covenants this action junctioned onto the facility. No covenant record was created or amended.')
+        global Integer covenantsAssociated;
+        @InvocableVariable(label='Pledges Created' description='Collateral pledges this action authored on the facility.')
+        global Integer pledgesCreated;
+        @InvocableVariable(label='Assets Created' description='Collateral records this action created, with the borrower recorded as owner. Zero where every pledge named an asset the borrower already held.')
+        global Integer assetsCreated;
         @InvocableVariable(label='Stage' description='The facility stage after this run. Proposal on a full success, Qualification when the Loan Detail did not arrive in budget.')
         global String stage;
         @InvocableVariable(label='Terminal State')
@@ -156,7 +171,7 @@ global with sharing class ExecuteNewFacility {
      */
     @InvocableMethod(
         label='execute_new_facility'
-        description='Execute a plan staged by stage_new_facility, behind the single-use decision token. Creates the facility at Qualification, waits for nCino to create the Loan Detail, then performs the single allowlisted hop to Proposal. Never reaches a post-approval stage.'
+        description='Execute a plan staged by stage_new_facility, behind the single-use decision token. Creates the facility at Qualification, authors any net-new covenants, covenant associations and collateral pledges the plan carries onto it in the same transaction and verifies each by re-query, waits for nCino to create the Loan Detail, then performs the single allowlisted hop to Proposal. Never reaches a post-approval stage.'
     )
     global static List<Response> run(List<Request> requests) {
         List<Response> out = new List<Response>();
@@ -335,6 +350,17 @@ global with sharing class ExecuteNewFacility {
                 : 'The org named this facility ' + orgName + ' and set product ' + filed.LLC_BI__Product__c + '.'
         );
 
+        // THE ARMS, IN THIS TRANSACTION (backlog row 49, founder 2026-09-13). The facility exists
+        // and has been read back, which is everything a covenant junction or a pledge needs. They
+        // are authored here rather than on the resume for two reasons: the Loan Detail is an
+        // after-commit child that can be slow or absent, and hanging a covenant off that wait would
+        // let a banker who asked for "this facility with this covenant" get the facility alone; and
+        // a failure in an arm rolls the facility back with it, which is the all-or-nothing the plan
+        // promised. Every row is proved by re-query inside C360FacilityArms, never by the insert.
+        C360FacilityArms.Authored armed = C360FacilityArms.author(
+            steps, v, accountId, clean.Id, orgName == null ? String.valueOf(clean.Id) : orgName
+        );
+
         // The Loan Detail is created AFTER this transaction commits, so it is not observable from
         // here at all. Returning is the only correct move (LESSONS 15p).
         C360Plan.setState(
@@ -356,9 +382,14 @@ global with sharing class ExecuteNewFacility {
         out.replayed = false;
         out.resumable = true;
         out.resumeDescriptor = RESUME_DESCRIPTOR;
+        out.covenantsCreated = armed.covenantsCreated;
+        out.covenantsAssociated = armed.covenantsAssociated;
+        out.pledgesCreated = armed.pledgesCreated;
+        out.assetsCreated = armed.assetsCreated;
         return finish(stg, steps, out,
             (createPackage ? 'Credit package ' + anchor[0].Name + ' created. ' : '') +
             'Facility ' + (orgName == null ? String.valueOf(clean.Id) : orgName) + ' filed at Qualification. ' +
+            (armed.sentence == null ? '' : armed.sentence + ' ') +
             'The org creates the Loan Detail moments after filing, in its own transaction. ' + RESUME_DESCRIPTOR);
     }
 

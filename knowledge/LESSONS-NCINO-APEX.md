@@ -878,6 +878,99 @@ Nothing in this section was settled from the spec's wording.
     `assertClaimable`. RULE: when changing a rule, grep the suite for the OLD rule's sentence before
     writing the new test, and rewrite that method in place so the diff shows the claim changing.
 
+### 8l. The relationship anchor and the shared arms, 2026-09-13 (A4: rows 49 and 45, 0.9.24).
+
+59. **Moving an anchor is a scope change and a refusal-ORDER change, and the second one is what
+    breaks tests.** `stage_collateral_valuation` went from "prove this asset belongs to the named
+    package" to "prove it reaches the named relationship". The scope rule was easy; the ordering was
+    not. A stranger's asset used to be refused with "not part of product package X", and an
+    ownership-first rule refuses it earlier with a different sentence, so an existing test asserting
+    the package wording fails for a reason that has nothing to do with the change. The fix is not to
+    reword either refusal but to notice that the package scope is a strict SUBSET of the relationship
+    scope - a package's loans are the relationship's loans and its borrower is the relationship - so
+    where the caller narrowed, the NARROWER test is the only one that needs to run, and the refusal
+    keeps naming the deal the banker is working with. One test rewritten would have been acceptable
+    (lesson 58); zero tests rewritten and a sharper refusal is better. GENERALISE: when two
+    membership rules nest, run the inner one alone and say so, rather than running both and making
+    the banker read the outer one's vaguer sentence.
+
+60. **An optional anchor and a required one are the same field with different `required=true`, and
+    the platform will not let you have both.** `productPackageId` was `required=true` on
+    `stage_covenant_review`. Row 49 makes it optional and `accountId` the anchor, but the deployed
+    cockpit 0.9.23 sends the package alone, so neither field can carry `required=true`: the Actions
+    API enforces it before Apex runs (lesson 16aa) and either flag would refuse one of the two live
+    shapes. Both are `required=false` and Apex enforces "at least one, and if both, they must agree".
+    The agreement check is worth its lines: a package belonging to another relationship would
+    otherwise anchor the trail row on a borrower the caller never named.
+
+61. **An ASSOCIATION is data on the row, and the moment it becomes a query filter the founder's rule
+    is broken.** Both tools now read the facility junctions for every item in scope and return
+    `[{loanId, loanName, productPackageId, packageName}]` per item. The temptation is to constrain
+    that read to the package the caller named, which is one line shorter and hides exactly the
+    cross-deal ties the room exists to show: three of Hartwell's four assets are pledged to two
+    facilities each. The association read is deliberately UNCONSTRAINED by the caller's narrowing.
+    Corollary for the staging row: `cm_Product_Package__c` is written only when the items touch
+    exactly ONE package, and is null otherwise. A plan spanning two deals has no deal to deep-link
+    to, and picking one of them would make the trail claim a narrowing nobody chose.
+
+62. **`JSON.serialize` drops nulls, which is what makes a JSON-string wire field survivable.** An
+    `@InvocableVariable` cannot carry a list of Apex-defined types inside another Apex-defined type,
+    so the associations travel as a serialised string on the item. An empty list serialises as `[]`,
+    which is a real answer ("this covenant is tied to no facility") rather than blank space, and a
+    null package name is omitted rather than rendered as the four-character string `null`. Build the
+    association through one factory that keeps nulls as nulls: `String.valueOf(null)` is `'null'` and
+    the next reader will try to resolve it as an id.
+
+63. **Sharing a PARSER is cheap; sharing a WRITER is not, and the discriminator is how many targets
+    it has.** Lesson 55 made `StageLoanModification`'s arm parsers `public static` and
+    `stage_amend_version` reused them. `stage_new_facility` and `stage_renewal` now reuse the same
+    three, but the AUTHORING could not be reused from `ExecuteLoanModification`: its arm hop runs
+    against a clone map, across two transactions, behind a relay. So `C360FacilityArms` carries the
+    plan half and a SINGLE-TARGET authoring half, which is the only shape a new-facility plan can
+    have, and the modification keeps its own multi-target one. Duplicating the plan STEPS would have
+    been the real drift risk and that is what the shared class removes: step ids and value prefixes
+    are byte-identical across all four tools, so a room that renders one renders them all.
+
+64. **A parser that reads the borrower off `facilities[0]` cannot serve a tool that selects no
+    facility, and the fix is a field the wire never sees.** `stage_new_facility` lands its arms on a
+    facility it is about to create, and on the package-first path there is no package to read a
+    borrower from either. `StageLoanModification.Request` gained `public Id armBorrowerId` with NO
+    `@InvocableVariable`: it is a legal public field on a global inner class, invisible to the
+    Actions API, and it is consulted only when `facilities` is empty. Same shape for the default
+    target: an arm naming no `targetLoanId` falls through to the sole net-new facility's label when
+    nothing is selected, and to the existing single-selection rule otherwise. Additive on both
+    counts, so the modification's 67-test suite ran green unchanged in the same validation.
+
+65. **Arms authored INLINE need their own governor budget, and it is smaller than the modification's.**
+    `execute_new_facility` writes the facility, its package, its borrower row and then every arm in
+    ONE transaction, and each row wakes a *CDC trigger that enqueues a queueable against a ceiling of
+    50. A covenant add is three rows, a pledge up to four. `C360FacilityArms.ARM_MAX_PER_KIND = 5`
+    caps each arm at stage time with the reason in banker copy; the modification's arm hop runs in a
+    transaction of its own and keeps its own caps. A cap that exists only in the execute is a cap the
+    banker discovers by having a confirmed plan fail.
+
+66. **Authoring the arms in invocation 1 rather than on the resume is a correctness choice, not a
+    performance one.** The obvious reading of "file the facility, then attach its covenant" puts the
+    arms after the stage hop, which is after the after-commit Loan Detail wait. That wait can be slow
+    or never satisfied (lesson 15t), and a banker who asked for "this facility with this covenant"
+    would get the facility alone with no failure to read. The arms therefore land in the same
+    transaction as the facility: all of it or none of it, and an arm failure rolls the facility back
+    with it, which is the fence behaving exactly as lesson 15q describes.
+
+67. **A trail row can belong to a thing without being anchored on it, and a delete that reads only
+    the anchor leaves a lie behind (row 45).** `ExecuteDiscardVersion` withdrew the rows carrying
+    `cm_Product_Package__c = <version>`, which is every action a banker ran INSIDE the version. The
+    action that CREATED the version - the loan modification that filed it - is anchored on the SOURCE
+    package, because that is the package the banker was looking at; what ties it to the version is
+    `cm_Result_Record_Id__c` naming one of the loans about to be deleted. It stayed `Completed`
+    forever. The union is now computed at STAGE time, in `StageDiscardVersion.buildTrail`, for two
+    reasons: the plan's count, its warning and its `withdraw_trail` step then promise what the run
+    actually does, and the set survives a resume, where the version loans are already gone and a
+    fresh query on their ids would find nothing. Same argument the parents already carry (they come
+    off the staged plan, never off a fresh discovery), and it is worth stating as a rule: ANY set a
+    delete chain needs after the delete is read before it.
+
+
 ---
 
 *Maintained by the orchestrator. Add to this file in the same build wave a lesson is learned; a lesson

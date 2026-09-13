@@ -1,33 +1,71 @@
 /* WORKROOM BROWSER DRIVE (orchestrator gate, 2026-09-13). Drives the modification room on the
-   BUILT page with the probe stub lanes, handing the lane Hartwell's REAL exposure + covenants via
-   __LANES.livePatch, types the founder's transcript + stress-script lines into the real composer,
-   and asserts per turn: a NEW room reply arrives, it is not a repeat of the previous reply, a
-   "One decision at a time" refusal only appears while an open card/chips are visible, no em dash.
+   BUILT page with the probe stub lanes, handing the lane the chosen borrower's REAL exposure +
+   covenants + snapshot + graph via __LANES.livePatch, types the founder's transcript +
+   stress-script lines into the real composer, and asserts per turn: a NEW room reply arrives, it
+   is not a repeat of the previous reply, a "One decision at a time" refusal only appears while an
+   open card/chips are visible, no em dash.
    SCENARIOS ARE TYPED (0.9.23). A scenario is either a COMPOSER script, which is what every
    scenario before this release was and which is unchanged, or a DRIVE, a function handed the page
    after the relationship is open. The version-lifecycle scenarios are drives: they walk the trail,
    the panel and the create room rather than typing into a composer. A scenario may also declare
    `version`, which switches on the stub's in-flight modification version, and `pending: "<agent>"`,
    which reports it separately rather than counting its findings as a gate failure.
-   Usage: node workroom-e2e.mjs <bundle.html> [scenario] */
+
+   ============================ THE RULE: EVERY RELEASE RUNS THE MATRIX ============================
+
+   Founder, 2026-09-13: "it is not only Hartwell, it needs to work everywhere." One book green is
+   not a gate, it is a coincidence: every sentence the room prints about "which package", "which
+   one of those", a guarantor, a pledge or a coverage ratio is a sentence some OTHER book says
+   differently, and a drive pinned to one relationship cannot see any of it.
+
+   So no release ships on one book. `node ../design/probes/gate.mjs` (npm: `npm run gate:drives`
+   in app/) runs EVERY scenario below on Hartwell, Kingsley and Piedmont plus the spread drive's
+   three files, prints one table and exits non-zero on any finding. Run it before the version bump,
+   not after.
+
+   THE THREE BOOKS ARE CHOSEN, not arbitrary. Hartwell is the founder's own: two packages, nine
+   facilities, two lines of credit, twenty-six graph rows. Kingsley is ONE package, one revolver
+   (so no "which one?" question), a Paid Off member and two guarantors. Piedmont is one package
+   with NOTHING BOOKED, so a credit action has nothing to run against and no modification version
+   can exist at all. Between them they exercise both sides of every fork in the room.
+
+   A BOOK THAT CANNOT ASK A QUESTION MUST STILL BE ASSERTED ON. Where a scenario's question does
+   not arise on this book (one package binds silently, one facility of a product needs no
+   disambiguation, no booked facility means no modification), the scenario asserts the SIMPLE path
+   instead and reports `path` saying which it took. It is never skipped: the simple path is where
+   the single-book defects live.
+
+   Usage: node workroom-e2e.mjs [bundle.html] [scenario] [out.json] [--book <accountId|name>] */
 import fs from "node:fs"; import os from "node:os"; import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { chromium } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/node_modules/playwright/index.mjs";
 import { serveDir } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/lib/serve.mjs";
+import { bookParams, resolveBook, fmtMoney } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/lib/book.mjs";
 const ROOT = "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented";
+/** `--book <id|name>` may sit anywhere; everything else stays positional. */
+function takeFlag(name) {
+  const at = process.argv.indexOf(`--${name}`);
+  if (at === -1) return null;
+  const value = process.argv[at + 1] ?? null;
+  process.argv.splice(at, value === null ? 1 : 2);
+  return value;
+}
+const BOOK_ARG = takeFlag("book") || "Hartwell";
 const BUNDLE = process.argv[2] || path.join(ROOT, "app/dist/cockpit.html");
 const ONLY = process.argv[3] || null;
+const OUT = process.argv[4] || "wk-e2e-out.json";
 const STUB = fs.readFileSync(path.join(ROOT, "design/probes/lib/stub-lanes.js"), "utf8");
 const SAMPLE = fs.readFileSync(path.join(ROOT, "design/probes/lib/stub-sample.js"), "utf8");
 const LIVE = JSON.parse(fs.readFileSync(path.join(ROOT, "artifact/live-data.json"), "utf8"));
-const ACCOUNT = "001bb00001I7FPNAA3";
-const H = LIVE.borrowers[ACCOUNT];
-/* THE DRIVE RUNS ON HARTWELL'S REAL BOOK. The snapshot and the relationship graph ride with the
-   exposure and the covenants, so every label the room prints names Hartwell and every party the
-   parser resolves is a real row off the graph rather than the stub's empty one. Without the graph
-   the party asks were answered out of nothing; without the snapshot the room read Piedmont's name
-   over Hartwell's facilities. */
-const patch = { Customer360Snapshot: H.snapshot, Customer360RelationshipGraph: H.graph, Customer360Covenants: H.covenants, Customer360Exposure: H.exposure };
+/* THE DRIVE RUNS ON ONE REAL BOOK, AND `--book` SAYS WHICH. The snapshot and the relationship
+   graph ride with the exposure and the covenants (and the opportunities and the structural
+   signals), so every label the room prints names THIS borrower and every party the parser resolves
+   is a real row off its own graph rather than the stub's empty one. Without the graph the party
+   asks were answered out of nothing; without the snapshot the room read the lane's default name
+   over the patched facilities. `lib/book.mjs` owns the mapping and every derived figure. */
+const ACCOUNT = resolveBook(LIVE, BOOK_ARG);
+const BOOK = bookParams(LIVE, ACCOUNT);
+const patch = BOOK.patch;
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wk-e2e-")); fs.mkdirSync(path.join(dir, "b"), { recursive: true });
 execFileSync("node", [path.join(ROOT, "app/scripts/assemble-artifact.mjs"), path.join(ROOT, "artifact/live-data.json"), path.join(dir, "b/index.html"), BUNDLE], { stdio: "ignore" });
 const server = await serveDir(dir);
@@ -36,49 +74,123 @@ const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--no-
 /* "THE LINE OF CREDIT" NAMES NEITHER, on a package carrying two of them, so the
    room asks which and the banker answers (D1, 2026-09-13). The pick is ADDED to
    each script rather than replacing anything: every line the drive asserted on
-   before is still typed, in the same order, after the member is settled. */
-const PICK = "the $15M line of credit";
+   before is still typed, in the same order, after the member is settled.
 
-/* THE IN-FLIGHT VERSION THE STUB CARRIES for every version-lifecycle scenario. The source is
-   Hartwell's booked package and the moved facility is the $15M line, which the filing renames to
-   $20,000,000.00 on the clone. The clone set is the source's members, one for one: that is what
-   nCino's credit action produces and what `book/packages.ts` recognises as a fork. */
-const SOURCE_PACKAGE = "a5Fbb000000IHFJEA4";
-const VERSION_PACKAGE = "a5Fbb0000009TESTV1";
-const VERSION = {
-  source: SOURCE_PACKAGE,
-  id: VERSION_PACKAGE,
-  name: "Hartwell Precision Manufacturing LLC credit package",
-  moved: { loanId: "a4Zbb0000027MaYEAU", committed: 20000000 },
-};
+   ON A BOOK CARRYING ONE OF THEM THERE IS NOTHING TO ASK, so the pick line is
+   dropped and the scenario reports that it took the silent path. Typing it
+   anyway would be the drive answering a question the room never put. */
+const PICK = BOOK.ambiguousMember ? BOOK.pickLine : null;
+/** The script, with the member pick in it only where the book raises the question. */
+const withPick = (lines) => lines.filter((l) => l !== null && l !== undefined);
 
+/* THE IN-FLIGHT VERSION THE STUB CARRIES for every version-lifecycle scenario. The source is this
+   book's most-booked package and the moved facility is its largest line of credit, which the
+   filing renames to the raised figure on the clone. The clone set is the source's ACTIVE members,
+   one for one: that is what nCino's credit action produces and what `book/packages.ts` recognises
+   as a fork. Null on a book with no booked package, because a credit action only runs against a
+   booked loan and therefore no version of it can exist. */
+const VERSION = BOOK.version;
+const SOURCE_PACKAGE = VERSION ? VERSION.source : null;
+const VERSION_PACKAGE = VERSION ? VERSION.id : null;
+/** The regex that finds this book's working package in a picker row. */
+const PKG_WANT = BOOK.packageId;
+
+/* THE SENTENCES, COMPOSED FROM THE BOOK. Every one of them is the founder's own line with its
+   figures and its names taken off whichever relationship is open: on Hartwell they render back to
+   the literal transcript ("Increase the line of credit by 20M USD", "the $15M line of credit",
+   "Hold 6.58%"), and on another book they say the same thing about that book's own facility. */
+const P = BOOK.product;
 const SCENARIOS = {
-  founderTranscript: { lines: ["Increase the line of credit by 20M USD", PICK, "240 months", "1 October 2026", "Hold 6.58%", "what borrowers are on this loan already ?", "yes increase to 7.25%", "show me the pledges on this loan"] },
-  stressRate: { lines: ["Increase the line of credit to 20M", PICK, "7.25%", "asdf", "keep it", "240 months", "1 October 2026", "no change"] },
-  relativeAndSign: { lines: ["add 50bps on the line of credit", PICK, "-5%", "actually 8%", "what is this covenant doing?"] },
+  founderTranscript: {
+    lines: withPick([
+      `Increase the ${P} by ${BOOK.raisedToPhrase} USD`,
+      PICK,
+      "240 months",
+      "1 October 2026",
+      BOOK.holdRate === null ? "no change" : `Hold ${BOOK.holdRate}%`,
+      "what borrowers are on this loan already ?",
+      BOOK.pushRate === null ? "keep it" : `yes increase to ${BOOK.pushRate}%`,
+      "show me the pledges on this loan",
+    ]),
+  },
+  stressRate: {
+    lines: withPick([
+      `Increase the ${P} to ${BOOK.raisedToPhrase}`,
+      PICK,
+      BOOK.pushRate === null ? "7.25%" : `${BOOK.pushRate}%`,
+      "asdf",
+      "keep it",
+      "240 months",
+      "1 October 2026",
+      "no change",
+    ]),
+  },
+  relativeAndSign: {
+    lines: withPick([`add 50bps on the ${P}`, PICK, "-5%", "actually 8%", "what is this covenant doing?"]),
+  },
   /* 0.9.23, IMPROVEMENTS row 44. Parties and collateral, in the founder's own words: the plural
      collateral read, the borrowing-structure reads, a party named by her first name, "this loan"
-     for a removal, and the line that already worked. */
-  founderParties: { lines: ["show me all my collaterals", "show my full collaterals", "who are the guarantors on this package", "which entities are on the $15M line of credit", "remove Elena from this loan", "remove Elena Hartwell from this loan", "remove Elena Hartwell as guarantor from the 15M line of credit", "add James as guarantor on the 15M line"] },
+     for a removal, and the line that already worked. A book with ONE guarantor cannot be asked to
+     add a second party, so that line is dropped and the scenario says so. */
+  founderParties: {
+    lines: withPick([
+      "show me all my collaterals",
+      "show my full collaterals",
+      "who are the guarantors on this package",
+      `which entities are on ${BOOK.ambiguousMember ? BOOK.pickLine : "this package"}`,
+      BOOK.removeFirstName ? `remove ${BOOK.removeFirstName} from this loan` : null,
+      BOOK.removeParty ? `remove ${BOOK.removeParty} from this loan` : null,
+      BOOK.removeParty ? `remove ${BOOK.removeParty} as guarantor from the ${BOOK.bareMoney} ${P.toLowerCase()}` : null,
+      BOOK.addParty ? `add ${BOOK.addParty} as guarantor on the ${BOOK.bareMoney} ${P.toLowerCase()}` : null,
+    ]),
+    path: [
+      BOOK.removeFirstName ? null : "no guarantor on this book is a person, so no first-name ask",
+      BOOK.addParty ? null : `one guarantor on this book, so no second party to add`,
+    ].filter(Boolean).join("; ") || null,
+    /* THE ROOM MUST SEE THE PARTY IT IS BEING ASKED ABOUT (D1, 2026-09-13). The
+       per-turn rules cannot catch this one: three replies that never name the
+       guarantor are three different sentences, all fresh, none a repeat, and on
+       Kingsley that is exactly what came back ("I read the Term Loan A, but not
+       what should change on it") while the card two lines above listed him. So
+       the scenario reads the whole transcript once: a party the drive named off
+       the book's own graph has to appear in what the room said back. */
+    check: (said, findings) => {
+      for (const who of [BOOK.removeParty, BOOK.addParty].filter(Boolean)) {
+        if (!said.includes(who)) findings.push(`the room never names ${who}, a guarantor on this book's own relationship graph`);
+      }
+      if (/but not what should change on/i.test(said) && BOOK.removeParty) {
+        findings.push(`a party line was answered as a facility the room could not change: "${said.match(/[^|]*but not what should change on[^|]*/i)?.[0]?.trim().slice(0, 160)}"`);
+      }
+    },
+  },
   /* 0.9.23. The undo, end to end on the built page: the trail's standing row, the panel, the org's
      inventory on the confirm gate, and the book afterwards. */
-  discardVersion: { version: true, drive: driveDiscard },
+  discardVersion: { version: true, drive: driveDiscard, needsVersion: true },
   /* 2c.1, both halves. "New package" leads the create room's offer from the relationship; from
      inside the version, the version leads and "New package" follows, and the booked SOURCE of the
      version is on neither list. */
-  createFromRelationship: { version: true, drive: driveCreateFromRelationship },
-  createInsideVersion: { version: true, drive: driveCreateInsideVersion },
+  createFromRelationship: { version: true, drive: driveCreateFromRelationship, needsVersion: true },
+  createInsideVersion: { version: true, drive: driveCreateInsideVersion, needsVersion: true },
   /* 2a.1, C1's amend engine, LANDED: the route, the arm on the wire and the figure on the
      version's own loan afterwards. No longer pending. */
-  amendVersion: { version: true, drive: driveAmend },
+  amendVersion: { version: true, drive: driveAmend, needsVersion: true },
   /* 0.9.23 P0. THE RELAY DROPS THE ANSWER (the founder's 502, 2026-09-13): the org takes the plan
      and the page never hears back. Both halves, on the built page: one dropped answer, which the
      room must survive without a duplicate staging row, and every answer dropped, where the room
      must name the row Salesforce is holding instead of saying nothing was filed. */
   relayDrop: { drive: driveRelayDrop },
+  /* ROW 51. THE DOORS OPEN ON EVERY BOOK. The relationship room and the memo door were driven on
+     Hartwell alone, where the package question is always asked; a book that binds its one package
+     silently walks a different branch through both of them, and a door that throws on it is a
+     door the founder finds. The create room's own door is `createFromRelationship`. */
+  doorsOpen: { drive: driveDoors },
+  /* ROW 49. COVENANTS AND COLLATERAL ARE RELATIONSHIP-DRIVEN. Both reviews, on the built page: no
+     package question, every covenant and every owned asset listed with the facilities and packages
+     it is tied to, the wire anchored on the account, and the filing taken to Confirm. */
+  relationshipReviews: { drive: driveRelationshipReviews },
 };
 
-/** A page on the built bundle, on the stub lanes, with Hartwell open. One door for every
+/** A page on the built bundle, on the stub lanes, with the CHOSEN book open. One door for every
  *  scenario, script or drive, so no two of them open the cockpit differently. */
 async function openPage(version) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -112,14 +224,21 @@ async function packageRows(page) {
 
 /** ROUTE FIRST, PACKAGE SECOND. Take the route, then answer the question it scopes.
  *  Returns the row that was taken, "[blocked] …" where the route closed it, or null
- *  where the route asks for no package at all. */
+ *  where the route asks for no package at all.
+ *
+ *  THE ROW IS FOUND BY ID, not by a phrase in its label (D1, 2026-09-13). The
+ *  label is derived from the products the package carries and says nothing about
+ *  the facility a scenario is aiming at, so the old regex fell through to
+ *  `rows[0]` on the one book it was written for and would have picked a
+ *  different package on the next one. `want` is the package id; the regex is
+ *  kept as the fallback for a row whose id attribute is missing. */
 async function routeThenPackage(page, route, want) {
   await takeRoute(page, route);
   await page.waitForTimeout(3000);
-  return page.evaluate((re) => {
+  return page.evaluate((id) => {
     const rows = [...document.querySelectorAll(".wk-pkgask .wk-pkg")];
     if (!rows.length) return null;
-    const hit = rows.find((r) => new RegExp(re, "i").test(r.textContent || "")) || rows[0];
+    const hit = rows.find((r) => r.getAttribute("data-pkg") === id) || rows[0];
     if (hit.disabled) return "[blocked] " + (hit.textContent || "").trim().slice(0, 80);
     hit.click(); return (hit.textContent || "").trim().slice(0, 80);
   }, want);
@@ -148,14 +267,37 @@ async function takeRoute(page, label) {
   await page.evaluate(([sel, l]) => { const b = [...document.querySelectorAll(sel)].find((x) => (x.textContent || "").trim() === l); if (b) b.click(); }, [ROUTE, label]);
 }
 
-async function runScript(name, lines, version) {
+async function runScript(name, lines, version, check) {
   const { page, errs } = await openPage(version);
   await openFacilityRoom(page);
   /* ROUTE FIRST, PACKAGE SECOND (spec 2c.3, founder 2026-09-13). The room opens on the route
-     question; a multi-package book then asks which package the route runs in, and on Hartwell that
-     is the one carrying the $15M line. The composer wakes only once both are settled. */
-  const picked = await routeThenPackage(page, "Modify", "Line of Credit|15,000,000|\\$15M");
-  await page.waitForFunction(() => { const t = document.querySelector(".wk-txt"); return t && !t.disabled; }, null, { timeout: 25000 });
+     question; a MULTI-PACKAGE book then asks which package the route runs in, and on this book
+     that is the one carrying the target facility. A ONE-PACKAGE book is never asked: the room
+     binds it silently, `routeThenPackage` comes back null, and the scenario records that it took
+     the silent path rather than pretending a question was answered. The composer wakes either
+     way, and everything after this line is identical on both. */
+  const picked = await routeThenPackage(page, "Modify", PKG_WANT);
+  /* A COMPOSER THAT NEVER WAKES IS A FINDING, NOT A CRASH. On one book the wait always ends and
+     on another the room may refuse at the door; a drive that threw here would take the rest of
+     the matrix with it and say nothing about why. */
+  const awake = await page
+    .waitForFunction(() => { const t = document.querySelector(".wk-txt"); return t && !t.disabled; }, null, { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!awake) {
+    const visible = await page.evaluate(() => ((document.querySelector(".wk-root") || {}).textContent || "").replace(/\s+/g, " ").trim().slice(0, 400));
+    await page.close();
+    return {
+      name,
+      book: BOOK.relationship,
+      path: "the composer never woke after the route was taken",
+      picked,
+      turns: [],
+      approveDoors: [],
+      findings: [`the composer never woke after Modify was taken; the room said: "${visible}"`],
+      pageErrors: errs,
+    };
+  }
   await page.waitForTimeout(600);
   const agentText = () => page.$$eval(".wk-msg.wk-agent .wk-bub", (ns) => ns.map((n) => (n.textContent || "").trim()));
   // A READ CARD IS A REPLY TOO. "show me the pledges" is answered by a card inside the live step, not by an agent bubble,
@@ -219,8 +361,49 @@ async function runScript(name, lines, version) {
     if (t.refusal && t.visibleChips === 0 && t.openCard === 0) findings.push(`turn ${i + 1} "${t.you}": one-decision refusal with nothing visible to act on`);
     if (t.emDash) findings.push(`turn ${i + 1}: em dash in a reply`);
   });
+  /* ------------------------------------------------- what THIS book must also be true about
+
+     THE SIMPLE PATHS ARE ASSERTED, NEVER SKIPPED. On a one-package book the room must bind
+     silently rather than put an empty question up; on a book with no booked facility a credit
+     action has nothing to run against, so the room must SAY so in the org's own terms and must
+     never open an approval door over it. Both are paths the founder's own book never takes. */
+  const said = turns.map((t) => t.reply || "").join(" || ");
+  const path = [];
+  if (BOOK.multiPackage) {
+    path.push(`package asked, took ${BOOK.packageId}`);
+    if (!picked) findings.push("the Modify route asked no package on a relationship staging more than one");
+    else if (/^\[blocked\]/.test(String(picked))) findings.push(`the Modify route blocked this book's own working package: ${picked}`);
+  } else {
+    path.push("one package, bound silently");
+    if (picked) findings.push(`the room put a package question up on a one-package relationship: ${picked}`);
+  }
+  if (BOOK.ambiguousMember) path.push(`${BOOK.siblings.length} ${BOOK.product} on the package, member asked`);
+  else path.push(`one ${BOOK.product} on the package, member bound silently`);
+  if (!BOOK.hasBooked) {
+    path.push("nothing booked on this relationship, so the modification is refused");
+    if (!/booked/i.test(said)) {
+      findings.push("no booked facility on this relationship and the room never says that is why nothing here can be modified");
+    }
+    if (approve.length) findings.push(`an approval door opened on a relationship with no booked facility: ${JSON.stringify(approve)}`);
+  }
+  /* AND THE ROOM NAMES THIS BORROWER. A label carrying another book's name is the single
+     cheapest sign that a read was answered off the lane's default body rather than off the
+     patch, and it is invisible on the book the default happens to be. */
+  const strangers = Object.values(LIVE.borrowers || {})
+    .map((b) => String((b.snapshot || {}).name || "").trim())
+    .filter((n) => n && n !== BOOK.relationship);
+  for (const other of strangers) if (said.includes(other)) findings.push(`the room named "${other}" while ${BOOK.relationship} was open`);
+  /* AND THE SCENARIO'S OWN READ OVER THE WHOLE TRANSCRIPT, for the properties no
+     per-turn rule can see. The per-turn `reply` is capped at 160 characters a
+     bubble so the report stays readable, which is right for a rule about a turn
+     and useless for a rule about a NAME that may sit inside a card: the check is
+     handed everything still on the glass beside it. */
+  if (check) {
+    const onGlass = await page.evaluate(() => ((document.querySelector(".wk-root") || {}).textContent || "").replace(/\s+/g, " ").trim());
+    check(`${said} || ${onGlass}`, findings, BOOK);
+  }
   await page.close();
-  return { name, picked, turns, approveDoors: approve, findings, pageErrors: errs };
+  return { name, book: BOOK.relationship, path: path.join("; "), picked, turns, approveDoors: approve, findings, pageErrors: errs };
 }
 /* ============================================================ the version drives
 
@@ -271,7 +454,9 @@ async function driveDiscard(page) {
   const gate = await text(page, '[role="dialog"][aria-label="Discard this version"]');
   note("[chip] Review the plan", (inventory || gate || "").slice(0, 600));
   if (!inventory) findings.push("the confirm gate renders no inventory block: the staged plan reached it carrying no items[] the gate could read");
-  for (const want of ["Line of Credit - $20,000,000.00", "Line of Credit - $2,500,000.00", "Hartwell Precision Manufacturing LLC credit package"]) {
+  /* WHAT THE INVENTORY MUST NAME, off this book: the clone the filing RENAMED to the raised
+     figure, one sibling clone that came across untouched, and the version package itself. */
+  for (const want of BOOK.inventoryWants) {
     if (!inventory || inventory.indexOf(want) === -1) findings.push(`the inventory does not name "${want}"`);
   }
   if (inventory && !/Staging rows, marked Withdrawn/.test(inventory)) findings.push("the inventory does not show the staging rows as kept and marked Withdrawn");
@@ -299,10 +484,65 @@ async function driveDiscard(page) {
   await page.waitForTimeout(3000);
   const rows = (await packageRows(page)).map((r) => r.line);
   note("[read] the package ask after the undo", rows.join(" || ").slice(0, 400));
-  if (!rows.length) findings.push("the Modify route asks for no package on a relationship staging more than one");
+  /* THE VERSION WAS THE SECOND PACKAGE. On a ONE-package book the undo takes the roster back to
+     one, and one package is not a choice: the room must bind it silently rather than keep an
+     empty question up. On a book that stages more than one of its own, the question stays. */
+  if (BOOK.multiPackage) {
+    if (!rows.length) findings.push("the Modify route asks for no package on a relationship staging more than one");
+  } else if (rows.length) {
+    findings.push(`the Modify route still asks which package after the undo took the relationship back to one: ${JSON.stringify(rows)}`);
+  }
   if (rows.some((r) => /Modification in Progress/.test(r))) findings.push("a package still reads Modification in Progress after the version was discarded");
   if (rows.some((r) => /Modification in flight/.test(r))) findings.push("the discarded version is still on the package ask");
-  return { turns, findings };
+  return { turns, findings, path: BOOK.multiPackage ? "version undone, the book's own packages still ask" : "version undone, the one remaining package binds silently" };
+}
+
+/* ------------------------------------------------- the no-version books
+
+   A BOOK WITH NO BOOKED PACKAGE CANNOT CARRY A MODIFICATION VERSION, and that is not a gap in
+   the drive: nCino takes a credit action only against a booked loan, so the fork has nothing to
+   fork. `book/packages.ts` reads a version as an all-unbooked package that MIRRORS a booked one,
+   and with no booked package there is nothing to mirror.
+
+   So the three version drives assert the OTHER side of every sentence they exist for: nothing
+   stands in flight, no undo door is offered over a version that does not exist, and the header's
+   own switch offers no version to walk into. A skip would have hidden exactly the case where a
+   room invents a version out of an unbooked package. */
+async function driveNoVersion(page, which) {
+  const findings = [];
+  const turns = [];
+  const note = (you, reply) => turns.push({ you, reply: String(reply ?? "").slice(0, 400), replied: !!reply, repeat: false, refusal: false, emDash: /—/.test(String(reply ?? "")), visibleChips: 0, openCard: 0, freshCount: reply ? 1 : 0, ms: 0 });
+
+  await openTrail(page);
+  const trail = await text(page, "#pane-activity");
+  note("[open] Activity trail", (trail || "").slice(0, 400));
+  if (!trail) findings.push("the Activity trail renders nothing at all on this relationship");
+  const standing = await page.$('[data-inflight-row="1"]');
+  if (standing) findings.push("the trail shows Modification in Progress on a relationship that can carry no version");
+  const door = await page.$('[data-discard-door="trail"]');
+  if (door) findings.push("the trail offers Discard this version with no version in flight");
+
+  if (which === "amend" || which === "create") {
+    await openFacilityRoom(page);
+    const switched = await standInPackage(page, "Modification in flight").catch(() => null);
+    note("[stand in] a version, if the header offers one", String(switched));
+    if (switched && !/^\[blocked\]/.test(String(switched))) {
+      findings.push(`the header's switch walked the room into a "Modification in flight" package on a relationship that can carry no version: ${switched}`);
+    }
+    const routes = await page.evaluate(() => [...document.querySelectorAll(".wk-opts button, .wk-opt, .wk-routes button")].map((b) => (b.textContent || "").trim()));
+    note("[read] the routes on the book's own package", routes.join(" || "));
+    if (!routes.length) findings.push("the room offers no route at all");
+    /* AND NO ROUTE MAY PROMISE A CREDIT ACTION HERE. Modify and Renew are still on the row (the
+       route is what SCOPES the package question, and the refusal is the engine's), but the room
+       must never claim a version. */
+    const said = await roomSaid(page);
+    if (/version chain|clone/i.test(said)) findings.push(`the room talks about a version on a relationship that has none: "${said.slice(0, 200)}"`);
+  }
+  return {
+    turns,
+    findings,
+    path: "no booked package on this book, so no modification version can exist; asserted the no-version path",
+  };
 }
 
 /** Every package on the relationship carrying a booked member, off the connector the page talks
@@ -345,12 +585,18 @@ async function driveCreateFromRelationship(page) {
   turns.push({ you: "[open] New Facility Request from the relationship", reply: rows.map((r) => r.label).join(" || "), replied: rows.length > 0, repeat: false, refusal: false, emDash: false, visibleChips: rows.length, openCard: 0, freshCount: rows.length, ms: 0 });
   if (!rows.length) findings.push("the create room offered no package at all");
   else if (rows[0].label.trim() !== "New package") findings.push(`the create room's offer leads with "${rows[0].label.trim()}" rather than "New package"`);
-  if (rows.some((r) => r.id === SOURCE_PACKAGE)) findings.push("the create room offers the booked source of an in-flight version");
-  if (rows.some((r) => r.id === VERSION_PACKAGE)) findings.push("the create room offers a version the banker is not standing in");
+  if (SOURCE_PACKAGE && rows.some((r) => r.id === SOURCE_PACKAGE)) findings.push("the create room offers the booked source of an in-flight version");
+  if (VERSION_PACKAGE && rows.some((r) => r.id === VERSION_PACKAGE)) findings.push("the create room offers a version the banker is not standing in");
   const booked = await bookedPackageIds(page);
   const offeredBooked = rows.filter((r) => booked.includes(r.id));
   if (offeredBooked.length) findings.push(`New facility offers a booked package: ${JSON.stringify(offeredBooked.map((r) => r.id))}`);
-  return { turns, findings };
+  return {
+    turns,
+    findings,
+    path: VERSION_PACKAGE
+      ? "a version in flight, so the offer must lead with New package and hide both the version and its source"
+      : "no version on this book, so the offer is New package and whatever is still before approval",
+  };
 }
 
 async function driveCreateInsideVersion(page) {
@@ -383,7 +629,7 @@ async function driveCreateInsideVersion(page) {
   const booked = await bookedPackageIds(page);
   const offeredBooked = rows.filter((r) => booked.includes(r.id));
   if (offeredBooked.length) findings.push(`New facility offers a booked package: ${JSON.stringify(offeredBooked.map((r) => r.id))}`);
-  return { turns, findings };
+  return { turns, findings, path: "standing in the version, so the version leads and New package follows" };
 }
 
 /** Everything the room has said: its agent bubbles, its cards and its gate. */
@@ -414,21 +660,31 @@ async function driveAmend(page) {
   }
   await takeRoute(page, routes.find((r) => AMEND_ROUTE.test(r)));
   await page.waitForFunction(() => { const t = document.querySelector(".wk-txt"); return t && !t.disabled; }, null, { timeout: 15000 });
-  await page.fill(".wk-txt", "take the 15M line of credit to 7.10%");
+  /* THE BANKER STILL CALLS IT BY YESTERDAY'S FIGURE. The filing renamed the clone, so the line
+     names the facility the way the banker remembers it rather than the way the version writes it. */
+  const AMEND_LINE = `take the ${BOOK.bareMoney} ${BOOK.product.toLowerCase()} to ${BOOK.amendRate.toFixed(2)}%`;
+  await page.fill(".wk-txt", AMEND_LINE);
   await page.keyboard.press("Enter");
   await page.waitForTimeout(6000);
-  note("take the 15M line of credit to 7.10%", await roomSaid(page));
+  note(AMEND_LINE, await roomSaid(page));
 
-  /* THE FIGURE THE VERSION RENAMED. The filing took the $15M line to $20M on the clone, so the
-     package carries two lines of credit and neither is $15M any more: the room asks which, and the
-     banker answers with the chip for the one that was the $15M line yesterday. */
+  /* THE FIGURE THE VERSION RENAMED. Where the source carried two of this product, the filing
+     leaves the version carrying two and neither at the figure the banker just said: the room asks
+     which, and the banker answers with the chip for the one that was the target yesterday. Where
+     the source carried ONE, there is nothing to ask and the reference binds silently. */
+  const raisedMoney = fmtMoney(BOOK.raisedTo);
+  const RAISED = new RegExp(
+    `${raisedMoney.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}|${BOOK.raisedTo.toLocaleString("en-US")}`,
+  );
   const memberChips = await page.evaluate(() => [...document.querySelectorAll(".wk-opts button, .wk-opt, .wk-chip")].filter((n) => n.offsetParent !== null).map((n) => (n.textContent || "").trim()));
-  const twenty = memberChips.find((c) => /\$?20(?:[.,]0+)?M|20,000,000/.test(c));
-  if (twenty) {
-    await page.evaluate((label) => { const b = [...document.querySelectorAll(".wk-opts button, .wk-opt, .wk-chip")].filter((n) => n.offsetParent !== null).find((n) => (n.textContent || "").trim() === label); if (b) b.click(); }, twenty);
+  const moved = memberChips.find((c) => RAISED.test(c));
+  if (moved) {
+    await page.evaluate((label) => { const b = [...document.querySelectorAll(".wk-opts button, .wk-opt, .wk-chip")].filter((n) => n.offsetParent !== null).find((n) => (n.textContent || "").trim() === label); if (b) b.click(); }, moved);
     await page.waitForFunction(() => [...document.querySelectorAll("button.eg-btn-ink, .wk-opts button, .wk-opt, .wk-chip")].some((n) => n.offsetParent !== null && /^Confirm$/i.test((n.textContent || "").trim())), null, { timeout: 25000 }).catch(() => {});
     await page.waitForTimeout(1500);
-    note(`[chip] ${twenty}`, await roomSaid(page));
+    note(`[chip] ${moved}`, await roomSaid(page));
+  } else if (BOOK.ambiguousMember) {
+    findings.push(`the version carries ${BOOK.siblings.length} ${BOOK.product} and the room never asked which one the amendment lands on; chips on screen: ${JSON.stringify(memberChips)}`);
   }
 
   /* THE BANKER'S HAND to the end: the change is confirmed onto the manifest, the manifest is
@@ -460,8 +716,10 @@ async function driveAmend(page) {
   /* THE PLAN, AS THE ROOM SAID IT. One read over everything the room has spoken, so the three
      properties an amendment has to have are asserted once rather than once per beat. */
   const plan = await roomSaid(page);
+  const asked = BOOK.amendRate.toFixed(2);
+  const askedRe = new RegExp(`${asked.replace(".", "\\.")}|${String(BOOK.amendRate).replace(".", "\\.")}%`);
   if (/credit action|clone|version chain/i.test(plan)) findings.push("the amendment plan talks about a credit action, which an amend never runs");
-  if (!/7\.10|7\.1%/.test(plan)) findings.push("the amendment plan does not carry the figure the banker asked for");
+  if (!askedRe.test(plan)) findings.push(`the amendment plan does not carry the figure the banker asked for (${asked})`);
   if (!/this version/i.test(plan)) findings.push("the amendment plan does not say it changes the version the org already holds");
 
   /* THE ARM ON THE WIRE, not the prose the room printed over it: the contract says an amend names
@@ -479,8 +737,8 @@ async function driveAmend(page) {
   const rate = armed.flatMap((a) => a.scalars).find((c) => c && c.key === "requestedRate");
   if (!rate) findings.push("scalarChangesJson carries no requestedRate entry");
   else {
-    if (Number(rate.value) !== 7.1) findings.push(`scalarChangesJson carries requestedRate ${rate.value} rather than 7.10`);
-    if (!movedClone || rate.targetLoanId !== movedClone.loanId) findings.push(`the amendment lands on ${rate.targetLoanId} rather than the version's own copy of the line (${movedClone ? movedClone.loanId : "not on the read"})`);
+    if (Number(rate.value) !== BOOK.amendRate) findings.push(`scalarChangesJson carries requestedRate ${rate.value} rather than ${asked}`);
+    if (!movedClone || rate.targetLoanId !== movedClone.loanId) findings.push(`the amendment lands on ${rate.targetLoanId} rather than the version's own copy of the facility (${movedClone ? movedClone.loanId : "not on the read"})`);
   }
   if (armed.some((a) => a.versionPackageId !== VERSION_PACKAGE)) findings.push("the amendment names a package other than the version");
 
@@ -501,10 +759,14 @@ async function driveAmend(page) {
     return parent ? { name: parent.name, interestRate: parent.interestRate } : null;
   }, { account: ACCOUNT, parent: VERSION.moved.loanId });
   note("[read] the version's facility after the amendment", JSON.stringify({ version: onVersion, parent: onParent }));
-  if (!onVersion) findings.push("the version's line of credit is gone from the facilities read after the amendment");
-  else if (Number(onVersion.interestRate) !== 7.1) findings.push(`the version's line of credit reads ${onVersion.interestRate} rather than 7.10 after the amendment`);
-  if (onParent && Number(onParent.interestRate) === 7.1) findings.push("the amendment moved the booked parent's rate, which an amend never touches");
-  return { turns, findings };
+  if (!onVersion) findings.push(`the version's ${BOOK.product} is gone from the facilities read after the amendment`);
+  else if (Number(onVersion.interestRate) !== BOOK.amendRate) findings.push(`the version's ${BOOK.product} reads ${onVersion.interestRate} rather than ${asked} after the amendment`);
+  if (onParent && Number(onParent.interestRate) === BOOK.amendRate) findings.push("the amendment moved the booked parent's rate, which an amend never touches");
+  return {
+    turns,
+    findings,
+    path: moved ? `${BOOK.siblings.length} ${BOOK.product} on the version, the room asked which` : `one ${BOOK.product} on the version, the reference bound silently`,
+  };
 }
 
 /** The version's own copy of the facility the filing moved, off the connector the page talks to. */
@@ -515,7 +777,7 @@ async function versionFacility(page) {
     const facilities = (((((r || {}).payload || {}).content || [])[0] || {}).outputValues || {}).facilities || [];
     const loan = facilities.find((f) => f.productPackageId === ids.version && f.committed === ids.committed);
     return loan ? { loanId: loan.loanId, name: loan.name, interestRate: loan.interestRate } : null;
-  }, { account: ACCOUNT, version: VERSION_PACKAGE, committed: VERSION.moved.committed });
+  }, { account: ACCOUNT, version: VERSION_PACKAGE, committed: VERSION ? VERSION.moved.committed : -1 });
 }
 
 /* ============================================================ the relay drop
@@ -531,8 +793,8 @@ async function driveRelayDrop(page) {
   const note = (you, reply) => turns.push({ you, reply: String(reply ?? "").slice(0, 400), replied: !!reply, repeat: false, refusal: false, emDash: /—/.test(String(reply ?? "")), visibleChips: 0, openCard: 0, freshCount: reply ? 1 : 0, ms: 0 });
 
   await openFacilityRoom(page);
-  const picked = await routeThenPackage(page, "Modify", "Line of Credit|15,000,000");
-  note("[route] Modify, then the package carrying the $15M line", picked);
+  const picked = await routeThenPackage(page, "Modify", PKG_WANT);
+  note(`[route] Modify, then the package carrying the ${BOOK.shortMoney} ${BOOK.product}`, picked);
   await page.waitForFunction(() => { const t = document.querySelector(".wk-txt"); return t && !t.disabled; }, null, { timeout: 20000 });
 
   /* THE BANKER'S HAND, the same one `runScript` lends: a room that puts a confirm card up is
@@ -564,11 +826,25 @@ async function driveRelayDrop(page) {
 
   /* THE FOUNDER'S OWN OPENING, and then what the room asks for before the approval opens: the
      amortisation term and the first payment date nCino requires with a commitment change. */
-  await say("Increase the line of credit to 20M");
-  await say(PICK);
+  await say(`Increase the ${BOOK.product} to ${BOOK.raisedToPhrase}`);
+  if (PICK) await say(PICK);
   await say("240 months");
   await say("1 October 2026");
   await say("no change");
+
+  /* A RELATIONSHIP WITH NOTHING BOOKED NEVER REACHES A MANIFEST, so there is no plan for the
+     relay to drop and the assertion is the other one: the room said why, and the org was never
+     asked to file anything. A drive that hunted for the Review chip here would report the honest
+     refusal as a missing chip. */
+  if (!BOOK.hasBooked) {
+    const said = await roomSaid(page);
+    const rows = await page.evaluate(() => window.__LANES.staging.rows.length);
+    note("[read] the room on a relationship with nothing booked", said.slice(0, 400));
+    if (!/booked/i.test(said)) findings.push("the room never says a credit action needs a booked facility on a relationship that has none");
+    if (rows) findings.push(`${rows} staging rows were filed against a relationship carrying no booked facility`);
+    if (await page.$(".wk-propose")) findings.push("a Review & execute chip opened over a relationship with no booked facility");
+    return { turns, findings, path: "nothing booked on this book, so no plan is composed and no row is filed" };
+  }
 
   /* ONE ANSWER DROPPED. The org files the row and the page never hears it, so the same key goes
      back out, comes back as a replay carrying no token, and the plan is re-issued under a fresh
@@ -642,10 +918,390 @@ async function driveRelayDrop(page) {
   const keys = {};
   for (const r of after) keys[r.key] = (keys[r.key] || 0) + 1;
   if (Object.values(keys).some((n) => n > 1)) findings.push(`a key produced more than one staging row after the second half: ${JSON.stringify(keys)}`);
+  return { turns, findings, path: "the plan is composed, one answer dropped and then every answer dropped" };
+}
+
+/* ============================================================ the doors
+
+   THE RELATIONSHIP ROOM AND THE MEMO DOOR, on whichever book is open. Neither is a composer
+   script: what is asserted is that the door OPENS, that the room it opens names THIS borrower,
+   and that the package line under the title says the truth about this book, which is a different
+   sentence on a one-package relationship than on Hartwell's two. */
+
+async function driveDoors(page) {
+  const findings = [];
+  const turns = [];
+  const note = (you, reply) => turns.push({ you, reply: String(reply ?? "").slice(0, 400), replied: !!reply, repeat: false, refusal: false, emDash: /—/.test(String(reply ?? "")), visibleChips: 0, openCard: 0, freshCount: reply ? 1 : 0, ms: 0 });
+  const strangers = Object.values(LIVE.borrowers || {})
+    .map((b) => String((b.snapshot || {}).name || "").trim())
+    .filter((n) => n && n !== BOOK.relationship);
+
+  /* ---- THE RELATIONSHIP ROOM. */
+  await page.click("#fab");
+  await page.waitForSelector("#actRelationship", { state: "visible", timeout: 6000 });
+  await page.waitForTimeout(400);
+  await page.click("#actRelationship");
+  const rel = await page.waitForSelector('[data-room="relationship"]', { timeout: 12000 }).catch(() => null);
+  if (!rel) {
+    findings.push("the relationship room did not open");
+  } else {
+    await page.waitForTimeout(3500);
+    const title = await page.evaluate(() => (document.querySelector('[data-room="relationship"] .wk-title') || {}).textContent || "");
+    const pkgLine = await page.evaluate(() => {
+      const b = document.querySelector('[data-room="relationship"] .wk-pkgline');
+      return b ? { anchor: b.getAttribute("data-pkgline"), text: (b.textContent || "").replace(/\s+/g, " ").trim() } : null;
+    });
+    const body = await page.evaluate(() => ((document.querySelector('[data-room="relationship"]') || {}).textContent || "").replace(/\s+/g, " ").trim());
+    note("[open] Relationship Actions", `${title} || ${pkgLine ? pkgLine.text : "no package line"}`);
+    if (!pkgLine) findings.push("the relationship room renders no package line");
+    /* ONE PACKAGE IS NOT A CHOICE. The room must be standing in it rather than waiting on a
+       question nobody is going to be asked. */
+    else if (!BOOK.multiPackage && pkgLine.anchor === "pending") {
+      findings.push(`the relationship room holds the package question open on a one-package relationship: "${pkgLine.text}"`);
+    }
+    for (const other of strangers) if (body.includes(other)) findings.push(`the relationship room named "${other}" while ${BOOK.relationship} was open`);
+    if (!body.includes(BOOK.relationship)) findings.push(`the relationship room never names ${BOOK.relationship}`);
+    await page.evaluate(() => { const b = document.querySelector('[aria-label="Close the relationship room"]'); if (b) b.click(); });
+    await page.waitForTimeout(1200);
+  }
+
+  /* ---- THE MEMO DOOR, off the facility room's route question. On a book staging more than one
+          package the door ASKS which the memo is for; on a one-package book it opens straight
+          onto the package the room is already standing in. */
+  await openFacilityRoom(page);
+  const door = await page.$('[data-door="memo"]');
+  if (!door) {
+    findings.push("the route question carries no Credit memo door");
+    return { turns, findings, path: "the memo door was not on the route question" };
+  }
+  await door.click();
+  await page.waitForTimeout(2500);
+  const asked = await packageRows(page);
+  if (BOOK.multiPackage) {
+    if (!asked.length) findings.push("the memo door asked no package on a relationship staging more than one");
+    else {
+      await page.evaluate((id) => {
+        const rows = [...document.querySelectorAll(".wk-pkgask .wk-pkg")];
+        const hit = rows.find((r) => r.getAttribute("data-pkg") === id) || rows[0];
+        if (hit && !hit.disabled) hit.click();
+      }, PKG_WANT);
+    }
+  } else if (asked.length) {
+    findings.push(`the memo door asked which package on a one-package relationship: ${JSON.stringify(asked.map((r) => r.line))}`);
+  }
+  const memo = await page.waitForSelector('[aria-label="Credit memo"]', { timeout: 25000 }).catch(() => null);
+  if (!memo) {
+    findings.push("the memo room did not open");
+  } else {
+    await page.waitForTimeout(4000);
+    const said = await page.evaluate(() => ((document.querySelector('[aria-label="Credit memo"]') || {}).textContent || "").replace(/\s+/g, " ").trim());
+    note("[door] Credit memo", said.slice(0, 400));
+    for (const other of strangers) if (said.includes(other)) findings.push(`the memo room named "${other}" while ${BOOK.relationship} was open`);
+    if (!said.includes(BOOK.relationship)) findings.push(`the memo room never names ${BOOK.relationship}`);
+  }
+  return {
+    turns,
+    findings,
+    path: BOOK.multiPackage ? "both rooms asked which package" : "one package, both rooms bound it silently",
+  };
+}
+
+/* ============================================= the two relationship reviews (row 49)
+
+   Founder, 2026-09-13: "covenants and collaterals should be driven from the relationship
+   perspective. A package is an association the row shows, which PPs and facilities it is tied to,
+   never a filter or a narrowing control."
+
+   So this drive opens the relationship room on the BUILT page and asserts, for the covenant review
+   and the collateral valuation in turn: no package question and no package chip, the header on the
+   relationship, EVERY covenant / every owned asset listed, each row carrying what it is tied to,
+   the plan staged with `accountId` and no `productPackageId`, the org's own associations read back
+   onto the card, and the filing taken to Confirm. Derived from the open book, so it runs on any
+   `--book`.                                                                                    */
+
+/** The covenants this book's own read carries, the ones the room can offer. */
+function bookCovenantIds() {
+  return (((BOOK.bundle.covenants || {}).covenants) || []).filter((c) => c.covenantId).map((c) => c.covenantId);
+}
+
+/** The distinct collateral this book's ACTIVE facilities pledge. */
+function bookCollateralIds() {
+  const out = [];
+  for (const f of (BOOK.bundle.exposure || {}).facilities || []) {
+    if (!/^(open|active)$/i.test(String(f.status || ""))) continue;
+    for (const c of f.collateral || []) if (c.collateralId && !out.includes(c.collateralId)) out.push(c.collateralId);
+  }
+  return out;
+}
+
+/** Open Relationship Actions off the arc. */
+async function openRelationshipRoom(page) {
+  await page.click("#fab");
+  await page.waitForSelector("#actRelationship", { state: "visible", timeout: 8000 });
+  await page.waitForTimeout(400);
+  await page.click("#actRelationship");
+  await page.waitForSelector('[data-room="relationship"]', { timeout: 12000 });
+  await page.waitForTimeout(3500);
+}
+
+/** Bind a review by name. The room may open on a governance signal offering ONE route plus
+ *  "Something else"; taking that gets back to the six-way list the chip lives in. */
+async function takeReview(page, label) {
+  const took = await page.evaluate((want) => {
+    const hit = [...document.querySelectorAll(".wk-opt, .wk-opts button")].find((b) => (b.textContent || "").trim().startsWith(want));
+    if (hit) { hit.click(); return true; }
+    const out = [...document.querySelectorAll(".wk-opt, .wk-opts button")].find((b) => /^Something else/.test((b.textContent || "").trim()));
+    if (out) out.click();
+    return false;
+  }, label);
+  await page.waitForTimeout(took ? 3000 : 1500);
+  if (!took) {
+    await page.evaluate((want) => {
+      const hit = [...document.querySelectorAll(".wk-opt, .wk-opts button")].find((b) => (b.textContent || "").trim().startsWith(want));
+      if (hit) hit.click();
+    }, label);
+    await page.waitForTimeout(3000);
+  }
+}
+
+/** The option rows of the live step, label and detail together, as the banker reads them. */
+async function liveOptions(page) {
+  return page.evaluate(() => {
+    const steps = [...document.querySelectorAll(".wk-step")].filter((n) => n.offsetParent !== null && !/\bwk-gone\b/.test(n.className));
+    const last = steps[steps.length - 1];
+    if (!last) return [];
+    return [...last.querySelectorAll(".wk-opts button")].map((b) => (b.textContent || "").replace(/\s+/g, " ").trim());
+  });
+}
+
+/** Answer whatever the room is asking, once. Chips and pickers take their first live option; a
+ *  typed step takes a figure, a date or a sentence off its own placeholder. Returns what it did,
+ *  or null where the room asked nothing it could answer. */
+async function answerLive(page) {
+  const took = await page.evaluate(() => {
+    const steps = [...document.querySelectorAll(".wk-step")].filter((n) => n.offsetParent !== null && !/\bwk-gone\b/.test(n.className));
+    const last = steps[steps.length - 1];
+    if (!last) return null;
+    const chip = [...last.querySelectorAll(".wk-opts button")].find((b) => !b.disabled);
+    if (chip) { const t = (chip.textContent || "").trim().slice(0, 60); chip.click(); return `[chip] ${t}`; }
+    return null;
+  });
+  if (took) { await page.waitForTimeout(2200); return took; }
+  const typed = await page.evaluate(() => {
+    const t = document.querySelector(".wk-txt");
+    if (!t || t.disabled) return null;
+    const hint = (t.placeholder || "").toLowerCase();
+    return /yyyy|date/.test(hint) ? "2026-09-13" : /dollar|figure|number/.test(hint) ? "12000000" : "Filed for the record.";
+  });
+  if (!typed) return null;
+  await page.fill(".wk-txt", typed);
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(2200);
+  return typed;
+}
+
+/** Walk the room to the "Review & file" chip, answering every step it asks. */
+async function collectToPropose(page, limit = 14) {
+  const said = [];
+  for (let i = 0; i < limit; i++) {
+    if (await page.$(".wk-propose")) return said;
+    const one = await answerLive(page);
+    if (!one) return said;
+    said.push(one);
+  }
+  return said;
+}
+
+async function driveOneReview(page, opts) {
+  const findings = [];
+  const turns = [];
+  const note = (you, reply) => turns.push({ you, reply: String(reply ?? "").slice(0, 600), replied: !!reply, repeat: false, refusal: false, emDash: /—/.test(String(reply ?? "")), visibleChips: 0, openCard: 0, freshCount: reply ? 1 : 0, ms: 0 });
+
+  await openRelationshipRoom(page);
+  await takeReview(page, opts.route);
+
+  /* 1. NO PACKAGE QUESTION, NO PACKAGE CHIP. */
+  const ask = await page.$(".wk-pkgask");
+  const header = await page.evaluate(() => {
+    const n = document.querySelector('[data-room="relationship"] .wk-pkgline');
+    return n ? { anchor: n.getAttribute("data-pkgline"), tag: n.tagName, text: (n.textContent || "").replace(/\s+/g, " ").trim() } : null;
+  });
+  note(`[route] ${opts.route}`, `${header ? header.text : "no anchor line"} || package question: ${ask ? "ASKED" : "none"}`);
+  if (ask) findings.push(`${opts.route} put the package question up: it is anchored on the account`);
+  if (!header) findings.push(`${opts.route} renders no anchor line at all`);
+  else {
+    if (header.anchor !== "account") findings.push(`${opts.route} anchors the header on "${header.anchor}" rather than the relationship`);
+    if (header.tag !== "SPAN") findings.push(`${opts.route} leaves the anchor line a control; an association is a statement`);
+    if (!header.text.includes(BOOK.relationship)) findings.push(`${opts.route} does not name ${BOOK.relationship} in the header`);
+  }
+
+  /* 2. EVERY ROW, WITH ITS ASSOCIATIONS. */
+  const rows = await liveOptions(page);
+  note(`[read] every ${opts.noun.slice(0, -1)} on this relationship`, `${rows.length} rows || ${rows.join(" || ")}`);
+  if (rows.length !== opts.expected) {
+    findings.push(`${opts.route} lists ${rows.length} ${opts.noun}; this book carries ${opts.expected}`);
+  }
+  const TIED = /package|Relationship level, on no facility|pledged to no active facility/;
+  const untied = rows.filter((r) => !TIED.test(r));
+  if (untied.length) findings.push(`${untied.length} ${opts.noun} rows carry no association at all: ${JSON.stringify(untied.slice(0, 2))}`);
+  if (!rows.some((r) => /; .*package/.test(r))) {
+    findings.push(`no ${opts.noun} row names a facility and a package, so the association never reached the glass`);
+  }
+
+  /* 3. THE PLAN, AND WHAT IT TOUCHES. */
+  const collected = await collectToPropose(page);
+  note("[collect] the review's own questions", collected.join(" || "));
+  const propose = await page.$(".wk-propose");
+  if (!propose) {
+    findings.push(`${opts.route} never reached the Review & file chip: ${JSON.stringify(collected.slice(-3))}`);
+    return { turns, findings };
+  }
+  await propose.click();
+  await page.waitForTimeout(6000);
+  const card = await page.evaluate(() => {
+    const n = document.querySelector(".wk-flowcard");
+    return n ? (n.textContent || "").replace(/\s+/g, " ").trim() : null;
+  });
+  const touches = await page.evaluate(() => {
+    const n = document.querySelector('[data-assoc="plan"]');
+    return n ? (n.textContent || "").replace(/\s+/g, " ").trim() : null;
+  });
+  note("[chip] Review & file", `${(card || "no card").slice(0, 300)} || touches: ${touches || "none"}`);
+  if (!card) findings.push(`${opts.route} staged no plan card`);
+  if (!touches) findings.push(`${opts.route} plan carries no "What this touches" block, so the org's associations never reached the card`);
+  else if (!/package/.test(touches)) findings.push(`the plan's associations name no package: "${touches.slice(0, 160)}"`);
+
+  /* AND THE WIRE. The payload the page actually sent, off the lane's own ledger. */
+  const sent = await page.evaluate((t) => (window.__LANES.staging.calls || []).filter((c) => c.tool === t).length, opts.tool);
+  const payload = await page.evaluate((t) => {
+    const rows = (window.__LANES.staging.rows || []).filter((r) => r.actionId === t);
+    const last = rows[rows.length - 1];
+    return last ? { accountId: last.accountId, productPackageId: last.productPackageId } : null;
+  }, opts.actionId);
+  note("[wire] what the page sent", JSON.stringify({ calls: sent, payload }));
+  if (!payload) findings.push(`no ${opts.tool} row on the lane's ledger`);
+  else {
+    if (payload.accountId !== ACCOUNT) findings.push(`${opts.tool} was staged against ${payload.accountId} rather than the relationship`);
+    if (payload.productPackageId) findings.push(`${opts.tool} carried a productPackageId the room never asked for: ${payload.productPackageId}`);
+  }
+
+  /* 4. CONFIRM, the way the banker does. */
+  const filed = await page.evaluate((label) => {
+    const b = [...document.querySelectorAll("button")].filter((n) => n.offsetParent !== null).find((n) => new RegExp(label, "i").test((n.textContent || "").trim()));
+    if (!b || b.disabled) return false;
+    b.click();
+    return true;
+  }, opts.approve);
+  if (!filed) {
+    findings.push(`the approval "${opts.approve}" was not live on a staged plan`);
+    return { turns, findings };
+  }
+  await page.waitForTimeout(7000);
+  /* THE RESULT CARD AND THE LINE UNDER IT. The token line is where the room says what the filing
+     landed against, and on an account-anchored review that has to be the RELATIONSHIP. */
+  const settled = await page.evaluate(() => {
+    const card = document.querySelector(".wk-rescard");
+    const tok = document.querySelector(".wk-tokline");
+    return {
+      dossier: card ? (card.textContent || "").replace(/\s+/g, " ").trim() : null,
+      token: tok ? (tok.textContent || "").replace(/\s+/g, " ").trim() : null,
+    };
+  });
+  note(`[chip] ${opts.approve}`, `${(settled.dossier || "no dossier").slice(0, 300)} || ${settled.token || "no token line"}`);
+  if (!settled.dossier) findings.push(`${opts.route} did not settle into a result dossier after the confirm`);
+  if (!settled.token) findings.push(`${opts.route} filed without a token line`);
+  else if (!settled.token.includes(BOOK.relationship)) {
+    findings.push(`the filing is not reported against ${BOOK.relationship}: "${settled.token.slice(0, 160)}"`);
+  }
+  if (/—/.test(`${settled.dossier || ""} ${settled.token || ""}`)) findings.push("em dash in the filed card");
   return { turns, findings };
 }
 
+/** THE ROUTE THE BOOK CANNOT RUN (D1's rule, applied to the reviews): a book whose covenants carry no
+ *  compliance row cannot record an assessment, and a book whose active pledges carry no collateral
+ *  id has nothing to value. The room must say so at the door, once, in its own words; the drive
+ *  asserts THAT path instead of pretending the review ran. */
+async function driveRefusedReview(page, route, expectRe) {
+  const findings = []; const turns = [];
+  await openRelationshipRoom(page);
+  const findChip = (label) => page.evaluate((want) => {
+    const b = [...document.querySelectorAll(".wk-opts button, .wk-opt")].find((x) => (x.textContent || "").trim().startsWith(want));
+    return b ? { disabled: b.disabled, text: (b.textContent || "").replace(/\s+/g, " ").trim(), title: b.getAttribute("title") || "" } : null;
+  }, label);
+  /* THE CHIP SITS BEHIND "SOMETHING ELSE" when the room opened on a nudge (the same two-step
+     `takeReview` walks). */
+  let chip = await findChip(route);
+  if (!chip) {
+    await page.evaluate(() => { const out = [...document.querySelectorAll(".wk-opt, .wk-opts button")].find((b) => /^Something else/.test((b.textContent || "").trim())); if (out) out.click(); });
+    await page.waitForTimeout(1500);
+    chip = await findChip(route);
+  }
+  let said = chip ? `${chip.text}${chip.title ? " || " + chip.title : ""}` : "";
+  if (chip && !chip.disabled) {
+    await takeReview(page, route); await page.waitForTimeout(3000);
+    /* THE ROOM'S OWN WORDS, not the stub door's canned remark that lands after them. */
+    const CANNED_HERE = /leverage stands inside policy|coverage cushion is intact/i;
+    said = await page.evaluate((re) => { const all = [...document.querySelectorAll(".wk-msg.wk-agent .wk-bub")].map((n) => (n.textContent || "").replace(/\s+/g, " ").trim()); const own = all.filter((t) => !new RegExp(re, "i").test(t)); return own.slice(-1).join(" "); }, CANNED_HERE.source);
+  }
+  turns.push({ you: `[route] ${route} (nothing to run on this book)`, reply: said.slice(0, 400), replied: !!said, repeat: false, refusal: false, emDash: /\u2014/.test(said), visibleChips: 0, openCard: 0, freshCount: said ? 1 : 0, ms: 0 });
+  if (!chip) findings.push(`${route} is not offered at all on this book`);
+  else if (!expectRe.test(said)) findings.push(`${route} on a book with nothing to run did not say why: "${said.slice(0, 160)}"`);
+  const askedTwice = await page.evaluate(() => { const b = [...document.querySelectorAll(".wk-msg.wk-agent .wk-bub")].map((n) => (n.textContent || "").trim()); return b.length >= 2 && b[b.length - 1] === b[b.length - 2]; });
+  if (askedTwice) findings.push(`${route} said the same thing twice`);
+  await page.evaluate(() => { const b = document.querySelector('[aria-label="Close the relationship room"]'); if (b) b.click(); });
+  await page.waitForTimeout(1500);
+  return { turns, findings };
+}
+
+async function driveRelationshipReviews(page) {
+  const covenants = bookCovenantIds();
+  const assets = bookCollateralIds();
+  const assessable = (((BOOK.bundle.covenants || {}).covenants) || []).filter((c) => c.covenantId && (c.latestComplianceId || c.latestComplianceStatus)).length;
+  const first = assessable === 0
+    ? await driveRefusedReview(page, "Covenant review", /open test period|nothing to assess|nothing for a covenant review/i)
+    : await driveOneReview(page, {
+    route: "Covenant review",
+    noun: "covenants",
+    expected: covenants.length,
+    tool: "stage_covenant_review",
+    actionId: "covenant-review",
+    approve: "^File the assessments$",
+  });
+  /* A SECOND ROOM, OPENED THE WAY THE BANKER OPENS IT. The first review has filed and its room is
+     finished; the valuation is a fresh session rather than a switch inside a settled one. */
+  if (assessable > 0) {
+    await page.evaluate(() => { const b = document.querySelector('[aria-label="Close the relationship room"]'); if (b) b.click(); });
+    await page.waitForTimeout(1500);
+  }
+  const second = assets.length === 0
+    ? await driveRefusedReview(page, "Collateral valuation", /nothing to value|no asset|no collateral/i)
+    : await driveOneReview(page, {
+    route: "Collateral valuation",
+    noun: "assets",
+    expected: assets.length,
+    tool: "stage_collateral_valuation",
+    actionId: "collateral-valuation",
+    approve: "^File the valuation$",
+  });
+  return {
+    turns: [...first.turns, ...second.turns],
+    findings: [...first.findings, ...second.findings],
+    path: `${covenants.length} covenants (${assessable} with a compliance row), ${assets.length} owned assets on ${BOOK.relationship}${assessable === 0 ? "; covenant review refused at the door" : ""}${assets.length === 0 ? "; valuation refused at the door" : ""}`,
+  };
+}
+
 /* ------------------------------------------------------------------- the harness */
+
+/** Which drive this scenario runs on THIS book. A version scenario on a book that can carry no
+ *  version runs the no-version assertions instead of its own, and says so in `path`. */
+function driveFor(name, spec) {
+  if (!spec.needsVersion || BOOK.canVersion) return spec.drive;
+  /* `createFromRelationship` asks what the create room OFFERS, and that question stands with or
+     without a version in flight: its version-specific rows are already conditional. */
+  if (name === "createFromRelationship") return spec.drive;
+  const which = name === "amendVersion" ? "amend" : name === "createInsideVersion" ? "create" : "discard";
+  return (page) => driveNoVersion(page, which);
+}
 
 const out = {};
 for (const [name, spec] of Object.entries(SCENARIOS)) {
@@ -654,14 +1310,22 @@ for (const [name, spec] of Object.entries(SCENARIOS)) {
     const { page, errs } = await openPage(spec.version ? VERSION : null);
     let result;
     try {
-      result = await spec.drive(page);
+      result = await driveFor(name, spec)(page);
     } catch (e) {
       result = { turns: [], findings: [`the drive threw: ${String(e).slice(0, 200)}`] };
     }
     await page.close();
-    out[name] = { name, ...result, pageErrors: errs, pending: spec.pending ?? null };
+    out[name] = { name, book: BOOK.relationship, ...result, pageErrors: errs, pending: spec.pending ?? null };
   } else {
-    out[name] = { ...(await runScript(name, spec.lines, spec.version ? VERSION : null)), pending: spec.pending ?? null };
+    let ran;
+    try {
+      ran = await runScript(name, spec.lines, spec.version ? VERSION : null, spec.check);
+    } catch (e) {
+      ran = { name, book: BOOK.relationship, turns: [], approveDoors: [], pageErrors: [], findings: [`the script threw: ${String(e).slice(0, 200)}`] };
+    }
+    /* A SCENARIO MAY CARRY ITS OWN NOTE ABOUT WHAT THIS BOOK COULD NOT BE ASKED. It is appended
+       to the path the run derived rather than replacing it. */
+    out[name] = { ...ran, path: [ran.path, spec.path].filter(Boolean).join("; "), pending: spec.pending ?? null };
   }
 }
 /* A PENDING SCENARIO IS REPORTED, NOT COUNTED. Its findings are a statement about work that has
@@ -671,4 +1335,7 @@ for (const [name, r] of Object.entries(out)) {
   r.pendingFindings = r.findings;
   r.findings = [];
 }
-fs.writeFileSync(process.argv[4] || "wk-e2e-out.json", JSON.stringify(out, null, 1)); console.log("written"); await browser.close(); process.exit(0);
+fs.writeFileSync(OUT, JSON.stringify({ book: { id: ACCOUNT, name: BOOK.relationship }, scenarios: out }, null, 1));
+console.log(`written ${OUT} (${BOOK.relationship})`);
+await browser.close();
+process.exit(0);

@@ -2041,3 +2041,76 @@ describe("a failed execute never re-arms the approval blindly", () => {
     expect((thrown as WorkroomRefusalError).dispatched).toBe(false);
   });
 });
+
+/* =============================================================================
+   THE INVOLVEMENT ROWS SURVIVE A PACKAGE ID THE EXPOSURE READ DOES NOT CARRY.
+
+   D1, the three-book drive matrix (2026-09-13, backlog row 51). The engine
+   scopes `graph.legalEntities` to the package the room stands in. On a book
+   whose graph rows name a package id no facility on it names, that filter
+   returned NOTHING, and with no entities the parser's party lanes are all dead:
+   `inferPartyRemoval` bails on its first line and `partyNamed` resolves nobody.
+   The room then answered "remove Owen Kingsley from this loan" with "I read the
+   Term Loan A, but not what should change on it" while its own read card listed
+   Owen Kingsley as a guarantor two lines above.
+
+   Two real reads produce it: a version package, whose members are clones with
+   ids of their own, and the sample bundles in `artifact/live-data.json`
+   (`a5FSAMPLE000KGSL1` on the graph against `a5FSAMPLE00000KGSL` on the book).
+   The scope is a narrowing, never a gate.
+   ============================================================================= */
+
+describe("the party lanes on a book whose graph names another package", () => {
+  /** Kingsley's own shape: every involvement row carries a package id that no
+   *  facility on the relationship names. The loan anchors are left exactly as
+   *  the org wrote them, so the only thing wrong is the package id. */
+  const orphaned = (): BorrowerBundle => {
+    const b = bundleWith();
+    return {
+      ...b,
+      graph: {
+        ...b.graph,
+        legalEntities: (b.graph?.legalEntities ?? []).map((e) => ({ ...e, packageId: `${PACKAGE_ID}1` })),
+      },
+    };
+  };
+
+  it("still resolves a party shorthand the catalog cannot see", async () => {
+    const { engine } = engineOn({}, orphaned());
+    const out = await engine.parseIntent("remove Elena from this loan", context);
+    /* SHE IS ON ONE FACILITY, so "this loan" names it and the removal stages.
+       Without the fallback the roster is empty, `inferPartyRemoval` bails on its
+       first line, and the room answers "I could not map that onto this package"
+       about a guarantor its own read card lists. */
+    if (out.kind !== "deltas") throw new Error(`${out.kind}: ${out.kind === "unparsed" ? out.reply : ""}`);
+    expect(out.deltas.map((d) => d.involvementWire?.accountName)).toContain("Elena Hartwell");
+  });
+
+  it("still offers the roster when the line names no party", async () => {
+    const { engine } = engineOn({}, orphaned());
+    const out = await engine.parseIntent("remove the guarantor", context);
+    if (out.kind !== "unparsed") throw new Error(out.kind);
+    expect(out.reply).toMatch(/Elena Hartwell/);
+  });
+
+  it("keeps the narrowing where the graph and the book DO agree", async () => {
+    const b = bundleWith();
+    const other = {
+      ...b,
+      graph: {
+        ...b.graph,
+        legalEntities: [
+          ...(b.graph?.legalEntities ?? []),
+          { accountName: "Someone On Another Package", borrowerType: "Guarantor", packageId: `${PACKAGE_ID}-other` },
+        ],
+      },
+    };
+    const { engine } = engineOn({}, other);
+    /* No name on the line, so the room offers the roster. The rows that agree
+       with the book are the roster; the one hanging off another package is not. */
+    const out = await engine.parseIntent("remove the guarantor", context);
+    if (out.kind !== "unparsed") throw new Error(out.kind);
+    expect(out.reply).toMatch(/Elena Hartwell/);
+    expect(out.reply).not.toMatch(/Someone On Another Package/);
+  });
+});

@@ -551,16 +551,18 @@ describe("an intent that names a package", () => {
 
 /* ============================================================ the second room
 
-   THE RELATIONSHIP ROOM ASKS THE SAME QUESTION where a review is anchored on a
-   package. The covenant batch and the collateral valuation both carry
-   `productPackageId` on their stage payloads and both refuse without one; the
-   annual review, the risk-rating review and the service request are
-   relationship level and never ask.
+   THE RELATIONSHIP ROOM ASKS NO PACKAGE AT ALL (0.9.24, backlog row 49; founder
+   2026-09-13: "covenants and collaterals should be driven from the relationship
+   perspective ... never a filter or a narrowing control").
 
-   THE REFUSAL WAS WRONG FOR THIS CASE, not merely unhelpful: `NO_PACKAGE_ANCHOR`
-   reads "the read stages none for this relationship", which is false for a
-   relationship staging two, and the banker has an answer the room never asked
-   for. */
+   RESTATED, NOT REMOVED. Until 0.9.23 the covenant review and the collateral
+   valuation both carried `productPackageId` on their stage payloads and both
+   refused without one, so this block asserted that a relationship staging two
+   packages was ASKED which rather than refused. The tools are anchored on the
+   account now: the room lists every covenant and every owned asset on the
+   relationship and shows the packages on the rows, so the question that used to
+   stand here is gone. What these cases pin is that it is gone, that no step is
+   gated behind it, and that the header names the relationship instead. */
 
 const REL_DEPS: RelFlowDeps = {
   available: () => true,
@@ -604,33 +606,38 @@ describe("the relationship room", () => {
     vi.useRealTimers();
   });
 
-  it("knows which routes run against a package and which do not", () => {
-    expect(relRouteNeedsPackage("covenant")).toBe(true);
-    expect(relRouteNeedsPackage("valuation")).toBe(true);
+  it("knows which routes run against a package, and no review does", () => {
+    expect(relRouteNeedsPackage("covenant")).toBe(false);
+    expect(relRouteNeedsPackage("valuation")).toBe(false);
     expect(relRouteNeedsPackage("annual")).toBe(false);
     expect(relRouteNeedsPackage("rating")).toBe(false);
     expect(relRouteNeedsPackage("service")).toBe(false);
+    // The two version routes are the only ones left: an amendment LANDS ON a
+    // package version, which is a choice, not a narrowing.
+    expect(relRouteNeedsPackage("versionCovenant")).toBe(true);
+    expect(relRouteNeedsPackage("versionPledge")).toBe(true);
   });
 
-  it("asks which package the covenant review runs in, instead of refusing", async () => {
+  it("asks the covenant review NO package, on a relationship staging two", async () => {
     const { room, ctx } = openRel({ route: "covenant" });
     await settle();
 
     expect(ctx.packages).toHaveLength(2);
     expect(ctx.productPackageId).toBeNull();
-    // The refusal is gone and the question is in its place.
+    expect(room.querySelector(".wk-pkgask")).toBeNull();
+    expect(text(room)).not.toContain("Which package does this review run in?");
     expect(text(room)).not.toContain("the read stages none for this relationship");
-    const cards = [...room.querySelectorAll<HTMLElement>(".wk-pkgask .wk-pkg")];
-    expect(cards.map((c) => c.dataset.pkg)).toEqual([PACKAGE_ONE, PACKAGE_TWO]);
-    // And no step is asked under an unanswered package question.
-    expect(text(room)).not.toContain("Step 1 of");
+    /* AND THE ROUTE REACHES ITS OWN JUDGEMENT UNDERNEATH, rather than stalling
+       on a question the room no longer puts up. This book's covenants carry no
+       compliance row, so what stands under the brief is the covenant route's own
+       refusal, in its own words, about the whole relationship. */
+    expect(text(room)).toContain("no open test period on any of the 3 covenants on this relationship");
   });
 
-  it("the pick anchors the review", async () => {
-    const { room, anchored } = openRel({ route: "covenant" });
+  it("asks the collateral valuation no package either", async () => {
+    const { room } = openRel({ route: "valuation" });
     await settle();
-    act(() => room.querySelectorAll<HTMLElement>(".wk-pkgask .wk-pkg")[0].click());
-    expect(anchored).toEqual([PACKAGE_ONE]);
+    expect(room.querySelector(".wk-pkgask")).toBeNull();
   });
 
   it("a relationship-level review never asks", async () => {
@@ -640,11 +647,21 @@ describe("the relationship room", () => {
     expect(room.querySelector<HTMLElement>(".wk-pkgline")!.dataset.pkgline).toBe("none");
   });
 
-  it("once anchored, the header names the package and the steps run", async () => {
-    const { room } = openRel({ route: "covenant", productPackageId: PACKAGE_ONE });
+  it("names the RELATIONSHIP in the header, never a package it never asked for", async () => {
+    const { room } = openRel({ route: "covenant" });
     await settle();
-    expect(room.querySelector(".wk-pkgask")).toBeNull();
+    expect(room.querySelector<HTMLElement>(".wk-pkgline")!.dataset.pkgline).toBe("account");
+    expect(text(room.querySelector(".wk-pkgline"))).toContain("Sterling Fabrication Co.");
+    // A STATEMENT, NOT A CONTROL. There is nothing being narrowed, so there is
+    // nothing here to switch.
+    expect(room.querySelector(".wk-pkgline")!.tagName).toBe("SPAN");
+  });
+
+  it("keeps the package line a control on a route that really does run in one", async () => {
+    const { room } = openRel({ route: "annual", productPackageId: PACKAGE_ONE });
+    await settle();
     expect(room.querySelector<HTMLElement>(".wk-pkgline")!.dataset.pkgline).toBe(PACKAGE_ONE);
+    expect(room.querySelector(".wk-pkgline")!.tagName).toBe("BUTTON");
     expect(text(room.querySelector(".wk-pkgline"))).toContain("Sterling");
   });
 });

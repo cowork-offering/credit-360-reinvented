@@ -21,6 +21,41 @@ the probe.
 > `design/dummy/index.html`) — if that digest changes, the dummy moved and the
 > baseline must be re-locked.
 
+## The drive gate: every release runs the matrix
+
+Founder rule, 2026-09-13: **"it is not only Hartwell, it needs to work everywhere."** One book
+green is a coincidence, not a gate.
+
+```bash
+cd app && npm run build && npm run gate:drives
+```
+
+That runs every `workroom-e2e.mjs` scenario on **three books** plus the spread drive's three file
+kinds, prints one table and exits non-zero on any finding. Roughly eight minutes; the books run in
+parallel (`--serial` for a small box).
+
+| book | what it is there to break |
+|---|---|
+| Hartwell | two packages, two lines of credit, a 26-row graph. Every question the room can ask gets asked. |
+| Kingsley | one package, one revolver, a Paid Off member, two guarantors. Every question the room can SKIP gets skipped. |
+| Piedmont | one package, **nothing booked**. A credit action has nothing to run against, so no modification version can exist: the refusal path end to end. |
+
+Any drive takes `--book <accountId|name>` on its own:
+
+```bash
+node design/probes/workroom-e2e.mjs app/dist/cockpit.html founderParties out.json --book Kingsley
+node design/probes/spread-e2e.mjs   app/dist/cockpit.html csv --book Piedmont
+node design/probes/gate.mjs --books Hartwell,Kingsley --scenario relayDrop
+```
+
+`lib/book.mjs` resolves the book and derives every figure a scenario quotes (the working package,
+the target facility, the product word, the pick line, the parties, the version fixture) off
+`artifact/live-data.json` with the app's own rules. **A book that cannot ask a question is never
+skipped**: the scenario asserts the simple path instead (silent bind, direct staging, the honest
+refusal) and reports which path it took in the table's PATH column.
+
+---
+
 ## Install
 
 Playwright is pinned locally in this folder (browsers come from the machine's

@@ -24,6 +24,16 @@
  * Of the two fields LV12 and LV13 gate, the org pre-fills LLC_BI__Application_Method__c ('Online')
  * and leaves LLC_BI__Primary_Loan_Purpose__c null, so only the purpose must be collected.
  *
+ * THE ARMS, 2026-09-13 (backlog row 49, founder). A banker opening a facility with a covenant on it
+ * or an asset pledged to it used to need two actions and two confirmations for one decision. This
+ * tool now takes `covenantAddsJson`, `covenantAttachesJson` and `pledgeAddsJson`, the SAME three
+ * arms and the same JSON shapes `stage_loan_modification` takes, parsed by its own public parsers so
+ * the two cannot answer the same payload differently (LESSONS 55). They land on the facility THIS
+ * plan creates, which has no id until execute time, so the plan names it by the label `new:1` the
+ * way the modification names the facilities it creates. An entry may leave `targetLoanId` out
+ * entirely: this plan creates exactly one facility, so an arm that names no target can only mean
+ * that one.
+ *
  * Org contract: A33.4.3. Bypass: WITHOUT Exclude_Flow (A33.5.5) because the two-phase design
  * DEPENDS on the async Loan Detail flow; suppressing it would break the action, not protect it.
  */
@@ -71,6 +81,15 @@ global with sharing class StageNewFacility {
 
     private static final Integer LOAN_DETAIL_WAIT_MS = 30000;
 
+    /**
+     * How the plan names the facility before the org does.
+     *
+     * The arms target a facility whose id is minted at execute time, so the plan needs a stable
+     * handle for it. `new:1` is the same spelling the modification's own net-new arm uses, which is
+     * what lets the shared parsers and the shared plan builder treat both routes identically.
+     */
+    private static final String NEW_FACILITY_LABEL = 'new:1';
+
     global class Request {
         @InvocableVariable(label='Idempotency Key' required=true)
         global String idempotencyKey;
@@ -88,6 +107,12 @@ global with sharing class StageNewFacility {
         global String primaryLoanPurpose;
         @InvocableVariable(label='Term Months')
         global Decimal termMonths;
+        @InvocableVariable(label='Covenant Adds JSON' description='Optional. JSON list of net-new covenants to create and attach to the facility this plan files: [{"typeName" or "typeId", "threshold", "operator" (< <= = >= >), "frequency"?, "effectiveDate"? (YYYY-MM-DD), "targetLoanId"?}]. Each is created Pending/Active on the borrower account and attached to the new facility. targetLoanId may be omitted, and normally is: this plan creates exactly one facility, so an arm that names no target lands on it.')
+        global String covenantAddsJson;
+        @InvocableVariable(label='Covenant Attaches JSON' description='Optional. ASSOCIATE AN EXISTING COVENANT to the facility this plan files: [{"covenantId", "targetLoanId"?}]. A junction-only create. No covenant is inserted, nothing is deleted: an LLC_BI__Loan_Covenant__c row ties a covenant the borrower already holds to the new facility, which is the instrument for a relationship-level covenant that carries no loan junction. The covenant must belong to the borrower. targetLoanId may be omitted.')
+        global String covenantAttachesJson;
+        @InvocableVariable(label='Pledge Adds JSON' description='Optional. COLLATERAL PLEDGES authored on the facility this plan files: [{"collateralId"? (an existing LLC_BI__Collateral__c the BORROWER owns), "newCollateral"? {"description", "collateralType", "value"}, "advanceRate"?, "advanceRateReason"?, "amountPledged"?, "authoriseOverPledge"?, "lienPosition"?, "targetLoanId"?}]. EXACTLY ONE of collateralId and newCollateral per entry. An existing collateral must be owned by the borrower through LLC_BI__Account_Collateral__c (LLC_BI__Collateral__c carries no account lookup at all). A newCollateral is authored as asset, then ownership junction, then pledge; its collateralType takes a collateral-type record id or the type\'s exact name, and advanceRate is REQUIRED on a create. amountPledged defaults to the asset\'s lendable value at the rate the pledge resolves to; a figure above it is refused unless the same entry sends "authoriseOverPledge": true. targetLoanId may be omitted.')
+        global String pledgeAddsJson;
     }
 
     global class PlanStep {
@@ -147,6 +172,14 @@ global with sharing class StageNewFacility {
         global Boolean createsPackage;
         @InvocableVariable(label='Planned Package Name' description='The name the new package will carry, built to the org convention.')
         global String plannedPackageName;
+        @InvocableVariable(label='Covenant Add Count' description='Net-new covenants this plan creates on the borrower and attaches to the new facility. Zero is the ordinary answer.')
+        global Integer covenantAddCount;
+        @InvocableVariable(label='Covenant Attach Count' description='Existing covenants this plan associates to the new facility by junction only.')
+        global Integer covenantAttachCount;
+        @InvocableVariable(label='Pledge Add Count' description='Collateral pledges this plan authors on the new facility.')
+        global Integer pledgeAddCount;
+        @InvocableVariable(label='New Facility Label' description='How this plan names the facility before the org has named it. The arms target it by this label, because its id is minted at execute time.')
+        global String newFacilityLabel;
         @InvocableVariable(label='Replayed')
         global Boolean replayed;
         @InvocableVariable(label='Token Rotated' description='True when this call re-issued the confirmation token for a plan the org already held at Staged: the earlier token, which the caller never received, is void. At most one valid token exists per staging row.')
@@ -170,7 +203,7 @@ global with sharing class StageNewFacility {
      */
     @InvocableMethod(
         label='stage_new_facility'
-        description='Validate a new commercial facility against the org contract and return an immutable execution plan with a plan hash and a single-use decision token. Writes NO Loan: the facility is created only by execute_new_facility behind the token gate.'
+        description='Validate a new commercial facility against the org contract and return an immutable execution plan with a plan hash and a single-use decision token. NET-NEW COVENANTS, EXISTING-COVENANT ASSOCIATIONS AND COLLATERAL PLEDGES may ride the same request in covenantAddsJson, covenantAttachesJson and pledgeAddsJson, in the same JSON shapes stage_loan_modification takes, and they land on the facility this plan files: one decision, one plan, one confirmation. Writes NO Loan: the facility and its arms are created only by execute_new_facility behind the token gate.'
     )
     global static List<Response> stage(List<Request> requests) {
         List<Response> out = new List<Response>();
@@ -180,6 +213,15 @@ global with sharing class StageNewFacility {
                 res.result = build(req);
                 res.ok = true;
             } catch (ToolException e) {
+                res.ok = false;
+                res.error = err('VALIDATION_FAILED', e.getMessage(), null, req.idempotencyKey);
+            } catch (StageLoanModification.ToolException e) {
+                res.ok = false;
+                res.error = err('VALIDATION_FAILED', e.getMessage(), null, req.idempotencyKey);
+            } catch (C360NewFacilities.NewFacilityException e) {
+                res.ok = false;
+                res.error = err('VALIDATION_FAILED', e.getMessage(), null, req.idempotencyKey);
+            } catch (C360FacilityArms.BudgetException e) {
                 res.ok = false;
                 res.error = err('VALIDATION_FAILED', e.getMessage(), null, req.idempotencyKey);
             } catch (C360ActionStaging.StagingException e) {
@@ -257,6 +299,41 @@ global with sharing class StageNewFacility {
             packageLabel = pkgs[0].Name;
         }
 
+        // THE ARMS. The facility this plan files is the only thing they can land on, and it has no
+        // id yet, so it is named by the label the modification's own arm resolver already
+        // understands. The parsers are the modification's: they carry the org resolution, and a
+        // second copy of the covenant-type catalog and the collateral-type catalog would drift the
+        // first time a picklist moves (LESSONS 55).
+        C360NewFacilities.NewFacility nf = new C360NewFacilities.NewFacility();
+        nf.label = NEW_FACILITY_LABEL;
+        nf.product = req.product;
+        nf.amount = req.amount;
+        nf.termMonths = req.termMonths;
+        nf.purpose = req.primaryLoanPurpose;
+        List<C360NewFacilities.NewFacility> newFacilities = new List<C360NewFacilities.NewFacility>{ nf };
+
+        StageLoanModification.Request armReq = new StageLoanModification.Request();
+        armReq.idempotencyKey = req.idempotencyKey;
+        armReq.productPackageId = req.productPackageId;
+        armReq.rationale = req.rationale;
+        armReq.covenantAddsJson = req.covenantAddsJson;
+        armReq.covenantAttachesJson = req.covenantAttachesJson;
+        armReq.pledgeAddsJson = req.pledgeAddsJson;
+        // No facility is selected, so the parsers cannot read the borrower off one. On the
+        // package-first path there is not even a package to read it off: the relationship is the
+        // only thing this plan knows, and it is what the arms resolve against.
+        armReq.armBorrowerId = accountId;
+
+        List<String> armWarnings = new List<String>();
+        List<LLC_BI__Loan__c> noFacilities = new List<LLC_BI__Loan__c>();
+        List<StageLoanModification.CovenantAdd> covenantAdds =
+            StageLoanModification.parseCovenantAdds(armReq, noFacilities, newFacilities, armWarnings);
+        List<StageLoanModification.CovenantAttach> covenantAttaches =
+            StageLoanModification.parseCovenantAttaches(armReq, noFacilities, newFacilities, armWarnings);
+        List<StageLoanModification.PledgeAdd> pledgeAdds =
+            StageLoanModification.parsePledgeAdds(armReq, noFacilities, newFacilities);
+        C360FacilityArms.assertBudget(covenantAdds, covenantAttaches, pledgeAdds);
+
         // Name is deliberately absent: the org rebuilds it and any value we send is discarded.
         Map<String, Object> resolved = new Map<String, Object>{
             'LLC_BI__Account__c' => accountId,
@@ -310,6 +387,16 @@ global with sharing class StageNewFacility {
                 .onObject(C360WriteGuard.OBJ_LOAN, new List<String>{ 'Name', 'LLC_BI__Stage__c', 'LLC_BI__Product__c' })
                 .provenBy('SELECT Id, Name, LLC_BI__Stage__c, LLC_BI__Product__c FROM LLC_BI__Loan__c WHERE Id = :newId')
         );
+        // THE ARMS LAND WITH THE FACILITY, in the same transaction that files it, which is why they
+        // sit here rather than after the stage hop. Two reasons, and both are about honesty. The
+        // Loan Detail is created by an after-commit flow that can be slow or absent, and hanging a
+        // covenant off that wait would mean a banker who asked for "this facility with this
+        // covenant" could get the facility alone and never be told. And a failure in an arm rolls
+        // the facility back with it, so the plan is all-or-nothing the way the banker read it.
+        C360FacilityArms.plan(
+            resolved, steps, new Map<Id, String>(), newFacilities, covenantAdds, covenantAttaches, pledgeAdds
+        );
+
         steps.add(
             new C360Plan.Step('wait_loan_detail', C360Plan.TYPE_WAIT, 'nCino creates the Loan Detail, then this action continues')
                 .onObject('LLC_BI__Loan_Detail__c', new List<String>())
@@ -345,6 +432,8 @@ global with sharing class StageNewFacility {
             'This action does not suppress org automation. Its two-phase design depends on the async Loan Detail flow.',
             'A borrower row is added to the facility\'s borrowing structure as part of this action. A facility insert creates none on its own, so without this step the facility would have no borrowing structure at all.'
         };
+        warnings.addAll(C360FacilityArms.warnings(covenantAdds, covenantAttaches, pledgeAdds, 'the new facility'));
+        warnings.addAll(armWarnings);
         if (createPackage) {
             warnings.add(
                 'A new credit package will be created for this relationship first, named to the org\'s own convention. ' +
@@ -370,6 +459,11 @@ global with sharing class StageNewFacility {
                 : 'Creates one facility on ' + packageLabel) +
             ' at stage Qualification, status Open, product ' + req.product +
             ', amount ' + String.valueOf(req.amount) + '. The org names the record and assigns the loan officer. ' +
+            (covenantAdds.isEmpty() && covenantAttaches.isEmpty() && pledgeAdds.isEmpty()
+                ? ''
+                : 'In the same breath it files ' +
+                  armPhrase(covenantAdds.size(), covenantAttaches.size(), pledgeAdds.size()) +
+                  ' onto that facility, so the whole decision lands together or not at all. ') +
             'Once nCino has created the Loan Detail, the purpose is written and the facility moves one step to Proposal. ' +
             'Nothing is approved: post-approval stages are unreachable through this panel.';
 
@@ -393,8 +487,27 @@ global with sharing class StageNewFacility {
         r.productPackageId = req.productPackageId;
         r.createsPackage = createPackage;
         r.plannedPackageName = createPackage ? packageLabel : null;
+        r.covenantAddCount = covenantAdds.size();
+        r.covenantAttachCount = covenantAttaches.size();
+        r.pledgeAddCount = pledgeAdds.size();
+        r.newFacilityLabel = NEW_FACILITY_LABEL;
         r.steps = toWireSteps(steps);
         return r;
+    }
+
+    /** The arms this plan carries, in banker language, for the summary. */
+    private static String armPhrase(Integer adds, Integer attaches, Integer pledges) {
+        List<String> said = new List<String>();
+        if (adds > 0) {
+            said.add(adds + ' net-new covenant' + (adds == 1 ? '' : 's'));
+        }
+        if (attaches > 0) {
+            said.add(attaches + ' existing covenant' + (attaches == 1 ? '' : 's') + ' associated to it');
+        }
+        if (pledges > 0) {
+            said.add(pledges + ' collateral pledge' + (pledges == 1 ? '' : 's'));
+        }
+        return String.join(said, ', ');
     }
 
     /**
@@ -407,16 +520,6 @@ global with sharing class StageNewFacility {
     private static String packageName(String accountName) {
         Date d = Date.today();
         return accountName + ' - ' + d.month() + '/' + d.day() + '/' + d.year() + ' - PP';
-    }
-
-    private static void assertPicklist(String objectApiName, String fieldApiName, String value) {
-        Set<String> allowed = C360Picklist.activeValues(objectApiName, fieldApiName);
-        if (allowed.isEmpty() || allowed.contains(value)) {
-            return;
-        }
-        List<String> sorted = new List<String>(allowed);
-        sorted.sort();
-        throw new ToolException(fieldApiName + ' value \'' + value + '\' is not offered by this org. Available: ' + String.join(sorted, ', ') + '.');
     }
 
     private static List<PlanStep> toWireSteps(List<C360Plan.Step> steps) {

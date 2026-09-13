@@ -851,3 +851,130 @@ describe("a figure that belongs to another field, typed into an open question", 
     expect(out.question).toMatch(/months or years/i);
   });
 });
+
+/* =============================================================================
+   A PACKAGE WITH NOTHING BOOKED TAKES NO CHANGE OF ANY KIND.
+
+   D1, the three-book drive matrix (2026-09-13, backlog row 51). Piedmont stages
+   three facilities and every one of them is at Final Review, so a credit action
+   has nothing to run against. The room said exactly that to a commitment ask and
+   in the same session put "remove Margaret Holloway" on the manifest: the
+   refusal lived inside `resolveTarget`, and a PARTY change never asks
+   `resolveTarget` for a member because a guarantor joins the deal rather than
+   one facility. `nothingToModify` is that rule, asked by both lanes.
+   ============================================================================= */
+
+describe("a package with no booked member", () => {
+  /* Piedmont's own shape: the members are real, open and at Final Review. */
+  const unbookedLine: Facility = { ...line15, stage: "Final Review", interestRate: undefined };
+  const unbookedEquipment: Facility = { ...equipment, stage: "Final Review" };
+  const barren: ParseContext = {
+    facilities: [unbookedLine, unbookedEquipment],
+    booked: [],
+    relationship: "Hartwell Precision Manufacturing LLC",
+    entities,
+  };
+
+  it("refuses a commitment change, as it always has", () => {
+    const out = parseModify("increase the commitment to $20,000,000", barren);
+    if (out.kind !== "clarify") throw new Error(out.kind);
+    expect(out.question).toMatch(/no booked facility is staged on this package/i);
+  });
+
+  it("refuses a party REMOVAL with the same sentence rather than staging a carry exclusion", () => {
+    const out = parseModify("remove Elena Hartwell as guarantor from this loan", barren);
+    if (out.kind !== "clarify") throw new Error(`${out.kind}: staged a removal against an unbooked package`);
+    expect(out.question).toMatch(/no booked facility is staged on this package/i);
+  });
+
+  it("refuses a party removal the catalog cannot see either (the inferred lane)", () => {
+    const out = parseModify("remove Elena from this loan", barren);
+    if (out.kind !== "clarify") throw new Error(`${out.kind}: staged an inferred removal against an unbooked package`);
+    expect(out.question).toMatch(/no booked facility is staged on this package/i);
+  });
+
+  it("refuses a party ADD", () => {
+    const out = parseModify("add Hartwell Industrial Holdings LLC as guarantor", barren);
+    if (out.kind !== "clarify") throw new Error(`${out.kind}: staged an add against an unbooked package`);
+    expect(out.question).toMatch(/no booked facility is staged on this package/i);
+  });
+
+  it("still stages every one of them once a member is booked", () => {
+    for (const line of [
+      "increase the commitment to $20,000,000",
+      "remove Elena Hartwell as guarantor from this loan",
+      "add Hartwell Industrial Holdings LLC as guarantor",
+    ]) {
+      const out = parseModify(line, single);
+      expect(out.kind, `${line}: ${out.kind}`).toBe("amendments");
+    }
+  });
+});
+
+/* =============================================================================
+   A SINGULAR PARTY REFERENCE THAT FITS SEVERAL FACILITIES IS A QUESTION.
+
+   D1, the three-book drive matrix (2026-09-13, backlog row 51). `resolveTarget`
+   has asked "which one?" over this shape since the wave shipped; the party lane
+   resolves its own member and never reached the question, so a line whose words
+   happened to fit three facilities staged three carry exclusions at once.
+
+   KINGSLEY IS WHERE IT SHOWS. Its loans are not named
+   `<Borrower> - <Product> - <$Amount>`, so the relationship prefix is not
+   stripped and every member's product word begins "Kingsley": the guarantor's
+   own surname matched all three, and "remove Owen Kingsley from this loan" took
+   him off each of them. On a book that follows the naming convention the party's
+   name never touches the product and the fan-out is invisible.
+   ============================================================================= */
+
+describe("a party line on a book whose loan names carry the borrower's name", () => {
+  const mk = (loanId: string, name: string, committed: number): Facility => ({
+    loanId,
+    name,
+    productType: "Non-Real Estate",
+    productPackageId: "a5FSAMPLE00000KGSL",
+    stage: "Booked",
+    status: "Open",
+    committed,
+  });
+  const termA = mk("a1XSAMPLEKGSL001", "Kingsley Equipment Term Loan A", 10_000_000);
+  const revolver = mk("a1XSAMPLEKGSL002", "Kingsley Working Capital Revolver", 8_000_000);
+  const capex = mk("a1XSAMPLEKGSL003", "Kingsley CapEx Facility II", 4_000_000);
+  /** Package-level involvement rows, which is how the org hangs a guaranty that
+   *  is not anchored on one loan. */
+  const kingsley: ParseContext = {
+    facilities: [termA, revolver, capex],
+    booked: [termA, revolver, capex],
+    relationship: "Kingsley Precision Works",
+    entities: [
+      { accountName: "Kingsley Family Trust", borrowerType: "Guarantor" },
+      { accountName: "Owen Kingsley", borrowerType: "Guarantor" },
+    ],
+  };
+
+  it("asks which facility rather than taking the guarantor off all three", () => {
+    const out = parseModify("remove Owen Kingsley from this loan", kingsley);
+    if (out.kind !== "clarify") {
+      throw new Error(
+        out.kind === "amendments"
+          ? `staged ${out.amendments.length} exclusions for one singular line: ${out.amendments.map((a) => a.facility?.name).join(", ")}`
+          : out.kind,
+      );
+    }
+    expect(out.question).toMatch(/Which one should Owen Kingsley come off\?/);
+    expect(out.options?.length).toBe(3);
+  });
+
+  it("still takes a PLURAL reference as the selection it is", () => {
+    const out = parseModify("remove Owen Kingsley from all of the Kingsley facilities", kingsley);
+    if (out.kind !== "amendments") throw new Error(out.kind);
+    expect(out.amendments.length).toBeGreaterThan(1);
+  });
+
+  it("still lets a figure written against the product name one of them", () => {
+    const out = parseModify("remove Owen Kingsley from the $8M Kingsley Working Capital Revolver", kingsley);
+    if (out.kind !== "amendments") throw new Error(out.kind);
+    expect(out.amendments).toHaveLength(1);
+    expect(out.amendments[0].facility?.loanId).toBe(revolver.loanId);
+  });
+});

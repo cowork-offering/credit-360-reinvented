@@ -20,7 +20,7 @@
 import { callTool, failedAttempts, SERVERS, TOOLS, unwrapInvocableOne, type McpFailure } from "./mcp";
 import { isTerminalStatus, readActionState } from "./cockpitTools";
 import type { ActionHistoryRow } from "../data/contract";
-import type { PlanStep, StagedCovenant, StagedFacility, StagedItem, StagedOutput, StepType } from "../actions/stagedPlan";
+import type { PlanStep, StagedAssociation, StagedCovenant, StagedFacility, StagedItem, StagedOutput, StepType } from "../actions/stagedPlan";
 
 /** The deployed write actions, and the tools each one runs on. */
 export const WRITE_TOOLS = {
@@ -425,6 +425,38 @@ function toExecutedItem(raw: Record<string, unknown>): ExecutedItem {
   };
 }
 
+/**
+ * `associations` ARRIVES AS A JSON STRING (0.9.24, backlog row 49).
+ *
+ * The org sends `[{loanId, loanName, productPackageId, packageName}]` as text on
+ * each planned covenant and each planned item, the same way `provenanceJson`
+ * travels. Parsed defensively: a malformed blob leaves the row with NO
+ * associations rather than taking down a staging call that is otherwise fine,
+ * and an ABSENT key stays absent, because "the org did not send it" and "this
+ * covenant is tied to nothing" are different facts.
+ */
+export function parseAssociations(raw: unknown): StagedAssociation[] | undefined {
+  const rows = typeof raw === "string" ? safeJson(raw) : Array.isArray(raw) ? raw : undefined;
+  if (!Array.isArray(rows)) return undefined;
+  return rows
+    .filter((r): r is Record<string, unknown> => Boolean(r) && typeof r === "object" && !Array.isArray(r))
+    .map((r) => ({
+      loanId: str(r.loanId),
+      loanName: str(r.loanName),
+      productPackageId: str(r.productPackageId),
+      packageName: str(r.packageName),
+    }));
+}
+
+function safeJson(raw: string): unknown {
+  if (!raw.trim()) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+}
+
 /** One covenant of a package-scoped review plan. A row without a covenantId
  *  cannot be reported against anything, so the caller drops it rather than
  *  rendering an anonymous covenant the banker cannot place. */
@@ -444,6 +476,7 @@ function toStagedCovenant(raw: Record<string, unknown>): StagedCovenant {
     statusStepId: str(raw.statusStepId),
     verifyStepId: str(raw.verifyStepId),
     generationStepId: str(raw.generationStepId),
+    associations: parseAssociations(raw.associations),
   };
 }
 
@@ -462,6 +495,7 @@ function toStagedItem(raw: Record<string, unknown>): StagedItem {
     id: typeof raw.id === "string" ? raw.id : undefined,
     name: typeof raw.name === "string" ? raw.name : undefined,
     reason: typeof raw.reason === "string" ? raw.reason : undefined,
+    associations: parseAssociations(raw.associations),
   };
 }
 
@@ -543,7 +577,17 @@ export interface StagePayloads {
   "collateral-valuation": {
     idempotencyKey: string;
     rationale?: string;
-    productPackageId: string;
+    /**
+     * THE ANCHOR, AS OF 0.9.24 (backlog row 49, founder 2026-09-13). nCino holds
+     * collateral on the ACCOUNT and pledges it across packages, so a valuation
+     * is relationship work and the room sends `accountId` and no package. The
+     * deployed 0.9.23 org still accepts a package-only call and the Client
+     * Actions panel still makes one, so BOTH keys are optional here and the org
+     * decides: an account with a package narrows, an account alone does not.
+     */
+    accountId?: string;
+    /** The narrowing the CALLER chose. The relationship room never sends it. */
+    productPackageId?: string;
     items: Array<{
       collateralId: string;
       value?: number | null;
@@ -680,8 +724,12 @@ export interface StagePayloads {
   "covenant-review": {
     idempotencyKey: string;
     rationale?: string;
-    productPackageId: string;
-    /** Optional member selection. Omitted, the whole package is surveyed. */
+    /** THE ANCHOR, AS OF 0.9.24. See `collateral-valuation` above: covenants sit
+     *  on the Account with loan junctions, so the review is relationship work. */
+    accountId?: string;
+    /** The narrowing the CALLER chose. The relationship room never sends it. */
+    productPackageId?: string;
+    /** Optional member selection. Omitted, the whole relationship is surveyed. */
     covenantIds?: string[];
     /** Explicit opt-in to writing onto a compliance row that is not Pending.
      *  Such a write is stored and the covenant schedule does NOT advance. */

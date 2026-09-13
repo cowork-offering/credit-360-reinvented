@@ -35,6 +35,23 @@ export interface ExecutedEntryInput {
   instanceUrl?: string;
   /** Session clock: the banker just did this, on this clock (A10 carve-out). */
   now?: () => Date;
+  /**
+   * THE PACKAGES AN ACCOUNT-ANCHORED REVIEW TOUCHED (0.9.24, backlog row 49).
+   *
+   * The covenant review and the collateral valuation are anchored on the
+   * ACCOUNT now: the room never asks which package, so the trail must not name
+   * one as if it had. What it names instead is the reach, the packages the
+   * covenants and the pledges it filed against actually sit in, in the room's
+   * own short words, read off the plan's `associations`.
+   *
+   * PRESENCE IS THE SIGNAL, AND ONLY THE RELATIONSHIP ROOM SENDS IT. The Client
+   * Actions panel still stages a package-scoped batch of its own against a
+   * collateral or a compliance row it named, and its trail row is unchanged: it
+   * sets no `packages` key and reads as it always has. An EMPTY array is still
+   * the room speaking (the exercise reached no association) and the row then
+   * names the relationship and stops, rather than naming a package.
+   */
+  packages?: string[];
 }
 
 /** The created record's id for this action, or undefined when none came back. */
@@ -51,6 +68,37 @@ export function createdRecordId(actionId: string, outcome: ExecuteResult): strin
 }
 
 const sentenceCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** The two account-anchored reviews, and the word each one's trail row leads
+ *  with. Not the CREATED_OBJECT label: a covenant review creates nothing and a
+ *  batch valuation creates several, so the row names the EXERCISE. */
+const RELATIONSHIP_REVIEW_WORD: Record<string, string> = {
+  "covenant-review": "Covenant review",
+  "collateral-valuation": "Collateral valuation",
+};
+
+/**
+ * ", across the Non-RE and the RE packages", or nothing at all.
+ *
+ * The reach of an exercise the room ran on the whole relationship. Empty where
+ * no association reached the room, because a silent row is honest and an
+ * invented package is not.
+ */
+function acrossPackages(packages: readonly string[] | undefined): string {
+  const named = [...new Set((packages ?? []).map((p) => p.trim()).filter(Boolean))];
+  if (!named.length) return "";
+  /* THE NOUN IS ADDED ONCE. `packageRoster` names a single-package relationship
+     "<relationship> credit package", which the room shortens to "credit
+     package": it already carries the word, and "the credit package package" is
+     how a sentence built out of two half-rules reads. */
+  const carries = named.some((n) => /\bpackages?\b/i.test(n));
+  if (named.length === 1) return `, on the ${named[0]}${carries ? "" : " package"}`;
+  const list =
+    named.length === 2
+      ? named.join(" and the ")
+      : `${named.slice(0, -1).join(", the ")} and the ${named[named.length - 1]}`;
+  return `, across the ${list}${carries ? "" : " packages"}`;
+}
 
 /** The step that stopped the plan, for the failure entry's detail. */
 function failingStep(outcome: ExecuteResult): { label: string; detail?: string } | null {
@@ -99,7 +147,19 @@ export function executedActivityEntry(input: ExecutedEntryInput): ActivityEntry 
     const authored = actionId === "relationship-intake" ? (outcome.items ?? []).length : 0;
     // Named: "Collateral valuation CV-0000000002 filed against COL-000758".
     // Unnamed: the read-back failed, and the title says exactly that.
-    const title = bulkCovenants
+    /* AN ACCOUNT-ANCHORED REVIEW NAMES THE RELATIONSHIP AND ITS REACH (0.9.24).
+       "Covenant review on Hartwell Precision Manufacturing LLC, across the
+       Non-RE and the RE packages" rather than a package the room never asked
+       for. The record the org named is not lost: it is in the body below, with
+       the staging row and the org's own sentence. */
+    const review = input.packages !== undefined ? RELATIONSHIP_REVIEW_WORD[actionId] : undefined;
+    /* THE RELATIONSHIP, NOT THE ORG'S ANCHOR. `outcome.anchorName` on a
+       single-item valuation is the COLLATERAL the org wrote against, which is
+       exactly the narrowing this row exists to stop naming. `target` is what
+       the room filed against, and the room files against the account. */
+    const title = review
+      ? `${review} on ${target ?? anchor ?? "this relationship"}${acrossPackages(input.packages)}`
+      : bulkCovenants
       ? `${written.length} covenant assessments recorded`
       : authored > 1
         ? `${authored} records authored on the relationship`
@@ -146,7 +206,12 @@ export function executedActivityEntry(input: ExecutedEntryInput): ActivityEntry 
   return {
     ...base,
     kind: "ACTION_EXECUTION_FAILED",
-    title: `${sentenceCase(label)} did not complete${against}`,
+    title:
+      input.packages !== undefined && RELATIONSHIP_REVIEW_WORD[actionId]
+        ? `${RELATIONSHIP_REVIEW_WORD[actionId]} on ${target ?? anchor ?? "this relationship"}${acrossPackages(
+            input.packages,
+          )} did not complete`
+        : `${sentenceCase(label)} did not complete${against}`,
     summary: outcome.outcome || undefined,
     reference: recordId ? { kind: "ncino-record", id: recordId, source: "Customer 360" } : undefined,
     detail: {

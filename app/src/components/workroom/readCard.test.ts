@@ -223,6 +223,36 @@ describe("a question about guarantors is answered with the guarantors", () => {
     expect(card.lede).not.toContain("14");
   });
 
+  /* D1, the three-book drive matrix (2026-09-13). "each once" is a promise about
+     a LIST, and a list of one has nothing to promise: on Kingsley, whose credit
+     carries a single personal guaranty, the card read "1 guarantor is on this
+     package today, each once with the role the org wrote". The claim the
+     sentence exists for is the ROLE, and that half is said either way. */
+  it("drops 'each once' where there is only one of them to count", () => {
+    const oneGuarantor: BorrowerBundle = {
+      ...HARTWELL,
+      graph: {
+        ...HARTWELL.graph,
+        legalEntities: (HARTWELL.graph?.legalEntities ?? []).filter((e) => e.accountName === "Elena Hartwell"),
+      },
+    };
+    const card = buildReadCard("structure", src(oneGuarantor), { role: "guarantor" })!;
+    expect(card.lede).toContain("1 guarantor is on");
+    expect(card.lede).not.toContain("each once");
+    expect(card.lede).toContain("with the role the org wrote");
+
+    const parties = buildReadCard("structure", src(oneGuarantor))!;
+    expect(parties.lede).toContain("1 party is on");
+    expect(parties.lede).not.toContain("each once");
+    expect(parties.lede).toContain("with the role it holds");
+  });
+
+  it("keeps 'each once' where the card really is deduplicating rows", () => {
+    const card = buildReadCard("structure", src(HARTWELL), { role: "guarantor" })!;
+    expect(card.lede).toContain("3 guarantors are on this package today, each once with the role the org wrote");
+    expect(buildReadCard("structure", src(HARTWELL))!.lede).toContain("today, each once, with the role it holds");
+  });
+
   it("says so, and shows the whole structure, where the read carries no guaranty row", () => {
     // A book of BORROWER rows only. An empty card under a "Guarantors" heading
     // is the frame of an answer with no answer in it; this names the gap and
