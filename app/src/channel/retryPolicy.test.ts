@@ -4,6 +4,8 @@ import {
   callTool,
   describeFailure,
   isRetryableRead,
+  isRetryableWrite,
+  laneTimeout,
   retryDelayMs,
   RETRY_ATTEMPTS,
   RETRY_BUDGET_MS,
@@ -12,7 +14,12 @@ import {
   SERVERS,
   TOOLS,
   watchTool,
+  WRITE_RETRY_ATTEMPTS,
+  WRITE_RETRY_BUDGET_MS,
+  WRITE_RETRY_MAX_MS,
+  WRITE_RETRY_MIN_MS,
 } from "./mcp";
+import { __resetLaneHealthForTests, laneCalls, laneOf } from "./laneHealth";
 
 /* =============================================================================
    THE ONE RETRY POLICY, for READS and for WATCHES.
@@ -149,7 +156,7 @@ describe("callTool: reads retry to the budget, writes never", () => {
     expect(fn).toHaveBeenCalledTimes(3);
   });
 
-  it("NEVER retries a write: an ambiguous rejection is not proof the tool did not run", async () => {
+  it("a write WITHOUT the idempotent flag falls straight through: an ambiguous rejection is not proof the tool did not run", async () => {
     const fn = vi.fn().mockRejectedValue(UNAVAILABLE);
     installMcp({ callTool: fn });
     for (const tool of [TOOLS.stageLoanModification, TOOLS.executeLoanModification, TOOLS.executeAnnualReview]) {
@@ -157,7 +164,116 @@ describe("callTool: reads retry to the budget, writes never", () => {
       await vi.advanceTimersByTimeAsync(RETRY_BUDGET_MS + 50);
       expect(await seen, tool).toMatchObject({ ambiguous: true });
     }
+    // One attempt each, and not one more: three calls for three tools.
     expect(fn).toHaveBeenCalledTimes(3);
+  });
+});
+
+/* ===================================================== the idempotent write
+
+   THE RULE THAT MOVED (2026-09-13). "Never auto-retry a write" was written
+   before the keys existed and is wrong for the two governed tools: a stage under
+   one idempotencyKey returns the row the org already holds, and an execute under
+   one stagingId + token reports the run already made. So a caller that can
+   promise the same key goes back out says `idempotent: true` and gets three
+   attempts on a LOST answer only. Everything else is unchanged, and the tests
+   above still hold the line for every write that does not claim the flag. */
+
+describe("callTool: an idempotent write is re-asked under the same key", () => {
+  const IDEMPOTENT = { cache: false as const, idempotent: true };
+
+  it("re-asks on the relay's own 502 and resolves on the second answer", async () => {
+    const fn = vi.fn().mockRejectedValueOnce({ code: "server_unavailable", message: "request failed (502)" }).mockResolvedValue({ payload: "ok" });
+    installMcp({ callTool: fn });
+    const p = callTool(SERVERS.customer360, TOOLS.stageLoanModification, { inputs: [{ idempotencyKey: "k1" }] }, IDEMPOTENT);
+    await vi.advanceTimersByTimeAsync(WRITE_RETRY_BUDGET_MS + 50);
+    await expect(p).resolves.toMatchObject({ payload: "ok", attempts: 2 });
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends the SAME payload on every attempt: a new key would be a second row", async () => {
+    const fn = vi.fn().mockRejectedValue({ code: "server_unavailable" });
+    installMcp({ callTool: fn });
+    const input = { inputs: [{ idempotencyKey: "k1", rationale: "one plan" }] };
+    const seen = callTool(SERVERS.customer360, TOOLS.stageLoanModification, input, IDEMPOTENT).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(WRITE_RETRY_BUDGET_MS + 50);
+    await seen;
+    expect(fn).toHaveBeenCalledTimes(WRITE_RETRY_ATTEMPTS);
+    for (const call of fn.mock.calls) expect(call[2]).toEqual(input);
+  });
+
+  it("counts its attempts on the answer and on the failure", async () => {
+    const fn = vi.fn().mockRejectedValue({ code: "server_unavailable" });
+    installMcp({ callTool: fn });
+    const seen = callTool(SERVERS.customer360, TOOLS.executeLoanModification, { inputs: [{}] }, IDEMPOTENT).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(WRITE_RETRY_BUDGET_MS + 50);
+    expect(await seen).toMatchObject({ code: "server_unavailable", attempts: WRITE_RETRY_ATTEMPTS });
+  });
+
+  it("never re-asks a refusal the org actually made", async () => {
+    for (const code of ["tool_error", "bad_request", "needs_reauth", "not_in_manifest"]) {
+      const fn = vi.fn().mockRejectedValue({ code });
+      installMcp({ callTool: fn });
+      const seen = callTool(SERVERS.customer360, TOOLS.stageLoanModification, { inputs: [{}] }, IDEMPOTENT).catch((e) => e);
+      await vi.advanceTimersByTimeAsync(WRITE_RETRY_BUDGET_MS + 50);
+      expect(await seen, code).toMatchObject({ code });
+      expect(fn, code).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("re-asks the page's own deadline, which is a lost answer and not a refusal", async () => {
+    expect(isRetryableWrite(laneTimeout({ server: "S", tool: "T", ms: 10, ambiguous: true }))).toBe(true);
+    expect(isRetryableWrite(describeFailure({ code: "server_unavailable" }, "S", "T"))).toBe(true);
+    expect(isRetryableWrite(describeFailure({ code: "upstream_error" }, "S", "T"))).toBe(true);
+    expect(isRetryableWrite(describeFailure({ code: "tool_error", retryable: true }, "S", "T"))).toBe(false);
+    expect(isRetryableWrite(describeFailure({ code: "needs_reauth" }, "S", "T"))).toBe(false);
+  });
+
+  it("waits longer than a read does before it asks again", () => {
+    const window = { minMs: WRITE_RETRY_MIN_MS, maxMs: WRITE_RETRY_MAX_MS };
+    expect(retryDelayMs({}, () => 0.5, 0, window)).toBeGreaterThanOrEqual(WRITE_RETRY_MIN_MS);
+    expect(retryDelayMs({}, () => 0.999999, 0, window)).toBeLessThanOrEqual(WRITE_RETRY_MAX_MS);
+    // Doubling, the same as a read's: roughly 1.5s then 3s.
+    expect(retryDelayMs({}, () => 0.5, 1, window)).toBeGreaterThan(retryDelayMs({}, () => 0.5, 0, window));
+    // Randomised, so two page sessions do not knock in lockstep.
+    expect(retryDelayMs({}, () => 0, 0, window)).not.toBe(retryDelayMs({}, () => 0.99, 0, window));
+  });
+
+  it("lets a caller veto the next ask, and stops there", async () => {
+    const fn = vi.fn().mockRejectedValue({ code: "server_unavailable" });
+    installMcp({ callTool: fn });
+    const seen = callTool(
+      SERVERS.customer360,
+      TOOLS.executeLoanModification,
+      { inputs: [{}] },
+      { ...IDEMPOTENT, beforeRetry: () => false },
+    ).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(WRITE_RETRY_BUDGET_MS + 50);
+    expect(await seen).toMatchObject({ attempts: 1 });
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells the caller it is asking again, before it waits", async () => {
+    const fn = vi.fn().mockRejectedValueOnce({ code: "server_unavailable" }).mockResolvedValue({ payload: "ok" });
+    installMcp({ callTool: fn });
+    const asked: number[] = [];
+    const p = callTool(SERVERS.customer360, TOOLS.stageLoanModification, { inputs: [{}] }, { ...IDEMPOTENT, onAttempt: (i) => asked.push(i.attempt) });
+    await vi.advanceTimersByTimeAsync(WRITE_RETRY_BUDGET_MS + 50);
+    await p;
+    expect(asked).toEqual([2]);
+  });
+
+  it("puts every attempt on the lane's own history, and leaves the lane live when one answers", async () => {
+    __resetLaneHealthForTests();
+    const fn = vi.fn().mockRejectedValueOnce({ code: "server_unavailable" }).mockResolvedValue({ payload: "ok" });
+    installMcp({ callTool: fn });
+    const p = callTool(SERVERS.customer360, TOOLS.stageLoanModification, { inputs: [{}] }, IDEMPOTENT);
+    await vi.advanceTimersByTimeAsync(WRITE_RETRY_BUDGET_MS + 50);
+    await p;
+    const calls = laneCalls(SERVERS.customer360);
+    expect(calls).toHaveLength(2);
+    expect(calls.map((c) => c.ok)).toEqual([false, true]);
+    expect(laneOf(SERVERS.customer360)?.state).toBe("live");
   });
 });
 

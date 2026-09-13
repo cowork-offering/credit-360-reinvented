@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useApp } from "../state/appState";
 import type { StagedOutput } from "../actions/stagedPlan";
 import { SIMULATION_BANNER, assertNoRecordIds } from "../actions/stagedPlan";
@@ -11,21 +11,27 @@ import {
   type DriftReason,
 } from "../actions/suggestionEngine";
 import { packageFacilityCount } from "../actions/dealTicket";
-import { validatePlan } from "../actions/transitionAllowlist";
+import { validateDiscardPlan, validatePlan } from "../actions/transitionAllowlist";
 import { mintDecisionToken, type DecisionToken } from "../actions/decisionToken";
 import {
+  ASKING_AGAIN,
+  EXECUTE_CLOCK_MS,
   EXECUTION_HELD_COPY,
   executeAction,
   executionHeldReason,
   isExecutionHeld,
   isWriteAction,
   resolveApproverUserId,
+  toolErrorCopy,
+  TRANSPORT_SENTENCE,
   type ExecuteResult,
   type ToolError,
 } from "../channel/writeTools";
 import { mcpAvailable } from "../channel/mcp";
 import { STEP_TYPE_LABEL } from "../actions/tracker";
 import { resolveBundle } from "../actions/registry";
+import { groupInventory, DISCARD_ACTION_ID, STAGING_KEPT, whatStays } from "../actions/discardVersion";
+import { packageRoster } from "../book/packages";
 
 /* =============================================================================
    THE CONFIRM GATE (A33.3.1)
@@ -61,8 +67,12 @@ import { resolveBundle } from "../actions/registry";
  * still running, and if it answers a moment later the gate takes that answer
  * and replaces the notice with it. A page clock is a limit on WAITING, never a
  * verdict on the write.
+ *
+ * IT IS THE SAME CLOCK THE WRITE LANE POLLS THE TRAIL ON, which is why the
+ * number now lives beside the lane that spends it and is re-exported here for
+ * every surface that already reads it from this module.
  */
-export const EXECUTE_CLOCK_MS = 45_000;
+export { EXECUTE_CLOCK_MS };
 
 /** What the banker is told while nobody knows. Never the word failed. */
 export const UNSETTLED_TITLE = "The org has not answered yet";
@@ -158,7 +168,9 @@ export function ConfirmGate({
   /** Re-runs the staging call on the current data with the same inputs and
    *  replaces this plan. The only way out of a blocked gate; never executes. */
   onRestage?: () => void;
-  onConfirmed: (token: DecisionToken, executed?: ExecuteResult) => void;
+  /** `note` is the room's own sentence about HOW the filing was obtained, said
+   *  once where the banker lands: on the second ask, or off the org's trail. */
+  onConfirmed: (token: DecisionToken, executed?: ExecuteResult, note?: string) => void;
   onBack: () => void;
 }) {
   const { data, state } = useApp();
@@ -168,6 +180,14 @@ export function ConfirmGate({
   const [toolError, setToolError] = useState<ToolError | null>(null);
   /** True once the gate's own clock has run out on a call still in flight. */
   const [unsettled, setUnsettled] = useState(false);
+  /** The attempt now going out, while the same key is re-asked. Zero when the
+   *  gate is not re-asking anything. */
+  const [asking, setAsking] = useState(0);
+  /** WHICH GESTURE OWNS THE SCREEN. The gate's clock leaves a call running
+   *  behind the notice, and "Try again" starts another under the same key. Both
+   *  may answer; only the LATEST one may write to this gate, or a late answer to
+   *  a superseded ask would settle over the one the banker is watching. */
+  const run = useRef(0);
 
   const bundle = resolveBundle(data, state.accountId);
 
@@ -187,7 +207,14 @@ export function ConfirmGate({
   const rechecked = useMemo(() => isRecheckOnly(recompute()), [recompute]);
 
   // A33.3.1 — the plan must be allowlisted before a gesture is offered at all.
-  const violations = useMemo(() => validatePlan(plan.steps), [plan.steps]);
+  /* THE DISCARD IS VALIDATED AGAINST ITS OWN FENCE. The allowlist governs
+     WRITES and refuses the renewal chain rows by name; a discard's whole job is
+     to take them, in order, so a plan that deletes is held to the objects the
+     frozen contract names instead. See actions/transitionAllowlist.ts. */
+  const violations = useMemo(
+    () => (actionId === DISCARD_ACTION_ID ? validateDiscardPlan(plan.steps) : validatePlan(plan.steps)),
+    [plan.steps, actionId],
+  );
   // A33.5.3 — a staged plan carrying a record id means something already wrote.
   const idLeaks = useMemo(() => assertNoRecordIds(plan), [plan]);
 
@@ -207,6 +234,19 @@ export function ConfirmGate({
    *  selection out of it rather than as a bare figure a banker can read as the
    *  package's own size. Zero means the read cannot place the package. */
   const dealSize = packageFacilityCount(bundle, plan.productPackageId);
+  /** The org's delete set, grouped as the contract orders it. Empty on every
+   *  plan that carries no inventory, which is every plan but a discard. */
+  const inventory = useMemo(() => groupInventory(plan.items), [plan.items]);
+  const inventoryCount = useMemo(() => inventory.reduce((n, g) => n + g.items.length, 0), [inventory]);
+  /** The booked package the discard leaves behind, named by the roster. */
+  const sourceName = useMemo(() => {
+    if (!inventory.length) return null;
+    const roster = packageRoster(bundle);
+    const byVersion = plan.productPackageId
+      ? roster.find((e) => e.inFlightVersionId === plan.productPackageId)
+      : undefined;
+    return (byVersion ?? roster.find((e) => e.inFlightVersionId))?.name ?? null;
+  }, [inventory.length, bundle, plan.productPackageId]);
 
   async function confirm() {
     setError(null);
@@ -270,39 +310,70 @@ export function ConfirmGate({
     }
 
     setExecuting(true);
+    setAsking(0);
+    const mine = ++run.current;
 
-    const work = executeAction(actionId, {
-      // Exactly the five fields Execute*.cls reads, each taken from the
-      // staging result verbatim. The idempotency key is the STAGE key: that
-      // pairing is what the proven Apex round trip used.
-      idempotencyKey: idempotencyKey ?? plan.stagingId,
-      stagingId: plan.stagingId,
-      planHash: plan.planHash,
-      decisionToken: serverToken,
-      approverUserId,
-    });
+    const work = executeAction(
+      actionId,
+      {
+        // Exactly the five fields Execute*.cls reads, each taken from the
+        // staging result verbatim. The idempotency key is the STAGE key: that
+        // pairing is what the proven Apex round trip used.
+        idempotencyKey: idempotencyKey ?? plan.stagingId,
+        stagingId: plan.stagingId,
+        planHash: plan.planHash,
+        decisionToken: serverToken,
+        approverUserId,
+      },
+      {
+        /* THE RELATIONSHIP, SO A LOST ANSWER CAN BE CHASED. Without it the lane
+           can only report that the wire went quiet; with it, the org's own trail
+           says how the run actually ended. */
+        accountId: plan.accountId ?? state.accountId,
+        onAttempt: (n) => {
+          if (run.current === mine) setAsking(n);
+        },
+      },
+    );
 
     /** The org's answer, whenever it comes, and whichever way it goes. Named
      *  because the clock below hands the SAME function to a late answer. */
     const settle = (outcome: Awaited<typeof work>) => {
+      if (run.current !== mine) return;
       setUnsettled(false);
+      setAsking(0);
       if (!outcome.ok) {
         setToolError(outcome.error);
         return;
       }
-      onConfirmed(record, outcome.result);
+      /* SAID ONCE, WHERE THE BANKER LANDS. A filing that took two asks, or that
+         had to be read off the trail, is a different fact from one that answered
+         first time, and the tracker is where it belongs: the gate is gone by the
+         time it would be read here. */
+      const note = outcome.recovered
+        ? `The answer never came back over the connector. This is Salesforce's own trail for ${outcome.result.stagingId}, read after ${outcome.attempts} asks.`
+        : outcome.attempts > 1
+          ? `Filed as ${outcome.result.recordName ?? outcome.result.stagingId} on the ${outcome.attempts === 2 ? "second" : "third"} ask.`
+          : undefined;
+      onConfirmed(record, outcome.result, note);
     };
 
     const fail = (e: unknown) => {
+      if (run.current !== mine) return;
       setUnsettled(false);
-      // The org's own words first. The platform's generic "ran the tool but
-      // reported a failure" hid a precondition refusal for a whole live test
-      // session, so the raw message and code lead and the fix copy follows.
-      const f = e as { code?: string; fix?: string; message?: string };
+      setAsking(0);
+      /* THE ROOM'S SENTENCE LEADS AND THE PLATFORM'S CODE FOLLOWS. It used to be
+         the other way round, and "request failed (502)" in critical ink over a
+         write nobody had asked about was the whole defect: it reads as a verdict
+         and it is not one. The org's own refusals still lead with their own
+         words, because those are answers. */
+      const f = e as { code?: string; fix?: string; message?: string; said?: string };
+      const platform = [f.code, f.message].filter(Boolean).join(": ");
       setToolError({
         code: f.code ?? "TRANSPORT",
-        message: f.message ?? f.fix ?? String(e),
-        orgError: f.message && f.fix && f.message !== f.fix ? f.fix : undefined,
+        message: f.said ?? f.fix ?? f.message ?? TRANSPORT_SENTENCE,
+        orgError: f.said ? platform : f.message && f.fix && f.message !== f.fix ? f.fix : undefined,
+        resumable: true,
       });
     };
 
@@ -468,6 +539,40 @@ export function ConfirmGate({
         </div>
       )}
 
+      {/* THE INVENTORY (0.9.23, SPEC-0.9.23-TOOL-CONTRACT pair 2). A discard is
+          the only plan on this gate that DELETES, so the banker reads the org's
+          own list of what goes before confirming, grouped in the order the
+          executor will run: the chain rows that flip the parents back, then the
+          copies, then the loans, then the package, and last the staging rows,
+          which are kept and marked Withdrawn rather than deleted. Every row is
+          the org's, discovered by query; nothing here is derived. What STAYS is
+          stated in the same block, because a list of deletions with no
+          counterweight reads as a far bigger act than this one is. */}
+      {inventory.length > 0 && (
+        <div className="border-b border-divider px-5 py-4" data-inventory="discard">
+          <div className="kicker mb-2">
+            {inventoryCount} {inventoryCount === 1 ? "record" : "records"} in this discard
+          </div>
+          <div className="flex flex-col gap-3">
+            {inventory.map((group) => (
+              <div key={group.title}>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">{group.title}</div>
+                <ul className="mt-1 space-y-1.5">
+                  {group.items.map((item, i) => (
+                    <li key={`${item.object}-${item.id ?? i}`}>
+                      <div className="text-[12.5px] font-semibold text-ink">{item.name ?? item.id ?? item.object}</div>
+                      {item.reason && <div className="mt-0.5 text-[11px] leading-relaxed text-ink-muted">{item.reason}</div>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2.5 text-[11.5px] leading-relaxed text-ink-muted">{STAGING_KEPT}</p>
+          <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-muted">{whatStays(sourceName)}</p>
+        </div>
+      )}
+
       {/* The plan, step by step, with types visually distinct. */}
       <div className="border-b border-divider px-5 py-4">
         <div className="kicker mb-2">The plan</div>
@@ -588,12 +693,28 @@ export function ConfirmGate({
         </div>
       )}
 
+      {/* THE SAME KEY IS GOING BACK OUT, AND THE BANKER IS TOLD SO. A spinner
+          that says nothing for four seconds is how a banker decides the page is
+          broken and files the work a second time somewhere else. */}
+      {asking > 1 && (
+        <div className="border-b border-divider px-5 py-3" data-asking={asking}>
+          <div className="rounded-[10px] px-3.5 py-2.5" style={{ background: "var(--warning-bg)" }}>
+            <div className="text-[12px] leading-relaxed" style={{ color: "var(--warning-prose)" }}>
+              {ASKING_AGAIN}
+            </div>
+          </div>
+        </div>
+      )}
+
       {toolError && (
         <div className="border-b border-divider px-5 py-4">
           <div className="rounded-[10px] px-3.5 py-3" style={{ background: "var(--critical-bg)" }}>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--critical)" }}>
-                This did not go through
+                {/* A LOST ANSWER IS NOT A REFUSAL. "This did not go through" over
+                    a write nobody has heard back about is the sentence that gets
+                    a facility filed twice. */}
+                {toolError.code === "TRANSPORT" ? "The answer did not come back" : "This did not go through"}
               </span>
               <span
                 className="rounded-[5px] px-1.5 py-0.5 font-mono text-[9.5px] font-bold uppercase tracking-wide"
@@ -603,9 +724,9 @@ export function ConfirmGate({
               </span>
             </div>
             <div className="mt-1 text-[12px] leading-relaxed" style={{ color: "var(--critical)" }}>
-              {toolError.message}
+              {toolErrorCopy(toolError)}
             </div>
-            {toolError.orgError && (
+            {toolError.orgError && toolError.code !== "TRANSPORT" && (
               <div className="mt-1 font-mono text-[10.5px] leading-relaxed" style={{ color: "var(--critical)" }}>
                 {toolError.orgError}
               </div>
@@ -614,6 +735,25 @@ export function ConfirmGate({
               <div className="mt-1 text-[11.5px]" style={{ color: "var(--critical)" }}>
                 Nothing was written. Adjust the details and stage it again.
               </div>
+            )}
+            {/* THE WAY FORWARD, AND IT REUSES THE KEY. Asking again under the
+                same idempotency key is the one gesture that cannot file the work
+                twice: the org answers a key it has already seen with the run it
+                already made. */}
+            {toolError.code === "TRANSPORT" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setToolError(null);
+                  void confirm();
+                }}
+                disabled={executing}
+                className="c360-btn mt-2.5 rounded-md px-3.5 py-1.5 text-[12px] font-semibold disabled:opacity-40"
+                style={{ background: "var(--accent)", color: "var(--accent-ink)" }}
+                data-try-again="1"
+              >
+                Try again
+              </button>
             )}
           </div>
         </div>

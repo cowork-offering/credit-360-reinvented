@@ -130,6 +130,9 @@ export function recordToMarkdown(r: BugRecord): string {
  * Write the report to the shared store, or copy it if there is no store. Empty
  * (no category and no note) is a no-op the form guards against too.
  */
+const BUG_STORE_ATTEMPTS = 3;
+const BUG_STORE_RETRY_MS = 1_500;
+
 export async function submitBug(
   draft: BugDraft,
   copyFallback: (text: string) => Promise<boolean>,
@@ -140,12 +143,18 @@ export async function submitBug(
   const record = buildRecord(draft);
   const store = db();
   if (store) {
-    try {
-      const id = `bug-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      await store.collection("bugs").doc(id).set(record as unknown as Record<string, unknown>);
-      return "stored";
-    } catch {
-      // Fall through to the clipboard so the report is not lost.
+    /* THREE ASKS BEFORE THE CLIPBOARD (founder, 2026-09-13: the report itself
+       met a 502 on the way to the store). The document id is minted once, so a
+       write that landed and lost its answer is overwritten with itself, never
+       filed twice. */
+    const id = `bug-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    for (let attempt = 0; attempt < BUG_STORE_ATTEMPTS; attempt += 1) {
+      try {
+        await store.collection("bugs").doc(id).set(record as unknown as Record<string, unknown>);
+        return "stored";
+      } catch {
+        if (attempt < BUG_STORE_ATTEMPTS - 1) await new Promise((r) => setTimeout(r, BUG_STORE_RETRY_MS * (attempt + 1)));
+      }
     }
   }
   const ok = await copyFallback(recordToMarkdown(record));

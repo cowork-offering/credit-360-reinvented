@@ -130,6 +130,29 @@ function stageOf(bundle: BorrowerBundle | null, packageId: string): string | nul
   return (snapshot.packageStage ?? "").trim() || (snapshot.primaryStage ?? "").trim() || null;
 }
 
+/**
+ * WHAT THE ROSTER KNOWS THAT THE STAGE FIELDS DO NOT (0.9.23, spec 2c.1).
+ *
+ * The joinable rule reads three things: the package's own stage, the credit
+ * stage and its members' stages. None of them says "a modification of this
+ * package is in flight and unbooked with the org". That is a fact about a
+ * SECOND package, derived in `book/packages.ts` by finding the unbooked mirror.
+ * So a booked source with a version in flight read as "before approval" on
+ * neither field and was excluded only by accident; a source whose stage fields
+ * happen to read Pending was offered as a home for a new facility, which files
+ * new money onto the package a version is already superseding.
+ *
+ * It arrives as a plain shape rather than as `PackageEntry` so the data layer
+ * does not reach up into the book layer that reads it.
+ */
+export interface InFlightMark {
+  id: string;
+  /** A modification of THIS package is unbooked with the org. */
+  hasInFlightModification: boolean;
+  /** THIS package is the unbooked version. */
+  inFlightVersion: boolean;
+}
+
 /** One package, and why a new facility may or may not join it. */
 export interface PackageJoinability {
   id: string;
@@ -150,11 +173,33 @@ export interface PackageJoinability {
  * bank has money out on, and the stage field is the half most likely to be
  * stale.
  */
-export function packageJoinability(bundle: BorrowerBundle | null): PackageJoinability[] {
+export function packageJoinability(
+  bundle: BorrowerBundle | null,
+  /* THE ROSTER'S OWN VERDICT, and it is REQUIRED so a caller cannot forget it.
+     An empty list is a legitimate answer (a relationship with no version in
+     flight) and reads exactly as this rule always has; omitting the argument is
+     a compile error rather than a silently open door. */
+  roster: readonly InFlightMark[],
+): PackageJoinability[] {
   const facilities = bundle?.exposure?.facilities ?? [];
+  const marked = new Map(roster.map((r) => [r.id, r]));
   return packageIdsOn(bundle).map((id) => {
     const stage = stageOf(bundle, id);
     const on = facilities.filter((f) => f.productPackageId === id);
+    /* THE SOURCE OF A VERSION IS NEVER A HOME FOR NEW MONEY. A version of this
+       package is already unbooked with the org and will supersede it when it
+       books; a facility filed onto the source now would be left behind by that
+       booking, on a package the bank has stopped shaping. The version itself is
+       the place, and the create room offers it by name. */
+    const mark = marked.get(id);
+    if (mark?.hasInFlightModification) {
+      return {
+        id,
+        stage,
+        joinable: false,
+        reason: "a modification of this package is in flight and unbooked, so a facility filed here would be left behind when the version books",
+      };
+    }
     if (!packageStageBeforeApproval(stage)) {
       return {
         id,
@@ -176,9 +221,4 @@ export function packageJoinability(bundle: BorrowerBundle | null): PackageJoinab
     }
     return { id, stage, joinable: true };
   });
-}
-
-/** The joinable ids alone, for a caller that only needs the set. */
-export function joinablePackageIds(bundle: BorrowerBundle | null): Set<string> {
-  return new Set(packageJoinability(bundle).filter((p) => p.joinable).map((p) => p.id));
 }

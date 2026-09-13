@@ -25,6 +25,9 @@
 import { bookedFacilityAvailability } from "../data/facilityStage";
 import type { BorrowerBundle, C360Data, Id } from "../data/contract";
 import { isActiveFacility } from "../data/worklist";
+import { DISCARD_LABEL, DISCARD_LINE } from "./discardVersion";
+import { discardAvailability } from "./discardTarget";
+import { packageRoster } from "../book/packages";
 
 export type ActionCategory = "Analyze" | "Originate" | "Service" | "Risk";
 
@@ -273,6 +276,27 @@ export const ACTIONS: ClientAction[] = [
     availability: (data, accountId) => withBundle(data, accountId, () => STAGED_ONLY),
     apexAction: { tool: "ncino_create_loan", params: { accountId: "{accountId}" } },
      hasPanel: true,
+  },
+  /* THE UNDO (0.9.23, SPEC-0.9.23-VERSION-LIFECYCLE 2b.1). Every other row here
+     makes something; this one takes a version back off the org. It is a SERVICE
+     row because that is where the modification it undoes already lives, and it
+     is offered only where the roster has found an unbooked version the banker
+     may still shape: never on a booked package, never on a version the org has
+     taken to approval. `discardAvailability` is the one gate, shared with the
+     trail's own door, so the two surfaces cannot disagree about whether a
+     discard is on the table. The panel is relationship-scoped and anchors no
+     package, which is the third entry in `discardTarget`. */
+  {
+    id: "discard-version",
+    label: DISCARD_LABEL,
+    category: "Service",
+    description: DISCARD_LINE,
+    icon: "package",
+    promptTemplate:
+      "Discard the unbooked modification version on {account} ({accountId}) and leave the booked package as it is.",
+    availability: (data, accountId) =>
+      withBundle(data, accountId, (b) => discardAvailability(packageRoster(b), null)),
+    hasPanel: true,
   },
   {
     id: "create-service-request",

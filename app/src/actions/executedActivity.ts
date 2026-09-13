@@ -21,7 +21,8 @@ import type { ActionHistoryRow, ActivityEntry } from "../data/contract";
 import type { ExecuteResult } from "../channel/writeTools";
 import type { WorkroomExecution } from "../workroom/types";
 import type { MemoPublication } from "../memo/publishTypes";
-import { CREATED_OBJECT, recordDeepLink } from "../components/DeepLink";
+import { CREATED_OBJECT, packageDeepLink, recordDeepLink } from "../components/DeepLink";
+import { discardCounts, discardSummary, groupInventory, DISCARD_ACTION_ID, STAGING_KEPT } from "./discardVersion";
 
 export interface ExecutedEntryInput {
   actionId: string;
@@ -154,6 +155,110 @@ export function executedActivityEntry(input: ExecutedEntryInput): ActivityEntry 
         failed?.detail ?? null,
         `Terminal state ${outcome.terminalState}.`,
         outcome.stagingId ? `Staged as ${outcome.stagingId}.` : null,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    },
+  };
+}
+
+/* ---------------------------------------------- the undo, in the same trail
+
+   A30, EXTENDED TO THE DISCARD (0.9.23, spec 2b.4). Every other execution on
+   this trail says what now EXISTS because a named person confirmed a plan. This
+   one says what no longer does, and the row is the only durable evidence the
+   cockpit holds that a version was ever forked: the version package, its clone
+   loans and its chain rows are gone from the org by the time the banker reads
+   it, and the staging rows that remain are marked Withdrawn.
+
+   IT NAMES THE SOURCE, NOT THE VERSION, as the record it references. The
+   contract puts the action history row on the SOURCE booked package for the
+   same reason (`productPackageId` = the source): the version's id resolves to
+   nothing the moment the discard lands, so a link to it would be a link to a
+   deleted record, and the package the banker will actually go and look at is
+   the one that stayed.                                                       */
+
+export interface VersionDiscardedInput {
+  /** The executor's own result, verbatim. `items[]` is the org's inventory. */
+  outcome: ExecuteResult;
+  /** The version as the roster named it before the discard. */
+  versionName: string | null;
+  /** The booked package that stayed. */
+  sourceName: string | null;
+  /** The source package's id, for the reference chip and its link. */
+  sourcePackageId?: string | null;
+  actor?: string;
+  instanceUrl?: string;
+  /** Session clock: the banker just did this, on this clock (A10 carve-out). */
+  now?: () => Date;
+}
+
+/** The trail entry for one discarded version, or null where nothing terminal
+ *  came back (nothing was attempted, so there is nothing honest to log). */
+export function versionDiscardedActivityEntry(input: VersionDiscardedInput): ActivityEntry | null {
+  const { outcome, versionName, sourceName, sourcePackageId, actor, instanceUrl } = input;
+  if (!outcome.terminalState) return null;
+  const now = (input.now ?? (() => new Date()))();
+  const counts = discardCounts(outcome.items);
+  const named = versionName ? ` ${versionName}` : "";
+
+  const base = {
+    // One execution, one entry, however many times the panel re-renders.
+    id: `exec-${outcome.stagingId || now.getTime()}`,
+    ts: now.toISOString(),
+    actor: actor ?? "You",
+    sessionLocal: true,
+    reference: sourcePackageId
+      ? {
+          kind: "ncino-record",
+          id: sourcePackageId,
+          label: "LLC_BI__Product_Package__c",
+          source: "Customer 360",
+          webLink: packageDeepLink(instanceUrl, sourcePackageId) ?? undefined,
+        }
+      : undefined,
+  };
+
+  if (outcome.terminalState !== "success") {
+    const bad = outcome.steps.find((s) => s.state === "failed" || s.state === "ambiguous");
+    return {
+      ...base,
+      kind: "ACTION_EXECUTION_FAILED",
+      title: `Version${named} was not discarded`,
+      summary: outcome.outcome || undefined,
+      detail: {
+        body: [
+          bad ? `Stopped at: ${bad.label}.` : null,
+          bad?.detail ?? null,
+          /* A PARTIAL DISCARD IS THE ONE STATE THIS TRAIL MUST NOT ROUND OFF.
+             The chain deletes in a fixed order and stops where it fails, so
+             what is gone and what remains is the executor's own account of it
+             and it is carried verbatim. */
+          `Terminal state ${outcome.terminalState}.`,
+          outcome.stagingId ? `Staged as ${outcome.stagingId}.` : null,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      },
+    };
+  }
+
+  return {
+    ...base,
+    kind: "ACTION_EXECUTED",
+    title: `Version discarded${sourceName ? ` from ${sourceName}` : ""}`,
+    summary: discardSummary(counts, sourceName),
+    detail: {
+      body: [
+        versionName ? `${versionName} no longer exists in the org.` : null,
+        discardSummary(counts, sourceName),
+        outcome.outcome || null,
+        ...groupInventory(outcome.items).map(
+          (g) => `${g.title}: ${g.items.map((i) => i.name ?? i.id ?? i.object).join(", ")}.`,
+        ),
+        STAGING_KEPT,
+        outcome.stagingId ? `Staged as ${outcome.stagingId}.` : null,
+        outcome.replayed ? "Replayed under the same idempotency key; nothing was deleted twice." : null,
       ]
         .filter(Boolean)
         .join(" "),
@@ -403,6 +508,7 @@ const ACTION_LABEL: Record<string, string> = {
   "covenant-review": "Covenant assessment",
   "loan-modification": "Modification",
   renewal: "Renewal",
+  [DISCARD_ACTION_ID]: "Version discard",
 };
 
 /**
@@ -441,6 +547,18 @@ export function historyActivityEntry(row: ActionHistoryRow, instanceUrl?: string
         .join(" "),
     },
   };
+
+  /* A DISCARD FILED NOTHING; it took something away, and the generic title
+     ("Version discard filed") reads as a create. The org row is what the trail
+     shows after a reload, so it says the same thing the session echo said. */
+  if (completed && row.actionId === DISCARD_ACTION_ID) {
+    return {
+      ...base,
+      kind: "ACTION_EXECUTED",
+      title: "Version discarded",
+      summary: row.summary || "The unbooked version was removed; the booked package was left as it was.",
+    };
+  }
 
   if (completed) {
     // The null-name doctrine applies HERE and only here: on a completed row a

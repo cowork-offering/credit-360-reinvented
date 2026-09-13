@@ -315,16 +315,28 @@ describe("the room refuses a second modification", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it("lists the version in the package ask, with what the banker can still do to it", async () => {
+  /* RESTATED 0.9.23 (spec 2c.3). The door's ask is no longer route-neutral,
+     because there is no longer a question at the door before the route: the
+     room asks the ROUTE first and the package question is scoped by it. The
+     route-neutral picker that survives is the header's own SWITCH, which an
+     unbound room still renders open, and it is what this case is about: both
+     rows readable, neither closed, each saying what it is. */
+  it("lists the version on the route-neutral switch, with what the banker can still do to it", async () => {
     const { room } = openRoom({ data: forked, productPackageId: null });
     await settle();
 
-    const cards = [...room.querySelectorAll<HTMLButtonElement>(".wk-pkgask .wk-pkg")];
-    expect(cards).toHaveLength(2);
-    const version = cards.find((c) => c.dataset.pkg === VERSION)!;
-    const source = cards.find((c) => c.dataset.pkg === SOURCE)!;
+    // The door asks the route, not the package.
+    expect(room.querySelector(".wk-pkgask")).toBeNull();
+    expect(room.querySelector(".wk-routes")).toBeTruthy();
 
-    /* THE ASK IS ROUTE-NEUTRAL, so neither row is closed here: the version is
+    act(() => room.querySelector<HTMLElement>(".wk-pkgline")!.click());
+    await settle();
+    const cards = [...document.querySelectorAll<HTMLButtonElement>("[data-pkgrow]")];
+    expect(cards).toHaveLength(2);
+    const version = cards.find((c) => c.dataset.pkgrow === VERSION)!;
+    const source = cards.find((c) => c.dataset.pkgrow === SOURCE)!;
+
+    /* NEITHER ROW IS CLOSED WHILE THE ROUTE IS OPEN: the version is
        pre-approval and still the banker's to shape, and the source keeps the
        new-facility route rule 2 deliberately leaves open. What each one IS is
        said on it, and the route chips refuse Modify and Renew by name. */

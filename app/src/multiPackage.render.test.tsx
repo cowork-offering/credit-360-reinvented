@@ -123,12 +123,16 @@ function envelopeIn(prompt: string): Record<string, unknown> | null {
 interface Opened {
   room: HTMLElement;
   anchored: PackageChoice[];
+  /** Every package id the memo door was opened on, in order. */
+  memoed: Array<string | undefined>;
+  /** Every route the banker bound, in order. */
+  bound: string[];
 }
 
 /** The room, as `WorkroomHost` mounts it: the context resolved through
  *  `workroomContextFor`, so the auto-anchor under test is the shipping one. */
 function open(
-  args: { data: C360Data; accountId: string; productPackageId?: string; brain?: true; ask?: false } = {
+  args: { data: C360Data; accountId: string; productPackageId?: string; brain?: true; ask?: false; memo?: true } = {
     data: two,
     accountId: ACCOUNT_ID,
   },
@@ -144,11 +148,14 @@ function open(
     productPackageId: args.productPackageId ?? null,
   });
   const anchored: PackageChoice[] = [];
+  const memoed: Array<string | undefined> = [];
+  const bound: string[] = [];
   const router: WorkroomRouter = {
     question: args.ask === false ? null : neutralAsk(),
     say: null,
-    onBind: () => {},
+    onBind: (route) => bound.push(route),
     onRestart: () => {},
+    onMemo: args.memo ? (productPackageId) => memoed.push(productPackageId) : undefined,
   };
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -166,7 +173,7 @@ function open(
       />,
     );
   });
-  return { room: document.querySelector<HTMLElement>(".wk-room")!, anchored };
+  return { room: document.querySelector<HTMLElement>(".wk-room")!, anchored, memoed, bound };
 }
 
 /** Past the lookup beat. jsdom has no matchMedia, so the room takes the reduced
@@ -300,8 +307,26 @@ describe("the room opens", () => {
     expect(room.querySelectorAll(".wk-mchip").length).toBe(6);
   });
 
-  it("MORE THAN ONE asks first, as line items, before anything binds", async () => {
+  /* RESTATED 0.9.23 (spec 2c.3, founder 2026-09-13). The contract moved, not the
+     rule: the room still asks before anything binds and still holds back every
+     package-altitude figure, but the ROUTE is the question it asks first,
+     because it is the one that says what a package is being picked FOR. The
+     package question follows it and is scoped by it, which is the half this
+     test now walks. */
+  it("MORE THAN ONE asks the ROUTE first, and the package question follows it", async () => {
     const { room } = open();
+    await settle();
+
+    // THE ROUTE LEADS, and nothing at package altitude is on the stage with it.
+    expect(room.querySelector(".wk-pkgask")).toBeNull();
+    expect(room.querySelectorAll(".wk-routes .wk-opt").length).toBe(3);
+    expect(room.querySelector(".wk-mchip")).toBeNull();
+    expect(room.querySelector(".wk-askpin")).toBeNull();
+    expect(room.querySelector<HTMLElement>(".wk-pkgline")!.dataset.pkgline).toBe("pending");
+
+    // THE PACKAGE QUESTION IS SECOND, as line items, scoped by the route taken.
+    const modify = [...room.querySelectorAll<HTMLElement>(".wk-routes .wk-opt")].find((b) => text(b) === "Modify")!;
+    act(() => modify.click());
     await settle();
 
     const ask = room.querySelector<HTMLElement>(".wk-pkgask")!;
@@ -312,11 +337,10 @@ describe("the room opens", () => {
     expect(cards.map((c) => c.dataset.pkg)).toEqual([PACKAGE_ONE, PACKAGE_TWO]);
     expect(text(cards[0])).toContain("Booked · 2 facilities · $18M committed");
     expect(text(cards[1])).toContain("In progress · 1 facility · $6M committed");
-    // A package no modification can run against is still OFFERED here: the ask
-    // runs before the route, and a new facility can go on either of them.
+    // Neither package carries a version in flight, so a modification may run
+    // against either of them and neither row is closed.
     expect(cards.every((c) => !(c as HTMLButtonElement).disabled)).toBe(true);
 
-    // NOTHING ELSE IS ON THE STAGE.
     expect(room.querySelector(".wk-routes")).toBeNull();
     expect(room.querySelector(".wk-mchip")).toBeNull();
     expect(text(room.querySelector(".wk-headline"))).toContain("Which package does this run in?");
@@ -325,13 +349,64 @@ describe("the room opens", () => {
     const input = room.querySelector<HTMLInputElement>(".wk-txt")!;
     expect(input.disabled).toBe(true);
     expect(input.placeholder).toBe("Pick the package this runs in.");
-    expect(room.querySelector<HTMLElement>(".wk-pkgline")!.dataset.pkgline).toBe("pending");
+  });
+
+  /* THE MEMO'S OWN PACKAGE (spec 2c.3). A memo is about one package version, so the door that
+     used to wait behind the package question now carries it: it asks with the review picker and
+     opens the memo on the package the banker names, without anchoring this room on it. */
+  it("the memo door asks which package the memo is for, and opens it on that one", async () => {
+    const { room, anchored, memoed } = open({ data: two, accountId: ACCOUNT_ID, memo: true });
+    await settle();
+
+    const door = room.querySelector<HTMLElement>('[data-door="memo"]')!;
+    expect(door).toBeTruthy();
+    act(() => door.click());
+    await settle();
+
+    const ask = room.querySelector<HTMLElement>(".wk-pkgask")!;
+    expect(text(ask.querySelector(".wk-pkgask-h"))).toBe("The memo is written about one package. Nothing is staged.");
+    const cards = [...ask.querySelectorAll<HTMLButtonElement>(".wk-pkg")];
+    expect(cards.map((c) => c.dataset.pkg)).toEqual([PACKAGE_ONE, PACKAGE_TWO]);
+
+    act(() => cards[1].click());
+    expect(memoed).toEqual([PACKAGE_TWO]);
+    // The memo is not a plan: picking its package never re-anchors this room.
+    expect(anchored).toHaveLength(0);
+  });
+
+  /* AND A NEW FACILITY ASKS FOR NO PACKAGE AT ALL (spec 2c.3). Its homes are an in-flight version,
+     a cockpit-created package still before approval, or a new package, and the create engine's own
+     offer is where those are read. The route binds create, and a create room never reaches the
+     booked-package question: the gate is the mode itself. */
+  it("New facility binds the create route, which never reaches the booked-package question", async () => {
+    const { room, bound } = open();
+    await settle();
+
+    act(() => [...room.querySelectorAll<HTMLElement>(".wk-routes .wk-opt")].find((b) => text(b) === "New facility")!.click());
+    await settle();
+    expect(bound).toEqual(["create"]);
+
+    const bundle = two.borrowers![ACCOUNT_ID];
+    expect(mustChoosePackage(bundle, null)).toBe(true);
+    const created = workroomContextFor({
+      mode: "create",
+      data: two,
+      bundle,
+      accountId: ACCOUNT_ID,
+      accountName: bundle.snapshot!.name!,
+      productPackageId: null,
+    });
+    expect(created.mode).toBe("create");
+    expect(created.productPackageId).toBeNull();
   });
 
   it("the pick anchors the room on that package and nothing else", async () => {
     const { room, anchored } = open();
     await settle();
 
+    // The route first (spec 2c.3): the package question only exists under one.
+    act(() => [...room.querySelectorAll<HTMLElement>(".wk-routes .wk-opt")].find((b) => text(b) === "Modify")!.click());
+    await settle();
     act(() => room.querySelectorAll<HTMLElement>(".wk-pkgask .wk-pkg")[1].click());
     expect(anchored).toHaveLength(1);
     expect(anchored[0].id).toBe(PACKAGE_TWO);

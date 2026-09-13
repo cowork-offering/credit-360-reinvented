@@ -5,6 +5,10 @@
  * token, a token bound to a different planHash, and a planHash that no longer matches the staged
  * plan. Each has its own method here, run through the real execute tool rather than against the
  * staging class in isolation, because the tool is the surface that has to refuse.
+ *
+ * The last three methods cover token rotation on replay: an untouched row re-issues and voids the
+ * token the caller never received, a finished or in-flight run still returns none, and no replay
+ * ever mints a second staging row.
  */
 @IsTest
 private class C360ActionStagingTest {
@@ -158,8 +162,15 @@ private class C360ActionStagingTest {
         System.assertEquals('TOKEN_REFUSED', res.error.code);
     }
 
+    /**
+     * The relay can lose the stage_* answer after the org has staged it, so the page re-asks under
+     * the same key holding nothing. A replay of an UNTOUCHED row rotates: one row, one plan, and one
+     * token that works, which is the token the caller is now holding. The digest it never received
+     * stops claiming the moment the new one lands, so the single-use claim is enforced rather than
+     * loosened.
+     */
     @IsTest
-    static void repeatedStageOnOneKeyReturnsOnePlanAndOneToken() {
+    static void anUntouchedReplayRotatesTheTokenAndVoidsTheOldOne() {
         C360TestFixture.armCalloutMock();
         Account a = C360TestFixture.existingAccount();
         String key = C360TestFixture.key('stagereplay');
@@ -167,17 +178,79 @@ private class C360ActionStagingTest {
         Test.startTest();
         StageServiceRequest.StageResult first = stageOne(a.Id, key);
         StageServiceRequest.StageResult second = stageOne(a.Id, key);
+
+        Boolean oldRefused = false;
+        try {
+            C360ActionStaging.assertClaimable(second.stagingId, second.planHash, first.decisionToken, UserInfo.getUserId());
+        } catch (C360ActionStaging.StagingException e) {
+            oldRefused = true;
+        }
+
+        ExecuteServiceRequest.Response ran =
+            executeWith(key, second.stagingId, second.planHash, second.decisionToken, UserInfo.getUserId());
         Test.stopTest();
 
         System.assertEquals(first.stagingId, second.stagingId, 'One idempotency key means one staging record');
+        System.assertEquals(first.planHash, second.planHash, 'A rotation re-issues the token for the SAME plan');
         System.assertEquals(false, first.replayed, 'The first stage is not a replay');
+        System.assertEquals(false, first.tokenRotated, 'A first stage mints, it does not rotate');
         System.assertEquals(true, second.replayed, 'The second stage is a replay');
-        System.assertEquals(
-            null,
-            second.decisionToken,
-            'A replay never re-mints: a second single-use token for a confirmed plan is exactly what A33.5.4 forbids.'
-        );
+        System.assertEquals(true, second.tokenRotated, 'A replay of an untouched row re-issues the token');
+        System.assertNotEquals(null, second.decisionToken, 'The caller that lost the first answer must get a usable token');
+        System.assertNotEquals(first.decisionToken, second.decisionToken, 'A rotation mints a NEW token, never the old one again');
+        System.assertEquals(true, oldRefused, 'The token the caller never received is void the moment the new one lands');
+        System.assertEquals(true, ran.ok, 'The rotated token must execute: ' + (ran.error == null ? '' : ran.error.message));
+        System.assertEquals(1, [SELECT COUNT() FROM cm_Action_Staging__c WHERE cm_Idempotency_Key__c = :key],
+            'A rotation writes to the SAME row: a replay never mints a second staging record');
+        System.assertEquals(1, [SELECT COUNT() FROM Case WHERE AccountId = :a.Id], 'Exactly one case, never two');
+    }
+
+    /** A run that already finished holds no token to rotate, and says so with a null. */
+    @IsTest
+    static void aReplayAfterTheRunFinishedReturnsNoToken() {
+        C360TestFixture.armCalloutMock();
+        Account a = C360TestFixture.existingAccount();
+        String key = C360TestFixture.key('rotateafterexec');
+
+        Test.startTest();
+        StageServiceRequest.StageResult staged = stageOne(a.Id, key);
+        ExecuteServiceRequest.Response ran =
+            executeWith(key, staged.stagingId, staged.planHash, staged.decisionToken, UserInfo.getUserId());
+        System.assertEquals(true, ran.ok, 'The execute should succeed: ' + (ran.error == null ? '' : ran.error.message));
+        StageServiceRequest.StageResult replay = stageOne(a.Id, key);
+        Test.stopTest();
+
+        System.assertEquals(true, replay.replayed, 'The stage after the run is a replay');
+        System.assertEquals(false, replay.tokenRotated, 'A finished run is not rotatable');
+        System.assertEquals(null, replay.decisionToken, 'A plan the banker already executed never hands out a second token');
         System.assertEquals(1, [SELECT COUNT() FROM cm_Action_Staging__c WHERE cm_Idempotency_Key__c = :key]);
+        System.assertEquals(1, [SELECT COUNT() FROM Case WHERE AccountId = :a.Id], 'The replay wrote nothing');
+    }
+
+    /** A run mid-flight has a token that was spent, and a spent token is never re-issued. */
+    @IsTest
+    static void aReplayWhileTheRunIsExecutingReturnsNoToken() {
+        C360TestFixture.armCalloutMock();
+        Account a = C360TestFixture.existingAccount();
+        String key = C360TestFixture.key('rotatemidrun');
+
+        Test.startTest();
+        StageServiceRequest.StageResult staged = stageOne(a.Id, key);
+        C360ActionStaging.claimForExecute(staged.stagingId, staged.planHash, staged.decisionToken, UserInfo.getUserId());
+        StageServiceRequest.StageResult replay = stageOne(a.Id, key);
+        Test.stopTest();
+
+        System.assertEquals(true, replay.replayed, 'The stage during the run is a replay');
+        System.assertEquals(false, replay.tokenRotated, 'A claimed row is not rotatable');
+        System.assertEquals(null, replay.decisionToken, 'A token that was consumed is never re-issued');
+
+        cm_Action_Staging__c row = [
+            SELECT cm_Status__c, cm_Token_Consumed_At__c
+            FROM cm_Action_Staging__c
+            WHERE cm_Idempotency_Key__c = :key
+        ];
+        System.assertEquals('Executing', row.cm_Status__c, 'The replay left the in-flight run exactly where it was');
+        System.assertNotEquals(null, row.cm_Token_Consumed_At__c, 'The consumed stamp is not cleared by a replay');
     }
 
     @IsTest

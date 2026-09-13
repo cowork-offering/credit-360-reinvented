@@ -924,8 +924,11 @@ function covenantIntakeStep(ctx: RelContext, a: Answers): RelStep | null {
   return null;
 }
 
-/** The org's own schedules, what this relationship already runs first. */
-function frequencyChips(ctx: RelContext): StepOption[] {
+/** The org's own schedules, what this relationship already runs first.
+ *  EXPORTED for the version routes (0.9.23): a covenant authored onto a version
+ *  is the same covenant record with the same frequency picklist behind it, and a
+ *  second chip builder over one picklist is a second place for it to drift. */
+export function frequencyChips(ctx: RelContext): StepOption[] {
   const running = [
     ...new Set(
       (ctx.bundle?.covenants?.covenants ?? [])
@@ -940,10 +943,11 @@ function frequencyChips(ctx: RelContext): StepOption[] {
   ];
 }
 
-/** Today, the 1st of next month, another date. RELATIVE labels are measured
+/** Today, the 1st of next month, another date. EXPORTED for the version routes,
+ *  for the same reason `frequencyChips` is. RELATIVE labels are measured
  *  against the real clock (the banker reads the screen on the real day), never
  *  against the bundle's own instant; absolute dates elsewhere stay the org's. */
-function dateChips(_ctx: RelContext): StepOption[] {
+export function dateChips(_ctx: RelContext): StepOption[] {
   const out: StepOption[] = [];
   const clock = new Date().toISOString();
   const now = today(clock);
@@ -975,7 +979,10 @@ function morStep(key: string, i: number, what: "covenant" | "asset", filed: numb
 
 /* ---------------------------------------------------------- the collateral */
 
-function collateralChips(ctx: RelContext): StepOption[] {
+/** The families the org holds, the ones this relationship already pledges
+ *  first. EXPORTED for the version pledge route, which authors an asset through
+ *  the same catalog and must offer the same names. */
+export function collateralChips(ctx: RelContext): StepOption[] {
   const names = collateralTypeNames(ctx);
   const held = heldFamilies(ctx);
   const roots: string[] = [];
@@ -1358,8 +1365,9 @@ function collateralRowValue(d: CollateralDraft): string {
 
 /** A threshold reads as money above a thousand and as a plain figure below it.
  *  The org keeps every threshold on one numeric field with no unit beside it, so
- *  the room never prints an "x" it invented. */
-function fmtThreshold(n: number): string {
+ *  the room never prints an "x" it invented. EXPORTED for the version routes,
+ *  which file the same field. */
+export function fmtThreshold(n: number): string {
   return Math.abs(n) >= 1000 ? fmtMoney(n) : String(n);
 }
 

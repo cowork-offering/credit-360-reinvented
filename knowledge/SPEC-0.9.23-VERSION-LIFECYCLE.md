@@ -23,6 +23,8 @@ He believed 0.9.17 (P1, the package lifecycle) covered this. It covered the STAT
 
 ## 2. What 0.9.23 builds
 
+TOOL CONTRACT (frozen, supersedes the class names sketched below): `knowledge/SPEC-0.9.23-TOOL-CONTRACT.md`. Two pairs only: `amend_version` (all authoring arms of the modification, landing on the version's own loans) and `discard_version`. The covenant-add and collateral-pledge routes are `amend_version` calls carrying one arm.
+
 ### 2a. Shape the version (amend in place)
 Scope: an EDITABLE in-flight version (modification or renewal) and any package the cockpit created
 that is still before approval. Never a booked package (that stays a fork), never a version in approval.
@@ -88,6 +90,28 @@ that is still before approval. Never a booked package (that stays a fork), never
    `design/probes/workroom-e2e.mjs` (stub lanes need a version in the stub book: extend
    `stub-lanes.js` livePatch with a fabricated version package + LoanRenewal-shaped history rows).
 
+
+### 2c.3 The door: route first, package second, scoped by route (founder, 2026-09-13, from the 0.9.22 preview)
+Today the facility room asks "Which package does this run in?" before the route on a multi-package
+relationship, then offers Modify / Renew / New facility / Credit memo. Founder: the ROUTE comes first,
+and the package question only follows where the route needs one, scoped by it:
+- Modify / Renew: pick a BOOKED package (the in-flight lock and the version-in-approval lock as today);
+  a room standing in an editable version offers Amend (2a) instead.
+- New facility: NEVER a booked package. The only homes are an editable in-flight version (or a
+  cockpit-created pre-approval package) and "New package"; with none in flight the room does not ask
+  at all and the plan creates the package.
+- Credit memo: the package the memo is for (booked or version), same picker as review.
+One package on the relationship still binds silently. The read chips (Package, Covenants,
+Collateral, Maturities, Entities) stay available under the route chips as they are.
+Owner: the wave-2 integration agent (C1 owns Workroom.tsx in wave 1 and was briefed before this
+landed); tests: the drive scenarios createFromRelationship / createInsideVersion assert the order.
+
+### 9.24 (parked, founder 2026-09-13): a cinematic entry
+The room's opening is a chat bubble with chips. Founder wants a smoother, more elegant entry: less
+a bubble, more centred, the three routes as the first thing the eye lands on, the package choice
+folded into the route it belongs to. Design-intent gate before building (one real option, founder
+picks). Backlog row 43.
+
 ## 3. Carried forward, unchanged
 Everything 0.9.19 to 0.9.22 shipped stays wired: golden rule context builder, condensed thread,
 one-decision gate counting the stage only, chat pacer landing whole, portfolio desk, Spreading room
@@ -107,3 +131,42 @@ both screenshotted into the STATUS entry. No push without the org proof: this re
   banker withdraws that in Salesforce first. Discard never deletes what the cockpit did not create.
 - Amend allowlist = the modify field wire only; anything else (borrower, product, structure) is a
   new facility or a fork, not an amend.
+
+## 0.9.24: the relationship room as a briefing, not a form (founder, 2026-09-13, in flight)
+
+"It says there is a covenant test due or a collateral valuation, but what does that really mean, what
+does the room need from me and why, and it should pull in information from all over the relationship."
+Backlog rows 49 (account-driven anchor; packages are associations shown on the row, never a filter)
+and 50 (depth). The design, so the next iteration starts from it:
+
+THE OPENING IS A BRIEFING. Before the room asks for anything it says, in a credit officer's voice:
+1. What is due and what it means: "The Debt Service Coverage covenant on Hartwell tests in 36 days
+   (31 October). It requires 1.25x; the last test read 1.42x on the FY2024 spread; the FY2025 spread
+   Boom holds reads 1.31x, so the cushion has thinned by 0.11x." Threshold, measured figure, source and
+   date of the figure, last verdict, next test, trend.
+2. What it is tied to: the facilities and packages the covenant or asset is associated with (shown, not
+   filtered), the exposure behind them, the coverage that depends on them.
+3. What changed on the relationship since the last test, drawn from every lane: the Boom spread and
+   ratios (financials), exposure and drawn balances (nCino), pledges and valuations (collateral), the
+   Activity trail (last review, the modification in flight, what was filed), the inbox (the client's
+   own emails on financials or covenants, Microsoft 365), the structural signals (EWS), the memo if one
+   exists. One paragraph, connected, no list of tiles.
+4. What the room needs from the banker and why: "To file this test I need the measured DSCR for the
+   period or the compliance certificate; Boom's FY2025 figure can stand as the measure if you confirm
+   it; policy requires the verdict before the test date, and a Pending row past its date shows on the
+   committee's exception list." Then the ask, as chips where the answer set is finite.
+5. What the committee will ask, one or two lines, before the plan.
+Same shape for a collateral valuation (asset, basis of value, lendable value, pledges across
+facilities and packages, coverage before and after, the last valuation and its source, what changed),
+an annual review (the year in the relationship: spreads, exposure, covenants, incidents, the memo),
+a risk-rating review (the drivers of the current grade and what moved).
+
+RULES. Golden rule voice; every figure traces to its source and date; nothing said twice; a gap is
+named ("the FY2025 compliance certificate is not in the inbox"), never filled; the governed ask is the
+LAST element; the plan card says why this review now, what it files and what it does not. Reads come
+from the bundle the cockpit already holds plus the inbox lane; no new connector.
+
+BUILD SHAPE. A `relationshipBriefing.ts` builder (pure, tested on the real Hartwell bundle) that
+composes the briefing per route from the book + trail + inbox + signals + memo; the relationship room
+opens with it under the route; drive scenarios assert the briefing names the threshold, the measured
+figure with its source, the associations, one change since the last test, and the ask with its reason.

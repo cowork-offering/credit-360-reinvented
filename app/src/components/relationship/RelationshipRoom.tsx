@@ -1,3 +1,4 @@
+import React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Portal } from "../Portal";
 import { BugCopyButton } from "../BugCopyButton";
@@ -70,6 +71,7 @@ import {
   RAISE_A_SERVICE_REQUEST,
   REL_ROUTE_CHIPS,
   REL_ROUTE_WORD,
+  isVersionRoute,
   SOMETHING_ELSE,
   asksForFacilityWork,
   readRelRouteIntent,
@@ -99,6 +101,7 @@ import {
   readCreateAsk,
   relContextFor,
   relReadyLine,
+  relPackageAsk,
   relPackagePending,
   relRouteBlock,
   reviewableCovenants,
@@ -126,7 +129,8 @@ import {
 import { newRequestId } from "../../channel/adapter";
 import { ComposerPlus } from "../composer/ComposerPlus";
 import { EMPTY_BOOK } from "../workroom/elicit";
-import { packagePick, type PackageEntry } from "../../book/packages";
+import { NOT_AMENDABLE_REFUSAL, amendablePackage, packagePick, type PackageEntry } from "../../book/packages";
+import { versionRows } from "./versionFlows";
 import { awaitFiling, FILED_FAILED, FILING_IN_FLIGHT, LIVE_SETTLE, STILL_WRITING } from "../workroom/settleExecution";
 import { condenseThread } from "../workroom/threadCondense";
 import { ThreadRecap } from "../workroom/ThreadCondensed";
@@ -169,6 +173,14 @@ import "../../styles/relationship.css";
 /** VERBATIM SHELL COPY. The review's own package question, and the word for a
  *  relationship that stages none. */
 const REL_PACKAGE_QUESTION = "Which package does this review run in?";
+
+/** AND THE VERSION ROUTES ASK A DIFFERENT QUESTION OF THE SAME LIST. A review
+ *  runs IN a package; an amendment lands ON one, and the two are not the same
+ *  ask even though they render the same rows. */
+const REL_VERSION_QUESTION = "Which version does this land on?";
+
+const relPackageQuestion = (route: RelRoute | null): string =>
+  isVersionRoute(route) ? REL_VERSION_QUESTION : REL_PACKAGE_QUESTION;
 const REL_PACKAGE_NONE = "no product package on this relationship";
 
 /* ------------------------------------------------------------- thread model */
@@ -326,12 +338,27 @@ export interface RelRouterQuestion {
  * without a snapshot; without them every route reads as available, which is the
  * shell's own default and never a claim about an org.
  */
-export function neutralRelAsk(args?: { data: C360Data; accountId: string | null; book?: RelBook | null }): RelRouterQuestion {
+export function neutralRelAsk(args?: {
+  data: C360Data;
+  accountId: string | null;
+  book?: RelBook | null;
+  /** EVERY PACKAGE THE RELATIONSHIP STAGES, for the two version routes. Neither
+   *  runs unless one of them can be shaped in place, and a chip offered over a
+   *  book that carries nothing amendable can only end in a refusal. Absent
+   *  leaves both reading as available, which is the shell's own default and
+   *  never a claim about an org. */
+  packages?: readonly PackageEntry[];
+}): RelRouterQuestion {
   return {
     line: NEUTRAL_QUESTION,
     chips: REL_ROUTE_CHIPS.map((c) => {
       if (!args) return { label: c.label, route: c.route };
       const availability = routeAvailability(c.route, args.data, args.accountId);
+      /* NOTHING TO SHAPE IS A DISABLED CHIP WITH THE REASON ON IT (A27.3), not
+         a chip that is gone. The map of what exists stays in front of the
+         banker; what changes is whether the door opens. */
+      const noVersion =
+        isVersionRoute(c.route) && Boolean(args.packages) && !args.packages!.some(amendablePackage);
       /* THE HONESTY GATE, ON THE CHIP (section 1.5). Where NOT ONE covenant
          carries a compliance row the covenant route can only end in a refusal,
          so the chip says so instead of offering it. It STAYS on the glass,
@@ -341,8 +368,8 @@ export function neutralRelAsk(args?: { data: C360Data; accountId: string | null;
       return {
         label: c.label,
         route: c.route,
-        disabled: !availability.available || noRows,
-        reason: noRows ? NO_COMPLIANCE_ROW_CHIP : availability.reason,
+        disabled: !availability.available || noRows || noVersion,
+        reason: noRows ? NO_COMPLIANCE_ROW_CHIP : noVersion ? NOT_AMENDABLE_REFUSAL : availability.reason,
       };
     }),
   };
@@ -557,6 +584,12 @@ function laneRowsFor(route: RelRoute, ctx: RelContext, answers: Answers, order: 
      covenants. The rows come from the same drafts the payload is built from, so
      the lane and the wire cannot describe different things. */
   if (route === "intake") return intakeRows(ctx, answers);
+  /* AND THE VERSION LANES READ AS WHAT IS BEING FILED TOO: the version, the
+     covenant or the asset, and the member it lands on. Nine rows behind one
+     pledge is a transcript; the banker is filing a pledge. The rows come from
+     the same drafts the payload is built from, so the lane and the wire cannot
+     describe different things. */
+  if (route === "versionCovenant" || route === "versionPledge") return versionRows(route, ctx, answers);
   const covenants = reviewableCovenants(ctx);
   const assets = valuableCollateral(ctx);
   const rows: LaneRow[] = [];
@@ -657,9 +690,36 @@ const LANE_LABELS: Record<string, string> = {
   detail: "Detail",
   intakeKind: "Intake",
   intakeKindPick: "Intake",
+  /* THE VERSION ROUTES render their lane through `versionRows` rather than one
+     row per answer, so these labels are only ever read by the settled-row
+     grammar in the thread. They stay in the same register as the rest. */
+  vcType: "Covenant type",
+  vcPick: "Covenant type",
+  vcAttach: "Covenant",
+  vcOperator: "Direction",
+  vcThreshold: "Threshold",
+  vcFrequency: "Frequency",
+  vcEffective: "Effective date",
+  vcEffectiveOther: "Effective date",
+  vcTarget: "Tests",
+  vpSource: "Asset",
+  vpType: "Collateral type",
+  vpPick: "Collateral type",
+  vpDescription: "Description",
+  vpValue: "Value",
+  vpAdvanceRate: "Advance rate",
+  vpAdvanceReason: "Advance-rate reason",
+  vpAmount: "Pledged",
+  vpAuthorise: "Over-pledge",
+  vpTarget: "Secures",
 };
 
 function iconForAnswer(route: RelRoute, group: string): IconKind {
+  /* THE VERSION KEYS ARE READ FIRST. `vc` and `vp` would otherwise fall past
+     every prefix below to the route's own icon, and a covenant answer drawn
+     with a package glyph is the one icon language saying two things. */
+  if (group.startsWith("vc")) return "covenant";
+  if (group.startsWith("vp")) return "collateral";
   if (group.startsWith("cov")) return "covenant";
   if (group.startsWith("col")) return "collateral";
   if (group.startsWith("covenant")) return "covenant";
@@ -1708,8 +1768,14 @@ export function RelationshipRoom({
           }
         }
         const mine = step + 1;
-        const five =
-          "I can run the annual review, the covenant review, a collateral valuation, the risk-rating review or a service request, and I can put a new covenant or a new asset onto the relationship. Pick one above, or name which of the six this is.";
+        /* WHAT THIS ROOM TAKES, said only where a route the sentence names can
+           actually run. The two version routes are added to it ONLY where the
+           relationship carries something to shape: listing a door that is
+           bolted is the dead end rule 4 forbids. */
+        const canShape = ctx.packages.some(amendablePackage);
+        const five = canShape
+          ? "I can run the annual review, the covenant review, a collateral valuation, the risk-rating review or a service request, I can put a new covenant or a new asset onto the relationship, and I can put a covenant or a collateral pledge onto the version already in flight. Pick one above, or name which of the eight this is."
+          : "I can run the annual review, the covenant review, a collateral valuation, the risk-rating review or a service request, and I can put a new covenant or a new asset onto the relationship. Pick one above, or name which of the six this is.";
         setStep(mine);
         setItems((prev) => [...prev, relBankerLine(mine, (said ?? heard).trim(), opts?.fed)]);
         /* FACILITY WORK IS FACILITY WORK BEFORE A ROUTE IS BOUND TOO.
@@ -2425,8 +2491,14 @@ export function RelationshipRoom({
   /* THE GREETING'S OWN REMARK RIDES THE OPENING BUBBLE. Every other item's
      remark is rendered by the thread loop under `Narration`; the opening is a
      tier and is rendered through `opening`, so its view is drawn here. */
+  /* THE REMARK STANDS BESIDE THE GREETING, NOT INSIDE IT (founder, 2026-09-13:
+     "unaligned bubbles, too close"). Rendered inside the greeting's `.wk-msg`
+     the remark took 78% of the greeting's 78% and sat flush under it; as a
+     sibling in the step column it takes the step gap and the full bubble width,
+     like every other exchange. */
   const openingItem = (
-    <div className="wk-msg wk-agent" data-who="Agent" key="opening">
+    <React.Fragment key="opening">
+    <div className="wk-msg wk-agent" data-who="Agent">
       <div className="wk-bub">
         <div className="wk-headline">
           <span className="wk-greet">
@@ -2483,9 +2555,10 @@ export function RelationshipRoom({
           </button>
         </div>
       </div>
+    </div>
       <Narration view={narration.viewFor(openingIdRef.current)} />
       <Narration view={narration.viewFor(`${openingIdRef.current}::mail`)} />
-    </div>
+    </React.Fragment>
   );
 
   return (
@@ -3170,16 +3243,31 @@ function RelBlock({
      both. Route-neutral eligibility does not apply here: the review is already
      chosen, and both package-anchored reviews run against any package. */
   if (item.kind === "pkgask") {
+    const question = relPackageQuestion(spec?.route ?? null);
+    /* WHAT THE PICK WOULD START IS PART OF THE QUESTION (0.9.17's rule, and
+       0.9.23's fourth kind). A review is blocked on every unbooked package; an
+       amendment is blocked on every BOOKED one, because a change to a booked
+       package is a modification and forks a version rather than shaping one. */
+    const askKind = relPackageAsk(spec?.route ?? null);
     return (
-      <div className="wk-pkgs wk-pkgask" role="radiogroup" aria-label={REL_PACKAGE_QUESTION}>
-        <div className="wk-pkgask-h">{REL_PACKAGE_QUESTION}</div>
+      <div className="wk-pkgs wk-pkgask" role="radiogroup" aria-label={question}>
+        <div className="wk-pkgask-h">{question}</div>
         {packages.map((entry) => {
           /* THE SAME LOCK THE FACILITY ROOM USES, from the same function (rule
              2). A review cannot run in a package version nobody has booked, and
              a banker who has learned one room's answer to that has learned both.
              A review FORKS NOTHING, so a package with a modification already in
              flight is named but never blocked here. */
-          const pick = packagePick(entry, "review");
+          const pick = packagePick(entry, askKind);
+          /* AND THE ROW SAYS WHAT THE BANKER IS PICKING. An in-flight version
+             already carries "editable until approval" in its own reason, minted
+             by `packageRoster`; a package the COCKPIT created carries only its
+             stage line, and on an amend ask a banker has to read the same fact
+             about it. The blocking judgement is still `packagePick`'s alone. */
+          const line =
+            askKind === "amend" && !pick.blocked && !/editable until approval/i.test(pick.line)
+              ? `${pick.line} · editable until approval`
+              : pick.line;
           return (
             <button
               type="button"
@@ -3190,12 +3278,12 @@ function RelBlock({
               data-pkg={entry.id}
               disabled={pick.blocked}
               data-inflight={pick.blocked ? "1" : undefined}
-              title={pick.line}
+              title={line}
               onClick={() => !pick.blocked && onAnchorPackage(entry.id)}
             >
               <span>
                 <b>{entry.name}</b>
-                <span>{pick.line}</span>
+                <span>{line}</span>
               </span>
               {!pick.blocked && (
                 <span className="wk-go" aria-hidden="true">
@@ -3645,7 +3733,7 @@ export function RelationshipRoomHost() {
        compliance row is offered disabled with that reason rather than taken all
        the way to a six-question refusal. */
     const book = ctx ? relBookFor(ctx) : null;
-    const neutral = () => neutralRelAsk({ data, accountId: session.accountId, book });
+    const neutral = () => neutralRelAsk({ data, accountId: session.accountId, book, packages: ctx?.packages });
     return {
       question: session.route ? null : session.opening ? smartRelAsk(session.opening) : neutral(),
       say: session.say,

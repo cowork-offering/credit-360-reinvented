@@ -24,6 +24,8 @@ const WORKROOM_ACTION_MODES: Record<string, WorkroomMode> = {
   "loan-modification": "modify",
   renewal: "renew",
   "new-facility-request": "create",
+  // 0.9.23: shaping a version in place is workroom work like the other three.
+  "amend-version": "amend",
 };
 
 export function workroomModeFor(actionId: string): WorkroomMode | null {
@@ -77,6 +79,11 @@ export function workroomContextFor(args: {
     accountId: args.accountId,
     accountName: args.accountName,
     productPackageId,
+    /* WHERE THE BANKER CAME FROM, kept even where the anchor drops it. A create
+       ignores the ambient package; the create room's OFFER still has to know
+       whether that package was an editable in-flight version (offer it first)
+       or the booked source of one (never offer it). */
+    originPackageId: args.productPackageId ?? null,
     packageName:
       pkg?.label ??
       (creating

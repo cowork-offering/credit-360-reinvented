@@ -560,21 +560,135 @@ const PARTY_NOT_A_NAME = new RegExp(`^(?:an?|the|entity|${PARTY_ROLE})$`, "i");
  */
 const FACILITY_CLAUSE = /\s+\b(?:from|on|under|against)\s+the\b.*$/i;
 
-/** The entity a party amendment names. Matched against the deal's own entities
- *  first; an unknown name is kept verbatim, because ADDING an entity that is not
- *  on the deal yet is exactly what the ask is. */
-function readParty(text: string, ctx: ParseContext): string | undefined {
-  const lower = text.toLowerCase();
-  const known = [...new Set(ctx.entities.map((e) => (e.accountName ?? "").trim()).filter(Boolean))];
-  const onDeal = known.find((n) => lower.includes(n.toLowerCase()));
-  if (onDeal) return onDeal;
+/* ------------------------------------------------ THE NAME A BANKER ACTUALLY USES
 
-  // "add Hartwell Logistics as a guarantor" / "remove the guarantor Elena
-  // Hartwell from the line of credit".
-  const candidate = text.replace(FACILITY_CLAUSE, "").match(PARTY_NAMED)?.[1]?.trim();
-  if (!candidate || PARTY_NOT_A_NAME.test(candidate)) return undefined;
-  return candidate;
+   (Founder, 0.9.22 preview; IMPROVEMENTS row 44.) "remove Elena from this loan"
+   matched nothing at all. The org spells her "Elena Hartwell" and the room would
+   only answer to the spelling the org holds, which is not how anybody talks
+   about a deal they have had open all morning.
+
+   SO A PARTY MAY BE NAMED BY ANY WORD THAT IDENTIFIES IT: the first name, the
+   surname, the distinctive word of a company name. AND THE RULE IS
+   UNIQUENESS, never proximity. One name matched is that party; two are a
+   question with both names on chips ("Hartwell" is four of the five parties on
+   this book); none is a name the deal does not carry, which is exactly what an
+   ADD is and never what a REMOVE is. A guess here would take a guarantor off
+   the wrong facility, so there is no guess.                                   */
+
+/** A line POINTING AT a member without naming one: "from this loan", "off that
+ *  facility", "on it". A party removal aimed at one of those is aimed at a loan
+ *  the party is actually on, and the book says which; a line naming no member at
+ *  all is deal-scoped and stays the handoff it has always been. */
+const POINTS_AT_A_MEMBER = /\b(?:this|that|the)\s+(?:loan|facility|line|note|one)\b|\b(?:from|off|on)\s+it\b/i;
+
+/** A legal suffix makes one word a company NAME rather than a shorthand. */
+const LEGAL_SUFFIX = /\b(?:llc|inc|ltd|lp|llp|corp|corporation|company|co|plc)\b\.?$/i;
+
+/** Words that dress a company name rather than identify it. */
+const NAME_NOISE = new Set([
+  "llc", "inc", "incorporated", "ltd", "limited", "lp", "llp", "corp", "corporation",
+  "co", "company", "plc", "the", "and", "group", "holdings",
+]);
+
+/** What identifies a name, one word at a time. "Holdings" is noise on its own
+ *  and so is the legal suffix; everything else a banker could say to mean this
+ *  party and no other is here. */
+function nameTokens(name: string): string[] {
+  return [
+    ...new Set(
+      name
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((w) => w.length > 2 && !NAME_NOISE.has(w)),
+    ),
+  ];
 }
+
+/** Every distinct party the deal carries, longest name first so "Hartwell
+ *  Industrial Holdings LLC" is never read as one of the shorter Hartwells. */
+function dealNames(ctx: ParseContext): string[] {
+  return [...new Set(ctx.entities.map((e) => (e.accountName ?? "").trim()).filter(Boolean))].sort(
+    (a, b) => b.length - a.length,
+  );
+}
+
+/**
+ * THE BOOK NAMES A SHORTHAND FITS, in the book's own spelling.
+ *
+ * Every significant word the banker typed has to belong to the party it
+ * resolves to: "Elena" is Elena Hartwell, "Logistics" is Hartwell Logistics
+ * LLC, "Hartwell" is five of them and resolves to nothing on its own, and
+ * "Vertex Precision LLC" is a name this deal does not carry however many words
+ * it shares with the borrower.
+ *
+ * EXPORTED so the guided create lane resolves a name exactly as the parser
+ * does (`elicit.ts`). Two readers of one shorthand is how a room ends up
+ * refusing its own composed sentence for naming somebody else.
+ */
+export function partyShorthand(said: string, names: string[]): string[] {
+  const words = nameTokens(said);
+  if (!words.length) return [];
+  return names.filter((n) => {
+    const held = new Set(nameTokens(n));
+    return words.every((w) => held.has(w));
+  });
+}
+
+export type PartyNamed =
+  /** One party on the deal, spelled the way the org spells it. */
+  | { kind: "one"; name: string }
+  /** The word fits more than one party. The room asks; it does not pick. */
+  | { kind: "many"; names: string[] }
+  /** Nobody on the deal. A new name for an add, and a miss for a remove. */
+  | { kind: "none"; said?: string };
+
+/** THE PARTY A LINE NAMES, resolved against the deal's own involvement rows. */
+export function partyNamed(text: string, ctx: ParseContext): PartyNamed {
+  const names = dealNames(ctx);
+  // The member's own name carries the borrower's inside it ("<Borrower> -
+  // <Product> - <$Amount>"), so a line naming a facility would otherwise name
+  // the borrower as the party. The identity is taken out before anybody is read.
+  const said = scrubIdentity(text, ctx.facilities, ctx.relationship);
+  const lower = ` ${said.toLowerCase().replace(/[^a-z0-9]+/g, " ")} `;
+
+  const spelled = names.find((n) => lower.includes(` ${n.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `));
+  if (spelled) return { kind: "one", name: spelled };
+
+  /* THE SHORTHAND IS READ OUT OF THE NAME THE LINE ACTUALLY GIVES, never out of
+     the whole sentence. Matching loose words against the book would read "add
+     Vertex Precision LLC as a guarantor" as the borrower, because the borrower
+     is a Precision too: every word of the shorthand has to belong to the party
+     it resolves to, or it is a name the deal does not carry, which is what an
+     add is for. */
+  const candidate = said.replace(FACILITY_CLAUSE, "").match(PARTY_NAMED)?.[1]?.trim();
+  if (!candidate || PARTY_NOT_A_NAME.test(candidate)) return { kind: "none" };
+  const fits = partyShorthand(candidate, names);
+  if (fits.length === 1) return { kind: "one", name: fits[0] };
+  if (fits.length > 1) return { kind: "many", names: [...fits].sort((a, b) => a.localeCompare(b)) };
+  return { kind: "none", said: candidate };
+}
+
+/** The BOOKED members this party sits on, with the role each row carries. A row
+ *  the org hung off the relationship rather than off a loan is on every member,
+ *  which is the same reading the structure card makes. */
+function partyOn(name: string, ctx: ParseContext): Array<{ facility: Facility; role: string }> {
+  const rows = ctx.entities.filter((e) => (e.accountName ?? "").trim() === name);
+  if (!rows.length) return [];
+  const out: Array<{ facility: Facility; role: string }> = [];
+  for (const facility of ctx.booked) {
+    const row =
+      rows.find((e) => e.loanId && facility.loanId && e.loanId === facility.loanId) ?? rows.find((e) => !e.loanId);
+    if (row) out.push({ facility, role: ((row.relationshipType ?? "").trim() || (row.borrowerType ?? "").trim()).trim() });
+  }
+  return out;
+}
+
+/** "the Line of Credit $15M as Limited Guarantor", for a sentence that has to
+ *  say where a party sits before it asks which row comes off. */
+const heldAs = (held: Array<{ facility: Facility; role: string }>, relationship: string): string =>
+  held
+    .map((h) => `the ${memberChipLabel(h.facility, relationship)}${h.role ? ` as ${h.role}` : ""}`)
+    .join(held.length === 2 ? " and " : ", ");
 
 /** The borrowing-structure role the line names. Longest match first, so
  *  "limited guarantor" never reads as "guarantor". */
@@ -1629,20 +1743,30 @@ const BPS_TOKEN = /\d\s*(?:bps|bp|basis\s+points?)\b/;
  * "add 50bps on the line of credit" names a member and a move and no field at
  * all. A BASIS POINT IS A PRICE: nothing else this room files is quoted in one,
  * so a bps token is the rate and reading it as anything else is the room
- * inventing a field. A bare percentage needs the move verb as well, because a
- * percentage beside a member could be a great many things, and only a move
- * makes it a price.
+ * inventing a field. A bare percentage needs a move verb or a TARGET MARKER as
+ * well, because a percentage beside a member could be a great many things, and
+ * only a move or a target makes it a price.
+ *
+ * THE TARGET HALF (0.9.23). `inferAmount` already reads "take the line to $19M"
+ * as the commitment off the word "to"; the same sentence about a price, "take
+ * the line of credit to 7.10%", read as nothing at all, and the room answered
+ * that it had found the member but not what should change on it. A figure a
+ * banker puts after "to" / "at" / "becomes" is an absolute, which is exactly
+ * what `NAMES_A_TARGET` says, so the percentage carrying one is a price for the
+ * same reason the money is a commitment.
  *
  * The value itself is read by the rate field's own reader, so a spread, a minus
  * and a move off the figure on file all behave exactly as they do when the
  * banker says the word "rate".
  */
 function inferRate(text: string, lower: string, ctx: ParseContext): ParseOutcome | null {
-  if (!percentTokens(lower).length) return null;
+  const pcts = percentTokens(lower);
+  if (!pcts.length) return null;
   // A BARE PERCENTAGE IS A PRICE ONLY WHERE THE ROOM IS ALREADY STANDING ON ONE
   // MEMBER. "8%" on its own, one line after a change landed on the $15M line, is
   // that facility's rate; typed into an idle room it is a fact about the deal.
-  if (!BPS_TOKEN.test(lower) && moveDirection(lower) === 0 && !ctx.focus) return null;
+  const targeted = NAMES_A_TARGET.test(lower.slice(0, pcts.at(-1)!.index + 1));
+  if (!BPS_TOKEN.test(lower) && moveDirection(lower) === 0 && !targeted && !ctx.focus) return null;
   const resolved = resolveTarget(lower, ctx, [FILEABLE_RATE]);
   if ("question" in resolved) return memberClarify(resolved, text, FILEABLE_RATE);
   const scrubbed = scrubIdentity(text, resolved.facilities, ctx.relationship);
@@ -1827,7 +1951,24 @@ export function parseAnswer(awaiting: Awaiting, text: string, ctx: ParseContext)
   // than asked for again, which is what makes "the $15M one" a complete reply.
   if (awaiting.member) {
     const chosen = pickMembers(trimmed, awaiting.member.choices, ctx.relationship);
-    return chosen.length ? parseModify(awaiting.member.said, { ...ctx, picked: chosen }) : null;
+    if (chosen.length) return parseModify(awaiting.member.said, { ...ctx, picked: chosen });
+    /* THE SAME INSTRUCTION, SAID AGAIN. A banker who restates the line instead
+       of picking ("remove Elena from this loan", then "remove Elena Hartwell
+       from this loan") has not answered the question, and re-issuing the
+       sentence word for word reads as a room that did not hear. The ask narrows
+       to the one thing still open, over the same chips. */
+    const again = parseModify(trimmed, ctx);
+    const choices = (a: Awaiting | undefined) => (a?.member?.choices ?? []).map((f) => f.loanId ?? "").join("|");
+    const standing = choices(awaiting);
+    if (standing && again.kind === "clarify" && choices(again.awaiting) === standing && again.options?.length) {
+      return {
+        kind: "clarify",
+        question: `That is the same instruction, and the facility is still what is open. Pick one: ${again.options.join(" or ")}.`,
+        options: again.options,
+        awaiting: again.awaiting,
+      };
+    }
+    return null;
   }
 
   // THE ANSWER TO "WHICH ENTITY?" IS A NAME, and the op, the role and the member
@@ -1837,9 +1978,53 @@ export function parseAnswer(awaiting: Awaiting, text: string, ctx: ParseContext)
   // because naming somebody who is not on the deal yet is exactly what an add
   // is. The verb is synthesised so one reader does both jobs.
   if (awaiting.party) {
-    const party = readParty(`add ${trimmed}`, ctx) ?? trimmed;
+    const said = partyNamed(`add ${trimmed}`, ctx);
+    /* THE ANSWER ITSELF MAY NAME TWO. "Hartwell" answers "which entity?" with
+       four of them on this book, and the room asks again with the names rather
+       than filing whichever sorted first. */
+    if (said.kind === "many") {
+      return {
+        kind: "clarify",
+        question: `${said.names.length} parties on this package answer to that: ${said.names.join(", ")}. Which one?`,
+        options: said.names,
+        awaiting,
+      };
+    }
+    const party = (said.kind === "one" ? said.name : said.said) ?? trimmed;
     // "the line of credit" is an answer to a different question.
     if (PARTY_NOT_A_NAME.test(party) || /^(?:an?|the)\b/i.test(party)) return null;
+    /* AND A REMOVAL STILL HAS TO LAND ON ONE ROW. Where the name the banker
+       just gave sits on more than one member and the question that asked for it
+       carried none, the next question is which, the same one a fully named
+       line raises, asked in the same words. */
+    if (said.kind === "one" && awaiting.party.op === "remove" && !awaiting.facility) {
+      const held = partyOn(party, ctx);
+      if (held.length > 1) {
+        return {
+          kind: "clarify",
+          question: `${party} is on ${held.length} of these facilities: ${heldAs(held, ctx.relationship)}. Which one should come off?`,
+          options: held.map((h) => memberChipLabel(h.facility, ctx.relationship)),
+          awaiting: { field: awaiting.field, facility: null, member: { said: `remove ${party}`, choices: held.map((h) => h.facility) } },
+        };
+      }
+      if (held.length === 1) {
+        return {
+          kind: "amendments",
+          amendments: [
+            {
+              field: awaiting.field,
+              facility: held[0].facility,
+              value: null,
+              party,
+              role: readRole(lower) ?? awaiting.party.role,
+              ownership: readOwnership(lower) ?? awaiting.party.ownership,
+              matched: trimmed,
+              op: awaiting.party.op,
+            },
+          ],
+        };
+      }
+    }
     return {
       kind: "amendments",
       amendments: [
@@ -2111,6 +2296,219 @@ function claimExceptionClause(matches: CatalogMatch[]): CatalogMatch[] {
   return at === undefined ? matches : matches.filter((m) => m.index <= at);
 }
 
+/* ================================ A BORROWING-STRUCTURE CHANGE, END TO END
+
+   (Founder, 0.9.22 preview; IMPROVEMENTS row 44.) Four lines about the same
+   guarantor, and only the fully specified one worked:
+
+     "remove Elena from this loan"                     - matched nothing at all
+     "remove Elena Hartwell from this loan"            - read every facility on
+                                                         the package instead of
+                                                         the two she guarantees
+     "remove Elena Hartwell as guarantor from the
+      15M line of credit"                              - staged, correctly
+
+   A PARTY QUESTION IS ANSWERED FROM THE BOOK BEFORE IT IS ASKED. The org holds
+   one involvement row per facility, so the room already knows which facilities
+   a named party sits on: "this loan" for a removal means one of THOSE, never
+   the whole package, and where there are two of them the question names both
+   with the role each row carries. The banker is asked one thing, once.       */
+
+interface PartyLine {
+  field: CatalogField;
+  /** The banker's own words that matched, for the chip. */
+  matched: string;
+  trimmed: string;
+  lower: string;
+  ctx: ParseContext;
+  /** What the ordinary member resolution made of the line. */
+  target: { facilities: Facility[] } | TargetAsk;
+}
+
+/** Who is on the package, in the org's own roles, for a sentence that has to
+ *  say so rather than refuse in the abstract. */
+function roster(ctx: ParseContext): string[] {
+  const held = new Map<string, string>();
+  for (const e of ctx.entities) {
+    const name = (e.accountName ?? "").trim();
+    const role = ((e.relationshipType ?? "").trim() || (e.borrowerType ?? "").trim()).trim();
+    if (!name || held.has(name)) continue;
+    held.set(name, role);
+  }
+  return [...held.entries()].map(([name, role]) => (role ? `${name} as ${role}` : name));
+}
+
+const rosterNames = (ctx: ParseContext): string[] => [
+  ...new Set(ctx.entities.map((e) => (e.accountName ?? "").trim()).filter(Boolean)),
+];
+
+function partyAmendment({ field, matched, trimmed, lower, ctx, target }: PartyLine): ParseOutcome {
+  const op = operationFor(field, lower);
+  const role = readRole(lower);
+  const ownership = readOwnership(lower);
+  const waiting = (facility: Facility | null): Awaiting => ({ field, facility, party: { op, role, ownership } });
+  const named = partyNamed(trimmed, ctx);
+
+  // ONE WORD, TWO PARTIES. "Hartwell" is four of the five names on this book.
+  if (named.kind === "many") {
+    return {
+      kind: "clarify",
+      question: `${named.names.length} parties on this package answer to that: ${named.names.join(", ")}. Which one?`,
+      options: named.names,
+      awaiting: waiting(null),
+    };
+  }
+
+  const onDeal = named.kind === "one";
+  const party = named.kind === "one" ? named.name : named.said;
+
+  /* NOBODY IS NAMED AT ALL. The question the room has always asked, with the
+     roster under it where the ask is a removal: a banker who has to be asked
+     "which entity" should be able to answer it off the same line. */
+  if (!party) {
+    const who = roster(ctx);
+    return {
+      kind: "clarify",
+      question:
+        op === "remove" && who.length
+          ? `Which entity should come off? This package carries ${who.join(", ")}.`
+          : "Which entity? Name it and I will stage the involvement.",
+      options: op === "remove" && who.length ? rosterNames(ctx) : undefined,
+      // The op, the role and the member are already settled. Carrying them
+      // is what lets the next line be the name and nothing else.
+      awaiting: waiting("facilities" in target ? (target.facilities[0] ?? null) : null),
+    };
+  }
+
+  /* A SHORTHAND THAT MATCHED NOBODY. "remove Elena" resolves; "remove Sandra"
+     does not, and the room says who is actually on the package rather than
+     sending an exclusion up for a name nothing corroborates.
+
+     A FULL NAME IS NOT REFUSED, and that is deliberate (`stampRemovalRoles`):
+     the ORG is the authority on who is on a facility and this read can be
+     thinner than it. One word is a shorthand and the room is the authority on
+     whether it resolved; two is a name, and it goes up as it always has. */
+  if (op === "remove" && !onDeal && nameTokens(party).length < 2 && !LEGAL_SUFFIX.test(party)) {
+    const who = roster(ctx);
+    if (who.length) {
+      return {
+        kind: "clarify",
+        question:
+          `I could not match ${party} to a party on this package's borrowing structure, so there is no row to take off. ` +
+          `It carries ${who.join(", ")}. Which of them did you mean? ` +
+          `If you meant something the deal has pledged, say "release ${party}" and I will read it as collateral.`,
+        options: rosterNames(ctx),
+        awaiting: waiting(null),
+      };
+    }
+  }
+
+  const held = onDeal ? partyOn(party, ctx) : [];
+  const onLoans = new Set(held.map((h) => h.facility.loanId ?? ""));
+  /** The members the LINE itself named, out of the ones a credit action can run
+   *  against. A focus or a lone member is not a naming: see below. */
+  const bookable = (f: Facility) => ctx.booked.some((b) => b.loanId === f.loanId);
+  const fits = ctx.picked?.length ? ctx.picked : namedFacilities(lower, ctx).facilities.filter(bookable);
+  /* AND A FIGURE AGAINST THE PRODUCT WORD NAMES ONE OF THEM. "the 8M equipment"
+     on a package carrying three equipment loans is not ambiguous, and a
+     sentence that read it as all three would be the room not reading. */
+  const qualified = fits.filter(
+    (f) => typeof f.committed === "number" && moneyTokens(lower).some((t) => t.value === f.committed),
+  );
+  const said = qualified.length === 1 ? qualified : fits;
+
+  let facilities: Array<Facility | null>;
+  if (said.length) {
+    const hers = said.filter((f) => onLoans.has(f.loanId ?? ""));
+    /* NAMED A FACILITY THEY ARE NOT ON. The read knows it, so the room says it
+       and names where they ARE, rather than sending an exclusion up for a row
+       the org would not find. */
+    if (op === "remove" && onDeal && !hers.length && held.length) {
+      return {
+        kind: "clarify",
+        question: `${party} is not on ${said
+          .map((f) => `the ${memberChipLabel(f, ctx.relationship)}`)
+          .join(" or ")} today, so there is nothing there to take off. This book carries ${party} on ${heldAs(
+          held,
+          ctx.relationship,
+        )}. Which one should come off?`,
+        options: held.map((h) => memberChipLabel(h.facility, ctx.relationship)),
+        awaiting: { field, facility: null, member: { said: trimmed, choices: held.map((h) => h.facility) } },
+      };
+    }
+    facilities = hers.length ? hers : said;
+  } else if (op === "remove" && held.length === 1 && POINTS_AT_A_MEMBER.test(lower)) {
+    // ONE FACILITY CARRIES THE ROW, so "this loan" names it and nothing is asked.
+    facilities = [held[0].facility];
+  } else if (op === "remove" && held.length > 1 && POINTS_AT_A_MEMBER.test(lower)) {
+    return {
+      kind: "clarify",
+      question: `${party} is on ${held.length} of these facilities: ${heldAs(held, ctx.relationship)}. Which one should come off?`,
+      options: held.map((h) => memberChipLabel(h.facility, ctx.relationship)),
+      awaiting: { field, facility: null, member: { said: trimmed, choices: held.map((h) => h.facility) } },
+    };
+  } else {
+    // An ADD is deal-scoped until a line binds it to a member, exactly as it was.
+    facilities = "facilities" in target && target.facilities.length ? target.facilities : [null];
+  }
+
+  const scrubbed = scrubIdentity(trimmed, facilities, ctx.relationship);
+  const scrubbedLower = scrubbed.toLowerCase();
+  const amendments: Amendment[] = [];
+  for (const facility of facilities) {
+    const at: CatalogMatch = { field, matched, index: Math.max(0, scrubbedLower.indexOf(matched)) };
+    const read = readValue(field, scrubbed, scrubbedLower, at, facility, ctx);
+    if ("question" in read) {
+      return { kind: "clarify", question: read.question, awaiting: { field, facility }, options: read.options };
+    }
+    amendments.push({
+      field,
+      facility,
+      value: read.value,
+      party,
+      // The role the LINE stated. Where it states none, the shell stamps the
+      // book's own role onto the wire and says it (`stampRemovalRoles`); a
+      // second reading of the same fact here would be the same rule twice.
+      role: readRole(scrubbedLower),
+      ownership: readOwnership(scrubbedLower),
+      matched,
+      op,
+    });
+  }
+  return { kind: "amendments", amendments };
+}
+
+/**
+ * A REMOVAL THE CATALOG CANNOT SEE, because the banker named the party and not
+ * the role. "remove Elena from this loan" carries no synonym any party field
+ * holds, and it is nonetheless unmistakable: a removal verb over a name this
+ * deal's own involvement rows carry. The inference is over a CLOSED SET (the
+ * parties on the book) and it never invents a name.
+ */
+function inferPartyRemoval(trimmed: string, lower: string, ctx: ParseContext): ParseOutcome | null {
+  if (!REMOVE_VERBS.test(lower) || !ctx.entities.length) return null;
+  const named = partyNamed(trimmed, ctx);
+  /* A NAME THE BOOK DOES NOT CARRY IS STILL A NAME, and a removal aimed at one
+     is answered rather than met with silence: a full name goes up as an
+     exclusion the org resolves, and a shorthand that fits nobody is answered
+     with who IS on the package. Where the word is an ASSET rather than a party
+     ("remove the Mazak tooling"), the sentence says so and names the collateral
+     door: the room reads one line, so it offers both readings instead of
+     picking one. */
+  if (named.kind === "none" && !named.said) return null;
+  const field = catalogField("party.remove");
+  if (!field) return null;
+  const verb = REMOVE_VERBS.exec(lower)?.[0] ?? "remove";
+  return partyAmendment({
+    field,
+    matched: named.kind === "one" ? `${verb} ${named.name}` : verb,
+    trimmed,
+    lower,
+    ctx,
+    target: resolveTarget(lower, ctx, [field]),
+  });
+}
+
 /**
  * Read a banker's line into amendments.
  *
@@ -2129,6 +2527,8 @@ export function parseModify(text: string, ctx: ParseContext): ParseOutcome {
     if (priced) return priced;
     const inferred = inferAmount(lower, ctx);
     if (inferred) return inferred;
+    const party = inferPartyRemoval(trimmed, lower, ctx);
+    if (party) return party;
     return indexFallback(trimmed, lower, ctx) ?? { kind: "none" };
   }
 
@@ -2143,15 +2543,16 @@ export function parseModify(text: string, ctx: ParseContext): ParseOutcome {
     // question. Everything else needs a member before it needs a value.
     const memberScoped = field.category !== "party" && field.category !== "package";
     if (memberScoped && "question" in target) return memberClarify(target, trimmed, field);
-    // A party amendment is deal-scoped by default, BUT a line that NAMES a member
-    // binds to it — that is what makes the involvement change fileable, because
-    // the org anchors every involvement row on one loan.
-    const facilities =
-      memberScoped && "facilities" in target
-        ? target.facilities
-        : field.category === "party" && "facilities" in target && target.facilities.length
-          ? target.facilities
-          : [null];
+    /* A PARTY AMENDMENT RESOLVES ON THE PARTY, not on the package. It names an
+       entity, and the org's own involvement rows say which facilities that
+       entity sits on; see `partyAmendment`. */
+    if (field.category === "party") {
+      const outcome = partyAmendment({ field, matched: match.matched, trimmed, lower, ctx, target });
+      if (outcome.kind !== "amendments") return outcome;
+      amendments.push(...outcome.amendments);
+      continue;
+    }
+    const facilities = memberScoped && "facilities" in target ? target.facilities : [null];
 
     // Values are read from the line WITHOUT the member's own name in it.
     const scrubbed = scrubIdentity(trimmed, facilities, ctx.relationship);
@@ -2167,19 +2568,7 @@ export function parseModify(text: string, ctx: ParseContext): ParseOutcome {
           options: read.options,
         };
       }
-      const party = field.category === "party" ? readParty(trimmed, ctx) : undefined;
-      const role = field.category === "party" ? readRole(scrubbedLower) : undefined;
-      const ownership = field.category === "party" ? readOwnership(scrubbedLower) : undefined;
-      if (field.category === "party" && !party) {
-        return {
-          kind: "clarify",
-          question: "Which entity? Name it and I will stage the involvement.",
-          // The op, the role and the member are already settled. Carrying them
-          // is what lets the next line be the name and nothing else.
-          awaiting: { field, facility, party: { op: operationFor(field, lower), role, ownership } },
-        };
-      }
-      amendments.push({ field, facility, value: read.value, party, role, ownership, matched: match.matched, op: operationFor(field, lower) });
+      amendments.push({ field, facility, value: read.value, matched: match.matched, op: operationFor(field, lower) });
     }
   }
 

@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Customer360 MCP server definition. SOURCE OF TRUTH IS THE ORG: this file was
+  retrieved from bankinggpt-at on 2026-09-13 (28 tools) and extended with the
+  0.9.23 version-lifecycle pairs (4 tools). The earlier 8-tool copy in this
+  repo was stale; deploying it would have dropped every write tool the
+  connector publishes. Before any deploy: retrieve, diff, then deploy.
+  Write tools use snake_case toolName (what the cockpit calls); reads keep the
+  class name. Each tool is one Apex class with one global @InvocableMethod,
+  referenced by apiIdentifier "aa:apex-{ClassName}".
+-->
 <McpServerDefinition xmlns="http://soap.sforce.com/2006/04/metadata">
     <description>Commercial Credit Customer 360 — relationship-level read surface (nCino+FSC, run-as-user). Ownership/beneficial-ownership graph, exposure rollups, covenants, collateral coverage, whitespace, structural EWS signals for the customer/obligor group.</description>
     <masterLabel>Customer 360</masterLabel>
@@ -8,6 +18,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Snapshot</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>Customer360Snapshot</toolName>
     </tools>
     <tools>
@@ -16,6 +31,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360RelationshipGraph</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>Customer360RelationshipGraph</toolName>
     </tools>
     <tools>
@@ -24,6 +44,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Exposure</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>Customer360Exposure</toolName>
     </tools>
     <tools>
@@ -32,6 +57,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Covenants</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>Customer360Covenants</toolName>
     </tools>
     <tools>
@@ -40,6 +70,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Opportunities</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>Customer360Opportunities</toolName>
     </tools>
     <tools>
@@ -48,6 +83,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360StructuralSignals</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>Customer360StructuralSignals</toolName>
     </tools>
     <tools>
@@ -56,6 +96,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360SearchAccounts</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>Customer360SearchAccounts</toolName>
     </tools>
     <tools>
@@ -64,6 +109,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Portfolio</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>Customer360Portfolio</toolName>
     </tools>
     <tools>
@@ -72,6 +122,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>StageCollateralValuation</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>stage_collateral_valuation</toolName>
     </tools>
     <tools>
@@ -80,6 +135,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>ExecuteCollateralValuation</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>execute_collateral_valuation</toolName>
     </tools>
     <tools>
@@ -88,6 +148,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>StageServiceRequest</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>stage_service_request</toolName>
     </tools>
     <tools>
@@ -96,6 +161,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>ExecuteServiceRequest</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>execute_service_request</toolName>
     </tools>
     <tools>
@@ -104,6 +174,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>StageAnnualReview</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>stage_annual_review</toolName>
     </tools>
     <tools>
@@ -112,6 +187,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>ExecuteAnnualReview</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>execute_annual_review</toolName>
     </tools>
     <tools>
@@ -120,6 +200,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360ActionHistory</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>Customer360ActionHistory</toolName>
     </tools>
     <tools>
@@ -128,6 +213,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>StageNewFacility</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>stage_new_facility</toolName>
     </tools>
     <tools>
@@ -136,6 +226,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>ExecuteNewFacility</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>execute_new_facility</toolName>
     </tools>
     <tools>
@@ -144,6 +239,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>StageRiskRatingReview</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>stage_risk_rating_review</toolName>
     </tools>
     <tools>
@@ -152,6 +252,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>ExecuteRiskRatingReview</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>execute_risk_rating_review</toolName>
     </tools>
     <tools>
@@ -160,6 +265,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>StageCovenantReview</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>stage_covenant_review</toolName>
     </tools>
     <tools>
@@ -168,6 +278,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>ExecuteCovenantReview</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>execute_covenant_review</toolName>
     </tools>
     <tools>
@@ -176,6 +291,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>StageLoanModification</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>stage_loan_modification</toolName>
     </tools>
     <tools>
@@ -184,6 +304,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>ExecuteLoanModification</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>execute_loan_modification</toolName>
     </tools>
     <tools>
@@ -192,6 +317,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>StageRenewal</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>stage_renewal</toolName>
     </tools>
     <tools>
@@ -200,6 +330,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>StageRelationshipIntake</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>stage_relationship_intake</toolName>
     </tools>
     <tools>
@@ -208,6 +343,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>ExecuteRelationshipIntake</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>execute_relationship_intake</toolName>
     </tools>
     <tools>
@@ -216,6 +356,11 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Catalog</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>Customer360Catalog</toolName>
     </tools>
     <tools>
@@ -224,6 +369,63 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>CompleteNewFacilityDetail</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
         <toolName>complete_new_facility_detail</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageAmendVersion</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageAmendVersion</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_amend_version</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteAmendVersion</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteAmendVersion</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_amend_version</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageDiscardVersion</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageDiscardVersion</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_discard_version</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteDiscardVersion</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteDiscardVersion</operation>
+        </apiDefinition>
+        <destructive>true</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_discard_version</toolName>
     </tools>
 </McpServerDefinition>

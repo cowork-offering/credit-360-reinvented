@@ -1,0 +1,742 @@
+[
+  {
+    "actionName": "StageDiscardVersion",
+    "errors": null,
+    "expectedError": false,
+    "invocationId": null,
+    "isSuccess": true,
+    "outcome": null,
+    "outputValues": {
+      "error": null,
+      "ok": true,
+      "result": {
+        "warnings": [
+          "This action DELETES 66 records. Nothing outside the list above is touched: the booked package, the booked facilities, the collateral assets and their ownership junctions, and the covenant records all stay exactly as they are.",
+          "After the discard, Hartwell Precision Manufacturing LLC - Construction - $12,000,000.00, Hartwell Precision Manufacturing LLC - Equipment - $3,500,000.00, Hartwell Precision Manufacturing LLC - Equipment - $8,000,000.00, Hartwell Precision Manufacturing LLC - Line of Credit - $15,000,000.00, Hartwell Precision Manufacturing LLC - Line of Credit - $2,500,000.00, Hartwell Precision Manufacturing LLC - Purchase - $5,000,000.00 will read hasRenewal false and be available to fork again. That is verified by re-query, not assumed.",
+          "7 Opportunity History rows hang off the version facilities. nCino mints those at facility creation and clears them on its own delete path; they are not deleted by this action. If the org keeps one, the facility delete stops there and this action reports exactly what is gone and what remains.",
+          "1 action trail row on this version is KEPT and marked Withdrawn. The trail is the audit and is never deleted."
+        ],
+        "versionPackageId": "a5Fbb000000JGyjEAG",
+        "summary": "Discards version Hartwell Precision Manufacturing LLC - 9/13/2026 - PP on Hartwell Precision Manufacturing LLC: deletes 66 records across 10 groups, including 6 version facilities and the version package, and keeps 1 action trail row marked Withdrawn. The relationship returns to booked package Hartwell Industrial C&I Credit Package only. Nothing booked is touched.",
+        "steps": [
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__LoanRenewal__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "label": "Remove the renewal chain rows that keep the booked parents flagged (12)",
+            "id": "delete_chain",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__LoanRenewal__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__LoanRenewal__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "label": "Confirm every LLC_BI__LoanRenewal__c in this group is gone",
+            "id": "delete_chain_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan_Collateral2__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "label": "Remove the collateral pledges copied onto the version facilities (7)",
+            "id": "delete_pledges",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Loan_Collateral2__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan_Collateral2__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "label": "Confirm every LLC_BI__Loan_Collateral2__c in this group is gone",
+            "id": "delete_pledges_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan_Covenant__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "label": "Detach the covenants from the version facilities (3)",
+            "id": "delete_covenant_junctions",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Loan_Covenant__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan_Covenant__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "label": "Confirm every LLC_BI__Loan_Covenant__c in this group is gone",
+            "id": "delete_covenant_junctions_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Rate_Component__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Rate_Component__c",
+            "label": "Remove the pricing rate components on the version facilities (0)",
+            "id": "delete_rate_components",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Pricing_Rate_Component__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Rate_Component__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Rate_Component__c",
+            "label": "Confirm every LLC_BI__Pricing_Rate_Component__c in this group is gone",
+            "id": "delete_rate_components_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Payment_Component__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "label": "Remove the pricing payment components on the version facilities (6)",
+            "id": "delete_payment_components",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Pricing_Payment_Component__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Payment_Component__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "label": "Confirm every LLC_BI__Pricing_Payment_Component__c in this group is gone",
+            "id": "delete_payment_components_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Stream__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "label": "Remove the pricing streams nCino cloned onto the version facilities (6)",
+            "id": "delete_pricing_streams",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Pricing_Stream__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Stream__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "label": "Confirm every LLC_BI__Pricing_Stream__c in this group is gone",
+            "id": "delete_pricing_streams_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Fee__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Fee__c",
+            "label": "Remove the fees on the version facilities (4)",
+            "id": "delete_fees",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Fee__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Fee__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Fee__c",
+            "label": "Confirm every LLC_BI__Fee__c in this group is gone",
+            "id": "delete_fees_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Legal_Entities__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "label": "Remove the borrowing structure rows on the version (21)",
+            "id": "delete_involvements",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Legal_Entities__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Legal_Entities__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "label": "Confirm every LLC_BI__Legal_Entities__c in this group is gone",
+            "id": "delete_involvements_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan__c",
+            "label": "Remove the version facilities (6)",
+            "id": "delete_members",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Loan__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan__c",
+            "label": "Confirm every LLC_BI__Loan__c in this group is gone",
+            "id": "delete_members_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Product_Package__c",
+            "label": "Remove the version package (1)",
+            "id": "delete_package",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Product_Package__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Product_Package__c",
+            "label": "Confirm every LLC_BI__Product_Package__c in this group is gone",
+            "id": "delete_package_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT Id, Name, LLC_BI__hasRenewal__c, LLC_BI__Number_Of_Renewals__c FROM LLC_BI__Loan__c WHERE Id IN :parents",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan__c",
+            "label": "Confirm every booked parent reads hasRenewal false",
+            "id": "verify_parents",
+            "fields": [
+              "LLC_BI__hasRenewal__c",
+              "LLC_BI__Number_Of_Renewals__c"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionPackageId",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Product_Package__c",
+            "label": "Confirm the version package id no longer resolves",
+            "id": "verify_version_gone",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT Id, cm_Status__c FROM cm_Action_Staging__c WHERE Id IN :trail",
+            "type": "write",
+            "state": "pending",
+            "objectName": "cm_Action_Staging__c",
+            "label": "Mark the version's action trail rows Withdrawn (1)",
+            "id": "withdraw_trail",
+            "fields": [
+              "cm_Status__c"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": null,
+            "type": "observed_side_effect",
+            "state": "pending",
+            "objectName": null,
+            "label": "Collateral aggregate shells left behind by the pledge deletes",
+            "id": "observe_aggregates",
+            "fields": [],
+            "automationWoken": [
+              "LLC_BI__ColPledgesAutoUpdater"
+            ]
+          }
+        ],
+        "stagingId": "a8abb00001ObjefAAB",
+        "sourcePackageId": "a5Fbb000000IHFJEA4",
+        "replayed": false,
+        "provenanceJson": "{\"sourcePackageId\":{\"citation\":\"Read off LLC_BI__LoanRenewal__c.LLC_BI__Original_Product_Package__c, falling back to the booked parent's own package.\",\"provenance\":\"DERIVED\",\"prefill\":\"COMPUTED\"},\"inventory\":{\"citation\":\"Discovered by query from version package a5Fbb000000JGyjEAG at stage time.\",\"provenance\":\"NCINO\",\"prefill\":\"COMPUTED\"}}",
+        "planHash": "af82643649443e25f8370fe254c578e96b572fab6fadbb1dcb5753177cf6a0fd",
+        "items": [
+          {
+            "recordId": "a4Obb000000GAGTEA4",
+            "reason": "chain row revision 1 linking booked facility Hartwell Precision Manufacturing LLC - Construction - $12,000,000.00 to this version. While it stands the parent reads hasRenewal true and every later roll is refused.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000843"
+          },
+          {
+            "recordId": "a4Obb000000GAGVEA4",
+            "reason": "chain row revision 1 linking booked facility Hartwell Precision Manufacturing LLC - Equipment - $3,500,000.00 to this version. While it stands the parent reads hasRenewal true and every later roll is refused.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000845"
+          },
+          {
+            "recordId": "a4Obb000000GAGSEA4",
+            "reason": "chain row revision 1 linking booked facility Hartwell Precision Manufacturing LLC - Equipment - $8,000,000.00 to this version. While it stands the parent reads hasRenewal true and every later roll is refused.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000842"
+          },
+          {
+            "recordId": "a4Obb000000GAGREA4",
+            "reason": "chain row revision 1 linking booked facility Hartwell Precision Manufacturing LLC - Line of Credit - $15,000,000.00 to this version. While it stands the parent reads hasRenewal true and every later roll is refused.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000841"
+          },
+          {
+            "recordId": "a4Obb000000GAGWEA4",
+            "reason": "chain row revision 1 linking booked facility Hartwell Precision Manufacturing LLC - Line of Credit - $2,500,000.00 to this version. While it stands the parent reads hasRenewal true and every later roll is refused.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000846"
+          },
+          {
+            "recordId": "a4Obb000000GAGUEA4",
+            "reason": "chain row revision 1 linking booked facility Hartwell Precision Manufacturing LLC - Purchase - $5,000,000.00 to this version. While it stands the parent reads hasRenewal true and every later roll is refused.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000844"
+          },
+          {
+            "recordId": "a4Obb000000GAGLEA4",
+            "reason": "the revision-0 self anchor this fork minted on booked facility Hartwell Precision Manufacturing LLC - Line of Credit - $15,000,000.00.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000835"
+          },
+          {
+            "recordId": "a4Obb000000GAGMEA4",
+            "reason": "the revision-0 self anchor this fork minted on booked facility Hartwell Precision Manufacturing LLC - Equipment - $8,000,000.00.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000836"
+          },
+          {
+            "recordId": "a4Obb000000GAGNEA4",
+            "reason": "the revision-0 self anchor this fork minted on booked facility Hartwell Precision Manufacturing LLC - Construction - $12,000,000.00.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000837"
+          },
+          {
+            "recordId": "a4Obb000000GAGOEA4",
+            "reason": "the revision-0 self anchor this fork minted on booked facility Hartwell Precision Manufacturing LLC - Purchase - $5,000,000.00.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000838"
+          },
+          {
+            "recordId": "a4Obb000000GAGPEA4",
+            "reason": "the revision-0 self anchor this fork minted on booked facility Hartwell Precision Manufacturing LLC - Equipment - $3,500,000.00.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000839"
+          },
+          {
+            "recordId": "a4Obb000000GAGQEA4",
+            "reason": "the revision-0 self anchor this fork minted on booked facility Hartwell Precision Manufacturing LLC - Line of Credit - $2,500,000.00.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000840"
+          },
+          {
+            "recordId": "a4Rbb0000027gseEAA",
+            "reason": "a pledge of COL-000765 copied onto this version. The asset itself and its ownership junction stay. This row must go before its facility: the lookup carries restrictedDelete.",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00432"
+          },
+          {
+            "recordId": "a4Rbb0000027gsgEAA",
+            "reason": "a pledge of COL-000764 copied onto this version. The asset itself and its ownership junction stay. This row must go before its facility: the lookup carries restrictedDelete.",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00434"
+          },
+          {
+            "recordId": "a4Rbb0000027gsdEAA",
+            "reason": "a pledge of COL-000764 copied onto this version. The asset itself and its ownership junction stay. This row must go before its facility: the lookup carries restrictedDelete.",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00431"
+          },
+          {
+            "recordId": "a4Rbb0000027gsbEAA",
+            "reason": "a pledge of COL-000762 copied onto this version. The asset itself and its ownership junction stay. This row must go before its facility: the lookup carries restrictedDelete.",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00429"
+          },
+          {
+            "recordId": "a4Rbb0000027gscEAA",
+            "reason": "a pledge of COL-000763 copied onto this version. The asset itself and its ownership junction stay. This row must go before its facility: the lookup carries restrictedDelete.",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00430"
+          },
+          {
+            "recordId": "a4Rbb0000027guDEAQ",
+            "reason": "a pledge of COL-000774 copied onto this version. The asset itself and its ownership junction stay. This row must go before its facility: the lookup carries restrictedDelete.",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00435"
+          },
+          {
+            "recordId": "a4Rbb0000027gsfEAA",
+            "reason": "a pledge of COL-000765 copied onto this version. The asset itself and its ownership junction stay. This row must go before its facility: the lookup carries restrictedDelete.",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00433"
+          },
+          {
+            "recordId": "a4Vbb000000rAu6EAE",
+            "reason": "the junction holding a covenant on a version facility. The covenant record itself stays on the borrower.",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "name": "COV-0303"
+          },
+          {
+            "recordId": "a4Vbb000000rAu5EAE",
+            "reason": "the junction holding a covenant on a version facility. The covenant record itself stays on the borrower.",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "name": "COV-0302"
+          },
+          {
+            "recordId": "a4Vbb000000rAvhEAE",
+            "reason": "the junction holding a covenant on a version facility. The covenant record itself stays on the borrower.",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "name": "COV-0304"
+          },
+          {
+            "recordId": "a4ybb000002kPqKAAU",
+            "reason": "a payment component on a version facility.",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kPqK"
+          },
+          {
+            "recordId": "a4ybb000002kPqMAAU",
+            "reason": "a payment component on a version facility.",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kPqM"
+          },
+          {
+            "recordId": "a4ybb000002kPqJAAU",
+            "reason": "a payment component on a version facility.",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kPqJ"
+          },
+          {
+            "recordId": "a4ybb000002kPqHAAU",
+            "reason": "a payment component on a version facility.",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kPqH"
+          },
+          {
+            "recordId": "a4ybb000002kPqIAAU",
+            "reason": "a payment component on a version facility.",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kPqI"
+          },
+          {
+            "recordId": "a4ybb000002kPqLAAU",
+            "reason": "a payment component on a version facility.",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kPqL"
+          },
+          {
+            "recordId": "a50bb00000vNY8GAAW",
+            "reason": "a pricing stream nCino cloned onto this version. The parent facility keeps its own.",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vNY8G"
+          },
+          {
+            "recordId": "a50bb00000vNY8IAAW",
+            "reason": "a pricing stream nCino cloned onto this version. The parent facility keeps its own.",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vNY8I"
+          },
+          {
+            "recordId": "a50bb00000vNY8FAAW",
+            "reason": "a pricing stream nCino cloned onto this version. The parent facility keeps its own.",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vNY8F"
+          },
+          {
+            "recordId": "a50bb00000vNY8DAAW",
+            "reason": "a pricing stream nCino cloned onto this version. The parent facility keeps its own.",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vNY8D"
+          },
+          {
+            "recordId": "a50bb00000vNY8EAAW",
+            "reason": "a pricing stream nCino cloned onto this version. The parent facility keeps its own.",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vNY8E"
+          },
+          {
+            "recordId": "a50bb00000vNY8HAAW",
+            "reason": "a pricing stream nCino cloned onto this version. The parent facility keeps its own.",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vNY8H"
+          },
+          {
+            "recordId": "a45bb000001mWt6AAE",
+            "reason": "a fee on a version facility.",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000297"
+          },
+          {
+            "recordId": "a45bb000001mWt5AAE",
+            "reason": "a fee on a version facility.",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000296"
+          },
+          {
+            "recordId": "a45bb000001mWt3AAE",
+            "reason": "a fee on a version facility.",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000294"
+          },
+          {
+            "recordId": "a45bb000001mWt4AAE",
+            "reason": "a fee on a version facility.",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000295"
+          },
+          {
+            "recordId": "a4Lbb000000PngfEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngf"
+          },
+          {
+            "recordId": "a4Lbb000000PnggEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngg"
+          },
+          {
+            "recordId": "a4Lbb000000PnghEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngh"
+          },
+          {
+            "recordId": "a4Lbb000000PngiEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngi"
+          },
+          {
+            "recordId": "a4Lbb000000PngjEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngj"
+          },
+          {
+            "recordId": "a4Lbb000000PngkEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngk"
+          },
+          {
+            "recordId": "a4Lbb000000PnglEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngl"
+          },
+          {
+            "recordId": "a4Lbb000000PngmEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngm"
+          },
+          {
+            "recordId": "a4Lbb000000PngnEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngn"
+          },
+          {
+            "recordId": "a4Lbb000000PngoEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngo"
+          },
+          {
+            "recordId": "a4Lbb000000PngpEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngp"
+          },
+          {
+            "recordId": "a4Lbb000000PngqEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngq"
+          },
+          {
+            "recordId": "a4Lbb000000PngrEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngr"
+          },
+          {
+            "recordId": "a4Lbb000000PngsEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngs"
+          },
+          {
+            "recordId": "a4Lbb000000PngtEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngt"
+          },
+          {
+            "recordId": "a4Lbb000000PnguEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngu"
+          },
+          {
+            "recordId": "a4Lbb000000PngvEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngv"
+          },
+          {
+            "recordId": "a4Lbb000000PngwEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngw"
+          },
+          {
+            "recordId": "a4Lbb000000PngxEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngx"
+          },
+          {
+            "recordId": "a4Lbb000000PngyEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngy"
+          },
+          {
+            "recordId": "a4Lbb000000PngzEAC",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pngz"
+          },
+          {
+            "recordId": "a4Zbb000002KmP7EAK",
+            "reason": "a facility on this version at Qualification. Its Loan Detail and loan documents are master-detail children and go with it.",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Construction - $12,000,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KmP8EAK",
+            "reason": "a facility on this version at Qualification. Its Loan Detail and loan documents are master-detail children and go with it.",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Equipment - $3,500,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KmP9EAK",
+            "reason": "a facility on this version at Qualification. Its Loan Detail and loan documents are master-detail children and go with it.",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Equipment - $8,000,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KmPAEA0",
+            "reason": "a facility on this version at Qualification. Its Loan Detail and loan documents are master-detail children and go with it.",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Line of Credit - $16,000,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KmPBEA0",
+            "reason": "a facility on this version at Qualification. Its Loan Detail and loan documents are master-detail children and go with it.",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Line of Credit - $2,500,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KmPCEA0",
+            "reason": "a facility on this version at Qualification. Its Loan Detail and loan documents are master-detail children and go with it.",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Purchase - $5,000,000.00"
+          },
+          {
+            "recordId": "a5Fbb000000JGyjEAG",
+            "reason": "the version package itself.",
+            "objectName": "LLC_BI__Product_Package__c",
+            "name": "Hartwell Precision Manufacturing LLC - 9/13/2026 - PP"
+          }
+        ],
+        "decisionToken": "4b68a737af9f68522f09e0f6764895588972d316fbf0a058dfd94e7d88c101ee",
+        "accountId": "001bb00001I7FPNAA3"
+      }
+    },
+    "sortOrder": 0,
+    "version": 1
+  }
+]

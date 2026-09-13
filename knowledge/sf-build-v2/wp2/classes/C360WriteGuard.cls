@@ -13,6 +13,12 @@
  * The allowlist is hardcoded deliberately. It is a control, not a business threshold: A26.2
  * bans hardcoded business literals, and a state fence is not one. Bank thresholds live in the
  * policy pack (A33.2.5a) and never appear here.
+ *
+ * DELETES (added 0.9.23, the version lifecycle). `assertAllowed` refuses OP_DELETE on every object
+ * it knows, unchanged and unconditionally. The one action in this package that deletes reaches its
+ * deletes through `assertAllowedForTool`, against a SEPARATE per-tool delete table, so the sentence
+ * "no object may be deleted through the object gate" stays literally true and the only way to
+ * remove a record is to be named, by action and by object, on TOOL_DELETE_OBJECTS.
  */
 public with sharing class C360WriteGuard {
 
@@ -78,6 +84,20 @@ public with sharing class C360WriteGuard {
     public static final String OBJ_COLLATERAL = 'LLC_BI__Collateral__c';
     public static final String OBJ_ACCOUNT_COLLATERAL = 'LLC_BI__Account_Collateral__c';
     public static final String OBJ_POLICY_EXCEPTION = 'LLC_BI__Policy_Exception__c';
+
+    /**
+     * THE THREE OBJECTS THAT APPEAR HERE ONLY TO BE DELETED (0.9.23, the version lifecycle).
+     *
+     * The renewal chain junction and the two pricing components are on no create table and on no
+     * update table, and they never will be: nothing in this package authors a chain row, and the
+     * pricing components are nCino's own clone output. They are named because `discard-version` has
+     * to take them away, and a delete names its object out loud like every other write does. They
+     * are deliberately kept OUT of KNOWN_OBJECTS, so a create or an update on any of them still
+     * reads "no transition allowlist exists" exactly as it did before this table existed.
+     */
+    public static final String OBJ_LOAN_RENEWAL = 'LLC_BI__LoanRenewal__c';
+    public static final String OBJ_PRICING_RATE_COMPONENT = 'LLC_BI__Pricing_Rate_Component__c';
+    public static final String OBJ_PRICING_PAYMENT_COMPONENT = 'LLC_BI__Pricing_Payment_Component__c';
 
     /** The junction graph OP_CARRY may replicate, and nothing else. */
     // Pricing streams are DELIBERATELY absent: nCino's engine carries them itself on every
@@ -409,12 +429,70 @@ public with sharing class C360WriteGuard {
     };
 
     /**
-     * The gate for a tool that fences itself more narrowly than the object table does.
+     * PER-TOOL DELETE FENCES (0.9.23, the version lifecycle). THE ONLY DOOR TO A DELETE.
      *
-     * @param toolId The tool key, one of the keys of TOOL_CREATE_OBJECTS.
+     * `assertAllowed(object, OP_DELETE, ...)` still refuses EVERY object, unconditionally, exactly
+     * as it has since this class was written. That sentence stays true, and its test stays true
+     * with it. What 0.9.23 adds is a second, narrower door: a delete is permitted only when a NAMED
+     * TOOL asks for it on a NAMED OBJECT, through `assertAllowedForTool`. A tool that is not on
+     * this table cannot delete anything at all, and a tool that is on it cannot delete one object
+     * more than it declared.
+     *
+     * Why a whole second table rather than a `DELETE_OBJECTS` set beside the create one: the object
+     * tables answer "may this object ever be written", and for a delete that is the wrong question.
+     * Every object below is one this package also CREATES or CARRIES in some other arm, so an
+     * object-level delete permission would hand the delete to the modification arm too. The
+     * question worth answering is "may THIS action remove THIS object", and that is what a tool key
+     * asks.
+     *
+     * WHAT `discard-version` MAY REMOVE, and why each one is on the list rather than beside it:
+     *   - `LLC_BI__LoanRenewal__c`: the chain rows that keep a booked parent reading hasRenewal
+     *     true. Deleting the clone alone strands them (`RenewalLoanId` is a plain lookup), and a
+     *     stranded row makes every later credit action fail with "The request contains invalid
+     *     facilities" (proven by hand, 2026-09-11).
+     *   - `LLC_BI__Loan_Collateral2__c`: the version's copied pledges. NOT the assets and NOT the
+     *     `LLC_BI__Account_Collateral__c` ownership rows, which is why neither is on this list.
+     *   - `LLC_BI__Loan_Covenant__c`: the version's covenant junctions. NOT `LLC_BI__Covenant2__c`
+     *     and NOT `LLC_BI__Account_Covenant__c`: a covenant belongs to the borrower and survives
+     *     the version that referenced it.
+     *   - the two pricing components and `LLC_BI__Pricing_Stream__c`: nCino's own clone output on
+     *     the version's facilities. The parent facility keeps its own streams untouched.
+     *   - `LLC_BI__Fee__c` and `LLC_BI__Legal_Entities__c`: fees and borrowing structure authored
+     *     onto the version.
+     *   - `LLC_BI__Loan__c` and `LLC_BI__Product_Package__c`: the version's own facilities and the
+     *     version package. The caller owns the scoping that keeps this to an UNBOOKED version, and
+     *     it owns it with a gate that refuses a booked member by name.
+     *
+     * DELIBERATELY ABSENT, and each absence is a decision rather than an oversight:
+     * `LLC_BI__Loan_Collateral_Aggregate__c` (a booked parent's facility can point at one, and the
+     * frozen inventory does not name them), `LLC_BI__Loan_Detail__c` and
+     * `LLC_BI__LLC_LoanDocument__c` (master-detail children that cascade with the facility, so a
+     * delete permission would be a second way to do what the platform already does), every
+     * relationship-level object, and `cm_Action_Staging__c`, which is the audit trail and is
+     * marked rather than removed.
+     */
+    private static final Map<String, Set<String>> TOOL_DELETE_OBJECTS = new Map<String, Set<String>>{
+        'discard-version' => new Set<String>{
+            OBJ_LOAN_RENEWAL, OBJ_PLEDGE, OBJ_LOAN_COVENANT, OBJ_PRICING_RATE_COMPONENT,
+            OBJ_PRICING_PAYMENT_COMPONENT, OBJ_PRICING_STREAM, OBJ_FEE, OBJ_INVOLVEMENT,
+            OBJ_LOAN, OBJ_PRODUCT_PACKAGE
+        }
+    };
+
+    /**
+     * The gate for a tool that fences itself more narrowly than the object table does, and the only
+     * entry point through which a delete can ever be permitted.
+     *
+     * A delete is answered entirely here, against TOOL_DELETE_OBJECTS, and never reaches
+     * assertAllowed, which refuses every delete it is handed. Everything else is checked against
+     * TOOL_CREATE_OBJECTS and then handed to assertAllowed exactly as before, so no existing caller
+     * behaves differently.
+     *
+     * @param toolId The tool key, one of the keys of TOOL_CREATE_OBJECTS or TOOL_DELETE_OBJECTS.
      * @param objectApiName The target object API name.
      * @param operation One of OP_CREATE, OP_UPDATE, OP_DELETE, OP_CARRY.
-     * @param values The field values the tool intends to write, keyed by field API name.
+     * @param values The field values the tool intends to write, keyed by field API name. Ignored
+     *        for a delete, which names a record rather than a field set.
      * @throws GuardException when the tool has no fence, when the object is outside that tool's
      *         fence, or for any reason assertAllowed would refuse it.
      */
@@ -424,6 +502,11 @@ public with sharing class C360WriteGuard {
         String operation,
         Map<String, Object> values
     ) {
+        if (operation == OP_DELETE) {
+            assertDeleteAllowedForTool(toolId, objectApiName);
+            return;
+        }
+
         Set<String> permitted = TOOL_CREATE_OBJECTS.get(toolId);
         if (permitted == null) {
             throw new GuardException(
@@ -440,6 +523,41 @@ public with sharing class C360WriteGuard {
             );
         }
         assertAllowed(objectApiName, operation, values);
+    }
+
+    /**
+     * The delete fence: a named tool, a named object, and the running identity's own delete right
+     * confirmed before a plan promises a record will go.
+     *
+     * @param toolId The tool key, which must be on TOOL_DELETE_OBJECTS.
+     * @param objectApiName The object the tool wants to delete.
+     * @throws GuardException when the tool deletes nothing, when the object is outside that tool's
+     *         delete set, or when the running identity cannot delete the object at all.
+     */
+    private static void assertDeleteAllowedForTool(String toolId, String objectApiName) {
+        Set<String> permitted = TOOL_DELETE_OBJECTS.get(toolId);
+        if (permitted == null) {
+            throw new GuardException(
+                'Refused: ' + toolId + ' deletes nothing. A delete is permitted only to a tool named on the delete ' +
+                'table, and nothing in this package deletes by default.'
+            );
+        }
+        if (!permitted.contains(objectApiName)) {
+            List<String> ok = new List<String>(permitted);
+            ok.sort();
+            throw new GuardException(
+                'Refused: ' + toolId + ' may not delete ' + objectApiName + '. It deletes only [' + String.join(ok, ', ') +
+                ']. Everything else this action touches is kept on purpose.'
+            );
+        }
+        Schema.SObjectType t = Schema.getGlobalDescribe().get(objectApiName);
+        if (t == null || !t.getDescribe().isDeletable()) {
+            throw new GuardException(
+                'Refused: the running identity cannot delete ' + objectApiName +
+                '. Assign the Credit Actions Delete permission set, or the equivalent object delete right, before ' +
+                'running this tool.'
+            );
+        }
     }
 
     /**
@@ -471,8 +589,15 @@ public with sharing class C360WriteGuard {
             );
         }
 
+        // THIS ENTRY POINT NEVER PERMITS A DELETE, AND THAT DID NOT CHANGE IN 0.9.23. The version
+        // lifecycle's discard reaches its deletes through assertAllowedForTool, which answers a
+        // delete against the per-tool delete table and never arrives here. So a caller that asks
+        // the object gate for a delete is a caller that has not been named, and it is refused.
         if (operation == OP_DELETE) {
-            throw new GuardException('Refused: this tool never deletes ' + objectApiName + ' (A33.3.1).');
+            throw new GuardException(
+                'Refused: this tool never deletes ' + objectApiName + ' (A33.3.1). A delete is permitted only to a ' +
+                'named action through assertAllowedForTool, against its own declared set.'
+            );
         }
 
         if (operation == OP_UPDATE) {

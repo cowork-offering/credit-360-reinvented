@@ -76,7 +76,15 @@ const TOPICS: Array<[ReadTopic, RegExp]> = [
      did not. */
   ["structure", /\b(borrowers?|guarantors?|guarantee\w*|guarant(?:y|ies)|entit(?:y|ies)|involvements?|parties|obligors?|co-?borrowers?|structure|who is on|who's on)\b/i],
   ["covenants", /\b(covenants?|tests?|financial covenants?)\b/i],
-  ["collateral", /\b(collateral|security|pledges?|pledged)\b/i],
+  /* THE PLURAL IS HOW THE FOUNDER ASKS (0.9.22 preview, IMPROVEMENTS row 44).
+     "show me all my collaterals" and "show my full collaterals" both fell out of
+     this row on the singular `\bcollateral\b`, went past the question guard as
+     an instruction, and came back as "I could not match that to anything on this
+     package" over a package carrying eight pledges. The noun a banker reaches
+     for is not always the one the org's field is named after: collateral is also
+     said as security, as what is pledged, as the assets, and as what SECURES the
+     facility, and every one of those is the same card. */
+  ["collateral", /\b(collaterals?|securit(?:y|ies)|secure[sd]?|pledges?|pledged|assets?|liens?)\b/i],
   ["fees", /\b(fees?)\b/i],
   ["facilities", /\b(facilit(?:y|ies)|members?|loans?|lines?\s+of\s+credit)\b/i],
 ];

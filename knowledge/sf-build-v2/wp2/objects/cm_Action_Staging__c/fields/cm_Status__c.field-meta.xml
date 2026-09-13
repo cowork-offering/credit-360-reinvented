@@ -1,19 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>cm_Status__c</fullName>
-    <description>Action-level terminal state derived per A33.3.3: success when every step is verified or a deliberate handoff, partial when some verified and some not, failed when the first write failed with nothing verified.</description>
+    <description>Action-level terminal state derived per A33.3.3: success when every step is verified or a deliberate handoff, partial when some verified and some not, failed when the first write failed with nothing verified. Withdrawn (0.9.23): the version this plan staged or filed was discarded through the governed undo; the row stays as the audit and is never deleted.</description>
     <label>Status</label>
     <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
     <type>Picklist</type>
     <valueSet>
         <restricted>true</restricted>
         <valueSetDefinition>
             <sorted>false</sorted>
-            <value><fullName>Staged</fullName><default>true</default><label>Staged</label></value>
-            <value><fullName>Executing</fullName><default>false</default><label>Executing</label></value>
-            <value><fullName>Completed</fullName><default>false</default><label>Completed</label></value>
-            <value><fullName>Partial</fullName><default>false</default><label>Partial</label></value>
-            <value><fullName>Failed</fullName><default>false</default><label>Failed</label></value>
+            <value>
+                <fullName>Staged</fullName>
+                <default>true</default>
+                <label>Staged</label>
+            </value>
+            <value>
+                <fullName>Executing</fullName>
+                <default>false</default>
+                <label>Executing</label>
+            </value>
+            <value>
+                <fullName>Completed</fullName>
+                <default>false</default>
+                <label>Completed</label>
+            </value>
+            <value>
+                <fullName>Partial</fullName>
+                <default>false</default>
+                <label>Partial</label>
+            </value>
+            <value>
+                <fullName>Failed</fullName>
+                <default>false</default>
+                <label>Failed</label>
+            </value>
+            <value>
+                <fullName>Withdrawn</fullName>
+                <default>false</default>
+                <label>Withdrawn</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

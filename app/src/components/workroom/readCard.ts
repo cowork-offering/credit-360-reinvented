@@ -157,15 +157,35 @@ function structureCard(src: ReadSource, opts: ReadOptions = {}): ReadCardModel |
      on this package narrows nothing: the package is what the room stands on. */
   const named = new Set((opts.loanIds ?? []).filter(Boolean));
   const onlyOn = packageFacilities.filter((f) => f.loanId && named.has(f.loanId));
-  const facilities = onlyOn.length ? onlyOn : packageFacilities;
   const label = (f: Facility) => labelFor(f, packageFacilities, src.accountName);
-  /** The one loan the question named, where it named exactly one of ours. */
-  const only = onlyOn.length === 1 && packageFacilities.length > 1 ? onlyOn[0] : null;
 
-  const byLoan = new Map(facilities.map((f) => [f.loanId ?? "", f]));
-  // A row with no loan id is relationship-wide: it is on every facility of the
-  // package, including whichever one the question named.
-  const all = entities.filter((e) => !e.loanId || byLoan.has(e.loanId));
+  /** The involvement rows sitting on a set of facilities, plus the rows the org
+   *  hung off the relationship rather than off a loan. */
+  const on = (facilities: Facility[]) => {
+    const byLoan = new Map(facilities.map((f) => [f.loanId ?? "", f]));
+    return { byLoan, rows: entities.filter((e) => !e.loanId || byLoan.has(e.loanId)) };
+  };
+
+  /* THE NARROWING NEVER EMPTIES THE CARD. A facility the question named that
+     carries no involvement row of its own would otherwise answer "who is on
+     this" with nothing at all, which is a dead end rather than an answer; the
+     card falls back to the package and its lede says which it is. */
+  const wide = on(packageFacilities);
+  const narrow = onlyOn.length ? on(onlyOn) : null;
+  const scope = narrow && narrow.rows.length ? narrow : wide;
+  /** The one loan the question named, where it named exactly one of ours AND
+   *  that loan is what the rows below are about. */
+  const only = scope === narrow && onlyOn.length === 1 && packageFacilities.length > 1 ? onlyOn[0] : null;
+  const byLoan = scope.byLoan;
+  /* AND THE ROWS MAY NAME NO LOAN THIS PACKAGE HOLDS. The org anchors an
+     involvement row on a loan, so a room standing on a package whose members
+     are not the loans the graph read names (an in-flight version, whose
+     facilities are clones with ids of their own) matched nothing at all and
+     answered "who is on this" with the desk. The rows are still this
+     relationship's, so they are shown and the heading says where they sit
+     rather than claiming the package. */
+  const offPackage = scope.rows.length === 0 && entities.length > 0;
+  const all = offPackage ? entities : scope.rows;
 
   /* THE QUESTION NARROWS THE CARD (E7). A question about guarantors is answered
      with the guarantors; where the read carries none, the card says so with the
@@ -174,7 +194,7 @@ function structureCard(src: ReadSource, opts: ReadOptions = {}): ReadCardModel |
   const narrowed = opts.role === "guarantor" && asked.length > 0;
   const rows = aggregateInvolvements(narrowed ? asked : all);
 
-  const where = only ? `the ${label(only)}` : "this package";
+  const where = only ? `the ${label(only)}` : offPackage ? "this relationship" : "this package";
 
   const row = (e: AggregatedInvolvement): ReadRow => {
     const loans = e.loanIds
@@ -205,7 +225,12 @@ function structureCard(src: ReadSource, opts: ReadOptions = {}): ReadCardModel |
      loan and a row hung off the relationship. */
   const groups: ReadGroup[] = [];
   const onFacilities = rows.filter((e) => e.loanIds.length).map(row);
-  if (onFacilities.length) groups.push({ heading: only ? label(only) : "On this package", rows: onFacilities });
+  if (onFacilities.length) {
+    groups.push({
+      heading: offPackage ? "On this relationship's facilities" : only ? label(only) : "On this package",
+      rows: onFacilities,
+    });
+  }
   const relationshipWide = rows.filter((e) => !e.loanIds.length).map(row);
   if (relationshipWide.length) groups.push({ heading: "Across the relationship", rows: relationshipWide });
   if (!groups.length) return null;
@@ -287,8 +312,17 @@ function covenantsCard(src: ReadSource): ReadCardModel | null {
 
 /* --------------------------------------------------------------- collateral */
 
-function collateralCard(src: ReadSource): ReadCardModel | null {
-  const facilities = scoped(src);
+function collateralCard(src: ReadSource, opts: ReadOptions = {}): ReadCardModel | null {
+  const packageFacilities = scoped(src);
+  /* THE QUESTION NARROWS THE FACILITIES, exactly as it does on the structure
+     card: "show me the pledges on this loan" while the banker is standing on
+     one member is a question about that member. A named loan carrying no pledge
+     of its own falls back to the package rather than answering with nothing,
+     and the lede says which of the two it did. */
+  const named = new Set((opts.loanIds ?? []).filter(Boolean));
+  const onlyOn = packageFacilities.filter((f) => f.loanId && named.has(f.loanId) && (f.collateral ?? []).length > 0);
+  const facilities = onlyOn.length ? onlyOn : packageFacilities;
+  const only = onlyOn.length === 1 && packageFacilities.length > 1 ? onlyOn[0] : null;
   const valuations = valuationsOf(src.bundle);
   const groups: ReadGroup[] = [];
   let counted = 0;
@@ -326,7 +360,9 @@ function collateralCard(src: ReadSource): ReadCardModel | null {
   if (!groups.length) return null;
   return {
     topic: "collateral",
-    lede: `${counted} ${counted === 1 ? "pledge is" : "pledges are"} recorded against this package, by facility, at the share each facility holds.`,
+    lede: only
+      ? `${counted} ${counted === 1 ? "pledge is" : "pledges are"} recorded against the ${labelFor(only, packageFacilities, src.accountName)}, at the share it holds.`
+      : `${counted} ${counted === 1 ? "pledge is" : "pledges are"} recorded against this package, by facility, at the share each facility holds.`,
     groups,
     followUp: "What should be pledged, and to which facility?",
   };
@@ -365,19 +401,24 @@ function facilitiesCard(src: ReadSource): ReadCardModel | null {
 
 /** The honest sentence for a topic the room cannot read, keyed by topic. Used
  *  where the builder returns null: the room says WHY, never nothing. */
-export function readGap(topic: ReadTopic, relationship: string): string {
+export function readGap(topic: ReadTopic, relationship: string, where?: string | null): string {
+  /* AND IT NAMES WHAT IT LOOKED AT. A question about one facility answered with
+     "these facilities" tells the banker nothing about whether the room read the
+     one they asked about; the caller passes the member where the question named
+     one, and the sentence is otherwise exactly what it always was. */
+  const on = where ? `the ${where}` : "these facilities";
   switch (topic) {
     case "fees":
       return (
-        "No read on this cockpit carries the fees already on these facilities, so I cannot list them. " +
+        `No read on this cockpit carries the fees already on ${on}, so I cannot list them. ` +
         "I can still add one: say the fee kind and either a percentage of the commitment or a flat amount."
       );
     case "structure":
-      return `The relationship read for ${relationship} carries no parties on these facilities, so there is nothing for me to list. I can still put someone on the deal: name them, the role, and the facility.`;
+      return `The relationship read for ${relationship} carries no parties on ${on}, so there is nothing for me to list. I can still put someone on the deal: name them, the role, and the facility.`;
     case "covenants":
-      return `No covenant tests reach this view for ${relationship}. I can add one: name the test, the facility and the threshold.`;
+      return `No covenant tests reach this view for ${relationship}${where ? ` on ${on}` : ""}. I can add one: name the test, the facility and the threshold.`;
     case "collateral":
-      return `No collateral pledges reach this view for ${relationship}. I can pledge something: name the asset and the facility.`;
+      return `No collateral pledges reach this view for ${relationship}${where ? ` on ${on}` : ""}. I can pledge something: name the asset and the facility.`;
     default:
       return `No facilities reach this view for ${relationship}, so there is nothing here a credit action can change.`;
   }
@@ -402,7 +443,7 @@ function cardFor(topic: ReadTopic, src: ReadSource, opts: ReadOptions): ReadCard
     case "covenants":
       return covenantsCard(src);
     case "collateral":
-      return collateralCard(src);
+      return collateralCard(src, opts);
     case "facilities":
       return facilitiesCard(src);
     /* NO READ TOOL CARRIES FEE ROWS onto the bundle, so the room cannot say

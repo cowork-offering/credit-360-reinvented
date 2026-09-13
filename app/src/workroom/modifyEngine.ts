@@ -5,6 +5,7 @@ import {
   executeAction,
   executionFailed,
   failureReason,
+  isLostWriteAnswer,
   resolveApproverUserId,
   stageAction,
   type ExecuteResult,
@@ -14,7 +15,7 @@ import {
 import { assertNoRecordIds, type PlanStep, type StagedOutput } from "../actions/stagedPlan";
 import { packageRecords } from "../actions/schemas";
 import { validatePlan } from "../actions/transitionAllowlist";
-import { bookedFacilities, facilityProduct, facilityStagesStaged, shortFacilityLabel } from "../data/facilityStage";
+import { atOrPastApproval, bookedFacilities, facilityProduct, facilityStagesStaged, shortFacilityLabel } from "../data/facilityStage";
 import { fmtDate, fmtMoney } from "../data/format";
 import { isActiveFacility } from "../data/worklist";
 import type { BorrowerBundle, C360Data, Covenant, Facility } from "../data/contract";
@@ -123,8 +124,6 @@ export class WorkroomRefusalError extends Error {
     super(message);
   }
 }
-
-const RATIONALE_PREFIX = "Modification Workroom";
 
 /** How long the gateway assist may hold the conversation open. Past this the
  *  deterministic miss is the answer, because a room with nothing on screen is
@@ -368,7 +367,179 @@ function fieldWireValue(v: ParsedValue): string | number | null {
   }
 }
 
-function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): WorkroomDelta {
+/* =============================================================================
+   TWO VARIANTS, ONE ENGINE (0.9.23, knowledge/SPEC-0.9.23-VERSION-LIFECYCLE.md).
+
+   MODIFY forks a booked package: nCino clones every eligible member onto a new
+   package version and the changes land on the CLONE. AMEND does not fork. The
+   version already exists, the banker already owns it until it reaches
+   `Approval / Loan Committee`, and the same figures land on the version's OWN
+   loans through `stage_amend_version` / `execute_amend_version`.
+
+   EVERYTHING ELSE IS DELIBERATELY IDENTICAL. Same field catalog, same parser,
+   same member resolution, same four-field pricing gate, same step machine
+   (term, first payment date, rate, amount), same advisories, same drift check,
+   same single-use token. A banker who can drive a modification can drive an
+   amendment without learning a second room, which is the whole reason this is
+   a variant and not a second engine.
+
+   WHAT DIFFERS IS WHAT THE ROOM SAYS AND WHAT IT MAY FILE, and both live here:
+   one record of words, and one set of arms the variant's tool accepts. Nothing
+   below reads `variant` directly; everything reads these.
+   ============================================================================= */
+
+export type EngineVariant = "modify" | "amend";
+
+/** One arm of the write. The amend contract takes seven of the nine. */
+export type EngineArm =
+  | "scalar"
+  | "field"
+  | "covenantAdd"
+  | "involvementAdd"
+  | "involvementRemove"
+  | "feeAdd"
+  | "pledgeAdd"
+  | "policyExceptionAdd";
+
+export interface VariantWords {
+  /** Where a confirmed change lands, as a noun phrase in a sentence. */
+  lands: string;
+  /** The same, as the `on …` clause a field map prints. */
+  onTarget: string;
+  /** What stays untouched, said once per field map. */
+  untouched: string;
+  /** The `before` on an entry the version roll carries rather than creates. */
+  carriedOver: string;
+  /** How a write is proved, per wave. */
+  verifiedOn: string;
+  /** The covenant wave's own sentence about what it writes. */
+  covenantWritten: string;
+  /** The borrowing-structure ADD sentence. */
+  involvementAdded: string;
+  /** Why a member cannot be worked on, given the org's stage word. */
+  ineligible: (label: string, stage: string) => string;
+  /** What this room can and cannot carry, said whenever a member is picked. */
+  scope: string;
+  /** What confirming will actually do, said once per parse. */
+  whyConfirming: (named: string) => string;
+  /** The opening sentence when NOTHING on the package can be worked on. */
+  noneOpen: (members: number) => string;
+  /** The opening sentence when every member can. */
+  allOpen: (members: number, total: string) => string;
+  /** The opening sentence when some can. */
+  someOpen: (open: number, members: number, reachable: string, total: string) => string;
+  /** What the manifest is a delta AGAINST, as the brief's own rows. */
+  baselineRows: (args: { open: number; members: number; stayBehindNames: string[] }) => { value: string; detail: string };
+  /** The arms the variant's tool accepts. */
+  arms: ReadonlySet<EngineArm>;
+  /** Why an arm this variant cannot carry is a handoff. */
+  armGap: Partial<Record<EngineArm, string>>;
+  /** The rationale prefix on the staged plan. */
+  rationalePrefix: string;
+}
+
+const MODIFY_WORDS: VariantWords = {
+  lands: "the clone",
+  onTarget: "on the modification clone",
+  untouched: "The booked facility is untouched.",
+  carriedOver: "carried over from the parent",
+  verifiedOn: "clone",
+  covenantWritten:
+    "LLC_BI__Covenant2__c created Pending/Active on the borrower, LLC_BI__Loan_Covenant__c junction attached to the CLONE on the new package version. No compliance row is minted and no approval starts.",
+  involvementAdded:
+    "LLC_BI__Legal_Entities__c authored on the CLONE with the new package anchor, under the guard's five-role birth state.",
+  ineligible: (label, stage) =>
+    `${label} is ${stage ? `at ${stage}` : "carrying no stage in this read"}, and a credit action only runs against a booked facility. There is nothing on it I can modify here.`,
+  scope:
+    "Commitment, rate, maturity, term, covenants, entities, fees, collateral and policy exceptions all file on the clone; pricing I stage and hand off with the reason.",
+  whyConfirming: (named) =>
+    `Confirming stages the next VERSION of the package: every eligible member rolls into it with its covenants, collateral and borrowers, and the clone of ${named} carries the new terms. The booked facilities and the current package stay exactly as they are until the bank's own approval books the new version.`,
+  noneOpen: (members) =>
+    `This package holds ${members} ${members === 1 ? "member" : "members"} and none of them is booked, so there is nothing here a credit action can modify.`,
+  allOpen: (members, total) =>
+    members === 1
+      ? `The one member is booked, so the whole ${total} is open. Pick it.`
+      : `All ${members} members are booked: the whole ${total} is open. Pick one.`,
+  someOpen: (open, members, reachable, total) =>
+    `${reachable} of ${total} is open: ${open} of ${members} members are booked. Pick one.`,
+  baselineRows: ({ open, members, stayBehindNames }) => ({
+    value:
+      `${open} ${open === 1 ? "member rolls" : "members roll"} into the new package` +
+      (stayBehindNames.length
+        ? ` · ${stayBehindNames.length} ${stayBehindNames.length === 1 ? "stays" : "stay"} on the current version`
+        : ""),
+    detail:
+      "nCino package methodology: a modification versions the whole package, never a loan alone. Every Booked/Open member is cloned onto the new version with its junction graph; only the selected member takes the requested changes. " +
+      (stayBehindNames.length
+        ? `${stayBehindNames.join(", ")} is not Booked/Open and stays behind, named rather than silently skipped.`
+        : `Every member of this package is eligible to roll. There ${members === 1 ? "is one" : `are ${members}`}.`),
+  }),
+  arms: new Set<EngineArm>([
+    "scalar",
+    "field",
+    "covenantAdd",
+    "involvementAdd",
+    "involvementRemove",
+    "feeAdd",
+    "pledgeAdd",
+    "policyExceptionAdd",
+  ]),
+  armGap: {},
+  rationalePrefix: "Modification Workroom",
+};
+
+const AMEND_WORDS: VariantWords = {
+  lands: "this version",
+  onTarget: "on the version's own loan",
+  untouched: "No clone is made and no credit action runs: this is the version the org already holds.",
+  carriedOver: "already on this version",
+  verifiedOn: "version loan",
+  covenantWritten:
+    "LLC_BI__Covenant2__c created Pending/Active on the borrower, LLC_BI__Loan_Covenant__c junction attached to the version's own loan. No clone, no compliance row and no approval starts.",
+  involvementAdded:
+    "LLC_BI__Legal_Entities__c authored on the version's own loan, under the guard's five-role birth state. Nothing on the booked package moves.",
+  ineligible: (label, stage) =>
+    `${label} is ${stage ? `at ${stage}` : "carrying no stage in this read"}, which is at or past Approval / Loan Committee. From that rung up the version is the org's, so there is nothing on it I can change here.`,
+  scope:
+    "Commitment, rate, maturity, term, covenants, entities, fees and collateral all file on this version; pricing I stage and hand off with the reason, and a policy exception or a removal is not an amendment.",
+  whyConfirming: (named) =>
+    `Confirming changes the version the org already holds: ${named} takes the new figures in place. No new version is forked, no credit action runs, and the booked package behind it is not touched.`,
+  noneOpen: (members) =>
+    `This version holds ${members} ${members === 1 ? "member" : "members"} and every one of them is at or past Approval / Loan Committee, so it is no longer yours to shape. Work it through approval in Salesforce, or send it back a stage there.`,
+  allOpen: (members, total) =>
+    members === 1
+      ? `The one facility on this version is still editable, so the whole ${total} is open. Pick it.`
+      : `All ${members} facilities on this version are still editable: the whole ${total} is open. Pick one.`,
+  someOpen: (open, members, reachable, total) =>
+    `${reachable} of ${total} is open: ${open} of ${members} facilities on this version are still below Approval / Loan Committee. Pick one.`,
+  baselineRows: ({ open, members }) => ({
+    value: `${open} of ${members} ${members === 1 ? "facility is" : "facilities are"} still editable on this version`,
+    detail:
+      "This package IS the version. Nothing is cloned and no second version is forked: the figures land on the loans the org already holds here, and they stay editable until one member reaches Approval / Loan Committee. From that rung up the version is the org's.",
+  }),
+  arms: new Set<EngineArm>(["scalar", "field", "covenantAdd", "involvementAdd", "feeAdd", "pledgeAdd"]),
+  armGap: {
+    /* THE CONTRACT SAYS SO IN ITS OWN WORDS (SPEC-0.9.23-TOOL-CONTRACT.md):
+       `involvementChangesJson` is ADD ONLY on this pair, because a remove on a
+       version is a real DELETE rather than a carry the roll can leave behind.
+       A modification can decline to carry a row; an amendment would have to
+       destroy one, and this pair does not delete. */
+    involvementRemove:
+      "A removal on a version is a real delete, not a carry the roll can leave behind, and the amendment pair does not delete. Take the row off in Salesforce, or discard the version and fork it again.",
+    /* AND A POLICY EXCEPTION IS NOT ON THE PAIR AT ALL. It rides the
+       modification's own arm, where the exception is authored against a clone
+       the credit action just made. */
+    policyExceptionAdd:
+      "A policy exception is authored by the credit action against the clone it makes, and an amendment makes none. File it in Salesforce against this version, or raise it on the modification that books it.",
+  },
+  rationalePrefix: "Amendment Workroom",
+};
+
+function wordsFor(variant: EngineVariant): VariantWords {
+  return variant === "amend" ? AMEND_WORDS : MODIFY_WORDS;
+}
+
+function toDelta(a: Amendment, seq: number, name: (f: Facility) => string, words: VariantWords): WorkroomDelta {
   const { field, facility, value, op } = a;
   // A FEE, AN ASSET AND AN EXCEPTION NAME THEMSELVES. The catalog entries are
   // called "Facility fee", "Collateral pledge" and "Policy exception", which are
@@ -403,7 +574,7 @@ function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): Work
     op === "add"
       ? "not on the facility today"
       : field.category === "party" || field.category === "fee" || field.type === "record"
-        ? "carried over from the parent"
+        ? words.carriedOver
         : currentValue(field, facility);
 
   const fileable = isFileable(field) && facility?.loanId !== undefined && value !== null;
@@ -418,7 +589,7 @@ function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): Work
   // the threshold and the operator, targeted at THIS member — the org attaches
   // it to the member's CLONE on the new package version.
   const covenantWire =
-    fileable && field.recordWire === "covenantAdd" && value?.kind === "covenant"
+    fileable && words.arms.has("covenantAdd") && field.recordWire === "covenantAdd" && value?.kind === "covenant"
       ? {
           typeName: value.typeName,
           threshold: value.threshold,
@@ -431,7 +602,13 @@ function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): Work
   // anchors every involvement row on one loan) and, for an add, the role. A
   // remove needs no role: the org resolves the exact row at stage time and
   // refuses ambiguity.
+  /* AN ARM THIS VARIANT CANNOT CARRY NEVER BECOMES A WIRE. It is parsed, it is
+     named, it goes on the manifest, and it travels as a handoff with the
+     contract's own reason, which is how every ask this room understands and
+     cannot file has always been treated. */
+  const involvementArm: EngineArm = op === "remove" ? "involvementRemove" : "involvementAdd";
   const involvementWire =
+    words.arms.has(involvementArm) &&
     field.recordWire === "involvementChange" && facility?.loanId !== undefined && a.party &&
     (op === "remove" || a.role)
       ? {
@@ -448,7 +625,7 @@ function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): Work
   // is an autonumber and cannot carry them. A percentage fee sends NO amount:
   // the org's FeeTrigger derives it from the clone's commitment.
   const feeWire =
-    field.recordWire === "feeAdd" && op === "add" && facility?.loanId !== undefined && value?.kind === "fee"
+    words.arms.has("feeAdd") && field.recordWire === "feeAdd" && op === "add" && facility?.loanId !== undefined && value?.kind === "fee"
       ? {
           feeType: value.feeType,
           description: value.description,
@@ -469,7 +646,7 @@ function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): Work
   // is a formula the org resolves from the override, the auto-applied value and
   // the collateral type's default, in that order.
   const pledgeWire =
-    field.recordWire === "pledgeAdd" && op === "add" && facility?.loanId !== undefined && value?.kind === "pledge"
+    words.arms.has("pledgeAdd") && field.recordWire === "pledgeAdd" && op === "add" && facility?.loanId !== undefined && value?.kind === "pledge"
       ? {
           collateralId: value.collateralId,
           newCollateral: value.create
@@ -485,7 +662,7 @@ function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): Work
   // officer looks for the bank's exceptions. The title, the status and the
   // mitigants ride ONE entry because they are one record.
   const policyExceptionWire =
-    field.recordWire === "policyExceptionAdd" && op === "add" && facility?.loanId !== undefined &&
+    words.arms.has("policyExceptionAdd") && field.recordWire === "policyExceptionAdd" && op === "add" && facility?.loanId !== undefined &&
     value?.kind === "policyException"
       ? {
           title: value.title,
@@ -502,7 +679,7 @@ function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): Work
   // The name travels because the describe checks it, not because this file is
   // sure of it.
   const fieldWire =
-    fileable && field.dynamicField && value
+    fileable && words.arms.has("field") && field.dynamicField && value
       ? (() => {
           const v = fieldWireValue(value);
           return v === null
@@ -536,16 +713,14 @@ function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): Work
      the state a seventh wave must not add to: the one thing this line has to be
      is checkable against what the arm really writes. */
   const writtenAs = (): string => {
-    if (wire) return `${field.apiName} on the modification clone. The booked facility is untouched.`;
+    if (wire) return `${field.apiName} ${words.onTarget}. ${words.untouched}`;
     if (fieldWire) {
-      return `${fieldWire.field} on the modification clone, resolved against the org's live describe. The booked facility is untouched.`;
+      return `${fieldWire.field} ${words.onTarget}, resolved against the org's live describe. ${words.untouched}`;
     }
-    if (covenantWire) {
-      return "LLC_BI__Covenant2__c created Pending/Active on the borrower, LLC_BI__Loan_Covenant__c junction attached to the CLONE on the new package version. No compliance row is minted and no approval starts.";
-    }
+    if (covenantWire) return words.covenantWritten;
     if (involvementWire) {
       return involvementWire.op === "add"
-        ? "LLC_BI__Legal_Entities__c authored on the CLONE with the new package anchor, under the guard's five-role birth state."
+        ? words.involvementAdded
         : "A CARRY EXCLUSION: the named row never travels to the new version. The booked facility keeps it; nothing is deleted anywhere.";
     }
     if (feeWire) {
@@ -578,16 +753,16 @@ function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): Work
 
   /** How the write is proved, per wave. Same shape and same reason as above. */
   const verification = (): string => {
-    if (wire || fieldWire) return "Re-queried on the clone after the write";
-    if (covenantWire) return "Covenant and junction re-queried on the clone after creation";
-    if (feeWire) return "Fee re-queried on the clone after creation, with the figure the org computed";
-    if (pledgeWire) return "Pledge re-queried on the clone after creation, with the lendable value the org derived";
+    if (wire || fieldWire) return `Re-queried on the ${words.verifiedOn} after the write`;
+    if (covenantWire) return `Covenant and junction re-queried on the ${words.verifiedOn} after creation`;
+    if (feeWire) return `Fee re-queried on the ${words.verifiedOn} after creation, with the figure the org computed`;
+    if (pledgeWire) return `Pledge re-queried on the ${words.verifiedOn} after creation, with the lendable value the org derived`;
     if (policyExceptionWire) {
-      return "Exception re-queried on the clone after creation, with the name, status and mitigants the org holds";
+      return `Exception re-queried on the ${words.verifiedOn} after creation, with the name, status and mitigants the org holds`;
     }
     if (involvementWire) {
       return involvementWire.op === "add"
-        ? "Involvement re-queried on the clone after creation"
+        ? `Involvement re-queried on the ${words.verifiedOn} after creation`
         : "Proven by absence on the clone and presence on the parent";
     }
     return "Handed off — nothing was written";
@@ -636,7 +811,19 @@ function toDelta(a: Amendment, seq: number, name: (f: Facility) => string): Work
     // Only a FILEABLE entry carries a basis: drift is the check that a figure
     // reaching the org has not moved, and a handoff sends no figure.
     basis: wire && facility?.loanId ? { facilityId: facility.loanId, fieldId: field.id, before } : undefined,
-    handoff: files ? undefined : { reason: field.gap ?? "No tool files this today.", closes: field.closes },
+    handoff: files
+      ? undefined
+      : {
+          reason:
+            (field.recordWire === "involvementChange"
+              ? words.armGap[involvementArm]
+              : field.recordWire === "policyExceptionAdd"
+                ? words.armGap.policyExceptionAdd
+                : undefined) ??
+            field.gap ??
+            "No tool files this today.",
+          closes: field.closes,
+        },
     // The chain a create must carry. Held on the delta so the plan cannot be
     // composed without it: a create with no junctions never becomes steps.
     chainLinks: op === "add" ? chainFor(field) : undefined,
@@ -770,9 +957,14 @@ export function createModifyEngine(args: {
   data: C360Data;
   bundle: BorrowerBundle | null;
   deps?: ModifyEngineDeps;
+  /** WHICH OF THE TWO THIS IS (0.9.23). Defaults to the modification, so every
+   *  existing caller composes exactly the plan it always has. */
+  variant?: EngineVariant;
 }): WorkroomEngine {
   const { context, data, bundle } = args;
   const deps = { ...defaultDeps, ...args.deps };
+  const variant: EngineVariant = args.variant ?? "modify";
+  const words = wordsFor(variant);
   const vocabulary = vocabularyFor(context);
 
   const relationship = (bundle?.snapshot?.name ?? context.accountName ?? "").trim();
@@ -787,11 +979,24 @@ export function createModifyEngine(args: {
      toward a manifest no single approval could honestly cover.               */
 
   const choices = packageChoices(bundle);
-  const unanchored = !context.productPackageId && choices.length > 1;
+  /* AN AMENDMENT IS NEVER UNANCHORED. The version IS the anchor: the room only
+     exists because the banker is standing in one, and there is no second
+     package the same amendment could run against. */
+  const unanchored = variant !== "amend" && !context.productPackageId && choices.length > 1;
 
   const members = unanchored ? [] : packageMembers(bundle, context.productPackageId);
   const stagesStaged = facilityStagesStaged(bundle);
-  const booked = bookedFacilities(bundle).filter((f) => members.some((m) => m.loanId === f.loanId));
+  /* WHAT A CHANGE MAY RUN AGAINST, and the two variants read it from opposite
+     ends of the same ladder. A MODIFICATION needs a BOOKED member: nCino takes
+     a credit action only against one. An AMENDMENT works a package that holds
+     none by definition, and what it may shape is every member still BELOW the
+     approval rung: above it the version is the org's, not the banker's. The
+     variable is the same in every sentence below; the rule behind it is the
+     variant's. */
+  const booked =
+    variant === "amend"
+      ? members.filter((f) => !atOrPastApproval(f))
+      : bookedFacilities(bundle).filter((f) => members.some((m) => m.loanId === f.loanId));
   const covenants = packageCovenantRows(bundle, members);
   const entities = (bundle?.graph?.legalEntities ?? []).filter(
     (e) => !context.productPackageId || !e.packageId || e.packageId === context.productPackageId,
@@ -949,8 +1154,12 @@ export function createModifyEngine(args: {
         detail: [
           bundle?.snapshot?.packageStage ? `Stage ${bundle.snapshot.packageStage}` : null,
           bundle?.snapshot?.primaryRiskRating ? `risk rating ${bundle.snapshot.primaryRiskRating}` : null,
-          `${booked.length} of ${members.length} booked, which is what a credit action requires`,
-          stagesStaged ? null : "Facility stages are not staged in this read, so booked cannot be confirmed on every member",
+          variant === "amend"
+            ? `${booked.length} of ${members.length} still below Approval / Loan Committee, which is what an amendment requires`
+            : `${booked.length} of ${members.length} booked, which is what a credit action requires`,
+          stagesStaged || variant === "amend"
+            ? null
+            : "Facility stages are not staged in this read, so booked cannot be confirmed on every member",
         ]
           .filter(Boolean)
           .join(" · "),
@@ -1029,29 +1238,28 @@ export function createModifyEngine(args: {
     const parties = entities.filter((e) => !e.loanId || e.loanId === target.loanId);
     const stayBehind = members.filter((m) => !booked.some((b) => b.loanId === m.loanId));
 
+    const baseline = words.baselineRows({
+      open: booked.length,
+      members: members.length,
+      stayBehindNames: stayBehind.map((m) => shortFacilityLabel(m, relationship) || m.loanId).filter((x): x is string => Boolean(x)),
+    });
     const rows: HaveRow[] = [
       {
-        label: "How the package versions",
-        value:
-          `${booked.length} ${booked.length === 1 ? "member rolls" : "members roll"} into the new package` +
-          (stayBehind.length
-            ? ` · ${stayBehind.length} ${stayBehind.length === 1 ? "stays" : "stay"} on the current version`
-            : ""),
-        detail:
-          "nCino package methodology: a modification versions the whole package, never a loan alone. Every Booked/Open member is cloned onto the new version with its junction graph; only the selected member takes the requested changes. " +
-          (stayBehind.length
-            ? `${stayBehind.map((m) => shortFacilityLabel(m, relationship) || m.loanId).join(", ")} is not Booked/Open and stays behind, named rather than silently skipped.`
-            : "Every member of this package is eligible to roll."),
+        label: variant === "amend" ? "What this room changes" : "How the package versions",
+        value: baseline.value,
+        detail: baseline.detail,
       },
       {
-        label: `What ${name} carries onto its clone`,
+        label: variant === "amend" ? `What ${name} already carries` : `What ${name} carries onto its clone`,
         value: [
           `${junctions.length} covenant ${junctions.length === 1 ? "junction" : "junctions"}`,
           `${pledges.length} ${pledges.length === 1 ? "pledge" : "pledges"}`,
           `${parties.length} involvement ${parties.length === 1 ? "row" : "rows"}`,
         ].join(" · "),
         detail:
-          "The version roll clones the facility and the same governed run carries this graph onto the clone, verified by count. Everything here is KEPT unless the manifest says otherwise, which is why a removal is a change like any other and reads as one.",
+          variant === "amend"
+            ? "This graph is already on the version: the roll that created it carried it, and an amendment does not move it. What this room changes is the figures on the loans, plus anything it adds beside them."
+            : "The version roll clones the facility and the same governed run carries this graph onto the clone, verified by count. Everything here is KEPT unless the manifest says otherwise, which is why a removal is a change like any other and reads as one.",
       },
     ];
 
@@ -1099,7 +1307,9 @@ export function createModifyEngine(args: {
       label: "Not in this read",
       value: "Fees and pricing streams",
       detail:
-        "The cockpit's six detail reads carry no fee rows and no pricing streams, so what the clone would carry on those two is not shown here. The org's own credit action carries both onto the new version and counts them back; a fee this room ADDS is named on its own manifest entry.",
+        variant === "amend"
+          ? "The cockpit's six detail reads carry no fee rows and no pricing streams, so what this version already holds on those two is not shown here. The roll that created it carried both; a fee this room ADDS is named on its own manifest entry."
+          : "The cockpit's six detail reads carry no fee rows and no pricing streams, so what the clone would carry on those two is not shown here. The org's own credit action carries both onto the new version and counts them back; a fee this room ADDS is named on its own manifest entry.",
     });
 
     return rows;
@@ -1159,7 +1369,10 @@ export function createModifyEngine(args: {
     const rows: WhyRow[] = [
       {
         label: "The package",
-        detail: `${members.length} ${members.length === 1 ? "member" : "members"}, ${fmtMoney(committed)} committed, ${booked.length} booked. A modification runs against a booked facility; anything else the org refuses outright.`,
+        detail:
+          variant === "amend"
+            ? `${members.length} ${members.length === 1 ? "facility" : "facilities"} on this version, ${fmtMoney(committed)} committed, ${booked.length} still below Approval / Loan Committee. An amendment runs against those; from the approval rung up the org refuses it.`
+            : `${members.length} ${members.length === 1 ? "member" : "members"}, ${fmtMoney(committed)} committed, ${booked.length} booked. A modification runs against a booked facility; anything else the org refuses outright.`,
       },
     ];
     const drawn = bundle?.exposure?.totalOutstanding;
@@ -1178,7 +1391,11 @@ export function createModifyEngine(args: {
     const summary = catalogSummary();
     rows.push({
       label: "What this room can file",
-      detail: `${FILING_FIELDS.length} of ${summary.total} indexed amendments file through stage_loan_modification — the four terms, the field wave, net-new covenants on the borrower, borrowing-structure changes, net-new fees, collateral pledges and policy exceptions, all landing on the clone — and the live-describe index proposes the loan's remaining writable fields on demand. What no wave carries is staged into the manifest and handed off with the reason.`,
+      detail: `${FILING_FIELDS.length} of ${summary.total} indexed amendments file through ${variant === "amend" ? "stage_amend_version" : "stage_loan_modification"}: the four terms, the field wave, net-new covenants on the borrower, borrowing-structure changes, net-new fees, collateral pledges and policy exceptions, all landing on the clone. The live-describe index proposes the loan's remaining writable fields on demand. What no wave carries is staged into the manifest and handed off with the reason.${
+        variant === "amend"
+          ? " Two of them do NOT ride the amendment pair: a borrowing-structure removal is a real delete, and a policy exception is the credit action's own arm."
+          : ""
+      }`,
     });
     return rows;
   }
@@ -1214,9 +1431,7 @@ export function createModifyEngine(args: {
     const target = askFacility() ?? booked[0] ?? members[0] ?? null;
     // NOTHING BOOKED IS THE HEADLINE when it is true: a client ask the room
     // cannot act on is the second fact, not the first.
-    if (!booked.length) {
-      return `This package holds ${members.length} ${members.length === 1 ? "member" : "members"} and none of them is booked, so there is nothing here a credit action can modify.`;
-    }
+    if (!booked.length) return words.noneOpen(members.length);
     if (request?.ask?.to && target) {
       // THE CLIENT'S ASK, CLOSED AT PACKAGE ALTITUDE: what it does to the total
       // is the fact the strip cannot show, and it is the fact that decides.
@@ -1230,13 +1445,9 @@ export function createModifyEngine(args: {
       data.meta?.generatedAt ?? "",
     );
     if (move) return move.line;
-    if (booked.length === members.length) {
-      return members.length === 1
-        ? `The one member is booked, so the whole ${fmtMoney(committed)} is open. Pick it.`
-        : `All ${members.length} members are booked: the whole ${fmtMoney(committed)} is open. Pick one.`;
-    }
+    if (booked.length === members.length) return words.allOpen(members.length, fmtMoney(committed));
     const reachable = booked.reduce((sum, f) => sum + (typeof f.committed === "number" ? f.committed : 0), 0);
-    return `${fmtMoney(reachable)} of ${fmtMoney(committed)} is open: ${booked.length} of ${members.length} members are booked. Pick one.`;
+    return words.someOpen(booked.length, members.length, fmtMoney(reachable), fmtMoney(committed));
   }
 
   function brief(): WorkroomBrief {
@@ -1441,7 +1652,7 @@ export function createModifyEngine(args: {
       if (question) return { kind: "unparsed", reply: question };
     }
 
-    const deltas = outcome.amendments.map((a, i) => toDelta(a, seq + i, memberName));
+    const deltas = outcome.amendments.map((a, i) => toDelta(a, seq + i, memberName, words));
     const fileable = deltas.filter((d) => d.fileable).length;
     const firstHandoff = deltas.find((d) => !d.fileable);
     const handed = deltas.length - fileable;
@@ -1452,12 +1663,12 @@ export function createModifyEngine(args: {
     const targets = [...new Set(deltas.map((d) => d.target))];
     const reply = [
       targets.length > 1 ? `That names a product this package carries ${targets.length} of, so it lands on all of them: ${targets.join(", ")}.` : null,
-      fileable ? `${fileable} of these ${deltas.length === 1 ? "goes" : "go"} on the clone.` : null,
+      fileable ? `${fileable} of these ${deltas.length === 1 ? "goes" : "go"} on ${words.lands}.` : null,
       // WHAT CONFIRMING WILL ACTUALLY DO, once, in the beat where the decision
       // is being asked for. A banker who has not seen this room has no way to
       // know the booked facility is untouched, and that is the fact that makes
       // the Confirm safe to press.
-      whyProposed(deltas) || null,
+      confirmingDoes(deltas) || null,
       handed ? `${handed} ${handed === 1 ? "is" : "are"} recorded rather than filed.` : null,
       // ONE reason, for the first of them. A line that produces two handoffs
       // almost always produces two of a kind, and every entry gets its own
@@ -1475,6 +1686,18 @@ export function createModifyEngine(args: {
       // blocking and this room does not.
       advisories: advise(outcome.amendments, deltas, said),
     };
+  }
+
+  /** WHAT CONFIRMING WILL ACTUALLY DO, in the variant's own words. The
+   *  modification's sentence is the shared one in `explain.ts`; the
+   *  amendment's is its own, because a version that forks nothing has nothing
+   *  to say about rolling members into a new one. */
+  function confirmingDoes(deltas: WorkroomDelta[]): string {
+    if (variant !== "amend") return whyProposed(deltas);
+    const fileable = deltas.filter((d) => d.fileable !== false);
+    if (!fileable.length) return "";
+    const targets = [...new Set(fileable.map((d) => d.target))];
+    return words.whyConfirming(targets.length > 2 ? `${targets.length} members` : targets.join(" and "));
   }
 
   /** The Tier-1 rules, run over what the parse just produced. Everything they
@@ -1655,8 +1878,7 @@ export function createModifyEngine(args: {
     }
 
     const named = membersNamedIn(text, parseContext());
-    const scope =
-      "Commitment, rate, maturity, term, covenants, entities, fees, collateral and policy exceptions all file on the clone; pricing I stage and hand off with the reason.";
+    const scope = words.scope;
     /* AND A LOOSE FIGURE IS USUALLY A CORRECTION. Where the banker has already
        settled a field and then types a bare figure, the dead end used to be the
        capability lecture; naming the field they last set, and the words that
@@ -1717,10 +1939,7 @@ export function createModifyEngine(args: {
       focus = null;
       asked = false;
       const stage = (facility.stage ?? "").trim();
-      return {
-        kind: "unparsed",
-        reply: `${label} is ${stage ? `at ${stage}` : "carrying no stage in this read"}, and a credit action only runs against a booked facility. There is nothing on it I can modify here.`,
-      };
+      return { kind: "unparsed", reply: words.ineligible(label, stage) };
     }
 
     focus = facility;
@@ -1735,7 +1954,7 @@ export function createModifyEngine(args: {
       .join(", ");
     return {
       kind: "unparsed",
-      reply: `${label}${held ? `: ${held}` : ""}. What should change on it? Commitment, rate, maturity, term, covenants, entities, fees, collateral and policy exceptions all file on the clone; pricing I stage and hand off with the reason.`,
+      reply: `${label}${held ? `: ${held}` : ""}. What should change on it? ${words.scope}`,
     };
   }
 
@@ -1812,7 +2031,7 @@ export function createModifyEngine(args: {
     // filed handoff list, where a banker went looking for it. In the flow it is
     // the reason a credit officer would give.
     const landed = delta.fileable
-      ? `${delta.title} on ${delta.target}: ${delta.before} → ${delta.after}, staged on the clone.`
+      ? `${delta.title} on ${delta.target}: ${delta.before} → ${delta.after}, staged on ${words.lands}.`
       : `${delta.title} on ${delta.target} is on the manifest for the record. ${whyHandoff(delta)}`;
     return {
       reply: `${landed} ${packageMove(staged)} ${vocabulary.nextMove}`,
@@ -1937,7 +2156,11 @@ export function createModifyEngine(args: {
        arrival order. Then the scalars ride targeted. */
     const spreadOf = (on: Set<string>) => facilityIds.filter((id) => !on.has(id));
     const figures = (key: WireKey) => new Set(scalars.filter((s) => s.key === key).map((s) => s.value));
-    const perTarget = [...scalarOn].some(([key, on]) => spreadOf(on).length > 0 || figures(key).size > 1);
+    /* AN AMENDMENT NEVER BROADCASTS (tool contract, 0.9.23: "on an amend every
+       figure names its loan"). There is no flat channel on that pair at all, so
+       the per-target routing is not a judgement here, it is the wire. */
+    const perTarget =
+      variant === "amend" || [...scalarOn].some(([key, on]) => spreadOf(on).length > 0 || figures(key).size > 1);
 
     /* THE SCALAR LEAK (P0, closed by the per-target channel above).
 
@@ -2076,8 +2299,25 @@ export function createModifyEngine(args: {
     }
 
     idempotencyKey = idempotencyKey ?? deps.newKey();
-    const rationale = `${RATIONALE_PREFIX}: ${fileable.map((d) => `${d.title} to ${d.after} on ${d.target}`).join("; ")}.`;
-    const outcome = await deps.stage(wirePayload(fileable, rationale));
+    const rationale = `${words.rationalePrefix}: ${fileable.map((d) => `${d.title} to ${d.after} on ${d.target}`).join("; ")}.`;
+    let outcome: ToolOutcome<StagedOutput>;
+    try {
+      outcome = await deps.stage(wirePayload(fileable, rationale));
+    } catch (e) {
+      /* THE ANSWER WAS LOST, WHICH IS NOT THE SAME AS NOTHING HAPPENING.
+         The write lane has already asked again under the same key and, when that
+         got nowhere, read the org's own trail. Where it found the staging row,
+         the sentence it built NAMES it: "nothing was filed" over a plan sitting
+         in Salesforce is the sentence this whole path exists to stop. The key is
+         dropped either way, because the org mints a decision token only on a
+         key's FIRST stage and returns none on a replay, so the way forward is a
+         fresh key over the same plan and nothing else. */
+      if (isLostWriteAnswer(e)) {
+        idempotencyKey = null;
+        throw new WorkroomRefusalError(e.said);
+      }
+      throw e;
+    }
     if (!outcome.ok) {
       // The org's own words. A refusal here is a precondition the banker can act
       // on, and paraphrasing it has already cost one live session.
@@ -2195,8 +2435,14 @@ export function createModifyEngine(args: {
       : stagedDeltas
           .filter((d) => d.fileable && carriesWire(d))
           .map((d) => {
-            const row = perFacility.get(wireTarget(d)!);
-            const cloneId = row?.cloneLoanId ?? result.cloneLoanId;
+            const target = wireTarget(d)!;
+            const row = perFacility.get(target);
+            /* AN AMENDMENT HAS NO CLONE, AND THE RECORD IS THE LOAN IT WROTE.
+               The modification's answer is the clone id the org minted; here
+               the org wrote the version's own loan, so the record is the
+               facility the entry was staged against. */
+            const cloneId =
+              variant === "amend" ? (row?.facilityId ?? target) : (row?.cloneLoanId ?? result.cloneLoanId);
             return {
               deltaId: d.id,
               // REAL ids, from the org's own response. A missing clone id is a
@@ -2232,17 +2478,19 @@ export function createModifyEngine(args: {
       handoff: failed ? failureReason(result) : result.bookingHandoff,
       handoffs,
       reply: {
-        subject: `${context.packageName}: modification staged`,
+        subject: `${context.packageName}: ${variant === "amend" ? "amendment filed" : "modification staged"}`,
         lede: result.outcome,
         body: [
           // THE CLOSE IS AT PACKAGE ALTITUDE, like the open. What the banker
           // signed is a movement of the package total; the member rows below are
           // how it got there.
           packageMove(stagedDeltas),
-          `${filed.length} ${filed.length === 1 ? "change" : "changes"} filed against the modification of ${context.packageName}.`,
+          variant === "amend"
+            ? `${filed.length} ${filed.length === 1 ? "change" : "changes"} filed on ${context.packageName} itself. No new version was created and no credit action ran.`
+            : `${filed.length} ${filed.length === 1 ? "change" : "changes"} filed against the modification of ${context.packageName}.`,
           ...filed.map((f) => `- ${stagedDeltas.find((d) => d.id === f.deltaId)?.title}: ${f.verification}`),
           handoffs.length
-            ? `\n${handoffs.length} ${handoffs.length === 1 ? "item was" : "items were"} recorded on the modification but not filed, because no tool writes ${handoffs.length === 1 ? "it" : "them"} today:\n` +
+            ? `\n${handoffs.length} ${handoffs.length === 1 ? "item was" : "items were"} recorded on ${variant === "amend" ? "the amendment" : "the modification"} but not filed, because no tool writes ${handoffs.length === 1 ? "it" : "them"} today:\n` +
               handoffs.map((h) => `- ${h.title}: ${h.reason}`).join("\n")
             : "",
           result.bookingHandoff ? `\n${result.bookingHandoff}` : "",
@@ -2254,7 +2502,7 @@ export function createModifyEngine(args: {
   }
 
   return {
-    mode: "modify",
+    mode: variant === "amend" ? "amend" : "modify",
     scripted: false,
     brief,
     // A PENDING QUESTION SUPPRESSES THE NEXT MOVE. Offering an unrelated

@@ -7,6 +7,7 @@ import type { C360Data } from "./data/contract";
 import { AppProvider } from "./state/appState";
 import { AppShell } from "./components/AppShell";
 import { AppEntry, dispatchOpenSheet } from "./test/entry";
+import { ACTIONS } from "./actions/registry";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import sample from "../../artifact/sample-data.json";
@@ -150,13 +151,16 @@ describe("Client Actions panel (A27.4)", () => {
     for (const c of ["Analyze", "Originate", "Service", "Risk"]) expect(text).toContain(c);
   });
 
-  it("lists all ten actions on an account", () => {
+  it("lists every registry action on an account, available or not", () => {
+    // A27.3: the panel is the MAP of what exists, so the count is the
+    // registry's own. 0.9.23 added the eleventh row, the version discard.
     mount();
     click(openAnchor());
     openSheet();
     const panel = document.querySelector('[role="dialog"]')!;
     const rows = [...panel.querySelectorAll("button")].filter((b) => b.className.includes("c360-action-row"));
-    expect(rows).toHaveLength(10);
+    expect(rows).toHaveLength(ACTIONS.length);
+    expect(rows).toHaveLength(11);
   });
 
   it("founder feedback — has NO trigger anywhere, on home or on a client", () => {

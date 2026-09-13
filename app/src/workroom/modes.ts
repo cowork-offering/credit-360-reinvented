@@ -69,6 +69,23 @@ const VOCABULARY: Record<WorkroomMode, ModeVocabulary> = {
     filedWord: "Submitted",
     nextMove: "Anything else on this renewal, or shall I put it up?",
   },
+  /* THE FOURTH VOCABULARY (0.9.23). Every word here exists to keep one fact in
+     front of the banker: an amendment changes the version the org ALREADY
+     holds. No clone is made, no credit action runs, and no second version is
+     forked. The step spine ends on Approve like a modification, because the
+     gesture is the same single-use token; the words around it are not. */
+  amend: {
+    title: "Amendment Workroom",
+    steps: [...COMMON_STEPS, "Approve"],
+    manifestHeading: "This amendment",
+    emptyLine: "Nothing staged yet. Confirmed changes to this version land here, grouped.",
+    changeWord: ["change", "changes"],
+    planTitle: "One version, changed in place. One single use token. One approval.",
+    approveLabel: (n) => `Approve and file ${n} ${n === 1 ? "change" : "changes"}`,
+    approveHint: "Approve to file the amendment",
+    filedWord: "Filed",
+    nextMove: "Anything else on this version, or shall I stage it?",
+  },
   create: {
     title: "New Facility Workroom",
     steps: [...COMMON_STEPS, "File"],

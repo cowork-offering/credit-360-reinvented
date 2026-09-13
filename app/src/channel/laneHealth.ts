@@ -160,6 +160,20 @@ export interface CallTiming {
   ms: number;
 }
 
+/**
+ * ONE ATTEMPT SETTLED, AND THE LADDER IS NOT DONE WITH IT.
+ *
+ * A call that is about to be re-asked has already cost the banker a round trip,
+ * and the health line's whole job is to say what the relay actually cost. So the
+ * attempt goes on the ring like any other, and NOTHING ELSE MOVES: a lane being
+ * re-asked is not an unreachable lane, and stamping it so would raise the
+ * offline chip over a call that answers a second later. The settle that ends the
+ * ladder is what patches the state, either way.
+ */
+export function noteLaneAttempt(server: string, call: { tool: string; ms: number; ok: boolean }): void {
+  record(server, { at: Date.now(), ms: call.ms, ok: call.ok, tool: call.tool });
+}
+
 /** The lane answered. This is the only thing that clears a failure. */
 export function noteLaneSuccess(server: string, at: number = Date.now(), timing?: CallTiming): void {
   if (timing) record(server, { at, ms: timing.ms, ok: true, tool: timing.tool });

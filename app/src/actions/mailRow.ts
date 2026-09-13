@@ -9,6 +9,7 @@ import { readRouteIntent, ROUTE_WORD, type SmartOpening } from "../components/wo
 import { flyName } from "../components/nameFlight";
 import { flightSourceFor, openIntent } from "../intent/open";
 import { offerFor } from "../intent/store";
+import type { TypedRoute } from "../components/workroom/route";
 import type { WorkroomMode } from "../workroom/types";
 import { carryMail } from "./mailCarry";
 import { readMailRequest, type MailRequest, type RequestIntent } from "./mailIntake";
@@ -56,6 +57,7 @@ const OPEN_LABEL: Record<WorkroomMode, string> = {
   modify: "Open the modification",
   renew: "Start the renewal",
   create: "Structure the new facility",
+  amend: "Shape this version",
 };
 
 const words = (text: string, cap: number): string => {
@@ -79,8 +81,10 @@ export interface MailRow {
   askDerived: boolean;
   /** The body, for the expand. NEVER in the default DOM. */
   body: string | null;
-  /** The route the message points at, by the room's own coarse read. */
-  route: WorkroomMode | null;
+  /** The route the message points at, by the room's own coarse read. Never
+   *  `amend`: a message cannot ask to shape a version it has never seen, and
+   *  `readRouteIntent` answers with the three a sentence can name. */
+  route: TypedRoute | null;
 }
 
 /** Is this trail entry an inbound message rather than a filed action? */

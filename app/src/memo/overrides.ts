@@ -229,7 +229,17 @@ export function keyMetricsFrom(dossier: MemoDossier, changes: readonly MemoChang
   const spreadLeverage = asOfDebt != null && asOfEbitda ? asOfDebt / asOfEbitda : null;
   const asOfLeverage = ratioPeriod ? (finite(ratios?.totalLeverage) ?? spreadLeverage) : null;
 
-  const moved = changes.some(movesDebt);
+  /* A VERSION IN FLIGHT OPENS THE COLUMN TOO (0.9.23, spec 2a.6).
+     `movesDebt` reads EXECUTED plan steps, and a modification filed a day ago
+     has executed none: the commitment moved when nCino forked the version, and
+     the change sits on the unbooked package. So a memo written over a version
+     printed no Pro forma column at all, on the one table whose whole job is to
+     say what this action does to leverage. The delta is the dossier's own,
+     unchanged: `changeInExposure.commitment` is the version's movement where
+     there is one and the steps' where there is not. */
+  const version = canon.versionInFlight;
+  const versionMoves = version != null && (finite(version.commitmentDelta) ?? 0) !== 0;
+  const moved = changes.some(movesDebt) || versionMoves;
   const delta = finite(canon.exposureSummary?.changeInExposure?.commitment) ?? 0;
   const proFormaLeverage = moved && asOfDebt != null && asOfEbitda ? (asOfDebt + delta) / asOfEbitda : null;
 
@@ -270,6 +280,7 @@ function keyMetricsFootnotes(
   proFormaStated: boolean,
 ): string[] {
   const out: string[] = [];
+  const version = dossier.canon.versionInFlight;
 
   const dsc = dscCovenant(dossier);
   const actual = finite(dsc?.actual) ?? finite(dsc?.actuals?.[dsc.actuals.length - 1]);
@@ -290,10 +301,18 @@ function keyMetricsFootnotes(
   );
 
   if (moved) {
+    /* WHERE THE FIGURES CAME FROM, NAMED. A pro forma struck off a version
+       nobody has booked is a different claim from one struck off an executed
+       step, and a credit officer reading a leverage multiple is entitled to
+       know which. The phrase is the dossier's own, so the callout above the
+       table and the footnote under it say it the same way. */
+    const source = version
+      ? `the version in flight (${esc(version.versionName)}), which nobody has booked`
+      : "the executed step";
     out.push(
       proFormaStated
-        ? `The Pro forma column carries only what the executed step supports: this action's commitment change added to the as of period's total bank debt, over the as of period's Adjusted EBITDA. A step does not restate a prior year, so every other pro forma cell is marked.`
-        : `The Pro forma column is marked throughout: the book carries no balance sheet, so this action's effect on leverage cannot be computed from it, and no other line in this table is changed by the step.`,
+        ? `The Pro forma column carries only what ${source} supports: this action's commitment change added to the as of period's total bank debt, over the as of period's Adjusted EBITDA. It does not restate a prior year, so every other pro forma cell is marked.`
+        : `The Pro forma column is marked throughout: the book carries no balance sheet, so this action's effect on leverage cannot be computed from it, and no other line in this table is changed by ${source}.`,
     );
   }
 

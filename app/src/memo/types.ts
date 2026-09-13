@@ -210,10 +210,48 @@ export interface MemoAttestationEntry {
 /** Per-module sign-off, keyed by manifest module id. Replayed on every re-render. */
 export type MemoAttestation = Record<string, MemoAttestationEntry>;
 
+/**
+ * THE MEMO IS WRITTEN OVER A VERSION NOBODY HAS BOOKED (0.9.23, spec 2a.6).
+ *
+ * nCino files a modification as a NEW package version holding a copy of every
+ * member, and until the booking run approves it that version is a PROPOSAL. The
+ * memo's own "proposed" column is exactly that proposal, so where the anchored
+ * package carries an editable version the dossier reads the version's figures
+ * into it rather than repeating the booked ones.
+ *
+ * IT IS DECLARED HERE SO THE SEAM CAN SEE IT. `keyMetricsFrom` decides whether
+ * a Pro forma column exists at all, and before this field the only thing that
+ * could open one was an executed plan step. A version in flight moves the
+ * commitment without any step having executed, so the table said nothing about
+ * the very change the memo was written for.
+ *
+ * ABSENT IS THE COMMON CASE and it is not a failure: a relationship with no
+ * version renders exactly as it always did, off the staged-step path.
+ */
+export interface MemoVersionInFlight {
+  /** The unbooked package the proposed figures were read from. */
+  versionPackageId: string;
+  /** The booked package it forked, whose figures are the existing side. */
+  sourcePackageId: string;
+  /** The version's own name, as the roster derives it. */
+  versionName: string;
+  /** How many booked members the version restates. */
+  restated: number;
+  /** How many facilities the version adds that the booked package has none of. */
+  added: number;
+  /** What the version moves the commitment by, against the booked package. */
+  commitmentDelta: number;
+  /** The one phrase every surface marks these figures with. */
+  note: string;
+}
+
 export interface MemoCanon {
   borrower: MemoBorrower;
   creditAction: MemoCreditAction;
   loans: MemoLoan[];
+  /** Set where the anchored package carries an editable version in flight, and
+   *  absent everywhere else. See `MemoVersionInFlight`. */
+  versionInFlight?: MemoVersionInFlight;
   exposureSummary: MemoExposureSummary;
   creditApprovalSummary: MemoCreditApprovalSummary;
   spread: MemoSpread;

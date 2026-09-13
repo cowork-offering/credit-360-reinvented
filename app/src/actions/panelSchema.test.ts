@@ -8,8 +8,9 @@ import { bankerEntryFields, chipFor, PREFILL_PROVENANCE, stagingBlockers, unfill
 import { DEMO_POLICY_PACK } from "../policy/policyPack";
 
 /** Every action with a ticket. Wave 1 shipped three; wave 2 added five, two of
- *  which stage but cannot execute (LV06) — a property of the tool map, not of
- *  the panel, so they still belong here. */
+ *  which stage but cannot execute (LV06), a property of the tool map rather
+ *  than of the panel, so they still belong here. 0.9.23 added the ninth: the
+ *  discard, whose panel briefs an undo rather than a create. */
 const SHIPPING = [
   "collateral-valuation",
   "create-service-request",
@@ -19,6 +20,7 @@ const SHIPPING = [
   "covenant-review",
   "loan-modification",
   "renewal",
+  "discard-version",
 ];
 
 const bundle: BorrowerBundle = {

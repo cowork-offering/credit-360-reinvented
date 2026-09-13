@@ -984,7 +984,12 @@ Relationship Manager, Commercial Banking`,
 /** The scripted storyline for a mode and door. The door only ever branches
  *  `create`: modify and renew are package-anchored by definition. */
 export function scriptFor(mode: WorkroomMode, door: WorkroomDoor): WorkroomScript {
-  if (mode === "modify") return MODIFY;
+  /* AMEND HAS NO STORYLINE, AND MUST NOT INVENT ONE. The scripted engine exists
+     for demos of the three original routes; shaping a version in place is wired
+     only, so a scripted amend falls back to the modification's beats rather
+     than telling a story about a version nobody read. Nothing in the shipped
+     app reaches this: `WorkroomHost` builds a wired engine for every mode. */
+  if (mode === "modify" || mode === "amend") return MODIFY;
   if (mode === "renew") return RENEW;
   return door === "account" ? CREATE_FROM_ACCOUNT : CREATE_IN_PACKAGE;
 }

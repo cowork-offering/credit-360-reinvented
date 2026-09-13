@@ -2,7 +2,7 @@ import type { SettleDeps } from "../workroom/settleExecution";
 import type { ActionHistoryRow, BorrowerBundle, C360Data, Collateral, Covenant } from "../../data/contract";
 import { fmtMoney } from "../../data/format";
 import { isActiveFacility } from "../../data/worklist";
-import { packageRoster, type PackageEntry } from "../../book/packages";
+import { packageRoster, type PackageAsk, type PackageEntry } from "../../book/packages";
 import { classifyCovenant } from "../../domain/covenantStatus";
 import { ACTIONS_BY_ID, stageRationale } from "../../actions/registry";
 import { COVENANT_ASSESSMENT_STATUSES, observedOptions } from "../../actions/observedPicklists";
@@ -43,7 +43,16 @@ import {
   intakeDossierRows,
   intakeStep,
 } from "./intakeFlows";
-import { REL_ROUTE_WORD, type RelRoute } from "./relRoute";
+import { REL_ROUTE_WORD, isVersionRoute, type RelRoute } from "./relRoute";
+import {
+  NOTHING_AMENDABLE,
+  amendTarget,
+  amendablePackages,
+  buildVersionPayload,
+  versionDossierRows,
+  versionPlanNarrative,
+  versionStep,
+} from "./versionFlows";
 
 /* =============================================================================
    THE FIVE REVIEWS — ONE STEP MACHINE OVER THE FLOWS THAT ALREADY EXIST.
@@ -287,6 +296,42 @@ export const REL_FLOWS: Record<RelRoute, RelFlowSpec> = {
     filedWord: "Logged",
     loadSteps: ["Composing the request", "Creating the request", "Verifying the record"],
   },
+  /* --------------------------------------------------- SHAPING THE VERSION
+
+     THE SEVENTH AND EIGHTH, AND NEITHER IS A REVIEW. Both write through
+     `amend_version`, which is the modification's own authoring arms landing on
+     the version's OWN loans with no credit action behind them. What makes them
+     this room's rather than the facility room's is what they act on: an
+     UNBOOKED package, which holds no booked facility for a credit action to run
+     against, which is exactly why the facility room refuses it by name.       */
+  versionCovenant: {
+    route: "versionCovenant",
+    actionId: "amend-version",
+    word: "Covenant on the Version",
+    icon: "covenant",
+    covers:
+      "This covers the version in flight: the unbooked package a modification forked, and the facilities on it. It puts one covenant onto one of them.",
+    produces:
+      "It authors the covenant on the borrower and attaches it to the version facility you name, or attaches one the borrower already holds and writes no covenant field at all. It forks no second version, it takes no credit action and it moves nothing on the booked package behind this one. The compliance schedule is the org's own arithmetic and is never asked for or claimed.",
+    writeObjectLabel: "covenant on the version",
+    approveLabel: "File it on the version",
+    filedWord: "Filed",
+    loadSteps: ["Composing the amendment", "Writing the covenant", "Verifying the junction"],
+  },
+  versionPledge: {
+    route: "versionPledge",
+    actionId: "amend-version",
+    word: "Pledge on the Version",
+    icon: "collateral",
+    covers:
+      "This covers the security behind the version in flight: what the borrower owns, what it is lendable for, and which facility on the unbooked package it secures.",
+    produces:
+      "It files the pledge onto the version facility you name, and where the asset is new it files the asset and the borrower's ownership of it first. It forks no second version, it takes no credit action and it moves nothing on the booked package behind this one. The advance rate, the lendable value and the coverage roll-up are the org's own arithmetic; what the room states about coverage is derived from the read and says so.",
+    writeObjectLabel: "collateral pledge on the version",
+    approveLabel: "File the pledge",
+    filedWord: "Filed",
+    loadSteps: ["Composing the amendment", "Writing the pledge", "Verifying the coverage"],
+  },
 };
 
 /* ------------------------------------------------------- what the read holds */
@@ -362,6 +407,9 @@ export function nextStep(route: RelRoute, ctx: RelContext, a: Answers): RelStep 
       return serviceStep(ctx, a);
     case "intake":
       return intakeStep(ctx, a);
+    case "versionCovenant":
+    case "versionPledge":
+      return versionStep(route, ctx, a);
   }
 }
 
@@ -683,12 +731,35 @@ export const COMPLETE_IS_NOT_OURS =
  * service request are relationship level and never ask.
  */
 export function relRouteNeedsPackage(route: RelRoute): boolean {
-  return route === "covenant" || route === "valuation";
+  return route === "covenant" || route === "valuation" || isVersionRoute(route);
 }
 
-/** The review is anchored on a package and the banker has not chosen which. */
+/**
+ * WHAT A PICK ON THIS ROUTE WOULD START, so `packagePick` can decide the row.
+ *
+ * ONE FUNCTION STILL DECIDES ALL THREE PICKERS (0.9.17's rule, unchanged). What
+ * 0.9.23 adds is the fourth ASK KIND: a version route is standing in front of a
+ * package it means to SHAPE, and `"review"` blocks every unbooked package by
+ * construction, which is right for a review and wrong for an amendment.
+ */
+export function relPackageAsk(route: RelRoute | null): PackageAsk {
+  return isVersionRoute(route ?? "annual") ? "amend" : "review";
+}
+
+/**
+ * The route is anchored on a package and the banker has not chosen which.
+ *
+ * A REVIEW ASKS WHERE THE RELATIONSHIP STAGES SEVERAL AND NONE IS CHOSEN. A
+ * VERSION ROUTE ASKS WHEREVER THE ANCHOR IS NOT ONE IT MAY SHAPE, which is the
+ * common case rather than the exception: `relContextFor` falls back to the
+ * SNAPSHOT's own anchor, and that is the booked package, the one thing an
+ * amendment is never allowed to land on. Asking is what puts the version in
+ * front of the banker; binding the snapshot's anchor silently would point the
+ * route at the package it exists to leave alone.
+ */
 export function relPackagePending(route: RelRoute | null, ctx: RelContext): boolean {
   if (!route || !relRouteNeedsPackage(route)) return false;
+  if (isVersionRoute(route)) return !amendTarget(ctx) && amendablePackages(ctx).length > 0;
   return !ctx.productPackageId && ctx.packages.length > 1;
 }
 
@@ -713,6 +784,14 @@ export function relRouteBlock(route: RelRoute, ctx: RelContext): string | null {
     if (!ctx.productPackageId) return NO_PACKAGE_ANCHOR;
     if (!valuableCollateral(ctx).length) return NOTHING_TO_VALUE;
     return null;
+  }
+  /* AND A VERSION ROUTE WITH NO VERSION TO SHAPE IS REFUSED BEFORE IT ASKS.
+     `relPackagePending` has already returned above where there IS one and the
+     banker has not picked it, so reaching here means the relationship carries
+     nothing amendable at all, or the banker is standing on a package that is
+     not it. Both are the same fact to a banker and one sentence answers both. */
+  if (isVersionRoute(route)) {
+    return amendTarget(ctx) ? null : NOTHING_AMENDABLE;
   }
   return null;
 }
@@ -1238,6 +1317,15 @@ export function buildStagePayload(route: RelRoute, ctx: RelContext, a: Answers, 
      narrative for the whole exercise. */
   if (route === "intake") return buildIntakePayload(ctx, a, idempotencyKey);
 
+  /* AND THE TWO VERSION ROUTES COMPOSE THEIR OWN WIRE TOO. `amend_version` is
+     anchored on `versionPackageId` and carries no `accountId` and no
+     `productPackageId`, so nothing in the shared composition above applies to
+     it; the rationale is composed inside the module, over what the banker
+     actually chose, because the registry carries no card for the action. */
+  if (route === "versionCovenant" || route === "versionPledge") {
+    return buildVersionPayload(route, ctx, a, idempotencyKey);
+  }
+
   if (route === "annual") {
     const written = perRecord(a, "sectionNarratives");
     /* A SECTION TRAVELS ONLY WHERE IT WAS PICKED AND ANSWERED. A section the
@@ -1409,7 +1497,14 @@ export function buildStagePayload(route: RelRoute, ctx: RelContext, a: Answers, 
  */
 export function relReadyLine(route: RelRoute, ctx: RelContext, answers: Answers): string {
   const base = `That is everything the ${REL_ROUTE_WORD[route]} needs. Review the plan below, then file it.`;
-  return route === "intake" ? `${intakeConfirmSentence(ctx, answers)} ${base}` : base;
+  if (route === "intake") return `${intakeConfirmSentence(ctx, answers)} ${base}`;
+  /* AND THE VERSION ROUTES ARE THE OTHER EXCEPTION, for the same reason: what
+     an amendment does NOT do is the fact a banker has to hear before the plan
+     lands, and so is the effect the room can derive from the read it holds. */
+  if (route === "versionCovenant" || route === "versionPledge") {
+    return `${versionPlanNarrative(route, ctx, answers)} ${base}`;
+  }
+  return base;
 }
 
 const NO_PACKAGE_ANCHOR =
@@ -1593,6 +1688,10 @@ export function dossierRowsFor(route: RelRoute, ctx: RelContext, answers: Answer
       value: result.collateralValueMoved === true ? "rolled up" : "unchanged",
     });
     return rows;
+  }
+
+  if (route === "versionCovenant" || route === "versionPledge") {
+    return versionDossierRows(route, ctx, answers, result.items);
   }
 
   if (route === "intake") {

@@ -15,7 +15,13 @@ import type { StagedOutput } from "../actions/stagedPlan";
 /** modify — reshape an existing package (the mock's storyline verbatim).
  *  renew   — compose a renewal on maturing facilities and hand INTO approval.
  *  create  — compose a new package, or add a facility inside an existing one. */
-export type WorkroomMode = "modify" | "renew" | "create";
+/* AMEND IS THE FOURTH (0.9.23, knowledge/SPEC-0.9.23-VERSION-LIFECYCLE.md 2a).
+   Modify and renew FORK a booked package into a new version. Amend shapes a
+   version that already exists, in place: no clone, no credit action, no second
+   version. It is its own mode because it is its own write pair on the org
+   (`stage_amend_version` / `execute_amend_version`) and because the room has to
+   say which of the two it is doing before the banker confirms anything. */
+export type WorkroomMode = "modify" | "renew" | "create" | "amend";
 
 /** TWO DOORS, ONE ROOM (create only, and it only ever changes what is pinned).
  *  `account` composes the package from scratch; `package` adds a member to a
@@ -31,6 +37,18 @@ export interface WorkroomContext {
   accountName: string;
   /** Null on the `account` door of create: there is no package yet. */
   productPackageId: string | null;
+  /**
+   * THE PACKAGE THE ROOM WAS OPENED FROM, ambient, never the anchor.
+   *
+   * A create deliberately DROPS the ambient package (`workroomContextFor`): a
+   * new facility creates a new package, so the room a banker gets from a
+   * package tile is the same room they get from the relationship. But WHERE
+   * they came from is still a fact, and 0.9.23 needs it: a create opened from
+   * inside an editable in-flight version offers that version first, and the
+   * booked SOURCE of a version is never offered at all. Null where the room was
+   * opened on the relationship.
+   */
+  originPackageId?: string | null;
   packageName: string;
   /** The banker in the room. The approval names them, so the room must know. */
   approver: string;

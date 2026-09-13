@@ -19,8 +19,9 @@
    ============================================================================= */
 
 import { bookTotalsOf } from "../book/livePortfolio";
-import { MODIFICATION_IN_PROGRESS } from "../book/packages";
-import type { ActionHistoryRow, BorrowerBundle, C360Data, ReasonCode } from "../data/contract";
+import { MODIFICATION_IN_PROGRESS, packageRoster } from "../book/packages";
+import { DISCARD_ACTION_ID } from "../actions/discardVersion";
+import type { ActionHistoryRow, BorrowerBundle, C360Data, Facility, ReasonCode } from "../data/contract";
 import { fmtRatio } from "../data/finance";
 import { fmtDate, fmtMoney } from "../data/format";
 import { queueSentence, type Queue } from "../data/queue";
@@ -112,15 +113,47 @@ function facilityLine(f: NonNullable<BrainReadBlocks["facilities"]>[number]): st
    was answerable in a workroom and unanswerable on the surface a founder opens
    on. Same facts, same words, relationship-wide rather than package-anchored.  */
 
-function inFlightLines(bundle: BorrowerBundle): string[] {
+/** One member of a version, at the figures the version itself carries. */
+function versionMemberLine(f: Facility): string {
+  return line([
+    f.name,
+    typeof f.committed === "number" ? `${fmtMoney(f.committed)} committed` : null,
+    typeof f.interestRate === "number" ? `${f.interestRate}%` : null,
+    f.maturityDate ? `matures ${fmtDate(f.maturityDate)}` : null,
+    f.stage ? `at ${f.stage}` : null,
+  ]);
+}
+
+/**
+ * THE VERSION'S OWN STATE, IN THE THREE WORDS THE COCKPIT USES FOR IT (0.9.23).
+ *
+ * 0.9.18 taught the desk that a version EXISTS, which is what made "why can't I
+ * modify this" answerable. It still could not answer the two questions the
+ * founder actually asked next: what is IN the version, and what happened to the
+ * one we discarded. So an editable version now travels with its members at
+ * their own figures (the whole point of a version is that its figures differ
+ * from the booked package's), and a discard on the trail is stated with its
+ * date, because a version that is gone is not a version the desk should still
+ * be describing as in flight.
+ */
+function inFlightLines(bundle: BorrowerBundle, history?: readonly ActionHistoryRow[]): string[] {
   const out: string[] = [];
-  for (const row of inFlightRoster({ bundle, accountName: "", productPackageId: null })) {
+  for (const row of inFlightRoster({ bundle, accountName: "", productPackageId: null, history })) {
     if (row.version) {
       out.push(
         `${row.packageName} IS the unbooked modification version of another package, ${
-          row.editable ? "still editable until it reaches approval" : "at Approval / Loan Committee and no longer editable"
+          row.editable
+            ? `${MODIFICATION_IN_PROGRESS}, editable until approval`
+            : "in approval, locked: it is at Approval / Loan Committee and no longer the banker's to change"
         }. It carries no booked facility, so a modification or a renewal has nothing here to act against.`,
       );
+      if (row.editable) {
+        const members = packageRoster(bundle, history).find((e) => e.id === row.packageId)?.members ?? [];
+        for (const f of members) out.push(`On the version: ${versionMemberLine(f)}`);
+        out.push(
+          `The version can be discarded from the cockpit, which removes it and its copies and leaves the booked package exactly as it is.`,
+        );
+      }
       continue;
     }
     if (row.hasInFlightModification) {
@@ -130,6 +163,23 @@ function inFlightLines(bundle: BorrowerBundle): string[] {
         }, so a second modification or renewal on that package is refused until the version is booked or discarded. That is WHY the room is locked; say it rather than refusing blind.`,
       );
     }
+  }
+  for (const said of discardedLines(history)) out.push(said);
+  return out;
+}
+
+/** A version this cockpit has already discarded, with the date it went. Read
+ *  off the durable trail, so it survives the session that did it. */
+function discardedLines(history?: readonly ActionHistoryRow[]): string[] {
+  const out: string[] = [];
+  for (const row of history ?? []) {
+    if (row.actionId !== DISCARD_ACTION_ID) continue;
+    if ((row.status ?? "").toLowerCase() !== "completed") continue;
+    const when = row.executedAt ?? row.createdDate;
+    out.push(
+      `A modification version on this relationship was discarded${when ? ` on ${fmtDate(when.slice(0, 10))}` : ""}. ` +
+        "It no longer exists in the org and the booked package it forked from was left untouched.",
+    );
   }
   return out;
 }
@@ -230,7 +280,7 @@ export function deskContext(
       }
     }
     if (block === "facilities") for (const f of reads.facilities ?? []) push(facilityLine(f), what);
-    if (block === "inFlight") for (const said of inFlightLines(bundle)) push(said, what);
+    if (block === "inFlight") for (const said of inFlightLines(bundle, opts.history)) push(said, what);
     if (block === "group") {
       for (const g of reads.group ?? [])
         push(

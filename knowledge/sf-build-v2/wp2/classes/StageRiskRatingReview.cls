@@ -108,6 +108,8 @@ global with sharing class StageRiskRatingReview {
         global String accountId;
         @InvocableVariable(label='Replayed')
         global Boolean replayed;
+        @InvocableVariable(label='Token Rotated' description='True when this call re-issued the confirmation token for a plan the org already held at Staged: the earlier token, which the caller never received, is void. At most one valid token exists per staging row.')
+        global Boolean tokenRotated;
     }
 
     global class Response {
@@ -247,6 +249,7 @@ global with sharing class StageRiskRatingReview {
         r.planHash = staged.planHash;
         r.decisionToken = staged.decisionToken;
         r.replayed = staged.replayed;
+        r.tokenRotated = staged.tokenRotated;
         r.summary = summary;
         r.warnings = warnings;
         r.provenanceJson = JSON.serialize(provenance);

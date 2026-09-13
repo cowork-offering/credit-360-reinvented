@@ -34,9 +34,21 @@ export const NEUTRAL_QUESTION =
 /** The chip a smart opening offers instead of the yes it is proposing. */
 export const SOMETHING_ELSE = "Something else";
 
+/**
+ * THE THREE ROUTES A SENTENCE CAN NAME.
+ *
+ * AMEND IS NEVER ONE OF THEM (0.9.23). Shaping a version in place is a route
+ * the ROOM offers on a version it is already standing in: it depends on WHERE
+ * the banker is, not on what they typed, and a line read as an amendment in a
+ * room standing on a booked package would bind an engine with nothing to shape.
+ * So the coarse read answers with the original three, and the amend chip is
+ * added by the room from the roster.
+ */
+export type TypedRoute = Exclude<WorkroomMode, "amend">;
+
 export interface RouteChip {
   label: string;
-  route: WorkroomMode;
+  route: TypedRoute;
 }
 
 /** The three routes, in the room's own option-pill style. The order is the
@@ -65,7 +77,7 @@ export const ROUTE_CHIPS: readonly RouteChip[] = [
  * Routing a covenant signal into a modification would be a suggestion the data
  * never made.
  */
-const ROUTE_FOR_KIND: Partial<Record<NextMoveKind, WorkroomMode>> = {
+const ROUTE_FOR_KIND: Partial<Record<NextMoveKind, TypedRoute>> = {
   maturity: "renew",
   utilization: "modify",
 };
@@ -81,7 +93,7 @@ export interface SmartOpening {
    *  engine's sentence: the chip answers the question it asks. */
   line: string;
   /** The route the yes-chip binds. */
-  route: WorkroomMode;
+  route: TypedRoute;
   yesLabel: string;
   /** The member the insight names, so binding the yes also preselects it.
    *  Null where the signal names no single facility (utilization is a package
@@ -189,7 +201,7 @@ const CHANGE =
  * answered. Null where the line names no route at all — the room then repeats
  * the question rather than guessing, because guessing here picks an ENGINE.
  */
-export function readRouteIntent(text: string): WorkroomMode | null {
+export function readRouteIntent(text: string): TypedRoute | null {
   const line = text.trim();
   if (!line) return null;
   if (RENEW.test(line)) return "renew";
@@ -207,9 +219,15 @@ export function readRouteIntent(text: string): WorkroomMode | null {
  * room mid-sentence. Only the words that name a route can move the room, and
  * only when they name a different one.
  */
-export function readRouteSwitch(text: string, current: WorkroomMode): WorkroomMode | null {
+export function readRouteSwitch(text: string, current: WorkroomMode): TypedRoute | null {
   const line = text.trim();
   if (!line) return null;
+  /* "AMEND THE COMMITMENT" INSIDE AN AMENDMENT IS NOT A ROUTE SWITCH (0.9.23).
+     The modification words and the amendment words are the same words, so a
+     banker doing exactly what the amend room is for would otherwise be offered
+     the door out of it on every line. In an amend room an amendment word is
+     the work, and only an explicit renewal or new-facility word moves them. */
+  if (current === "amend" && AMEND_WORD.test(line) && !RENEW.test(line) && !CREATE.test(line)) return null;
   const route = RENEW.test(line) ? "renew" : CREATE.test(line) ? "create" : MODIFY.test(line) ? "modify" : null;
   return route && route !== current ? route : null;
 }
@@ -219,4 +237,24 @@ export const ROUTE_WORD: Record<WorkroomMode, string> = {
   modify: "modification",
   renew: "renewal",
   create: "new facility",
+  amend: "amendment",
 };
+
+/* ------------------------------------------------------- the amend route
+
+   THE FOURTH CHIP IS CONDITIONAL, and that is the whole of its rule: it appears
+   only where the room is standing in something that can be shaped in place (an
+   editable in-flight version, or a package the cockpit created that is still
+   before approval). `amendablePackage` in `book/packages.ts` is the single
+   judgement; this module only carries the words.                            */
+
+/** The amendment words, so a line inside an amend room is not read as a request
+ *  to leave it. Deliberately the same family the modification regex matches. */
+const AMEND_WORD = /\b(amend|amends|amendment|amending|shape|reshape|shaping)\b/i;
+
+/** The amend chip, for a room whose anchor can carry one. It is NOT a
+ *  `RouteChip`: that type is the three a sentence can name.
+ *
+ *  THE LABEL SAYS WHAT THE BANKER GETS (founder, 2026-09-13), in their words,
+ *  rather than naming the write pair behind it. */
+export const AMEND_CHIP: { label: string; route: WorkroomMode } = { label: "Shape this version", route: "amend" };

@@ -12,7 +12,7 @@
    the page. `describeFailure()` below is the one place that mapping lives.
    ============================================================================= */
 
-import { noteLaneFailure, noteLaneGrant, noteLaneSuccess, noteNoBridge } from "./laneHealth";
+import { noteLaneAttempt, noteLaneFailure, noteLaneGrant, noteLaneSuccess, noteNoBridge } from "./laneHealth";
 
 /* ---------------------------------------------------------------- ambient */
 
@@ -172,6 +172,11 @@ export const TOOLS = {
   executeNewFacility: "execute_new_facility",
   stageRiskRatingReview: "stage_risk_rating_review",
   executeRiskRatingReview: "execute_risk_rating_review",
+  // 0.9.23, the version lifecycle (knowledge/SPEC-0.9.23-TOOL-CONTRACT.md).
+  stageAmendVersion: "stage_amend_version",
+  executeAmendVersion: "execute_amend_version",
+  stageDiscardVersion: "stage_discard_version",
+  executeDiscardVersion: "execute_discard_version",
   stageCovenantReview: "stage_covenant_review",
   executeCovenantReview: "execute_covenant_review",
   // WS0.5, deployed 2026-08-22. The modification pair is complete: executing a
@@ -375,6 +380,9 @@ export function describeFailure(err: unknown, server: string, tool: string): Mcp
 
 export interface McpOk<T> {
   payload: T;
+  /** How many attempts this answer cost, 1 when it answered first time. Absent
+   *  only on a value a test or an adapter built by hand. */
+  attempts?: number;
   /** Present only when served from cache. Drive "last updated" from
    *  `cache.storedAt` — NEVER Date.now(). Absent ⇒ executed fresh. */
   cache?: { storedAt: number; revalidating: boolean };
@@ -382,9 +390,27 @@ export interface McpOk<T> {
 }
 
 export interface CallOptions {
-  /** Reads may be retried once when the platform stamps `retryable`.
-   *  Writes never auto-retry: a rejection is not proof the tool did not run. */
+  /** Reads may be retried when the failure says the door was shut. */
   read?: boolean;
+  /**
+   * THIS WRITE CARRIES A KEY THE ORG FENCES ON, so it may be re-asked.
+   *
+   * Set it ONLY where the tool is idempotent by construction and the SAME key
+   * goes out on every attempt: `stage_*` under one `idempotencyKey` returns the
+   * staging row it already holds rather than a second one, and `execute_*` under
+   * one stagingId + token reports the run it already made. Without this flag a
+   * write still falls straight through on the first failure, which is the right
+   * answer for every tool that cannot promise that.
+   */
+  idempotent?: boolean;
+  /** Called before each re-ask, so a surface can say it is asking again rather
+   *  than leaving a banker in front of a spinner that explains nothing. */
+  onAttempt?: (info: { attempt: number; failure: McpFailure }) => void;
+  /** A caller's veto on the NEXT attempt, consulted after `onAttempt`. Returning
+   *  false spends no further attempt and surfaces the failure in hand: the
+   *  execute lane uses it to stop re-asking once the org's own trail says the
+   *  first ask is running. */
+  beforeRetry?: (failure: McpFailure) => boolean | Promise<boolean>;
   cache?: false | { staleTime?: number; gcTime?: number; refresh?: boolean };
   signal?: AbortSignal;
   /** How long ONE attempt may take before the page stops waiting. Defaults to
@@ -414,11 +440,21 @@ export interface CallOptions {
    them: worst case 500+1500 to 1500+3000ms of waiting, comfortably inside the
    twelve seconds a banker will sit through before deciding the page is broken.
 
-   WHAT DID NOT CHANGE, and must not: never for a write, because
-   `server_unavailable` on a write is an ambiguous outcome and not proof the
-   tool did not run; never for an authz denial, because repeating it cannot
-   succeed on its own; never longer than the platform's own `retryAfterMs`
-   asked for, and never past the shell's own minute-long clamp. */
+   AND THE WRITE RULE MOVED, ONCE THE KEYS EARNED IT (2026-09-13). The old rule
+   read "never for a write, because `server_unavailable` on a write is an
+   ambiguous outcome": true of a write in general, and no longer true of the two
+   governed ones. A stage under one `idempotencyKey` returns the staging row the
+   org already holds (`replayed: true`, the same stagingId, and no second row),
+   and an execute under one stagingId + token reports the run already made. So a
+   transport failure on those is not ambiguous when the SAME key is re-sent: the
+   org answers truthfully either way. A caller that can promise that says so with
+   `idempotent: true`, and gets the ladder below. Every other write still falls
+   straight through on the first failure.
+
+   WHAT DID NOT CHANGE: never for a write that did not claim the flag; never for
+   an authz denial, because repeating it cannot succeed on its own; never longer
+   than the platform's own `retryAfterMs` asked for, and never past the shell's
+   own minute-long clamp. */
 
 export const RETRY_MIN_MS = 500;
 export const RETRY_MAX_MS = 1500;
@@ -432,14 +468,37 @@ const RETRY_CEILING_MS = 60_000;
  *  Held to a number so "inside twelve seconds" is a fact and not a hope. */
 export const RETRY_BUDGET_MS = RETRY_MAX_MS * (2 ** (RETRY_ATTEMPTS - 1) - 1);
 
-/** Randomised 500-1500ms on the first retry and doubling per attempt after it,
- *  never earlier than the platform's own `retryAfterMs`. */
+/* THE WRITE LADDER. Three attempts, and a longer first wait than a read's: a
+   read is re-asking a door that was shut, while an idempotent write is re-asking
+   a door that may have taken the work and lost the answer on the way back, and
+   the org is owed the moment it needs to finish and commit before it is asked
+   what it holds. Randomised the same way, and doubling the same way: 1-2s before
+   the second ask, 2-4s before the third. */
+export const WRITE_RETRY_MIN_MS = 1000;
+export const WRITE_RETRY_MAX_MS = 2000;
+/** Total attempts for an idempotent write: the call itself plus two re-asks. */
+export const WRITE_RETRY_ATTEMPTS = 3;
+/** Worst case time an idempotent write spends WAITING between its attempts. */
+export const WRITE_RETRY_BUDGET_MS = WRITE_RETRY_MAX_MS * (2 ** (WRITE_RETRY_ATTEMPTS - 1) - 1);
+
+/** The randomised window one ladder draws its waits from. */
+export interface RetryWindow {
+  minMs: number;
+  maxMs: number;
+}
+
+const READ_WINDOW: RetryWindow = { minMs: RETRY_MIN_MS, maxMs: RETRY_MAX_MS };
+const WRITE_WINDOW: RetryWindow = { minMs: WRITE_RETRY_MIN_MS, maxMs: WRITE_RETRY_MAX_MS };
+
+/** Randomised inside the window on the first retry and doubling per attempt
+ *  after it, never earlier than the platform's own `retryAfterMs`. */
 export function retryDelayMs(
   failure: { retryAfterMs?: number },
   random: () => number = Math.random,
   attempt = 0,
+  window: RetryWindow = READ_WINDOW,
 ): number {
-  const jittered = (RETRY_MIN_MS + Math.floor(random() * (RETRY_MAX_MS - RETRY_MIN_MS + 1))) * 2 ** attempt;
+  const jittered = (window.minMs + Math.floor(random() * (window.maxMs - window.minMs + 1))) * 2 ** attempt;
   return Math.min(Math.max(jittered, failure.retryAfterMs ?? 0), RETRY_CEILING_MS);
 }
 
@@ -453,6 +512,22 @@ const SELF_RETRYABLE = new Set<McpErrorCode>(["server_unavailable"]);
 export function isRetryableRead(failure: McpFailure): boolean {
   if (failure.retract || failure.noCapability) return false;
   return failure.retryable === true || SELF_RETRYABLE.has(failure.code);
+}
+
+/** The failures that mean an IDEMPOTENT write lost its answer rather than being
+ *  refused: the relay's own 502, an upstream that fell over, and the page's own
+ *  clock running out on one attempt. A refusal the org actually made
+ *  (`tool_error`, `bad_request`, a domain `ok:false`) is an answer, and an
+ *  answer is never re-asked. */
+const WRITE_SELF_RETRYABLE = new Set<McpErrorCode>(["server_unavailable", "upstream_error"]);
+
+/** May this WRITE failure be re-asked under the same key? The caller has already
+ *  promised idempotency by passing the flag; this decides only whether the
+ *  failure is the lost-answer kind. */
+export function isRetryableWrite(failure: McpFailure): boolean {
+  if (failure.retract || failure.noCapability) return false;
+  if (isLaneTimeout(failure)) return true;
+  return WRITE_SELF_RETRYABLE.has(failure.code);
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -611,30 +686,54 @@ export async function callTool<T = unknown>(
     }
   };
 
+  /** Which attempt we are on, reported on the answer so a surface can say it
+   *  asked twice rather than implying the org was slow. */
+  let attempts = 1;
+
   try {
     const ok = await invoke();
     noteLaneSuccess(server, Date.now(), { tool, ms: attemptMs });
-    return ok;
+    return { ...ok, attempts };
   } catch (err) {
     let failure = describeFailure(err, server, tool);
-    // READS ONLY, up to RETRY_ATTEMPTS in total, each after a longer randomised
-    // wait than the last. A write falls straight through: its outcome is
-    // unknown and re-issuing it is the banker's gesture, never ours.
-    if (options.read) {
-      for (let attempt = 0; attempt < RETRY_ATTEMPTS - 1 && isRetryableRead(failure); attempt += 1) {
-        await sleep(retryDelayMs(failure, Math.random, attempt));
+    /* THE LADDER, OR NOTHING. A read climbs it on the code alone; an idempotent
+       write climbs a slower one because the SAME key is going back out and the
+       org has to be given room to finish the first ask. A write that claimed no
+       flag falls straight through, unchanged: its outcome is unknown and
+       re-issuing it is the banker's gesture, never ours. */
+    const ladder = options.read
+      ? { max: RETRY_ATTEMPTS, window: READ_WINDOW, may: isRetryableRead }
+      : options.idempotent
+        ? { max: WRITE_RETRY_ATTEMPTS, window: WRITE_WINDOW, may: isRetryableWrite }
+        : null;
+    if (ladder) {
+      for (let attempt = 0; attempt < ladder.max - 1 && ladder.may(failure); attempt += 1) {
+        // The attempt that just failed goes on the lane's own history, and the
+        // lane's STATE is left alone: a call being re-asked is not a lane the
+        // health line may call unreachable.
+        noteLaneAttempt(server, { tool, ms: attemptMs, ok: false });
+        options.onAttempt?.({ attempt: attempts + 1, failure });
+        if (options.beforeRetry && (await options.beforeRetry(failure)) === false) break;
+        await sleep(retryDelayMs(failure, Math.random, attempt, ladder.window));
+        attempts += 1;
         try {
           const ok = await invoke();
           noteLaneSuccess(server, Date.now(), { tool, ms: attemptMs });
-          return ok;
+          return { ...ok, attempts };
         } catch (err2) {
           failure = describeFailure(err2, server, tool);
         }
       }
     }
     noteLaneFailure(server, failure, { tool, ms: attemptMs });
-    throw failure;
+    throw { ...failure, attempts };
   }
+}
+
+/** How many attempts a rejected call cost, where it carries the count. */
+export function failedAttempts(failure: unknown): number {
+  const n = (failure as { attempts?: unknown } | null | undefined)?.attempts;
+  return typeof n === "number" && n > 0 ? n : 1;
 }
 
 /* --------------------------------------------------------------- the grants

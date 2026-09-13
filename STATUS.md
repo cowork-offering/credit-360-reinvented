@@ -2,6 +2,54 @@
 
 ## Changelog
 
+- **0.9.23 (2026-09-13)** THE VERSION LIFECYCLE, AND A WRITE THAT ALWAYS LANDS. Founder ask on the
+  road: shape a modification a day later, undo it whole, never a 502 again. Org side (bankinggpt-at):
+  `StageAmendVersion` / `ExecuteAmendVersion` reuse the modification's own arms (scalar and field
+  changes, covenant adds and attaches, pledge adds, fees, involvement adds) landing DIRECTLY on the
+  version's own loans, no credit action, no clone, gated to a version still the banker's (no member
+  at Approval / Loan Committee) or a cockpit-created pre-approval package; `StageDiscardVersion` /
+  `ExecuteDiscardVersion` discover the delete set (chain rows, pledges, covenant junctions, pricing,
+  fees, involvements, clone loans, the version package) and remove it in order with a re-query after
+  every group, refusing a version in approval or one carrying children the cockpit did not create;
+  `cm_Status__c` gained `Withdrawn` so the trail is kept, never deleted; the server definition was
+  rebuilt from the LIVE org (28 tools) plus the four new rows (the repo copies were stale and would
+  have dropped every write tool); `C360ActionStaging` rotates the confirmation token on a same-key
+  replay of a Staged, unexecuted row by the same actor, so a lost first answer never strands a row.
+  ORG PROOF (section C of SPEC-0.9.23-ORG-PROOF.md): a real Hartwell version created ($15M line to
+  $16M, six members), amended in place (rate 7.60 to 7.10, covenant COV-000727, pledge COL-000774,
+  booked parent untouched), discarded (66 records, all seven parents back to hasRenewal false,
+  version gone, trail Withdrawn, replay idempotent). Cockpit: amend is the fourth room mode ("Shape
+  this version", same parser, same pricing gate, version members everywhere); the relationship room
+  gains "Add a covenant to this version" and "Pledge collateral to this version" with the plan
+  explaining what moves, what does not, and the coverage or re-test it implies; the memo's pro forma
+  reads the version; "Discard this version" on the Client Actions row and the Activity trail's
+  standing "Modification in Progress" row, inventory and what stays shown before the confirm, the
+  book re-read after; the create room leads with "New package" always, a version leads when the
+  room stands in one, and the booked source of a version is never offered; the door asks the ROUTE
+  first and the package second, scoped by the route (Modify and Renew a booked package, New facility
+  never a booked package, Credit memo the package the memo is for). THE 502 (feedback bucket
+  bug-1789312699582): the org had staged the founder's 18-step plan (STG-0000000149, 2.8 s on a
+  direct replay) and the relay dropped the answer twice; writes were never retried by an August rule
+  that predates the idempotency keys. Now every stage and execute is re-asked up to three times under
+  the SAME key on a relay failure, recovers the plan or the outcome from the trail when all three
+  fail, prefers the org's rotated token and only re-issues under a derived key where a replay carries
+  none, and the banker reads a sentence ("Salesforce took the plan; the answer did not come back,
+  asking again", "Filed as STG-149 on the second ask") instead of a platform string; the feedback
+  write takes the same three asks before the clipboard. THE ROOM (founder, 0.9.22 preview):
+  "collaterals", "guarantors", "entities", "parties" are read topics answered from the book; a party
+  resolves by first name when unique; "remove Elena from this loan" asks which of her two loans with
+  chips; a bare percentage after "to" is a price; a same line said twice narrows instead of repeating;
+  the relationship room's opening remark stands beside the greeting at full width instead of nested
+  under it at 78 percent. One ratio one definition (coverage), condensed thread and the 0.9.22 fixes
+  carried forward. Gates: tsc 0; vitest 220 files, 5,184 passed, 0 failed, 11 todo; bundle
+  2,064,906 B (1.969 MiB; JUSTIFY: amend engine, version routes, discard door, retry ladder, parties
+  grammar, +109.3 KB over the 0.9.19 baseline, baseline moved); IRIS 0; spread drive csv/xlsx/pdf
+  green; workroom drive nine scenarios (founderTranscript, stressRate, relativeAndSign,
+  founderParties, discardVersion, createFromRelationship, createInsideVersion, amendVersion,
+  relayDrop) all findings []. Backlog: 38, 39, 40, 44, 47 FIXED; open for 0.9.24: 43 (cinematic
+  entry), 45, 46, 48, 49 (relationship-driven covenants and collateral, packages as associations),
+  50 (the room as a briefing), 51 (drives on three books).
+
 - **0.9.22 (2026-09-13)** THE LOCK, THE PILE-UP, THE CHAT. Founder feedback bucket
   `bug-1789294443785` (Hartwell modification, 0.9.20 in the real host): after "Hold 6.58%" every
   later line was refused with "One decision at a time" and no card on screen; the cockpit chat sat

@@ -52,6 +52,15 @@
  * id does not exist until execute time. A carry exclusion is the one arm that may NOT: there is
  * nothing on a facility being created for the new version to leave behind.
  *
+ * THE ARM PARSERS ARE SHARED, NOT COPIED (0.9.23). `StageAmendVersion` stages the same seven arms
+ * against the loans of an unbooked VERSION instead of against clones that do not exist yet, and the
+ * tool contract requires the same JSON shapes. So the arm parsers below carry `public` rather than
+ * `private` visibility and StageAmendVersion calls them with a Request it fills in itself. Nothing
+ * about their behaviour changed with that widening: every check, every refusal and every resolved
+ * value is byte-identical to the wave that shipped, and this class's own tests cover them unchanged.
+ * The alternative was a second copy of roughly fifteen hundred lines of org-resolution logic, which
+ * is the kind of duplication that drifts silently the first time a picklist moves.
+ *
  * Org contract: A33.4.1. Two corrections carried from probe 5: LLC_BI__RootLoanId__c DOES NOT EXIST
  * on Loan in this org, so nothing here walks a chain through it; and the org rewrites the loan name,
  * so no name is echoed anywhere in this plan.
@@ -369,6 +378,8 @@ global with sharing class StageLoanModification {
         global List<String> newFacilityLabels;
         @InvocableVariable(label='Replayed')
         global Boolean replayed;
+        @InvocableVariable(label='Token Rotated' description='True when this call re-issued the confirmation token for a plan the org already held at Staged: the earlier token, which the caller never received, is void. At most one valid token exists per staging row.')
+        global Boolean tokenRotated;
     }
 
     global class Response {
@@ -1266,6 +1277,7 @@ global with sharing class StageLoanModification {
         r.planHash = staged.planHash;
         r.decisionToken = staged.decisionToken;
         r.replayed = staged.replayed;
+        r.tokenRotated = staged.tokenRotated;
         r.summary = summary;
         r.warnings = warnings;
         r.provenanceJson = JSON.serialize(provenance);
@@ -1339,7 +1351,7 @@ global with sharing class StageLoanModification {
      * the target must be one of the selected facilities. An equivalent covenant already attached
      * to the target is NAMED as a warning before the banker confirms. Nothing is created here.
      */
-    private static List<CovenantAdd> parseCovenantAdds(
+    public static List<CovenantAdd> parseCovenantAdds(
         Request req,
         List<LLC_BI__Loan__c> facilities,
         List<C360NewFacilities.NewFacility> newFacilities,
@@ -1447,7 +1459,7 @@ global with sharing class StageLoanModification {
      *
      * Nothing is created here. The arm hop of the execute pair writes the rows.
      */
-    private static List<FeeAdd> parseFeeAdds(
+    public static List<FeeAdd> parseFeeAdds(
         Request req,
         List<LLC_BI__Loan__c> facilities,
         List<C360NewFacilities.NewFacility> newFacilities
@@ -1600,14 +1612,14 @@ global with sharing class StageLoanModification {
     }
 
     /** One fee as the banker should read it in a plan step. */
-    private static String feePhrase(FeeAdd fa) {
+    public static String feePhrase(FeeAdd fa) {
         return fa.calculationType == FEE_PERCENTAGE
             ? String.valueOf(fa.percentage) + '% of ' + fa.basisSource + ', with the money computed by the org'
             : String.valueOf(fa.amount) + ' flat';
     }
 
     /** How many of the staged fees let the org do the arithmetic. */
-    private static Integer percentageFees(List<FeeAdd> feeAdds) {
+    public static Integer percentageFees(List<FeeAdd> feeAdds) {
         Integer n = 0;
         for (FeeAdd fa : feeAdds) {
             if (fa.calculationType == FEE_PERCENTAGE) {
@@ -1669,7 +1681,7 @@ global with sharing class StageLoanModification {
      *
      * Nothing is created here. The arm hop of the execute pair writes the rows.
      */
-    private static List<PledgeAdd> parsePledgeAdds(
+    public static List<PledgeAdd> parsePledgeAdds(
         Request req,
         List<LLC_BI__Loan__c> facilities,
         List<C360NewFacilities.NewFacility> newFacilities
@@ -2041,7 +2053,7 @@ global with sharing class StageLoanModification {
     }
 
     /** One pledge as the banker should read it in a plan step. */
-    private static String pledgePhrase(PledgeAdd pa) {
+    public static String pledgePhrase(PledgeAdd pa) {
         return (pa.amountPledged == null ? 'no stated share of the asset' : String.valueOf(pa.amountPledged) + ' pledged') +
             (pa.advanceRate == null
                 ? ', at the ' + pa.collateralTypeName + ' type\'s own advance rate'
@@ -2054,7 +2066,7 @@ global with sharing class StageLoanModification {
     }
 
     /** How many of the staged pledges have to author their asset first. */
-    private static Integer newCollaterals(List<PledgeAdd> pledgeAdds) {
+    public static Integer newCollaterals(List<PledgeAdd> pledgeAdds) {
         Integer n = 0;
         for (PledgeAdd pa : pledgeAdds) {
             if (pa.isNew) {
@@ -2310,7 +2322,7 @@ global with sharing class StageLoanModification {
      * contract. A request carrying both leaves a clone with two figures and no rule to pick between
      * them, so it is refused rather than resolved by precedence.
      */
-    private static List<ScalarChange> parseScalarChanges(Request req, List<LLC_BI__Loan__c> facilities) {
+    public static List<ScalarChange> parseScalarChanges(Request req, List<LLC_BI__Loan__c> facilities) {
         List<ScalarChange> out = new List<ScalarChange>();
         if (String.isBlank(req.scalarChangesJson)) {
             return out;
@@ -2400,7 +2412,7 @@ global with sharing class StageLoanModification {
     }
 
     /** One scalar as the banker should read it in a plan step. */
-    private static String scalarPhrase(ScalarChange sc) {
+    public static String scalarPhrase(ScalarChange sc) {
         String value = sc.key == 'requestedMaturityDate' ? String.valueOf(sc.dateValue) : String.valueOf(sc.numberValue);
         return SCALAR_WORD.get(sc.key) + ' to ' + value + (sc.key == 'requestedTermMonths' ? ' months' : '');
     }
@@ -2439,7 +2451,7 @@ global with sharing class StageLoanModification {
      * validated against the org's active values — a refusal carries the legal list, so the caller
      * can correct itself with the org's vocabulary rather than guessing again.
      */
-    private static List<FieldChange> parseFieldChanges(
+    public static List<FieldChange> parseFieldChanges(
         Request req,
         List<LLC_BI__Loan__c> facilities,
         List<C360NewFacilities.NewFacility> newFacilities
@@ -2553,7 +2565,7 @@ global with sharing class StageLoanModification {
     }
 
     /** The staged value as the banker should read it in the plan step. */
-    private static String displayValue(FieldChange fc) {
+    public static String displayValue(FieldChange fc) {
         Object v = JSON.deserializeUntyped(fc.valueJson);
         return String.valueOf(v);
     }
@@ -2571,7 +2583,7 @@ global with sharing class StageLoanModification {
      * it excludes from the carry, at stage time, so the banker confirms a named row rather than a
      * description — and an account involved under two roles is refused until the role settles it.
      */
-    private static List<InvolvementChange> parseInvolvementChanges(
+    public static List<InvolvementChange> parseInvolvementChanges(
         Request req,
         List<LLC_BI__Loan__c> facilities,
         List<C360NewFacilities.NewFacility> newFacilities,
@@ -3066,7 +3078,7 @@ global with sharing class StageLoanModification {
      * the carry will bring an attached one onto the clone by itself and a second junction would be
      * a duplicate nobody asked for.
      */
-    private static List<CovenantAttach> parseCovenantAttaches(
+    public static List<CovenantAttach> parseCovenantAttaches(
         Request req,
         List<LLC_BI__Loan__c> facilities,
         List<C360NewFacilities.NewFacility> newFacilities,

@@ -320,7 +320,30 @@ export function lockedInFlightVersion(
 /** The first-class state the founder asked for by name (2026-09-11). */
 export const MODIFICATION_IN_PROGRESS = "Modification in Progress";
 
-export type PackageAsk = "fork" | "review" | "open";
+export type PackageAsk = "fork" | "review" | "open" | "amend";
+
+/**
+ * MAY THIS PACKAGE BE SHAPED IN PLACE (0.9.23, the version lifecycle)?
+ *
+ * Two shapes qualify, and only two: an in-flight version that is still the
+ * banker's (`inFlightEditable`), and a package the cockpit created that has no
+ * booked member and no member at or past approval. A booked package is never
+ * amended (that is a fork); a version the org has taken is never amended (that
+ * is the approval). Mirrors the gate `StageAmendVersion` re-reads on the org.
+ */
+export function amendablePackage(entry: PackageEntry): boolean {
+  if (entry.inFlightVersion) return entry.inFlightEditable;
+  /* AND A PACKAGE WHOSE STAGES THE READ DOES NOT CARRY IS NOT ONE EITHER.
+     `booked === 0` is true both for a package the cockpit created and for one
+     whose members stage nothing in this view; the second is the fail-closed
+     case `Facility.stage` is documented for (absent means not staged in this
+     view, never not booked). */
+  return entry.stage !== null && entry.booked === 0 && entry.members.length > 0 && !entry.members.some(atOrPastApproval);
+}
+
+/** THE SENTENCE FOR A PACKAGE THAT CANNOT BE SHAPED IN PLACE. */
+export const NOT_AMENDABLE_REFUSAL =
+  "This package is booked, so a change to it is a modification, not an amendment. Open Modify and the plan versions it.";
 
 export interface PackagePick {
   /** Hard-blocked: the row is disabled, unclickable, and carries no arrow. */
@@ -339,7 +362,15 @@ export function packagePick(entry: PackageEntry, ask: PackageAsk): PackagePick {
      add a loan or move a figure, and the moment it climbs to
      `Approval / Loan Committee` even that closes. */
   if (entry.inFlightVersion) {
-    return { blocked: ask !== "open" || !entry.inFlightEditable, line: entry.reason ?? entry.line };
+    return { blocked: (ask !== "open" && ask !== "amend") || !entry.inFlightEditable, line: entry.reason ?? entry.line };
+  }
+  /* SHAPE IN PLACE (0.9.23). An amend runs only where `amendablePackage` says
+     so; a booked package offered to an amend ask is blocked with the reason,
+     because the change belongs to a fork. */
+  if (ask === "amend") {
+    return amendablePackage(entry)
+      ? { blocked: false, line: entry.reason ?? `${entry.line} · editable until approval` }
+      : { blocked: true, line: NOT_AMENDABLE_REFUSAL };
   }
   /* THE ORIGINAL, WITH A FORK ALREADY OPEN. First-class, named, and hard: a
      second fork off one booked package is a version chain nobody reconciles. */

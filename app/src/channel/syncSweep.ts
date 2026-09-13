@@ -508,3 +508,44 @@ export function reachReport({ refreshed, unreachable }: { refreshed: number; unr
   }
   return `Reachable, ${refreshed} ${refreshed === 1 ? "line" : "lines"} refreshed.`;
 }
+
+/* ------------------------------------------------- the book after an undo
+
+   THE SWEEP IS THE AUTHORITY, AND IT IS NOT INSTANT (0.9.23, spec 2b.4).
+
+   A discard deletes the version package and its clone loans in the org. The
+   roster reads a version off `exposure.facilities`, so until a read comes back
+   the page still shows the package that no longer exists, still calls its
+   source "Modification in Progress" and still offers the door that was just
+   taken. The banker would have to press Sync to see the result of their own
+   confirmed write, which is the reload the founder already reported once.
+
+   So the panel applies this patch the moment the executor reports success, and
+   the next sweep overwrites it with the org's own answer. It is NOT an
+   invention: every row it drops is a row the execute result confirmed gone, and
+   it drops nothing else. A failed or partial discard gets no patch at all.
+ */
+export function bundleAfterDiscard(
+  bundle: BorrowerBundle | null | undefined,
+  versionPackageId: string,
+): Partial<BorrowerBundle> {
+  const facilities = bundle?.exposure?.facilities ?? [];
+  const kept = facilities.filter((f) => f.productPackageId !== versionPackageId);
+  // Nothing on this bundle named the version, so there is nothing to correct.
+  if (kept.length === facilities.length) return {};
+  const sum = (pick: (f: (typeof kept)[number]) => number | null | undefined) =>
+    kept.reduce((n, f) => n + (typeof pick(f) === "number" ? (pick(f) as number) : 0), 0);
+  return {
+    exposure: {
+      ...bundle!.exposure,
+      facilities: kept,
+      /* THE ORG'S OWN TOTAL COUNTED THE VERSION (Customer360Exposure sums every
+         loan it returns), so leaving the header figures untouched would leave
+         the relationship reading a commitment that includes loans this write
+         just deleted. */
+      totalCommitted: sum((f) => f.committed),
+      totalOutstanding: sum((f) => f.outstanding),
+      totalAvailable: sum((f) => f.available),
+    },
+  };
+}

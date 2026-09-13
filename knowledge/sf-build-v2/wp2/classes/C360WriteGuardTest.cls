@@ -711,4 +711,120 @@ private class C360WriteGuardTest {
         }
         System.assertEquals(true, carryRefused, 'A clone carries only the exceptions this plan logs on it');
     }
+
+    // -------------------------------------------------------------------------------------------
+    // THE DELETE DOOR (0.9.23, the version lifecycle).
+    //
+    // The object gate above still refuses every delete, and deleteIsRefusedEverywhere still proves
+    // it on the objects it always did. What is new is a SECOND, narrower door: assertAllowedForTool
+    // with OP_DELETE, answered against a per-tool delete table. These methods attempt each refusal
+    // rather than relying on never trying, the same discipline as every method above.
+    // -------------------------------------------------------------------------------------------
+
+    @IsTest
+    static void theDiscardMayDeleteItsOwnSetAndEveryMemberOfItIsNamed() {
+        C360TestFixture.armCalloutMock();
+        for (String obj : new List<String>{
+            'LLC_BI__LoanRenewal__c', C360WriteGuard.OBJ_PLEDGE, C360WriteGuard.OBJ_LOAN_COVENANT,
+            'LLC_BI__Pricing_Rate_Component__c', 'LLC_BI__Pricing_Payment_Component__c',
+            C360WriteGuard.OBJ_PRICING_STREAM, C360WriteGuard.OBJ_FEE, C360WriteGuard.OBJ_INVOLVEMENT,
+            C360WriteGuard.OBJ_LOAN, C360WriteGuard.OBJ_PRODUCT_PACKAGE
+        }) {
+            C360WriteGuard.assertAllowedForTool(
+                'discard-version', obj, C360WriteGuard.OP_DELETE, new Map<String, Object>()
+            );
+        }
+    }
+
+    @IsTest
+    static void theDiscardMayNotDeleteWhatTheVersionMerelyPointedAt() {
+        C360TestFixture.armCalloutMock();
+        // The asset, the ownership junction, the covenant record, the relationship covenant
+        // junction, the aggregate shell and the audit trail. Each one is a thing a banker would
+        // still expect to find tomorrow, and each refusal is proved by asking for it.
+        for (String obj : new List<String>{
+            C360WriteGuard.OBJ_COLLATERAL, C360WriteGuard.OBJ_ACCOUNT_COLLATERAL, C360WriteGuard.OBJ_COVENANT,
+            C360WriteGuard.OBJ_ACCOUNT_COVENANT, C360WriteGuard.OBJ_PLEDGE_AGGREGATE, 'cm_Action_Staging__c',
+            C360WriteGuard.OBJ_LOAN_DETAIL, C360WriteGuard.OBJ_REVIEW, C360WriteGuard.OBJ_CASE,
+            C360WriteGuard.OBJ_POLICY_EXCEPTION, C360WriteGuard.OBJ_RISK_RATING
+        }) {
+            Boolean refused = false;
+            try {
+                C360WriteGuard.assertAllowedForTool(
+                    'discard-version', obj, C360WriteGuard.OP_DELETE, new Map<String, Object>()
+                );
+            } catch (C360WriteGuard.GuardException e) {
+                refused = true;
+                System.assert(
+                    e.getMessage().contains('may not delete'),
+                    'The refusal should say the action does not delete this object: ' + e.getMessage()
+                );
+            }
+            System.assertEquals(true, refused, 'The discard keeps this on purpose. Tried: ' + obj);
+        }
+    }
+
+    @IsTest
+    static void aToolWithNoDeclaredDeleteSetDeletesNothing() {
+        C360TestFixture.armCalloutMock();
+        for (String toolId : new String[]{ 'relationship-intake', 'loan-modification', 'not-a-tool' }) {
+            Boolean refused = false;
+            try {
+                C360WriteGuard.assertAllowedForTool(
+                    toolId, C360WriteGuard.OBJ_LOAN, C360WriteGuard.OP_DELETE, new Map<String, Object>()
+                );
+            } catch (C360WriteGuard.GuardException e) {
+                refused = true;
+                System.assert(
+                    e.getMessage().contains('deletes nothing'),
+                    'The refusal should say this action deletes nothing at all: ' + e.getMessage()
+                );
+            }
+            System.assertEquals(true, refused, 'Nothing deletes by default. Tried: ' + toolId);
+        }
+    }
+
+    @IsTest
+    static void theObjectGateStillRefusesEveryDeleteInTheDiscardSet() {
+        C360TestFixture.armCalloutMock();
+        // The whole point of putting the delete on a per-tool door is that the object door did not
+        // move. An anonymous caller asking the object gate to delete a loan is refused exactly as
+        // it was before 0.9.23 existed.
+        for (String obj : new List<String>{
+            'LLC_BI__LoanRenewal__c', C360WriteGuard.OBJ_PLEDGE, C360WriteGuard.OBJ_LOAN_COVENANT,
+            C360WriteGuard.OBJ_PRICING_STREAM, C360WriteGuard.OBJ_FEE, C360WriteGuard.OBJ_INVOLVEMENT,
+            C360WriteGuard.OBJ_LOAN, C360WriteGuard.OBJ_PRODUCT_PACKAGE
+        }) {
+            Boolean refused = false;
+            try {
+                C360WriteGuard.assertAllowed(obj, C360WriteGuard.OP_DELETE, new Map<String, Object>());
+            } catch (C360WriteGuard.GuardException e) {
+                refused = true;
+            }
+            System.assertEquals(
+                true, refused,
+                'The object gate never permits a delete, whatever the per-tool table says. Tried: ' + obj
+            );
+        }
+    }
+
+    @IsTest
+    static void theDeleteOnlyObjectsAreStillOnNoCreateAndNoUpdateTable() {
+        C360TestFixture.armCalloutMock();
+        // Adding LLC_BI__LoanRenewal__c and the two pricing components to the delete table must not
+        // have made them writable by any other route.
+        for (String obj : new List<String>{
+            'LLC_BI__LoanRenewal__c', 'LLC_BI__Pricing_Rate_Component__c', 'LLC_BI__Pricing_Payment_Component__c'
+        }) {
+            for (String op : new List<String>{ C360WriteGuard.OP_CREATE, C360WriteGuard.OP_UPDATE, C360WriteGuard.OP_CARRY }) {
+                Boolean refused = false;
+                try {
+                    C360WriteGuard.assertAllowed(obj, op, new Map<String, Object>());
+                } catch (C360WriteGuard.GuardException e) {
+                    refused = true;
+                }
+                System.assertEquals(true, refused, 'Nothing authors ' + obj + '. Operation: ' + op);
+            }
+        }
+    }
 }

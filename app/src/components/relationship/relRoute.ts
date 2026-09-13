@@ -30,7 +30,15 @@ import { classifyCovenant } from "../../domain/covenantStatus";
    on either would be a suggestion the data never made.
    ============================================================================= */
 
-export type RelRoute = "annual" | "covenant" | "valuation" | "rating" | "service" | "intake";
+export type RelRoute =
+  | "annual"
+  | "covenant"
+  | "valuation"
+  | "rating"
+  | "service"
+  | "intake"
+  | "versionCovenant"
+  | "versionPledge";
 
 /** The neutral form, when the relationship gives the room nothing to lead on.
  *  It names the register the room is in rather than listing five nouns: the
@@ -63,7 +71,24 @@ export const REL_ROUTE_CHIPS: readonly RelRouteChip[] = [
      the relationship. A banker scanning the chips for a review should meet the
      five first, and the one that authors after them. */
   { label: "Add a covenant or an asset", route: "intake" },
+  /* AND THE TWO THAT SHAPE THE VERSION IN FLIGHT (0.9.23). They are last
+     because they are the narrowest: neither runs at all unless the relationship
+     carries an editable version or a package the cockpit created and nobody has
+     booked. Both write through `amend_version`, which lands on the version's
+     OWN loans and takes no credit action, so neither is a review and neither
+     forks anything. Where the relationship carries nothing amendable the chips
+     stay and are disabled with that reason (A27.3). */
+  { label: "Add a covenant to this version", route: "versionCovenant" },
+  { label: "Pledge collateral to this version", route: "versionPledge" },
 ];
+
+/** The two routes that land on an unbooked version rather than on the book. */
+export const VERSION_ROUTES: readonly RelRoute[] = ["versionCovenant", "versionPledge"];
+
+/** TRUE where the route shapes a version in place rather than reviewing a book. */
+export function isVersionRoute(route: RelRoute | null): boolean {
+  return route === "versionCovenant" || route === "versionPledge";
+}
 
 /** The room's own word for a route, for the sentence that refuses to switch and
  *  for the sentence that hands facility work back to the facility room. */
@@ -74,6 +99,8 @@ export const REL_ROUTE_WORD: Record<RelRoute, string> = {
   rating: "risk-rating review",
   service: "service request",
   intake: "relationship intake",
+  versionCovenant: "covenant on the version",
+  versionPledge: "collateral pledge on the version",
 };
 
 /* ------------------------------------------------------------ smart opening */
@@ -220,6 +247,34 @@ const INTAKE_NOUN =
  *  already exists says so. */
 const INTAKE_NOT_HERE = /\b(pledge\w*|lien|secure\s+the|facility|loan|line\s+of\s+credit|clone|renewal)\b/i;
 
+/**
+ * THE LINE NAMES THE UNBOOKED VERSION, not the booked package behind it.
+ *
+ * Two words and only two: "version" and "in flight". Both name the thing nCino
+ * forks when a modification is filed, and neither appears in any of the six
+ * reviews' own vocabulary, so this reader can run FIRST without shadowing one.
+ * It deliberately does NOT read "the modification": "run the covenant review on
+ * the modification" is a review a banker is asking for by name, and taking it
+ * as a version amendment would pick a WRITE PATH out of a word the sentence did
+ * not settle.
+ *
+ * THE NOUN DECIDES WHICH OF THE TWO. A covenant word takes the covenant route;
+ * anything else that names security takes the pledge route. A line that names
+ * the version and neither returns null, because "open the version" is not a
+ * request to write on it.
+ */
+const VERSION_WORD = /\bversions?\b|\bin[-\s]?flight\b/i;
+const VERSION_COVENANT_NOUN = /\bcovenants?\b/i;
+const VERSION_PLEDGE_NOUN = /\b(pledg\w*|collateral|assets?|security)\b/i;
+
+/** Which version route a typed line binds, or null where it names none. */
+export function readVersionRoute(text: string): RelRoute | null {
+  const line = text.trim();
+  if (!line || !VERSION_WORD.test(line)) return null;
+  if (VERSION_COVENANT_NOUN.test(line)) return "versionCovenant";
+  return VERSION_PLEDGE_NOUN.test(line) ? "versionPledge" : null;
+}
+
 /** "service request", "raise a ticket", "the client asked for a payoff quote". */
 const SERVICE = /\b(service\s+request|servicing\s+request|raise\s+a\s+(ticket|request)|payoff|statement\s+request|open\s+a\s+ticket)\b/i;
 
@@ -299,6 +354,13 @@ const FACILITY_WORK =
 export function readRelRouteIntent(text: string): RelRoute | null {
   const line = text.trim();
   if (!line) return null;
+  /* THE VERSION IS READ FIRST, ahead of the intake and ahead of every review
+     word, on the same specificity rule the intake is read ahead of the covenant
+     review: "add a covenant to this version" is a covenant add on an unbooked
+     package, and both the intake and the covenant review would otherwise take
+     it and file it somewhere the banker did not ask for. */
+  const version = readVersionRoute(line);
+  if (version) return version;
   if (readsAsIntake(line)) return "intake";
   if (SERVICE.test(line)) return "service";
   if (VALUATION.test(line)) return "valuation";
@@ -391,6 +453,12 @@ const FACILITY_OBJECT = /\b(facilit(?:y|ies)|loans?|lines?|notes?|collateral|sec
 export function asksForFacilityWork(text: string, opts: { openTextStep?: boolean } = {}): boolean {
   const line = text.trim();
   if (!line) return false;
+  /* SHAPING THE VERSION IS THIS ROOM'S WORK NOW (0.9.23). `FACILITY_WORK` reads
+     `pledge\w*`, so "pledge collateral to this version" met the handoff and was
+     sent to a room that cannot take it: a credit action runs against a BOOKED
+     loan and a version holds none. A line that names the version is the version
+     routes', and they are in this room. */
+  if (readVersionRoute(line)) return false;
   const stripped = line.replace(DOCUMENT_AMENDMENT, " ");
   if (!FACILITY_WORK.test(stripped)) return false;
   if (!opts.openTextStep) return true;
@@ -401,4 +469,5 @@ export function asksForFacilityWork(text: string, opts: { openTextStep?: boolean
  *  (a covenant on a clone, create-then-pledge) stays in the facility room; this
  *  room says where it lives rather than half-doing it. */
 export const FACILITY_HANDOFF =
-  "That is facility work. Pledging security, cloning a covenant onto a renewal and reshaping a booked facility all run in Facility Actions on this relationship. This room takes the six reviews.";
+  "That is facility work. Pledging security onto a booked facility, cloning a covenant onto a renewal and reshaping a booked facility all run in Facility Actions on this relationship. " +
+  "This room takes the six reviews. It also shapes the version already in flight, where there is one.";

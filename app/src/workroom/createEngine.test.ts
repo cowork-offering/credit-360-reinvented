@@ -262,8 +262,13 @@ describe("a new facility creates a new package, and the room stands there", () =
     expect(brief.showsMembers).toBe(false);
     expect(brief.baselineMembers).toBe(0);
     expect(brief.have[0].value).toBe("New package");
-    // Nothing on this relationship, so nothing to offer and nothing to ask.
-    expect(brief.packageChoices).toEqual([]);
+    /* "NEW PACKAGE" LEADS THE OFFER AND IS ALWAYS ON IT (founder, 2026-09-13).
+       It used to appear only where something ELSE was joinable, so a room with
+       nothing to join offered nothing at all and the banker could not see the
+       package the plan already stood on. It is one chip, marked, and it is not
+       a gate: `packageChoiceRequired` stays false. */
+    expect(brief.packageChoices.map((c) => c.label)).toEqual(["New package"]);
+    expect(brief.packageChoices[0].selected).toBe(true);
     expect(brief.packageChoiceRequired).toBe(false);
   });
 
@@ -272,9 +277,10 @@ describe("a new facility creates a new package, and the room stands there", () =
     const { engine } = engineOn({}, ctx, bundleWith());
     const brief = engine.brief(ctx);
     expect(brief.position).toContain("This plan creates a new credit package.");
-    // Both of Hartwell's packages are booked, so there is no exception to offer
-    // and the room says why rather than going quiet about it.
-    expect(brief.packageChoices).toEqual([]);
+    // Both of Hartwell's packages are booked, so there is no EXCEPTION to
+    // offer; the default itself is still on the table, and the room says why
+    // nothing else is rather than going quiet about it.
+    expect(brief.packageChoices.map((c) => c.label)).toEqual(["New package"]);
     expect(brief.have[0].detail).toContain("None of them is still before approval");
     expect(brief.baselineMembers).toBe(0);
   });
@@ -323,16 +329,99 @@ describe("a new facility creates a new package, and the room stands there", () =
     expect(brief.packageChoiceRequired).toBe(false);
   });
 
+  /* ------------------------------------- 0.9.23: the version, and its source */
+
+  /* THE FORK, AT THE COCKPIT'S OWN CONTRACT. A booked source package and the
+     unbooked mirror of it, exactly the shape `book/packages.test.ts` reads off
+     bankinggpt-at: same member count, names carried across but for the facility
+     the filing moved. C3's stub lanes mirror this. */
+  const VERSION_ID = "a5Fbb000000JFzREAW";
+  const versionOf = (stage = "Qualification"): Facility[] => [
+    { ...line, loanId: "a4Zbb000002KFD3EAO", productPackageId: VERSION_ID, stage, outstanding: 0 },
+    {
+      ...equipment,
+      loanId: "a4Zbb000002KFD4EAO",
+      name: "Hartwell Precision Manufacturing LLC - Equipment - $12,000,000.00",
+      productPackageId: VERSION_ID,
+      stage,
+      committed: 12_000_000,
+    },
+  ];
+  const forked = (stage = "Qualification") => bundleWith([line, equipment, ...versionOf(stage)]);
+
+  it("offers the version FIRST when the room was opened from inside one, and New package second", () => {
+    /* FOUNDER, 2026-09-13 (spec 2c.1). A banker who opened this room from
+       inside the modification they are still shaping means THAT version far
+       more often than a package of its own, so it leads; "New package" follows
+       it and stays the marked default, because the plan still stands there. */
+    const ctx = { ...packageDoor, door: "account" as const, productPackageId: null, originPackageId: VERSION_ID, packageName: "New package" };
+    const brief = createCreateEngine({ context: ctx, data, bundle: forked(), deps: deps() }).brief(ctx);
+    const labels = brief.packageChoices.map((c) => c.label);
+    // The roster's own name for the version, which is how every other picker
+    // in the cockpit names it.
+    expect(labels[0]).toBe("Hartwell Precision Manufacturing LLC credit package · Line of Credit and Equipment");
+    expect(labels[1]).toBe("New package");
+    // The roster's own line, the one every picker in the cockpit shows.
+    expect(brief.packageChoices[0].figure).toContain("editable until approval");
+    expect(brief.packageChoices[0].selected).toBe(false);
+    expect(brief.packageChoices[1].selected).toBe(true);
+    expect(brief.position).toContain("editable until approval");
+  });
+
+  it("NEVER offers the booked source of that version, from anywhere", () => {
+    /* The source is superseded the moment the version books, so a facility
+       filed onto it now is money left on a package the bank has stopped
+       shaping. It is absent whether the room opened on the relationship or
+       inside the version. */
+    const fromRelationship = { ...packageDoor, door: "account" as const, productPackageId: null, packageName: "New package" };
+    const fromVersion = { ...fromRelationship, originPackageId: VERSION_ID };
+    for (const ctx of [fromRelationship, fromVersion]) {
+      const ids = createCreateEngine({ context: ctx, data, bundle: forked(), deps: deps() })
+        .brief(ctx)
+        .packageChoices.map((c) => c.id);
+      expect(ids).not.toContain(PACKAGE_ID);
+    }
+  });
+
+  it("stops offering the version once the org has taken it", () => {
+    // At or past Approval / Loan Committee the version is the org's, and
+    // `amendablePackage` says so: nothing may be filed onto it from here.
+    const ctx = { ...packageDoor, door: "account" as const, productPackageId: null, originPackageId: VERSION_ID, packageName: "New package" };
+    const brief = createCreateEngine({ context: ctx, data, bundle: forked("Approval / Loan Committee"), deps: deps() }).brief(ctx);
+    expect(brief.packageChoices.map((c) => c.label)).toEqual(["New package"]);
+  });
+
+  it("files onto the version when the banker takes it, and says the booked package is untouched", () => {
+    const ctx = {
+      ...packageDoor,
+      door: "package" as const,
+      productPackageId: VERSION_ID,
+      originPackageId: VERSION_ID,
+      packageName: "Hartwell Precision Manufacturing LLC credit package",
+    };
+    const brief = createCreateEngine({ context: ctx, data, bundle: forked(), deps: deps() }).brief(ctx);
+    expect(brief.position).toContain("the modification you have in flight");
+    expect(brief.position).toContain("The booked package behind it is not touched.");
+    // The strip is the VERSION's two facilities, at the version's own figures.
+    expect(brief.baselineMembers).toBe(2);
+    expect(brief.baselineCommittedMM).toBeCloseTo(27, 5);
+  });
+
   it("never offers a package that is booked, complete or past approval", () => {
     const ctx = { ...packageDoor, door: "account" as const, productPackageId: null, packageName: "New package" };
     // Stage before approval, but a booked member: the bank has money out on it.
     const booked = bundleWith([{ ...equipment, stage: "Booked" }]);
     booked.snapshot = { ...booked.snapshot, packageStage: "In Review" };
-    expect(createCreateEngine({ context: ctx, data, bundle: booked, deps: deps() }).brief(ctx).packageChoices).toEqual([]);
+    // The default is still offered; what is NOT offered is the booked package.
+    expect(
+      createCreateEngine({ context: ctx, data, bundle: booked, deps: deps() }).brief(ctx).packageChoices.map((c) => c.label),
+    ).toEqual(["New package"]);
     // Nothing booked, but the package's own stage is past approval.
     const late = bundleWith([{ ...equipment, stage: "Proposal" }]);
     late.snapshot = { ...late.snapshot, packageStage: "Complete" };
-    expect(createCreateEngine({ context: ctx, data, bundle: late, deps: deps() }).brief(ctx).packageChoices).toEqual([]);
+    expect(
+      createCreateEngine({ context: ctx, data, bundle: late, deps: deps() }).brief(ctx).packageChoices.map((c) => c.label),
+    ).toEqual(["New package"]);
   });
 });
 

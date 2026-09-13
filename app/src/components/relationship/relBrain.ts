@@ -27,7 +27,16 @@ import { FACILITY_HANDOFF, REL_ROUTE_WORD, type RelRoute } from "./relRoute";
    room it replaced.
    ============================================================================= */
 
-/** The six routes, as words a reply may NAME while the question is open. */
+/**
+ * The six routes, as words a reply may NAME while the question is open.
+ *
+ * THE TWO VERSION ROUTES ARE DELIBERATELY NOT HERE (0.9.23). A desk reply that
+ * named one would bind a WRITE PATH onto an UNBOOKED package out of a sentence
+ * the room never put in front of the banker, and the version routes refuse to
+ * run at all unless the banker has picked the version off the package ask. They
+ * are bound by a chip, or by a typed line this room reads itself, and by
+ * nothing a model returned.
+ */
 export const REL_ROUTE_WORDS = new Set<string>(["annual", "covenant", "valuation", "rating", "service", "intake"]);
 
 /** What each review produces, in the org's own terms. Read from the room's own
@@ -40,6 +49,10 @@ const PRODUCES: Record<RelRoute, string> = {
   service: "a service request case",
   intake:
     "a covenant authored on the relationship, or a collateral asset the borrower owns, each with its account junction and neither one touching a facility",
+  versionCovenant:
+    "a covenant attached to one facility on the UNBOOKED version in flight, authored or taken off the borrower's own book, with no credit action and no second version",
+  versionPledge:
+    "a collateral pledge onto one facility on the UNBOOKED version in flight, with the asset and its ownership filed first where it is new, and nothing on the booked package behind it moved",
 };
 
 /** The facilities the relationship carries, scoped to its package. The same

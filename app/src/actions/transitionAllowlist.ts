@@ -570,3 +570,59 @@ export function validateStep(step: ValidatableStep, toolId?: string): AllowlistV
 export function validatePlan(steps: ValidatableStep[], toolId?: string): AllowlistViolation[] {
   return steps.flatMap((step) => validateStep(step, toolId));
 }
+
+/* ------------------------------------------------- the one plan that deletes
+
+   THE ALLOWLIST WAS WRITTEN FOR WRITES, and until 0.9.23 that was every plan
+   this cockpit could stage. `LLC_BI__LoanRenewal__c` is refused outright here,
+   with "deletion: removing a chain row is permanent poison" in its own refused
+   list, and that judgement was right: an ad-hoc delete of a chain row leaves the
+   booked parent reading `hasRenewal = true` for ever and every later roll is
+   refused (proven on Hartwell, 2026-09-11).
+
+   A DISCARD IS THE OPPOSITE OF AN AD-HOC DELETE. It removes the chain rows as
+   part of a single ordered, verified transaction that also removes the clones
+   and the version package, and the whole point of taking the chain rows is to
+   flip the parents' formula BACK. So the discard plan is validated against its
+   own fence: the objects the frozen contract names, and nothing else. A step
+   naming any other object is a violation exactly as it always was.
+
+   IT REPLACES THE WRITE POLICY RATHER THAN RELAXING IT. Nothing else may ever
+   reach this function: the only caller branches on `discard-version`, the org
+   discovers the delete set itself, and the banker confirms the org's own
+   inventory rather than a list this page composed.                            */
+
+/** Every object a version discard may remove, in the contract's own order. */
+export const DISCARD_VERSION_OBJECTS: readonly string[] = [
+  "LLC_BI__LoanRenewal__c",
+  "LLC_BI__Loan_Collateral2__c",
+  "LLC_BI__Loan_Covenant__c",
+  "LLC_BI__Pricing_Rate_Component__c",
+  "LLC_BI__Pricing_Payment_Component__c",
+  "LLC_BI__Pricing_Stream__c",
+  "LLC_BI__Fee__c",
+  "LLC_BI__Legal_Entities__c",
+  "LLC_BI__Loan_Detail__c",
+  "LLC_BI__Loan__c",
+  "LLC_BI__Product_Package__c",
+  // Kept and marked Withdrawn rather than deleted. It is on the fence because
+  // the plan has a step for it; what that step does is the org's business.
+  "cm_Action_Staging__c",
+];
+
+/** Validate a version discard's plan. Empty means every step is in the fence. */
+export function validateDiscardPlan(steps: ValidatableStep[]): AllowlistViolation[] {
+  return steps.flatMap((step) => {
+    const objectName = step.objectName ?? step.object;
+    // A verification, a wait or a handoff names no object and removes nothing.
+    if (!objectName) return [];
+    if (DISCARD_VERSION_OBJECTS.includes(objectName)) return [];
+    return [
+      {
+        stepId: step.id,
+        object: objectName,
+        reason: `a version discard may not touch ${objectName}: it removes the version's own rows and nothing else`,
+      },
+    ];
+  });
+}

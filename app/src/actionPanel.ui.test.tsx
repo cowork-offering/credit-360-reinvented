@@ -6,6 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import type { C360Data } from "./data/contract";
 import { AppProvider } from "./state/appState";
 import { __skipBootForTests } from "./channel/useLivePortfolio";
+import { WRITE_RETRY_BUDGET_MS } from "./channel/mcp";
 // These tests mount the home only to navigate through it into an account; the
 // cold-open skeleton is not what they exercise, so the home opens already
 // settled, the way a returning viewer with a warm cache does. See the seam.
@@ -1472,14 +1473,26 @@ describe("WP7.3 — the compile sequence", () => {
     expect([...p.querySelectorAll("button")].some((b) => b.textContent === "Try again")).toBe(false);
   });
 
-  it("offers a user-gesture retry for a transport failure", async () => {
-    installWriteMcp({ stageThrows: { code: "upstream_error", message: "gateway hiccup" } });
-    openActionPanel("Annual Review");
-    click(byText(/Review the plan/)!);
-    await flush();
-    const retry = [...panel("Annual Review")!.querySelectorAll("button")].find((b) => b.textContent === "Try again");
-    expect(retry).toBeTruthy();
-    expect(panel("Annual Review")!.textContent).toContain("You can send it again");
+  it("offers a user-gesture retry for a transport failure, once the re-asks are spent", async () => {
+    /* THE AFFORDANCE IS UNCHANGED, THE WAIT IS NOT (2026-09-13). A staging call
+       whose answer is lost is now re-asked under the SAME key up to three times
+       before the banker is told anything, so the panel reaches this state at the
+       end of the ladder rather than on the first refusal. What a banker is
+       offered when it is spent is exactly what it always was. */
+    vi.useFakeTimers();
+    try {
+      installWriteMcp({ stageThrows: { code: "upstream_error", message: "gateway hiccup" } });
+      openActionPanel("Annual Review");
+      click(byText(/Review the plan/)!);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(WRITE_RETRY_BUDGET_MS + 500);
+      });
+      const retry = [...panel("Annual Review")!.querySelectorAll("button")].find((b) => b.textContent === "Try again");
+      expect(retry).toBeTruthy();
+      expect(panel("Annual Review")!.textContent).toContain("You can send it again");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("never calls the tool when a preflight line fails first", async () => {

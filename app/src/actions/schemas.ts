@@ -29,6 +29,8 @@ import {
 import type { PanelField, PanelSchema } from "./panelSchema";
 import { PREFILL_PROVENANCE, unansweredItems } from "./panelSchema";
 import { COVENANT_ASSESSMENT_STATUSES } from "./observedPicklists";
+import { DISCARD_LINE, NO_VERSION_REASON, whatStays } from "./discardVersion";
+import type { DiscardTarget } from "./discardTarget";
 
 export interface SchemaContext {
   bundle: BorrowerBundle | null;
@@ -51,6 +53,16 @@ export interface SchemaContext {
    * relationship's own package", which is the default and the usual case.
    */
   packageId?: string;
+  /**
+   * THE VERSION THE DISCARD DOOR IS AIMED AT, resolved by the caller.
+   *
+   * It is handed in rather than derived here for the reason `discardTarget.ts`
+   * explains: this module is what `book/packages.ts` reads `packageRecords` out
+   * of, so reaching back for the roster from inside a schema builder would
+   * close a module cycle. Absent on every other action, and absent means the
+   * discard panel renders its blocking gap, which is the same answer.
+   */
+  discard?: DiscardTarget | null;
 }
 
 /** The ISO date the panel should treat as today, or null when the read stages
@@ -1477,6 +1489,79 @@ function facilityChangeSchema(ctx: SchemaContext, kind: "modification" | "renewa
 }
 
 
+/* ------------------------------------------------- discard-version (0.9.23)
+
+   THE BRIEFING FOR AN UNDO. Nothing here is a value the banker supplies except
+   the reason: the version is resolved from the roster, the booked package comes
+   with it, and what would actually be deleted is DISCOVERED BY THE ORG at stage
+   time. So the panel states the two records in play, says what stays, and gets
+   out of the way; the inventory belongs on the confirm gate, where it can be
+   the org's own list rather than ours.                                       */
+
+function discardVersionSchema(ctx: SchemaContext): PanelSchema {
+  const OBJ = "LLC_BI__Product_Package__c";
+  const target = ctx.discard ?? null;
+  const version = target?.version ?? null;
+  const source = target?.source ?? null;
+
+  return {
+    writeObject: OBJ,
+    writeObjectLabel: "version package",
+    intro: `${DISCARD_LINE} ${whatStays(source?.name ?? null)}`,
+    fields: [
+      field({
+        key: "version",
+        label: "The version being discarded",
+        type: "readonly",
+        // The ROSTER'S OWN LINE for a version ("Modification in flight ·
+        // editable until approval · ..."), which is the line every package
+        // picker in this cockpit already shows for it.
+        value: version ? `${version.name} · ${version.reason ?? version.line}` : null,
+        prefill: { source: "NCINO_RECORD", citation: version?.id },
+        editable: false,
+        editableReason: "resolved from the relationship's package roster",
+        required: true,
+        target: { object: OBJ, field: "Id" },
+        /* A PANEL OPENED WITH NO VERSION IS A BLOCKED PANEL, not an empty form.
+           The registry's availability has already refused the row; this is the
+           same rule where a stale entry point got past it. */
+        gap: version
+          ? undefined
+          : {
+              reason: NO_VERSION_REASON,
+              blocksStaging: true,
+              technical: "book/packages.ts packageRoster() found no in-flight version on this bundle",
+            },
+      }),
+      field({
+        key: "source",
+        label: "The booked package that stays",
+        type: "readonly",
+        value: source ? `${source.name} · ${source.line}` : null,
+        prefill: { source: "NCINO_RECORD", citation: source?.id },
+        editable: false,
+        editableReason: "the discard never touches it",
+        required: false,
+        target: { object: OBJ, field: "Id" },
+        help: source
+          ? undefined
+          : "The read does not link this version to a booked package, so the trail will land on the version's own relationship.",
+      }),
+      field({
+        key: "discardReason",
+        label: "Why this version is being discarded",
+        type: "longtext",
+        value: null,
+        prefill: { source: "BANKER" },
+        editable: true,
+        required: true,
+        target: { staging: true },
+        help: "Goes on the staging row the org keeps and marks Withdrawn. It is the audit of why the version went.",
+      }),
+    ],
+  };
+}
+
 /* ------------------------------------------------------------- registry */
 
 export type SchemaBuilder = (ctx: SchemaContext) => PanelSchema;
@@ -1491,6 +1576,7 @@ export const PANEL_SCHEMAS: Record<string, SchemaBuilder> = {
   "covenant-review": covenantReviewSchema,
   "loan-modification": (ctx) => facilityChangeSchema(ctx, "modification"),
   renewal: (ctx) => facilityChangeSchema(ctx, "renewal"),
+  "discard-version": discardVersionSchema,
 };
 
 export function buildPanelSchema(actionId: string, ctx: SchemaContext): PanelSchema | null {

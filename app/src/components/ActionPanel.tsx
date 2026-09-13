@@ -25,7 +25,7 @@ import {
 } from "../actions/suggestionEngine";
 import { runCompile, type CompileLine } from "../actions/compile";
 import { CompileScreen } from "./CompileScreen";
-import { validatePlan } from "../actions/transitionAllowlist";
+import { validateDiscardPlan, validatePlan } from "../actions/transitionAllowlist";
 import { assertNoRecordIds } from "../actions/stagedPlan";
 import { withDrafts } from "../actions/drafts";
 import { buildBriefing } from "../actions/briefing";
@@ -40,6 +40,7 @@ import { isSimulationAllowed, simulateStagedOutput, type StagedOutput } from "..
 import { byDeadline, isDeadline } from "./workroom/deadline";
 import {
   executeAction,
+  isLostWriteAnswer,
   isWriteAction,
   resolveApproverUserId,
   stageAction,
@@ -52,7 +53,11 @@ import { mcpAvailable } from "../channel/mcp";
 import { observedPicklistMap } from "../actions/observedPicklists";
 import { newRequestId } from "../channel/adapter";
 import { initTracker, type TrackerState } from "../actions/tracker";
-import { executedActivityEntry } from "../actions/executedActivity";
+import { executedActivityEntry, versionDiscardedActivityEntry } from "../actions/executedActivity";
+import { isDiscardRefusal, DISCARD_ACTION_ID, NO_VERSION_REASON } from "../actions/discardVersion";
+import { discardTargetFor } from "../actions/discardTarget";
+import { bundleAfterDiscard } from "../channel/syncSweep";
+import { packageDeepLink } from "./DeepLink";
 import type { DecisionToken } from "../actions/decisionToken";
 
 /* =============================================================================
@@ -344,6 +349,7 @@ function GapNote({ gap }: { gap: NamedGap }) {
 const NOTHING_TO_STAGE: Record<string, string> = {
   "collateral-valuation": "This relationship has no pledged collateral to value.",
   "covenant-review": "This deal has no covenant that can be assessed from here.",
+  [DISCARD_ACTION_ID]: NO_VERSION_REASON,
 };
 const GENERIC_NOTHING_TO_STAGE = "This action has nothing to stage against on this relationship.";
 
@@ -486,6 +492,11 @@ export function ActionPanel({
       // the CHOSEN package's rather than the default one's. Undefined on the
       // first build, where the schema picks the default itself.
       packageId: pickedPackage ?? undefined,
+      // THE DISCARD DOOR'S TARGET, resolved here rather than inside the schema
+      // builder: `actions/schemas.ts` is what `book/packages.ts` reads
+      // `packageRecords` out of, so a schema that reached back for the roster
+      // would close a module cycle (see actions/discardTarget.ts).
+      discard: discardTargetFor(bundle, pickedPackage ?? null),
     });
     return base ? withDrafts(base, actionId, bundle, reasons) : null;
   }, [actionId, bundle, accountId, accountName, legalValues, reasons, data.meta?.generatedAt, pickedPackage]);
@@ -522,6 +533,11 @@ export function ActionPanel({
   const [toolError, setToolError] = useState<ToolError | null>(null);
   const [live, setLive] = useState(false);
   const [outcome, setOutcome] = useState<ExecuteResult | null>(null);
+  /** How the filing was obtained, where that is a fact of its own: on the second
+   *  ask, or read off the org's trail after the answer was lost. */
+  const [filingNote, setFilingNote] = useState<string | null>(null);
+  /** The same, for the staging that produced the plan on the gate. */
+  const [stagingNote, setStagingNote] = useState<string | null>(null);
   const [continuing, setContinuing] = useState(false);
   /** The Salesforce id of the banker who CONFIRMED this plan. Bound at confirm
    *  and used for every resume, so a resume can never run as someone else. */
@@ -536,6 +552,14 @@ export function ActionPanel({
     () => computeSuggestions({ data, bundle, actionId, liveStoredAt, liveSections }),
     [data, bundle, actionId, liveStoredAt, liveSections],
   );
+
+  /** The version this panel would discard, addressed in Salesforce. Null on
+   *  every other action and wherever the view stages no host. */
+  const versionHref = useMemo(() => {
+    if (actionId !== DISCARD_ACTION_ID) return null;
+    const target = discardTargetFor(bundle, null);
+    return target ? packageDeepLink(data.meta?.instanceUrl, target.version.id) : null;
+  }, [actionId, bundle, data.meta?.instanceUrl]);
 
   // A31.1 modal chrome: focus in on open, focus back to the opener on close.
   useEffect(() => {
@@ -690,7 +714,7 @@ export function ActionPanel({
     // one is simply omitted by JSON. When no suggestion is carrying the reason,
     // the action states its own, deterministically.
     const accepted = engine.suggestions.filter((s) => !declined[s.id]).map((s) => s.rationale).join(" ").trim();
-    const typed = [values.modificationReason, values.renewalReason, values.purposeNote]
+    const typed = [values.modificationReason, values.renewalReason, values.purposeNote, values.discardReason]
       .filter((x): x is string => typeof x === "string" && x.trim() !== "")
       .join(" ")
       .trim();
@@ -732,6 +756,19 @@ export function ActionPanel({
           value: typeof perItem[collateralId] === "number" ? (perItem[collateralId] as number) : nOf("value"),
           ...shared,
         })),
+      };
+    }
+
+    /* THE UNDO (0.9.23). Three fields on the wire and no arms: the version id,
+       the reason, and the idempotency key. What would be deleted is the ORG's
+       to discover, so this page sends nothing about it. */
+    if (actionId === DISCARD_ACTION_ID) {
+      const target = discardTargetFor(bundle, null);
+      if (!target) return null;
+      return {
+        idempotencyKey,
+        rationale,
+        versionPackageId: target.version.id,
       };
     }
 
@@ -909,6 +946,9 @@ export function ActionPanel({
     let payload: ReturnType<typeof stagePayload> = null;
     let built: StagedOutput | null = null;
     let fromLiveTool = false;
+    /** What the staging cost, where it cost more than one ask. Rendered on the
+     *  confirm gate, once, under the plan the banker is about to confirm. */
+    let stagedTwice: string | null = null;
 
     const outcome = await runCompile(
       [
@@ -969,7 +1009,17 @@ export function ActionPanel({
                sequence that cannot end: the panel would sit on a filling
                chevron for the life of the page. Staging writes nothing, so an
                expiry here is clean and the sequence fails on its own line. */
-            const res = await byDeadline(stageAction(actionId, payload as never), "stage", "staging this plan").catch((e) => {
+            const res = await byDeadline(
+              /* THE RELATIONSHIP AND THE DEAL TRAVEL WITH THE CALL, so a staging
+                 answer lost on the relay can be chased on the org's own trail
+                 rather than reported as a blank. */
+              stageAction(actionId, payload as never, {
+                accountId: activityAccountId,
+                productPackageId: (payload as { productPackageId?: string | null }).productPackageId ?? null,
+              }),
+              "stage",
+              "staging this plan",
+            ).catch((e) => {
               if (isDeadline(e)) {
                 throw {
                   code: "TRANSPORT",
@@ -978,6 +1028,11 @@ export function ActionPanel({
                     "Staging writes nothing, so nothing has been filed and the briefing is exactly as you left it.",
                 };
               }
+              /* THE PLAN MAY BE IN SALESFORCE. The write lane reads the trail
+                 before it gives up, and where it found the row the sentence it
+                 built names it. Saying "nothing was filed" over a staging row
+                 that exists is the failure this carries forward. */
+              if (isLostWriteAnswer(e)) throw { code: "TRANSPORT", message: e.said, orgError: `${e.code}: ${e.message}` };
               throw e;
             });
             if (!res.ok) {
@@ -992,8 +1047,32 @@ export function ActionPanel({
               }
               throw res.error;
             }
-            built = { ...res.result, suggestions: engine.suggestions.filter((s) => !declined[s.id]) };
+            /* A DISCARD QUOTES NO FIGURE, so no finding fed it and nothing can
+               drift under it (0.9.23). Carrying the relationship's standing
+               findings here would put the confirm gate's recompute in charge of
+               an undo: a coverage ratio that moved between the panel opening
+               and the banker confirming would block a plan that never mentioned
+               coverage, and the way out it offers, re-stage on the current
+               data, produces the identical inventory. The gate's rule is "never
+               execute against figures the banker did not see"; this plan shows
+               records, and the banker reads every one of them. */
+            built = {
+              ...res.result,
+              suggestions: actionId === DISCARD_ACTION_ID ? [] : engine.suggestions.filter((s) => !declined[s.id]),
+            };
             fromLiveTool = true;
+            /* THE LINE SAYS WHAT IT COST. A plan that took two asks, or that had
+               to be re-issued under a fresh key because the org returns no token
+               on a replay, is a different event from one that answered first
+               time, and the compile line is where the banker reads it. */
+            if (res.reissuedFrom) {
+              stagedTwice = `Salesforce already held this plan as ${res.reissuedFrom} from the ask whose answer was lost. It is re-issued under a fresh key, which is the only way Salesforce mints the confirmation token.`;
+              return `re-issued after ${res.attempts} asks`;
+            }
+            if (res.attempts > 1) {
+              stagedTwice = `The first ask reached Salesforce and its answer did not come back. The same key went out again and this is the plan it holds.`;
+              return `the org accepted it on the ${res.attempts === 2 ? "second" : "third"} ask`;
+            }
             return "the org accepted it";
           },
         },
@@ -1002,7 +1081,9 @@ export function ActionPanel({
           label: "Checking the plan that came back",
           run: () => {
             if (!built) throw { code: "TRANSPORT", message: "The staging call returned no plan." };
-            const violations = validatePlan(built.steps);
+            // The one plan that deletes is held to its own fence; see the gate.
+            const violations =
+              actionId === DISCARD_ACTION_ID ? validateDiscardPlan(built.steps) : validatePlan(built.steps);
             if (violations.length) {
               throw {
                 code: "VALIDATION_FAILED",
@@ -1024,26 +1105,55 @@ export function ActionPanel({
     }
     setPlan(built);
     setLive(fromLiveTool);
+    setStagingNote(stagedTwice);
     setStagedValues(JSON.stringify(values));
     setPhase("confirm");
   }
 
-  function onConfirmed(t: DecisionToken, executed?: ExecuteResult) {
+  function onConfirmed(t: DecisionToken, executed?: ExecuteResult, note?: string) {
     setToken(t);
+    setFilingNote(note ?? null);
     if (!approverRef.current) approverRef.current = resolveApproverUserId(data.meta);
 
     // A30 — the trail records what the banker did, success or not. Rendered
     // immediately on the Activity tab; no Sync required, because this event
     // happened here rather than being read from the org.
     if (executed) {
-      const entry = executedActivityEntry({
-        actionId,
-        outcome: executed,
-        target: readonlyAnchorLabel(),
-        actor: data.meta?.user,
-        instanceUrl: data.meta?.instanceUrl,
-      });
-      if (entry) dispatch({ type: "LOG_ACTIVITY", accountId: activityAccountId, entry });
+      /* THE UNDO WRITES ITS OWN ROW, and then the book has to stop showing the
+         version (spec 2b.4). `executedActivityEntry` names a CREATED record,
+         and a discard creates nothing; and the roster reads the version off the
+         exposure rows, which still carry the loans the org has just deleted.
+         The patch drops exactly the ids the org reported gone, so the source
+         unlocks on this render rather than on the next Sync, and the Sync
+         gesture remains the authority that confirms it. */
+      if (actionId === DISCARD_ACTION_ID) {
+        const discarded = discardTargetFor(bundle, null);
+        const entry = versionDiscardedActivityEntry({
+          outcome: executed,
+          versionName: discarded?.version.name ?? null,
+          sourceName: discarded?.source?.name ?? null,
+          actor: data.meta?.user,
+          sourcePackageId: discarded?.source?.id ?? null,
+          instanceUrl: data.meta?.instanceUrl,
+        });
+        if (entry) dispatch({ type: "LOG_ACTIVITY", accountId: activityAccountId, entry });
+        if (discarded && executed.terminalState === "success") {
+          dispatch({
+            type: "PATCH_BUNDLE",
+            accountId: activityAccountId,
+            patch: bundleAfterDiscard(bundle, discarded.version.id),
+          });
+        }
+      } else {
+        const entry = executedActivityEntry({
+          actionId,
+          outcome: executed,
+          target: readonlyAnchorLabel(),
+          actor: data.meta?.user,
+          instanceUrl: data.meta?.instanceUrl,
+        });
+        if (entry) dispatch({ type: "LOG_ACTIVITY", accountId: activityAccountId, entry });
+      }
     }
 
     if (plan) {
@@ -1116,7 +1226,7 @@ export function ActionPanel({
         // Apex resume path never reads it; a null is refused by the platform.
         decisionToken: plan.decisionToken,
         approverUserId: bound,
-      }), "execute", "the filing");
+      }, { accountId: activityAccountId }), "execute", "the filing");
       // #10 — a failed resume goes through the same doctrine as a failed first
       // execution: typed code, the org's own words, and no invented retry.
       if (!again.ok) {
@@ -1231,6 +1341,37 @@ export function ActionPanel({
               <CompileScreen lines={compileLines} onRetry={() => void stage()} onBack={() => setPhase("form")} />
             )}
 
+            {/* THE ORG REFUSED THE DISCARD, and its sentence is already on the
+                failed compile line verbatim. What that sentence cannot carry is
+                the way to act on it: a version in approval, or one holding a
+                document or an approval submission, is cleared in Salesforce and
+                nowhere else. So this adds the address and nothing else. */}
+            {phase === "compile" && toolError && actionId === DISCARD_ACTION_ID && isDiscardRefusal(toolError.code) && versionHref && (
+              <div className="border-t border-divider px-5 py-3 text-[11.5px] leading-relaxed text-ink-muted">
+                <a
+                  href={versionHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-deeplink="version"
+                  className="font-semibold"
+                  style={{ color: "var(--accent)" }}
+                >
+                  Open the version in Salesforce
+                </a>{" "}
+                to clear what the org named, then build the plan again.
+              </div>
+            )}
+
+            {/* THE PLAN ON THE GATE TOOK MORE THAN ONE ASK, and the banker reads
+                that before confirming rather than after. */}
+            {phase === "confirm" && stagingNote && (
+              <div className="border-b border-divider px-5 py-3" data-staging-note="1">
+                <div className="rounded-[10px] px-3.5 py-2.5" style={{ background: "var(--warning-bg)" }}>
+                  <div className="text-[12px] leading-relaxed" style={{ color: "var(--warning-prose)" }}>{stagingNote}</div>
+                </div>
+              </div>
+            )}
+
             {phase === "confirm" && plan && (
               <ConfirmGate
                 plan={plan}
@@ -1276,6 +1417,14 @@ export function ActionPanel({
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* SAID ONCE, AND ONLY WHEN IT IS TRUE. A filing that answered first
+                time says nothing here at all. */}
+            {phase === "tracker" && filingNote && (
+              <div className="border-b border-divider px-5 py-3" data-filing-note="1">
+                <div className="text-[11.5px] leading-relaxed text-ink-muted">{filingNote}</div>
               </div>
             )}
 

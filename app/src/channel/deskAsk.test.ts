@@ -75,10 +75,14 @@ describe("the version chain reaches the cockpit chat (finding B5)", () => {
     expect(said).toMatch(/That is WHY the room is locked; say it rather than refusing blind/);
   });
 
+  /* THE STATE IS NAMED IN THE COCKPIT'S OWN THREE WORDS (0.9.23, spec 2b.1).
+     0.9.18 said "still editable until it reaches approval", which is true and
+     is not the vocabulary the pickers, the trail row and the workroom refusals
+     all use. One state, one name, on every surface. */
   it("says what the version itself is, and that it is still the banker's", () => {
     const said = text();
     expect(said).toContain("IS the unbooked modification version of another package");
-    expect(said).toContain("still editable until it reaches approval");
+    expect(said).toContain("Modification in Progress, editable until approval");
     expect(said).toMatch(/carries no booked facility/);
   });
 
@@ -88,8 +92,9 @@ describe("the version chain reaches the cockpit chat (finding B5)", () => {
       if (f.productPackageId === VERSION) f.stage = "Approval / Loan Committee";
     }
     const said = deskContext(taken, "Hartwell");
-    expect(said).toContain("at Approval / Loan Committee and no longer editable");
-    expect(said).not.toContain("still editable until it reaches approval");
+    expect(said).toContain("in approval, locked");
+    expect(said).toContain("at Approval / Loan Committee and no longer the banker's to change");
+    expect(said).not.toContain("editable until approval");
   });
 
   it("says nothing at all where no version is in flight, rather than an empty fact", () => {

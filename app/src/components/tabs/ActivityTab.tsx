@@ -6,6 +6,10 @@ import { historyActivityEntry, mergeTrail } from "../../actions/executedActivity
 import { openMailRoom, readMailRow } from "../../actions/mailRow";
 import { staggerDelay } from "../../data/motion";
 import { ActivityDetailModal } from "../ActivityDetailModal";
+import { ActionPanel } from "../ActionPanel";
+import { DISCARD_ACTION_ID, DISCARD_LABEL, DISCARD_LINE } from "../../actions/discardVersion";
+import { discardTargetFor } from "../../actions/discardTarget";
+import { MODIFICATION_IN_PROGRESS } from "../../book/packages";
 import { EmptyPane, Note, Pane, PaneCard, SecHead } from "./paneKit";
 
 const EXPLAIN =
@@ -177,9 +181,56 @@ function TrailEntry({
   );
 }
 
+/* =============================================================================
+   THE VERSION IN FLIGHT, ON THE TRAIL (0.9.23, spec 2b.1).
+
+   A fork is the one thing this cockpit does that leaves a STANDING state rather
+   than an event: the version sits unbooked with the org, its source is locked
+   against a second modification, and until 0.9.23 nothing on this tab said so.
+   The banker read a trail of things that had happened and no account of the
+   thing that still was.
+
+   IT IS NOT A TRAIL ENTRY. It carries no timestamp and takes no place in the
+   chronology, because it is not something that happened at an instant; it is
+   what is true now. So it sits above the spine as a standing row, and the door
+   on it is the same `discard-version` panel the Client Actions row opens, gated
+   by the same `discardAvailability`.
+   ============================================================================= */
+function ModificationInProgressRow({ bundle, onDiscard }: { bundle: BorrowerBundle; onDiscard: () => void }) {
+  const target = discardTargetFor(bundle, null);
+  // The standing row is about a version the banker can still act on. A version
+  // the org has taken to approval is the approval's business, not this tab's.
+  if (!target) return null;
+  const { version, source } = target;
+
+  return (
+    <div className="mb-3 rounded-[10px] px-3.5 py-3" data-inflight-row="1" style={{ background: "var(--warning-bg)" }}>
+      <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--warning)" }}>
+        {MODIFICATION_IN_PROGRESS}
+      </div>
+      <div className="mt-1 text-[12.5px] leading-relaxed" style={{ color: "var(--warning-prose)" }}>
+        {version.name} is unbooked with the org: {version.reason ?? version.line}.{" "}
+        {source ? `${source.name} stays booked and cannot take a second modification until this version is booked or discarded.` : ""}
+      </div>
+      <button
+        type="button"
+        onClick={onDiscard}
+        data-discard-door="trail"
+        className="c360-press mt-2 rounded-md border border-border px-3 py-1.5 text-[12px] font-semibold"
+        style={{ background: "var(--surface)", color: "var(--ink)" }}
+      >
+        {DISCARD_LABEL}
+      </button>
+      <div className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--warning-prose)" }}>{DISCARD_LINE}</div>
+    </div>
+  );
+}
+
 export function ActivityTab({ bundle }: { bundle: BorrowerBundle }) {
   const { data, state, dispatch } = useApp();
   const [openId, setOpenId] = useState<string | null>(null);
+  // A33.1.1 entry point 4: the standing in-flight row opens the same panel.
+  const [panelActionId, setPanelActionId] = useState<string | null>(null);
   const generatedAt = data.meta?.generatedAt ?? "";
   const accountId = accountKey(state.accountId, bundle.snapshot?.accountId);
   const accountName =
@@ -201,6 +252,7 @@ export function ActivityTab({ bundle }: { bundle: BorrowerBundle }) {
     <Pane id="activity">
       <PaneCard>
         <SecHead kicker="Audit trail" sub="Activity" explain={EXPLAIN} />
+        <ModificationInProgressRow bundle={bundle} onDiscard={() => setPanelActionId(DISCARD_ACTION_ID)} />
         {entries.length === 0 ? (
           <EmptyPane
             title="No recorded activity in this view"
@@ -253,6 +305,7 @@ export function ActivityTab({ bundle }: { bundle: BorrowerBundle }) {
       />
 
       {open && <ActivityDetailModal entry={open} bundle={bundle} onClose={() => setOpenId(null)} />}
+      {panelActionId && <ActionPanel actionId={panelActionId} onClose={() => setPanelActionId(null)} />}
     </Pane>
   );
 }

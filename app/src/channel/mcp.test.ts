@@ -146,7 +146,11 @@ describe("callTool", () => {
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
-  it("never retries a write, even when stamped retryable", async () => {
+  it("a write WITHOUT the idempotent flag falls straight through, even when stamped retryable", async () => {
+    // Unchanged doctrine for every write that cannot promise a key: an
+    // ambiguous rejection is not proof the tool did not run, and re-issuing it
+    // is the banker's gesture. Only a caller that passes `idempotent: true`
+    // gets the ladder, and it says so because the org fences on its key.
     const fn = rejectWith("server_unavailable", { retryable: true, retryAfterMs: 1 });
     installMcp({ callTool: fn });
     await expect(callTool(SERVERS.customer360, TOOLS.snapshot, {}, { read: false })).rejects.toMatchObject({

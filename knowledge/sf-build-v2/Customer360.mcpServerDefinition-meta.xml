@@ -1,97 +1,431 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Customer360 — Salesforce-hosted MCP server (relationship-level twin of the
-  deal-level CreditMemoExperinece server; kept as a separate server per the
-  architecture review — relationship vs deal is a clean boundary, not merged).
-
-  Schema confirmed against Salesforce's own Apr/May 2026 docs+blog (GA Apr 29
-  2026), a real working example already in this org (CreditMemoExperinece),
-  AND the live Tooling API describe of McpServerToolDefinition /
-  McpServerToolApiDefinition (sf sobject describe —use-tooling-api,
-  2026-07-01) after a dry-run NPE on a missing required field surfaced it.
-  No isActive, no implementationClass — those do not exist on this metadata
-  type. Each tool is a plain Apex class with one global @InvocableMethod;
-  Salesforce auto-publishes it to the API Catalog and this file references it
-  by apiIdentifier "aa:apex-{ClassName}".
-
-  To add a tool:
-    1. Verify every object/field against the live org first (getObjectSchema)
-       — do not assume field names carry over from another nCino org.
-    2. Write a new Apex class with exactly one @InvocableMethod
-       (label + description set on the annotation).
-    3. Add a new tools block below (toolName + apiDefinition/apiIdentifier/
-       apiSource/operation) — "tools" is a REPEATED top-level element, one
-       per tool. A McpServerToolDefinition only accepts ONE apiDefinition
-       child (nesting multiple in one tools block fails deploy with "Element
-       apiDefinition is duplicated"), and toolName is REQUIRED (its absence
-       fails deploy with a server-side NPE, not a clear schema message).
-    4. Deploy both files.
+  Customer360 MCP server definition. SOURCE OF TRUTH IS THE ORG: this file was
+  retrieved from bankinggpt-at on 2026-09-13 (28 tools) and extended with the
+  0.9.23 version-lifecycle pairs (4 tools). The earlier 8-tool copy in this
+  repo was stale; deploying it would have dropped every write tool the
+  connector publishes. Before any deploy: retrieve, diff, then deploy.
+  Write tools use snake_case toolName (what the cockpit calls); reads keep the
+  class name. Each tool is one Apex class with one global @InvocableMethod,
+  referenced by apiIdentifier "aa:apex-{ClassName}".
 -->
 <McpServerDefinition xmlns="http://soap.sforce.com/2006/04/metadata">
     <description>Commercial Credit Customer 360 — relationship-level read surface (nCino+FSC, run-as-user). Ownership/beneficial-ownership graph, exposure rollups, covenants, collateral coverage, whitespace, structural EWS signals for the customer/obligor group.</description>
     <masterLabel>Customer 360</masterLabel>
     <tools>
-        <toolName>Customer360Snapshot</toolName>
         <apiDefinition>
             <apiIdentifier>aa:apex-Customer360Snapshot</apiIdentifier>
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Snapshot</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360Snapshot</toolName>
     </tools>
     <tools>
-        <toolName>Customer360RelationshipGraph</toolName>
         <apiDefinition>
             <apiIdentifier>aa:apex-Customer360RelationshipGraph</apiIdentifier>
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360RelationshipGraph</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360RelationshipGraph</toolName>
     </tools>
     <tools>
-        <toolName>Customer360Exposure</toolName>
         <apiDefinition>
             <apiIdentifier>aa:apex-Customer360Exposure</apiIdentifier>
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Exposure</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360Exposure</toolName>
     </tools>
     <tools>
-        <toolName>Customer360Covenants</toolName>
         <apiDefinition>
             <apiIdentifier>aa:apex-Customer360Covenants</apiIdentifier>
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Covenants</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360Covenants</toolName>
     </tools>
     <tools>
-        <toolName>Customer360Opportunities</toolName>
         <apiDefinition>
             <apiIdentifier>aa:apex-Customer360Opportunities</apiIdentifier>
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Opportunities</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360Opportunities</toolName>
     </tools>
     <tools>
-        <toolName>Customer360StructuralSignals</toolName>
         <apiDefinition>
             <apiIdentifier>aa:apex-Customer360StructuralSignals</apiIdentifier>
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360StructuralSignals</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360StructuralSignals</toolName>
     </tools>
     <tools>
-        <toolName>Customer360SearchAccounts</toolName>
         <apiDefinition>
             <apiIdentifier>aa:apex-Customer360SearchAccounts</apiIdentifier>
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360SearchAccounts</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360SearchAccounts</toolName>
     </tools>
     <tools>
-        <toolName>Customer360Portfolio</toolName>
         <apiDefinition>
             <apiIdentifier>aa:apex-Customer360Portfolio</apiIdentifier>
             <apiSource>API_CATALOG</apiSource>
             <operation>Customer360Portfolio</operation>
         </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360Portfolio</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageCollateralValuation</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageCollateralValuation</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_collateral_valuation</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteCollateralValuation</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteCollateralValuation</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_collateral_valuation</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageServiceRequest</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageServiceRequest</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_service_request</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteServiceRequest</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteServiceRequest</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_service_request</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageAnnualReview</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageAnnualReview</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_annual_review</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteAnnualReview</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteAnnualReview</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_annual_review</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-Customer360ActionHistory</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>Customer360ActionHistory</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360ActionHistory</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageNewFacility</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageNewFacility</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_new_facility</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteNewFacility</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteNewFacility</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_new_facility</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageRiskRatingReview</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageRiskRatingReview</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_risk_rating_review</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteRiskRatingReview</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteRiskRatingReview</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_risk_rating_review</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageCovenantReview</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageCovenantReview</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_covenant_review</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteCovenantReview</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteCovenantReview</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_covenant_review</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageLoanModification</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageLoanModification</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_loan_modification</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteLoanModification</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteLoanModification</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_loan_modification</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageRenewal</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageRenewal</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_renewal</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageRelationshipIntake</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageRelationshipIntake</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_relationship_intake</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteRelationshipIntake</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteRelationshipIntake</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_relationship_intake</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-Customer360Catalog</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>Customer360Catalog</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360Catalog</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-CompleteNewFacilityDetail</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>CompleteNewFacilityDetail</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>complete_new_facility_detail</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageAmendVersion</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageAmendVersion</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_amend_version</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteAmendVersion</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteAmendVersion</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_amend_version</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-StageDiscardVersion</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>StageDiscardVersion</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>stage_discard_version</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-ExecuteDiscardVersion</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>ExecuteDiscardVersion</operation>
+        </apiDefinition>
+        <destructive>true</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>execute_discard_version</toolName>
     </tools>
 </McpServerDefinition>

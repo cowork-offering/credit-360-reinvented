@@ -5,15 +5,17 @@ import { noteFiled } from "../../intent/open";
 import { consumedIntent } from "../../intent/store";
 import { workroomActivityEntry } from "../../actions/executedActivity";
 import { askBrain, brainReachable, type BrainEnvelope } from "../../channel/brainLane";
-import { bookedFacilities } from "../../data/facilityStage";
+import { atOrPastApproval, bookedFacilities } from "../../data/facilityStage";
+import { isActiveFacility } from "../../data/worklist";
 import { useApp } from "../../state/appState";
+import { createAmendEngine } from "../../workroom/amendEngine";
 import { createCreateEngine } from "../../workroom/createEngine";
 import { type WorkroomEngine } from "../../workroom/engine";
 import { createModifyEngine } from "../../workroom/modifyEngine";
 import { createRenewEngine } from "../../workroom/renewEngine";
 import { NEW_PACKAGE_CHOICE } from "../../workroom/modes";
 import { closeWorkroom, openWorkroom, useWorkroom, workroomContextFor } from "../../workroom/openWorkroom";
-import { stageAction } from "../../channel/writeTools";
+import { executeAction, stageAction } from "../../channel/writeTools";
 import { armStage } from "./orgArms";
 import type { WorkroomContext, WorkroomExecution, WorkroomMode } from "../../workroom/types";
 import { anchorFacilityRoom, bindFacilityRoute, closeFacilityRoom, useFacilityRoom } from "./roomSession";
@@ -108,6 +110,12 @@ export function WorkroomHost() {
         return createRenewEngine(args);
       case "create":
         return createCreateEngine(args);
+      /* THE FOURTH ENGINE (0.9.23). It IS the modification engine in its amend
+         variant with the version wire behind it, so the room the banker meets
+         is the one they already know; what changes is what it says it is doing
+         and which pair it stages on. */
+      case "amend":
+        return createAmendEngine(args);
       default:
         /* THE ORG ARMS RIDE THE ENGINE'S OWN STAGE DEPENDENCY (2026-09-02).
            The three arms deployed after the engine was fenced, so an arm delta
@@ -117,7 +125,21 @@ export function WorkroomHost() {
            arm reaches the tool on exactly the payload it always has. */
         return createModifyEngine({
           ...args,
-          deps: { stage: armStage((payload) => stageAction("loan-modification", payload)) },
+          deps: {
+            /* THE RELATIONSHIP TRAVELS WITH BOTH GOVERNED CALLS (2026-09-13).
+               A stage or an execute whose answer is lost on the relay can only
+               be resolved against the org's own trail, and the trail is read by
+               relationship. Without these the write lane can still re-ask under
+               the same key; what it cannot do is find out what the org ended up
+               holding, which is the half the founder's 502 needed. */
+            stage: armStage((payload) =>
+              stageAction("loan-modification", payload, {
+                accountId: context.accountId,
+                productPackageId: context.productPackageId,
+              }),
+            ),
+            execute: (payload) => executeAction("loan-modification", payload, { accountId: context.accountId }),
+          },
         });
     }
   }, [context, data, bundle]);
@@ -126,10 +148,21 @@ export function WorkroomHost() {
      function the engines themselves gate on, called once here where the bundle
      lives, so the strip's disabled state and the engine's refusal are the same
      judgement rather than two that agree today. */
-  const eligibleMemberIds = useMemo(
-    () => new Set(bookedFacilities(bundle).map((f) => f.loanId).filter((id): id is string => !!id)),
-    [bundle],
-  );
+  const eligibleMemberIds = useMemo(() => {
+    /* AN AMENDMENT READS THE OTHER END OF THE SAME LADDER. Its package holds no
+       booked member by definition, so `bookedFacilities` would draw every
+       facility on the strip hollow and the room would refuse the one thing it
+       exists to do. What an amendment may shape is the version's own members
+       still BELOW the approval rung, which is the engine's own gate. */
+    const facilities = (bundle?.exposure?.facilities ?? []).filter(isActiveFacility);
+    const open =
+      context?.mode === "amend"
+        ? facilities.filter(
+            (f) => (!context.productPackageId || f.productPackageId === context.productPackageId) && !atOrPastApproval(f),
+          )
+        : bookedFacilities(bundle);
+    return new Set(open.map((f) => f.loanId).filter((id): id is string => !!id));
+  }, [bundle, context?.mode, context?.productPackageId]);
 
   /* THE READ A QUESTION IS ANSWERED FROM. The same bundle the engine stands on,
      handed to the room so "which borrowers are already in the package" is
@@ -235,12 +268,13 @@ export function WorkroomHost() {
     closeWorkroom();
   }, [context, dispatch]);
 
-  /* THE MEMO DOOR, FROM THE ROUTE QUESTION. The banker has already answered the
-     package question by the time the door is on the glass (the routes wait on
-     it), so the memo opens on the anchor this room is standing on and never has
-     to ask again. The facility room closes: one room at a time on the glass. */
+  /* THE MEMO DOOR, FROM THE ROUTE QUESTION. The route no longer waits on the
+     package (spec 2c.3), so the door may be pressed while the room is standing
+     on nothing; the ROOM asks which package with the review picker and hands the
+     answer in as `chosen`. Everywhere the room already has an anchor the call is
+     the one it always was. The facility room closes: one room at a time. */
   const openMemo = useCallback(
-    (filed?: readonly FiledLine[], sheet?: FiledSheetModel) => {
+    (filed?: readonly FiledLine[], sheet?: FiledSheetModel, chosen?: string) => {
       if (!context) return;
       openMemoRoom({
         accountId: context.accountId,
@@ -252,17 +286,23 @@ export function WorkroomHost() {
            sheet holds as its version. The greeting then names it: the bundle's
            read predates the package, so no label exists and the greeting says
            the short id rather than inventing one. */
-        productPackageId: context.productPackageId ?? sheet?.version ?? null,
+        productPackageId: chosen ?? context.productPackageId ?? sheet?.version ?? null,
         /* THE MEMO'S TYPE IS THE ACTION THAT TRIGGERED IT. A room opened from
            the route question has not filed anything, so its trigger is the
            neutral one; a room opened from the finale names what was just done. */
-        trigger: filed ? context.mode : "adhoc",
+        /* AN AMENDMENT IS A MODIFICATION TO THE MEMO. The memo's trigger set is
+           its own (`components/memo/memoSession.ts`) and carries no word for
+           shaping a version in place; what the memo has to say about the
+           package is the same either way, so amend reports as the modification
+           it is a continuation of rather than inventing a trigger the memo
+           room cannot render. */
+        trigger: filed ? (context.mode === "amend" ? "modify" : context.mode) : "adhoc",
         carried: filed ? changesFromFiled(filed) : null,
         carriedSplit: filed ? splitOfFiled(filed) : null,
         /* THE SHEET, AS THE MEMO'S FIRST TIMELINE ROW. The same five facts the
            banker was just reading, redrawn in the memo's own grammar, so the
            handover is one surface continuing rather than two rooms swapping. */
-        filed: sheet ? filedSummaryFrom(sheet, context.mode) : null,
+        filed: sheet ? filedSummaryFrom(sheet, context.mode === "amend" ? "modify" : context.mode) : null,
         /* AND THE GLASS IS STILL MOVING. The sheet is sliding off this room as
            it mounts; `onDraftMemoLanded` below is what says it has stopped. */
         handoff: Boolean(sheet),
@@ -303,7 +343,7 @@ export function WorkroomHost() {
       preselectMemberId: session.memberId,
       onBind: (route: WorkroomMode, opts) => bindFacilityRoute(route, opts),
       onRestart: (route: WorkroomMode, say: string) => bindFacilityRoute(route, { say }),
-      onMemo: () => openMemo(),
+      onMemo: (productPackageId?: string) => openMemo(undefined, undefined, productPackageId),
     };
   }, [session, openMemo]);
 

@@ -62,6 +62,7 @@ import { TypeIcon, iconForDelta, iconForMember, type IconKind } from "./TypeIcon
 import {
   NEUTRAL_QUESTION,
   ROUTE_CHIPS,
+  AMEND_CHIP,
   ROUTE_WORD,
   SOMETHING_ELSE,
   readRouteIntent,
@@ -76,6 +77,7 @@ import { rungFor } from "../../channel/ladder";
 import { REACHES_THE_ORG } from "./Words";
 import { Narration, useNarration, type NarrationView } from "../../channel/Narration";
 import type { Facility } from "../../data/contract";
+import { amendPlanTitle, canAmendHere, VERSION_AMEND_REFUSAL } from "../../workroom/amendEngine";
 import {
   facilitiesInPackage,
   forkTargetVersion,
@@ -84,6 +86,7 @@ import {
   VERSION_TARGET_REFUSAL,
   lockedInFlightVersion,
   lockedSourcePackage,
+  MODIFICATION_IN_PROGRESS,
   mustChoosePackage,
   packagePick,
   packageRoster,
@@ -403,8 +406,13 @@ export interface WorkroomRouter {
    * closes this one, which no chip in that row does.
    *
    * Absent leaves the room byte-identical to the room before this door existed.
+   *
+   * `productPackageId` is the package the banker named at the door's own ask,
+   * where the room did not know which one yet (spec 2c.3). Omitted everywhere
+   * the room is already standing in one, which is every call that existed
+   * before the route question moved in front of the package question.
    */
-  onMemo?: () => void;
+  onMemo?: (productPackageId?: string) => void;
 }
 
 type ThreadItem = { id: string; step: number } & (
@@ -445,11 +453,13 @@ type ThreadItem = { id: string; step: number } & (
   /** The packages to choose between, when the relationship carries more than
    *  one. Ineligible ones stay visible and disabled. */
   | { kind: "packages" }
-  /** WHICH PACKAGE DOES THIS RUN IN — asked BEFORE anything binds, when the
+  /** WHICH PACKAGE DOES THIS RUN IN, asked once the ROUTE is settled, when the
    *  relationship stages more than one and none is anchored. Not a tier: it is
    *  a question waiting on the banker, and a tier fades when the next one
-   *  lands. Nothing lands until it is answered. */
-  | { kind: "pkgask" }
+   *  lands. Nothing lands until it is answered.
+   *  `forMemo` is the memo door's own ask: same picker, same rows, but the pick
+   *  opens the memo on that package instead of re-anchoring this room. */
+  | { kind: "pkgask"; forMemo?: boolean }
   /** The lookup, running. */
   | { kind: "lookup" }
   /** A READ QUESTION, ANSWERED FROM THE PACKAGE. Not a proposal and not a
@@ -531,6 +541,10 @@ const PACKAGE_QUESTION = "Which package does this run in?";
  *  version already in flight has claimed. */
 const LOCKED_TOPICS = ["terms"] as const;
 const PACKAGE_QUESTION_NOTE = "One package is one plan under one approval.";
+/** The memo door's own question and note: the memo is ABOUT a package, it does
+ *  not plan one, so it asks which and stages nothing. */
+const MEMO_PACKAGE_QUESTION = "Which package is the memo for?";
+const MEMO_PACKAGE_NOTE = "The memo is written about one package. Nothing is staged.";
 /** The header's own word for the anchor, in each of the three states. */
 const PACKAGE_ONLY = "the relationship's only package";
 const PACKAGE_NONE = "no product package on this relationship yet";
@@ -624,6 +638,13 @@ const bankerLine = (step: number, text: string, from?: string): ThreadItem =>
  *  referent at all, on the org and here. Mirrors `dispatch.ts`'s own list. */
 const REMOVAL_ON_CREATED =
   /\b(remove|removing|drop|dropping|delete|detach|unpledge|strike|take\s+off|take\s+out|scrap|exclude|excluding)\b/i;
+
+/** What the room says above a read it has just answered in the same words. */
+const SAME_READ = "That is the same read as a moment ago, and nothing on it has moved. Here it is again.";
+
+/** A demonstrative naming the member the banker is standing on, with no name in
+ *  it for a scope reader to resolve: "on this loan", "for this facility". */
+const THIS_MEMBER = /\bthis\s+(?:loan|facility|line|note|one)\b/i;
 
 /** The three routes, as words a reply may NAME while the question is open. The
  *  room is the authority on which words are legal, never the validator. */
@@ -1191,6 +1212,10 @@ export function Workroom({
   settleDeps?: SettleDeps;
 }) {
   const brief = useMemo(() => engine.brief(context), [engine, context]);
+  /** THE ROUTE IS STILL OPEN. Non-null while the room is asking which of the
+   *  three this is; the answer clears it and nothing puts it back. */
+  const [ask, setAsk] = useState<RouterQuestion | null>(() => router?.question ?? null);
+
   const packageChoiceCount = brief.packageChoices.length;
   /* CHIPS ARE NOT ALWAYS A QUESTION (founder, 2026-09-06). A modification on a
      relationship staging several packages genuinely cannot compose until one is
@@ -1215,12 +1240,28 @@ export function Workroom({
           is false for the whole shipped book, so the room the founder demos is
           byte-identical through this beat. */
   const roster = useMemo(() => packageRoster(reads?.bundle ?? null, reads?.history), [reads?.bundle, reads?.history]);
-  /* AND A CREATE NEVER ASKS IT AT ALL. The pre-route question exists because a
+  /* AND A CREATE NEVER ASKS IT AT ALL. The package question exists because a
      modification has to know which package it is versioning; a new facility
      creates a new package, so the relationship's existing ones are an offer the
-     create engine makes further down and never a gate at the door. */
-  const packagePending =
+     create engine makes further down and never a gate at the door.
+
+     WHICH PACKAGE THE ROOM DOES NOT KNOW YET. It is not the same thing as the
+     question being ON the glass: the room withholds every package-altitude
+     figure (the pin, the card, the facilities, the greeting's envelope) from the
+     moment it opens, and only ASKS once the route is settled. */
+  const packageUnknown =
     context.mode !== "create" && mustChoosePackage(reads?.bundle ?? null, context.productPackageId);
+  /* ---- ROUTE FIRST, PACKAGE SECOND (spec 2c.3, founder 2026-09-13).
+
+     The room used to ask which package before it asked which route, which put
+     the anchor decision in front of the one that decides what the anchor is
+     even for: Modify and Renew need a BOOKED package, a new facility needs one
+     that is still before approval or none at all, and a memo needs the package
+     it is about. One question in front of three different answers. So the ROUTE
+     is asked first and the package question follows only where the route needs
+     one, scoped by `packageAsk` below. One package on the relationship still
+     binds silently, which is the whole shipped book. */
+  const packagePending = packageUnknown && !ask;
   /* ONE MODIFICATION IN FLIGHT PER PACKAGE (rule 2, founder 2026-09-03). The
      package this room stands in already has an unbooked modification version
      with the org, so a second one would fork the version chain. Null wherever
@@ -1238,6 +1279,17 @@ export function Workroom({
     () => forkTargetVersion(roster, context.productPackageId),
     [roster, context.productPackageId],
   );
+  /* MAY THIS ROOM BE SHAPED IN PLACE (0.9.23)? One judgement, `amendablePackage`,
+     and it is the same one `StageAmendVersion` re-reads on the org: an in-flight
+     version still below Approval / Loan Committee, or a package the cockpit
+     created with nothing booked on it. It decides two things and nothing else:
+     whether the route question carries a fourth chip, and whether a fork route
+     refused on a version points at Amend or at Salesforce. */
+  const amendHere = useMemo(
+    () => canAmendHere(reads?.bundle ?? null, context.productPackageId, reads?.history),
+    [reads?.bundle, reads?.history, context.productPackageId],
+  );
+
   /** The version's own nCino record, for the chip on the refusal. Null with no
    *  org address on the view — a guessed host is worse than no link (A29). */
   const lockedHref = locked?.inFlightVersionId ? packageDeepLink(instanceUrl, locked.inFlightVersionId) : null;
@@ -1302,15 +1354,19 @@ export function Workroom({
     [mailHits, context.accountName, reads?.generatedAt],
   );
 
-  /** THE ROUTE IS STILL OPEN. Non-null while the room is asking which of the
-   *  three this is; the answer clears it and nothing puts it back. */
-  const [ask, setAsk] = useState<RouterQuestion | null>(() => router?.question ?? null);
-
   /** WHICH KIND OF ASK THIS ROOM'S PICKERS ARE MAKING. A fork only once the
    *  route is settled on one of the two that version a package; a room still
    *  asking which route this is closes no door, because the route chips refuse
    *  Modify and Renew there by name when it comes to it. */
-  const packageAsk: PackageAsk = !ask && (context.mode === "modify" || context.mode === "renew") ? "fork" : "open";
+  /* AND AN AMEND ROOM ASKS AN AMEND ASK (0.9.23). It is the one kind that
+     renders an editable version as PICKABLE and a booked package as blocked,
+     which is the exact mirror of the fork ask. */
+  const packageAsk: PackageAsk =
+    context.mode === "amend"
+      ? "amend"
+      : !ask && (context.mode === "modify" || context.mode === "renew")
+        ? "fork"
+        : "open";
 
   /** Rule 44: the bar carries ONE word. The room's own name minus the noun the
    *  room already is; the app bar carries the brand. An UNBOUND room has no
@@ -1381,14 +1437,20 @@ export function Workroom({
          booked loan, so the org would refuse the staging; the room says so
          first, and in the same place the source's own refusal lives. */
       if (versionHere && (route === "modify" || route === "renew")) {
-        sayInFlightRefusal(VERSION_TARGET_REFUSAL, null);
+        /* AND THE WAY OUT IS IN THIS ROOM NOW (0.9.23). Before the amend route
+           existed the only honest door was Salesforce, so the refusal said so;
+           it would be a lie to keep saying it beside a chip that does the work.
+           A version the room cannot amend either - one the org has taken - is
+           already answered above by `IN_APPROVAL_REFUSAL`, so the Salesforce
+           sentence survives exactly where it is still true. */
+        sayInFlightRefusal(amendHere ? VERSION_AMEND_REFUSAL : VERSION_TARGET_REFUSAL, null);
         return true;
       }
       if (!lockedRoute(route)) return false;
       sayInFlightRefusal();
       return true;
     },
-    [instanceUrl, lockedRoute, sayInFlightRefusal, versionHere, versionLocked],
+    [amendHere, instanceUrl, lockedRoute, sayInFlightRefusal, versionHere, versionLocked],
   );
 
   const [histOpen, setHistOpen] = useState(false);
@@ -1829,11 +1891,17 @@ export function Workroom({
       // on the new engine; the rebuilt room lands the ritual on the first tick
       // rather than charging the banker for the shimmer a second time.
       markFacilityRoomLookedUp(context.accountId);
-      /* WHICH PACKAGE, BEFORE ANYTHING BINDS. On a relationship staging more
-         than one the room asks first and nothing else lands: no route chips, no
-         package card, no facilities, no greeting remark. One package is not a
-         choice and this branch is never taken for it. */
+      /* WHICH PACKAGE, ONCE THE ROUTE IS SETTLED (spec 2c.3). On a relationship
+         staging more than one the room asks under the route it just took, and
+         nothing else lands beside the question: no package card, no facilities,
+         no greeting remark. One package is not a choice and this branch is never
+         taken for it. */
       if (pending) {
+        /* AND THE COMPOSER SLEEPS AGAIN. Binding Modify does not remount this
+           room (the provisional route already IS modify), so the composer the
+           route question woke has to be put back: there is nothing to compose
+           against until the package is named. */
+        setAwake(false);
         setItems((prev) => [...prev, { kind: "pkgask", id: nextId("pkgask"), step: 0 }]);
         return;
       }
@@ -1944,7 +2012,7 @@ export function Workroom({
     if (!lookedUp || ask) return;
     // NOTHING UNDER AN UNANSWERED PACKAGE QUESTION. The package card and the
     // facilities both belong to a package, and none is chosen yet.
-    if (packagePending) return;
+    if (packageUnknown) return;
     if (tieredRef.current) return;
     tieredRef.current = true;
     const choosing = packageChoiceBlocks;
@@ -1969,7 +2037,7 @@ export function Workroom({
       return;
     }
     tierTimer.current = window.setTimeout(facilities, TIER_STAGGER_MS);
-  }, [ask, lookedUp, packageChoiceBlocks, packagePending, reduced, tierArrived]);
+  }, [ask, lookedUp, packageChoiceBlocks, packageUnknown, reduced, tierArrived]);
 
   /* ---- and the room hands the manifest back. Every landing and every removal,
           so a close at any moment loses nothing. Not once it has FILED. */
@@ -2264,12 +2332,20 @@ export function Workroom({
    * disagree about which facility a line named. An ambiguous or absent scope
    * word narrows nothing, which is the package-wide answer as before.
    */
+  /* AND COLLATERAL NARROWS THE SAME WAY (IMPROVEMENTS row 44). "show my full
+     collaterals" is the package; "show me the pledges on this loan" is one
+     member, and the member it means is the one the banker is standing on. A
+     demonstrative on its own carries no name for `readScope` to resolve, so the
+     FOCUS answers it, the only place a focus may settle a scope, and only
+     because the line named nothing else. */
   const readNarrowing = useCallback(
     (topic: ReadTopic, line: string): ReadOptions => {
-      if (topic !== "structure") return {};
-      return { role: readRole(line) ?? undefined, loanIds: readScope(line, elicitMembers).ids };
+      if (topic !== "structure" && topic !== "collateral") return {};
+      const scope = readScope(line, elicitMembers);
+      const ids = scope.ids.length || !THIS_MEMBER.test(line) || !focused ? scope.ids : [focused.id];
+      return topic === "structure" ? { role: readRole(line) ?? undefined, loanIds: ids } : { loanIds: ids };
     },
-    [elicitMembers],
+    [elicitMembers, focused],
   );
 
   /* THE ORG'S OWN CHIP SETS, READ ONCE PER VIEW (`Customer360Catalog`).
@@ -2794,7 +2870,7 @@ export function Workroom({
        the "$46MM package across six facilities" the founder read. The pick
        remounts this room, and the greeting is composed then, once, against the
        package the banker chose. */
-    if (packagePending) return;
+    if (packageUnknown) return;
     /* ONCE. `narration.open` is latched per item id, so a second call was
        already inert; what was NOT inert is the ref below, which a later pass
        would overwrite with a mail that arrived after the greeting had gone. */
@@ -2810,7 +2886,7 @@ export function Workroom({
     greetedWithMail.current = Boolean(mailNote);
     greeted.current = true;
     narration.open(openingIdRef.current, { act: "greeting", sentence: said });
-  }, [ask, brain, brief.greeting, brief.position, lookedUp, mailGate, mailNote, narration, packagePending]);
+  }, [ask, brain, brief.greeting, brief.position, lookedUp, mailGate, mailNote, narration, packageUnknown]);
 
   /* MAIL THAT MISSED THE GATE IS A SECOND REMARK, NEVER A REWRITTEN GREETING.
      The greeting is already on the glass and it is the one call that carried
@@ -2882,17 +2958,21 @@ export function Workroom({
       reply: BrainReply | null,
       instruction: string,
       mine: number,
-      opts: { fallback?: IntentResult | null; routeOpen?: boolean } = {},
+      opts: { fallback?: IntentResult | null; routeOpen?: boolean; gap?: string | null } = {},
     ) => {
       const answer = (item: NewItem) => setItems((prev) => [...prev, { ...item, step: mine } as ThreadItem]);
       const fallback = opts.fallback ?? null;
 
-      if (!reply || (isDegrade(reply) && fallback)) {
+      if (!reply || (isDegrade(reply) && (fallback || opts.gap))) {
         if (fallback) {
           renderParse(instruction, fallback, mine);
           return;
         }
-        answer({ kind: "agent", id: nextId("agent"), text: UNREADABLE_CLARIFY.text });
+        /* A RECOGNISED READ DEGRADES TO THE ROOM'S OWN GAP SENTENCE, never to
+           "I could not read that answer": the room knows what was asked and
+           what its book does not carry, and the desk coming back empty does not
+           unknow it (golden rule 4). */
+        answer({ kind: "agent", id: nextId("agent"), text: opts.gap ?? UNREADABLE_CLARIFY.text });
         return;
       }
 
@@ -2986,7 +3066,7 @@ export function Workroom({
    * floor the fast lane holds: an answer that snaps back reads as a lookup.
    */
   const runBrain = useCallback(
-    async (instruction: string, mine: number, routeOpen = false) => {
+    async (instruction: string, mine: number, routeOpen = false, gap: string | null = null) => {
       if (!brain) return;
       const started = Date.now();
       setThinking(true);
@@ -2999,10 +3079,37 @@ export function Workroom({
       } finally {
         setThinking(false);
       }
-      await landBrainReply(reply, instruction, mine, { routeOpen });
+      await landBrainReply(reply, instruction, mine, { routeOpen, gap });
     },
     [askTheDesk, beat, brain, landBrainReply],
   );
+
+  /** The read the room landed last, and the step it landed on. See `landRead`. */
+  const lastReadRef = useRef<{ signature: string; step: number } | null>(null);
+
+  /**
+   * A READ CARD, ONTO THE GLASS.
+   *
+   * THE SAME READ, ASKED TWICE, IS NOT ANSWERED TWICE IN SILENCE (golden rule
+   * 5). "show me all my collaterals" and "show my full collaterals" are one
+   * question asked two ways, and a room that prints the identical card again
+   * with nothing said reads as a room that did not hear the second one. The
+   * card still goes up, because the banker asked to see it; one sober line
+   * above it says it has not moved.
+   */
+  const landRead = useCallback((card: ReadCardModel, mine: number) => {
+    const signature = `${card.topic}|${card.lede}|${card.groups.flatMap((g) => g.rows).length}`;
+    const held = lastReadRef.current;
+    const again = held?.signature === signature && held.step === mine - 1;
+    lastReadRef.current = { signature, step: mine };
+    setItems((prev) => [
+      ...prev,
+      ...(again
+        ? [{ kind: "agent", id: nextId("agent"), step: mine, text: SAME_READ } as ThreadItem]
+        : []),
+      { kind: "read", id: nextId("read"), step: mine, card },
+    ]);
+  }, []);
 
   /**
    * A QUESTION, ANSWERED (golden rule 3).
@@ -3017,13 +3124,27 @@ export function Workroom({
   const answerAsked = useCallback(
     async (instruction: string, mine: number): Promise<void> => {
       const topic = readTopic(instruction);
-      const card = topic !== null && reads ? buildReadCard(topic, reads, readNarrowing(topic, instruction)) : null;
+      const narrowing = topic !== null ? readNarrowing(topic, instruction) : {};
+      const card = topic !== null && reads ? buildReadCard(topic, reads, narrowing) : null;
       if (card) {
-        setItems((prev) => [...prev, { kind: "read", id: nextId("read"), step: mine, card }]);
+        landRead(card, mine);
         return;
       }
+      /* THE GAP SENTENCE NAMES WHAT WAS ASKED ABOUT. A read the room recognises
+         and cannot answer is a hole in the BOOK, and saying which facility it
+         looked at is the difference between an answer and a shrug. It is also
+         what the desk degrades to: a round trip that comes back empty must not
+         leave the banker with less than the room already knew.
+
+         FEES ARE THE EXCEPTION, and the gap sentence says why: no read on this
+         cockpit carries them at all, so the room knows nothing the desk might
+         not, and its degrade stays the desk's own. */
+      const gap =
+        topic !== null && topic !== "fees"
+          ? readGap(topic, context.accountName, narrowing.loanIds?.length === 1 ? memberLabel(narrowing.loanIds[0]) : null)
+          : null;
       if (brain) {
-        await runBrain(instruction, mine);
+        await runBrain(instruction, mine, false, gap);
         return;
       }
       setItems((prev) => [
@@ -3033,13 +3154,12 @@ export function Workroom({
           id: nextId("agent"),
           step: mine,
           text:
-            topic !== null
-              ? readGap(topic, context.accountName)
-              : `${whatICanDo(context.accountName)} This view is not connected to the bank's systems, so I cannot take the question itself any further than that.`,
+            gap ??
+            `${whatICanDo(context.accountName)} This view is not connected to the bank's systems, so I cannot take the question itself any further than that.`,
         },
       ]);
     },
-    [brain, context.accountName, reads, runBrain],
+    [brain, context.accountName, landRead, memberLabel, readNarrowing, reads, runBrain],
   );
 
   /**
@@ -4791,7 +4911,7 @@ export function Workroom({
       const topic = commanded ? null : readTopic(instruction);
       const localCard = topic !== null && reads ? buildReadCard(topic, reads, readNarrowing(topic, instruction)) : null;
       if (localCard) {
-        answer({ kind: "read", id: nextId("read"), card: localCard });
+        landRead(localCard, mine);
         return;
       }
 
@@ -4870,6 +4990,25 @@ export function Workroom({
     },
     [refuseLockedRoute, router],
   );
+
+  /* THE MEMO'S OWN PACKAGE QUESTION (spec 2c.3). A memo is about one package
+     version and nothing else. Where the room already knows which package it is
+     standing in the door opens the memo straight away, exactly as it did; where
+     it does not, it asks with the REVIEW picker rather than opening a memo
+     anchored on nothing, and the pick carries the package to the memo room
+     instead of re-anchoring this one. */
+  const askMemoPackage = useCallback(() => {
+    if (!router?.onMemo) return;
+    if (!packageUnknown) {
+      router.onMemo();
+      return;
+    }
+    setItems((prev) =>
+      prev.some((i) => i.kind === "pkgask" && i.forMemo)
+        ? prev
+        : [...prev, { kind: "pkgask", forMemo: true, id: nextId("pkgask"), step: 0 }],
+    );
+  }, [packageUnknown, router]);
 
   /** The banker took the discard and asked for the other route. The hold is what
    *  survives a close, so a restart that left it behind would resume the
@@ -6069,12 +6208,34 @@ export function Workroom({
      plan: the plan has a package, it is simply one the org has not made. */
   const openingNewPackage = context.mode === "create" && !context.productPackageId;
   const joinOnOffer = brief.packageChoices.filter((c) => c.id !== NEW_PACKAGE_CHOICE).length;
-  const packageLineLabel = packagePending
+  /* THE ROOM NAMES THE STATE IT IS STANDING IN (founder, 2026-09-13). A room
+     opened on an in-flight version used to read "Chosen from 2 on this
+     relationship", which says how the banker got here and not what this
+     package IS. The roster already knows: `MODIFICATION_IN_PROGRESS` is the
+     founder's own first-class name for it, and `inFlightEditable` is the half
+     that decides whether it is still theirs. Null on every package that is not
+     a version, where the lines below are unchanged. */
+  /* THE PLAN CARD SAYS WHICH OF THE TWO THIS IS (0.9.23). "One clone. One
+     single use token. One approval." is true of a modification and false of an
+     amendment, and the difference is the whole of what the banker signs: an
+     amendment changes the version the org already holds, forks nothing and
+     starts no credit action. It names the version, because WHICH record this
+     writes is the fact that decides. */
+  const planTitle = context.mode === "amend" ? amendPlanTitle(context.packageName) : vocabulary.planTitle;
+
+  const versionStance = anchoredEntry?.inFlightVersion
+    ? `${MODIFICATION_IN_PROGRESS} · ${anchoredEntry.inFlightEditable ? "editable until approval" : "in approval · locked"}` +
+      (anchoredEntry.inFlightEditable && context.mode !== "amend"
+        ? ". Shape it in place with Amend; Modify and Renew fork a booked package and this one holds none."
+        : "")
+    : null;
+
+  const packageLineLabel = packageUnknown
     ? `choose one of ${roster.length}`
     : openingNewPackage
       ? NEW_PACKAGE
       : (anchoredEntry?.name ?? (context.productPackageId ? brief.packageName : PACKAGE_NONE));
-  const packageStance = packagePending
+  const packageStance = packageUnknown
     ? `${roster.length} packages on this relationship. None is chosen yet, so nothing below is scoped to one.`
     : openingNewPackage
       ? `A new facility creates a new package. The plan makes one and files the facility into it${
@@ -6084,11 +6245,13 @@ export function Workroom({
         }`
       : !context.productPackageId
         ? PACKAGE_NONE
-        : context.mode === "create"
-          ? `Chosen over a new package: it is still before approval, so it can take the facility.`
-          : roster.length === 1
-            ? `${PACKAGE_ONLY}. The room anchored on it and you were not asked.`
-            : `Chosen from ${roster.length} on this relationship.`;
+        : versionStance
+          ? versionStance
+          : context.mode === "create"
+            ? `Chosen over a new package: it is still before approval, so it can take the facility.`
+            : roster.length === 1
+              ? `${PACKAGE_ONLY}. The room anchored on it and you were not asked.`
+              : `Chosen from ${roster.length} on this relationship.`;
 
   /** SWITCHING IS A REBUILD, NEVER A SWAP. One session is one package is one
    *  plan is one approval, so a manifest composed against one package must be
@@ -6162,6 +6325,21 @@ export function Workroom({
       ),
     });
 
+  /* THE FOURTH CHIP, AND IT IS CONDITIONAL BY CONSTRUCTION (0.9.23, spec 2a.1).
+     Modify, Renew and New facility are the routes for every room; Amend exists
+     only where the room is standing in something that can be shaped in place,
+     so it is appended from the roster rather than living in `ROUTE_CHIPS`. It
+     sits BESIDE the other three and before "Something else", which answers
+     nothing and stays last. Never twice: a smart opening whose yes-chip is
+     already the amend route keeps its own chip. */
+  const routeChips = useMemo(() => {
+    const chips = ask?.chips ?? [];
+    if (!amendHere || chips.some((c) => c.route === "amend")) return chips;
+    const at = chips.findIndex((c) => c.route === null);
+    const amend = { label: AMEND_CHIP.label, route: AMEND_CHIP.route };
+    return at === -1 ? [...chips, amend] : [...chips.slice(0, at), amend, ...chips.slice(at)];
+  }, [amendHere, ask]);
+
   const openingItem = (
     <div className="wk-msg wk-agent" data-who="Agent" key="opening">
       <div className="wk-bub wk-openbub">
@@ -6177,7 +6355,7 @@ export function Workroom({
             $13M" over an unanswered package question is the founder's own
             complaint in miniature: a figure at package altitude on a room that
             has not been told which package. */}
-        {brief.askPin && !packagePending && <span className="wk-askpin tnum">{brief.askPin}</span>}
+        {brief.askPin && !packageUnknown && <span className="wk-askpin tnum">{brief.askPin}</span>}
         {/* THE ROOM OPENS BY NAME. The greeting is a real read or it is absent;
             it is never a label, and it is never a record id. */}
         <div className="wk-headline">
@@ -6193,7 +6371,7 @@ export function Workroom({
               carries the question instead of the position — the position is
               what the room says once it knows which room it is. */}
           <Words
-            text={packagePending ? PACKAGE_QUESTION : ask ? ask.line : brief.position}
+            text={ask ? ask.line : packagePending ? PACKAGE_QUESTION : brief.position}
             offset={brief.greeting ? brief.greeting.trim().split(/\s+/).length : 0}
           />
         </div>
@@ -6202,24 +6380,26 @@ export function Workroom({
         {/* ONE ROW, tighter (founder, 2026-09-01): the three routes are one
             decision, so they read as one line rather than a wrapping field of
             pills. Two or three one-word labels always fit. */}
-        {/* THE ROUTE WAITS ON THE PACKAGE. Three route chips over an unanswered
-            package question would be two decisions on one line, and the second
-            of them is the one the whole session is anchored on. */}
-        {ask && !packagePending && (
+        {/* AND THE ROUTE NO LONGER WAITS ON THE PACKAGE (spec 2c.3). It is the
+            first decision, because it is the one that says what a package is
+            being picked FOR; the package question follows it, scoped by it. */}
+        {ask && (
           <div className="wk-opts wk-routes">
-            {ask.chips.map((chip) => (
+            {routeChips.map((chip) => (
               <button type="button" className="wk-opt" key={chip.label} onClick={() => chooseRoute(chip)}>
                 {chip.label}
               </button>
             ))}
           </div>
         )}
-        {/* THE MEMO DOOR. It waits on the package exactly as the routes do,
-            because a memo is about one package version and nothing else, and it
-            sits UNDER the row so the three-route decision keeps its own line. */}
-        {ask && !packagePending && router?.onMemo && (
+        {/* THE MEMO DOOR, beside the routes rather than behind the package: a
+            memo is about one package version and nothing else, so where the room
+            does not know which package yet the door ASKS, with the review
+            picker, and opens the memo on the one the banker names. It sits
+            UNDER the row so the route decision keeps its own line. */}
+        {ask && router?.onMemo && (
           <div className="wk-memodoor">
-            <button type="button" className="wk-memobtn" data-door="memo" onClick={() => router.onMemo?.()}>
+            <button type="button" className="wk-memobtn" data-door="memo" onClick={() => askMemoPackage()}>
               Credit memo
             </button>
             <span className="wk-memonote">Draft the memo for this package. Nothing is staged.</span>
@@ -6337,7 +6517,7 @@ export function Workroom({
             <button
               type="button"
               className="wk-pkgline"
-              data-pkgline={context.productPackageId ?? (packagePending ? "pending" : openingNewPackage ? "new" : "none")}
+              data-pkgline={context.productPackageId ?? (packageUnknown ? "pending" : openingNewPackage ? "new" : "none")}
               aria-label={`Package: ${packageLineLabel}`}
               onClick={(e) => openPackagePeek(e.currentTarget)}
             >
@@ -6532,6 +6712,7 @@ export function Workroom({
                             filed={item.kind === "dossier" && finaleState !== "off" ? filedLines : null}
                             filedHead={filedHead}
                             onAnchor={onAnchor}
+                            onMemoPackage={(entry) => router?.onMemo?.(entry.id)}
                             onOpenPeek={openPeek}
                             onConfirm={confirmChip}
                             onDiscard={settleOpenChip}
@@ -6665,7 +6846,7 @@ export function Workroom({
                         approver={context.approver}
                         loadSteps={brief.loadSteps}
                         packageName={brief.packageName}
-                        planTitle={vocabulary.planTitle}
+                        planTitle={planTitle}
                         planSummary={figures.planSummary}
                         /* THE SAME SPLIT THE RAIL HEAD NOW CARRIES, on the card
                            that sits right above the Execute button, the room's
@@ -7231,6 +7412,7 @@ function ThreadBlock({
   lit,
   hold,
   onAnchor,
+  onMemoPackage,
   onOpenPeek,
   onConfirm,
   onDiscard,
@@ -7266,6 +7448,8 @@ function ThreadBlock({
    *  over the top of one that is still leaving. Zero everywhere else. */
   hold: number;
   onAnchor?: (choice: PackageChoice) => void;
+  /** The memo door's package pick: it opens the memo, it does not anchor here. */
+  onMemoPackage?: (entry: PackageEntry) => void;
   onOpenPeek: ReturnType<typeof usePeek>["openPeek"];
   onConfirm: (blockId: string, chipKey: string, delta: WorkroomDelta) => void;
   onDiscard: (blockId: string, chip: ChipModel) => void;
@@ -7301,13 +7485,19 @@ function ThreadBlock({
 
   /* THE PACKAGE ASK. Every package the relationship stages, as a line item the
      banker reads before picking: the deal's name, its stage, how many
-     facilities it holds and what is committed across them. ROUTE-NEUTRAL, so
-     nothing is offered hollow here: a package no modification can run against
-     still takes a new facility, and the route has not been picked yet. */
+     facilities it holds and what is committed across them.
+
+     SCOPED BY THE ROUTE (spec 2c.3), which is why it comes after it: Modify and
+     Renew offer a BOOKED package and block the version and its locked source,
+     an amend offers the version and blocks the booked package, and the memo
+     door's own ask reads the package the memo is for with the review picker.
+     WHICH rows those are is `packagePick`'s call, and it is the same call the
+     header's switch and the relationship room make. */
   if (item.kind === "pkgask") {
+    const askKind: PackageAsk = item.forMemo ? "review" : packageAsk;
     return (
-      <div className="wk-pkgs wk-pkgask" role="radiogroup" aria-label={PACKAGE_QUESTION}>
-        <div className="wk-pkgask-h">{PACKAGE_QUESTION_NOTE}</div>
+      <div className="wk-pkgs wk-pkgask" role="radiogroup" aria-label={item.forMemo ? MEMO_PACKAGE_QUESTION : PACKAGE_QUESTION}>
+        <div className="wk-pkgask-h">{item.forMemo ? MEMO_PACKAGE_NOTE : PACKAGE_QUESTION_NOTE}</div>
         {roster.map((entry) => {
           /* A BLOCKED PACKAGE IS LISTED AND DISABLED (rule 2 + rule 30, the
              same treatment the ineligible package already gets). It is a real
@@ -7316,7 +7506,7 @@ function ThreadBlock({
              room they can work in, so it carries its reason instead of its
              figures and nothing about it is clickable.
              WHICH packages those are is `packagePick`'s call, not this JSX's. */
-          const pick = packagePick(entry, packageAsk);
+          const pick = packagePick(entry, askKind);
           return (
             <button
               type="button"
@@ -7328,9 +7518,11 @@ function ThreadBlock({
               disabled={pick.blocked}
               data-inflight={pick.blocked ? "1" : undefined}
               title={pick.line}
-              onClick={() =>
-                !pick.blocked && onAnchor?.({ id: entry.id, label: entry.name, figure: entry.line, eligible: true })
-              }
+              onClick={() => {
+                if (pick.blocked) return;
+                if (item.forMemo) onMemoPackage?.(entry);
+                else onAnchor?.({ id: entry.id, label: entry.name, figure: entry.line, eligible: true });
+              }}
             >
               <span>
                 <b>{entry.name}</b>

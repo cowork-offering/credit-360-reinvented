@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { packageJoinability, packageStageBeforeApproval } from "./packageStage";
+import { packageJoinability, packageStageBeforeApproval, type InFlightMark } from "./packageStage";
 import type { BorrowerBundle, Facility } from "./contract";
 
 /* =============================================================================
@@ -34,7 +34,11 @@ function bundle(over: { stage?: string; primaryStage?: string; facilities?: Faci
   } as BorrowerBundle;
 }
 
-const verdict = (b: BorrowerBundle, id = PACKAGE) => packageJoinability(b).find((p) => p.id === id)!;
+/* THE ROSTER'S IN-FLIGHT MARKS, which every caller now has to supply (0.9.23).
+   Empty is the ordinary book and reads exactly as this rule always has; the
+   in-flight cases below pass their own. */
+const verdict = (b: BorrowerBundle, id = PACKAGE, roster: readonly InFlightMark[] = []) =>
+  packageJoinability(b, roster).find((p) => p.id === id)!;
 
 describe("the package stage picklists, as the org holds them", () => {
   it("takes the two managed values before Complete, and refuses Complete", () => {
@@ -134,7 +138,30 @@ describe("which packages a new facility may join", () => {
     expect(verdict(lone).joinable).toBe(true);
   });
 
+  /* ------------------------------------------------- the in-flight exclusion */
+
+  /* FOUNDER, 2026-09-13 (spec 2c.1): "the booked SOURCE of an in-flight version
+     is never offered as a home for a new facility." The stage fields cannot see
+     it: an in-flight modification is a fact about a SECOND package, derived by
+     `packageRoster` from the unbooked mirror. So the roster's verdict travels
+     in, and the rule fails closed on it. */
+  it("refuses the booked source of a version in flight, whatever its stage reads", () => {
+    const open = bundle({ stage: "In Review", facilities: [facility({ stage: "Proposal" })] });
+    // Without the mark this package is joinable: the stage fields say nothing.
+    expect(verdict(open).joinable).toBe(true);
+    const marked = verdict(open, PACKAGE, [{ id: PACKAGE, hasInFlightModification: true, inFlightVersion: false }]);
+    expect(marked.joinable).toBe(false);
+    expect(marked.reason).toContain("in flight and unbooked");
+    expect(marked.reason).toContain("left behind when the version books");
+  });
+
+  it("leaves every other package on the relationship exactly as it was", () => {
+    const open = bundle({ stage: "In Review", facilities: [facility({ stage: "Proposal" })] });
+    // A mark naming a DIFFERENT package changes nothing here.
+    expect(verdict(open, PACKAGE, [{ id: OTHER, hasInFlightModification: true, inFlightVersion: false }]).joinable).toBe(true);
+  });
+
   it("says nothing about a relationship the read says nothing about", () => {
-    expect(packageJoinability(null)).toEqual([]);
+    expect(packageJoinability(null, [])).toEqual([]);
   });
 });

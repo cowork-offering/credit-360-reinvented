@@ -583,5 +583,302 @@ always means a `Changed` receipt on the guard. Plan for it rather than treating 
 
 ---
 
+## 8. The version discard: probe answers before the first delete (2026-09-13, A2 lane, 0.9.23)
+
+Every item here is read-only evidence from bankinggpt-at, taken BEFORE `StageDiscardVersion` /
+`ExecuteDiscardVersion` were written, in answer to the four probes the 0.9.23 contract demanded.
+Nothing in this section was settled from the spec's wording.
+
+### 8a. There is NO managed undo we can call. The delete chain is the route, not the fallback.
+
+34. **`LLC_BI.ActionedLoansRollbackProcessor` exists and is unreachable from Apex.** The org carries
+    `ActionedLoansRollbackProcessor`, `...Aura`, `...Remote` and their tests. None is callable:
+    - the Tooling API returns `SymbolTable = null` for all of them, and the SAME query returns a
+      populated SymbolTable for `nFORCE.BeanFactory`, `nFORCE.ACrossPackageService` and
+      `nFORCE.CallableApi_v1`. **That control is what makes the null meaningful**: a null SymbolTable
+      on a managed class is the Tooling API's way of saying "not global", not a blanket behaviour.
+    - none appears among the org's **174** invocable Apex actions
+      (`/services/data/v62.0/actions/custom/apex`); the only `LLC_BI__*` entries are `*Invoker`
+      loaders and savers plus `CreateCreditReviewInvoker`, `GenerateDocument`, `LoanAutoDecision`,
+      `MemoController`, `QueuedFlow`, `RLTVCalculatorInvoker`, `TotalExposureInvocable`.
+    - `/services/data/vXX/tooling/completions?type=apex` returns **standard namespaces only** (170 of
+      them, zero managed), so it is useless for this question. Do not waste a round on it.
+    - `nFORCE__Bean_Registry__c` is an installed CustomObject that the data API refuses
+      (`sObject type 'nFORCE__Bean_Registry__c' is not supported`), so the registered bean list
+      cannot be enumerated read-only. The one credit-action bean we know of is
+      `LLC_BI.InvokableCreditActionXPkg`, and it performs actions rather than undoing them.
+35. **nCino's rollback is a different thing from a banker's undo anyway.** PDI-00018042 describes the
+    AUTOMATIC rollback of a FAILED credit action, gated on the "Credit Actions Delete" permission
+    set. It is not a supported way to remove a credit action that succeeded. The Aura and Remote
+    variants are the entry points for nCino's own Rollback button, which is UI-bound.
+    **Remaining unproven leg:** `nFORCE.CallableApi_v1`'s `verify` action could enumerate registered
+    services, but it needs an executeAnonymous. That is a one-line read-only reflection probe for
+    whoever runs the org proof; our chain is correct either way.
+
+### 8b. Delete rights: the integration user already has all of them.
+
+36. **"Credit Actions Delete" EXISTS and IS ASSIGNED.** `LLC_BI__Product_Package_Credit_Actions_Delete`
+    (label `Credit Actions Delete`, id `0PSbb000000EEWZGA4`) is one of four permission sets assigned
+    to `fabian.goetzens@accenture.com.bankinggpt` (`005bb00000ftouDAAQ`), alongside
+    `LLC_BI__Credit_Actions_and_Reviews_User` and `C360_Action_Staging_Access`. `ObjectPermissions`
+    over every assigned parent shows `PermissionsDelete = true` on all twelve objects in the discard
+    inventory, granted by the System Administrator profile. There is no permissions blocker.
+
+### 8c. Cascade behaviour: read it off `childRelationships`, not off the field describe.
+
+37. **The Loan's `childRelationships` is the fastest complete answer to "what blocks a delete".** One
+    `sf sobject describe -s LLC_BI__Loan__c` carries `cascadeDelete` and `restrictedDelete` for every
+    child. For `LLC_BI__Loan__c` in this org:
+    - **CASCADE (go with the facility, never deleted by us):** `LLC_BI__Loan_Covenant__c`,
+      `LLC_BI__Fee__c`, `LLC_BI__Loan_Detail__c`, `LLC_BI__LLC_LoanDocument__c`,
+      `LLC_BI__Covenant__c`, `LLC_BI__Loan_Collateral__c`, `LLC_BI__Pricing_Option__c`,
+      `ProcessInstance`, and `LLC_BI__LoanRenewal__c` **through `ParentLoanId` only**.
+    - **RESTRICTED (block the facility delete):** `LLC_BI__Loan_Collateral2__c`,
+      `LLC_BI__Loan_Compliance__c`, `LLC_BI__Opportunity_History__c`, `LLC_BI__Repayment_Vehicle__c`,
+      `LLC_BI__Spread__c`, `LLC_BI__Statistic__c`, `AuthFormRequestRecord`,
+      `DocChkItemValidatedTarget`, `RecordAlert`.
+    - **PLAIN LOOKUP (must be deleted explicitly):** `LLC_BI__Pricing_Stream__c`,
+      `LLC_BI__Legal_Entities__c`, `LLC_BI__Pricing_Rate_Component__c` and
+      `LLC_BI__Pricing_Payment_Component__c` (both through the org-local `cm_Loan__c`, and both are
+      master-detail on `LLC_BI__Pricing_Stream__c` as well), `LLC_BI__LoanRenewal__c` through
+      `RenewalLoanId`, and `LLC_BI__Loan__c.LLC_BI__Product_Package__c`.
+    On `LLC_BI__Product_Package__c` the only `LLC_BI__*` restricted child is
+    `LLC_BI__Opportunity_History__c`; its loans are a plain lookup, so a package delete neither
+    cascades to nor is blocked by its members.
+38. **`LLC_BI__LoanRenewal__c.RenewalLoanId` is a PLAIN LOOKUP while `ParentLoanId` is the
+    master-detail leg.** That single asymmetry is the whole reason the 2026-09-11 manual chain was
+    needed: deleting the clone strands the row on the booked parent, and a stranded row makes every
+    later credit action fail with "The request contains invalid facilities". Chain rows go FIRST.
+39. **`LLC_BI__Opportunity_History__c` is a trap that must NOT become a refusal.** It carries
+    `restrictedDelete` against both the Loan and the Product Package, AND nCino mints one at loan
+    CREATION (observed to the second: loan `a4Zbb000002ICnxEAG` created at `13:07:29`, OH-00035535
+    created at `13:07:29`). All nine Hartwell facilities carry at least one. Refusing on it would
+    refuse EVERY discard, and the 2026-09-11 manual run deleted its clone loans successfully with
+    those rows present, so nCino's own delete handling clears them. Treat it as an expected org-side
+    clearance, warn about it in the plan, and let a failure stop the chain honestly. The other four
+    restricted children hold **zero rows org-wide**, which is what makes their presence a banker
+    artefact worth refusing on.
+
+### 8d. `hasRenewal` is a formula over a rollup, and the self-anchor does not feed it.
+
+40. **`LLC_BI__hasRenewal__c` is `LLC_BI__Number_Of_Renewals__c > 0`** (read off the describe's
+    `calculatedFormula`), and `Number_Of_Renewals__c` is a rollup whose filter is managed and
+    therefore unreadable. Live rows settle what it counts:
+
+    | Parent | chain rows | Number_Of_Renewals | hasRenewal |
+    |---|---|---|---|
+    | Hartwell `a4Zbb000002ICnxEAG` and `ICnyEAG` | one revision-0 self-anchor each, `HasActiveRenewalLoan=false` | 0 | false |
+    | Piedmont `a4Zbb000001vavpEAA` | self-anchor plus revision-1 `Superseded`, `HasActiveRenewalLoan=true` | 1 | true |
+    | EverPetal `a4Zbb000000xTy5EAE` | self-anchor plus revision-1 `In Progress`, `HasActiveRenewalLoan=true` | 1 | true |
+
+    **Only the revision row that points at a clone counts.** The 0.9.23 contract's parenthetical
+    "both revisions; this is what flips the parents' hasRenewal formula back" is therefore half
+    right: the revision row flips it, the self-anchor is bookkeeping.
+    **Consequence for any future undo:** delete the revision rows always, and delete a self-anchor
+    ONLY when the same fork minted it (`CreatedDate` not earlier than the version package's). A
+    parent that already carried a self-anchor (Hartwell's Real Estate pair do) would otherwise have
+    pre-existing data destroyed for no gain.
+41. **`LLC_BI__LoanRenewal__c` has THREE hard-required createable fields**, not one:
+    `LLC_BI__ParentLoanId__c`, `LLC_BI__PreviousVersionStage__c`, `LLC_BI__PreviousVersionStatus__c`.
+    The two version fields are absent from every doc and cost a validation round on the first
+    fixture. All 45 live rows carry `Booked` and `Open`, which is what the parent was before the fork.
+
+### 8e. The contract's step 7 cannot be honoured yet: there is no `Withdrawn`.
+
+42. **`cm_Action_Staging__c.cm_Status__c` is a RESTRICTED picklist offering exactly
+    `Staged, Executing, Completed, Partial, Failed`.** `Withdrawn` is not among them, and
+    `restrictedPicklist: true` means the org REFUSES the write rather than storing it silently
+    (contrast lesson 15w, which is about unrestricted picklists). Adding a picklist value to our own
+    object is a founder call, so `ExecuteDiscardVersion` reads the value off the org at run time:
+    where it is offered the rows are marked and verified, where it is not the rows are LEFT AS THEY
+    STAND, the step reports `skipped_not_attempted` naming the missing value, and the run reads
+    PARTIAL. **Proposal on the table: add `Withdrawn` to `cm_Status__c`.** Note the org's LOAN status
+    picklist already offers `Withdrawn`, so the word is the org's own.
+
+### 8f. Two object-model corrections the contract's wording needs.
+
+43. **There is no loan-side document placeholder in this org.**
+    `LLC_BI__Document_Placeholder__c` exists but carries NO `LLC_BI__Loan__c` and NO
+    `LLC_BI__Product_Package__c` lookup (its parents are DocClass, DocType, DocTab, DocManager,
+    Requirement, Closing Checklist, Document Store Index, plus NDOC's account, collateral and
+    deposit legs). The loan-side document object is `LLC_BI__LLC_LoanDocument__c`, it is
+    **master-detail on the Loan (cascade)**, and "with content" is `LLC_BI__Has_File__c`. Because it
+    cascades, a filed document would be destroyed silently by a facility delete, which is exactly why
+    it is a refusal. `Has_File__c` is a FORMULA and is not createable, so that refusal branch cannot
+    be unit-tested; it is a live-probe item.
+44. **A settled approval must not be a refusal.** `ProcessInstance` keeps its row forever: of this
+    org's 62, **42 read `Removed`**, 13 `Rejected`, 6 `Approved`, 1 `Started`. `ApprovalSubmission`
+    offers `Approved, Canceled, Errored, InProgress, Recalled, Rejected, Suspended`. Refusing on the
+    mere existence of an approval row would make a recall a one-way door: the banker pulls the
+    version back and can then never discard it. Refuse on LIVE only (`Pending` or `Started` on
+    ProcessInstance, `InProgress` or `Suspended` on ApprovalSubmission) and warn on the rest.
+
+### 8g. Residue the frozen inventory does not cover.
+
+45. **A pledge delete orphans its `LLC_BI__Loan_Collateral_Aggregate__c` shell, and the 0.9.23
+    inventory does not name the shells.** `revert-hartwell.py` had to sweep orphans in a loop for
+    exactly this reason. `ExecuteDiscardVersion` reports them as an observed side effect and does NOT
+    delete them: the aggregate is a per-loan rollup anchor, a booked parent's facility can point at
+    one (lesson 33 records a renewal that cloned the pointer), and this action never removes what it
+    did not put there. **Open for the founder:** add the clone-owned shells to the inventory, or
+    accept inert orphans.
+
+### 8h. The delete fence, and why it is a second door rather than a wider one.
+
+46. **`C360WriteGuard.assertAllowed(object, OP_DELETE, ...)` still refuses EVERY object.** 0.9.23 did
+    not widen it, and `deleteIsRefusedEverywhere` passes unchanged. The discard reaches its deletes
+    through `assertAllowedForTool('discard-version', object, OP_DELETE, ...)`, answered against a
+    separate `TOOL_DELETE_OBJECTS` table and never falling through to the object gate. The reason is
+    not style: every object on the delete list is one this package also CREATES or CARRIES in some
+    other arm, so an object-level delete permission would silently hand the delete to the
+    modification arm too. The question worth answering is "may THIS action remove THIS object".
+
+### 8i. The amend pair, 2026-09-13 (A1: `stage_amend_version` / `execute_amend_version`).
+
+47. **`JSON` is shadowed by any local called `json`, and the compiler blames the call site rather than
+    the declaration.** A method that took an arm's payload into `String json` and then called
+    `JSON.deserializeUntyped(json)` failed to compile with `Method does not exist or incorrect
+    signature: void deserializeUntyped(String) from the type String`. Apex identifiers are
+    case-insensitive, so `JSON` resolved to the local and the system class became unreachable inside
+    that method. Same family as lesson 25, and it costs a full validate round the same way. RULE:
+    never name a local `json`, `blob`, `date`, `system`, `test`, `limits` or `database`; when a call
+    to a system class reports a signature that makes no sense, read the local declarations first.
+
+48. **A validate deploy that names a CALLER without its CHANGED callee compiles against the callee's
+    OLD shape.** `sf project deploy validate -m ApexClass:StageAmendVersion` failed with "Method is
+    not visible" on thirteen parsers that were already `public` in the working tree, because the
+    payload carried only the new classes and the org still held the previous `StageLoanModification`.
+    A validation deploy compiles against the ORG plus exactly what is in the payload. RULE: every
+    class whose source changed goes in the `-m` list, even when the change is one visibility keyword,
+    and its own test class goes in `-t` beside it so the same run proves it did not regress.
+
+49. **Order fixture members by a field the org does not derive.** nCino rebuilds a loan's `Name` from
+    its own commitment on every save (15a), so `ORDER BY Name` in a test helper is unstable across the
+    very writes the test makes: a test that moves an amount re-orders its own fixture underneath
+    itself. Order by the commitment, or by anything else the org stores rather than computes. Related
+    and worth recording as a NEGATIVE: `LLC_BI__Product_Package__c.Name` is stored verbatim (live SOQL
+    over the twelve most recent packages), so the rewrite behaviour is Loan's, not the model's.
+
+50. **A refusal that describes a RESOLUTION failure must never stand in front of a refusal that
+    describes the INSTRUCTION.** A borrowing-structure REMOVE on a version would be a real delete
+    (there is no carry for it to be an exclusion of), so the amend refuses it outright. The first cut
+    refused it after the shared parser ran, and the parser got there first with "that party is not
+    involved on this facility": accurate, and exactly the sentence that sends a banker off to ADD the
+    party so the remove will work. The instruction-level refusal now runs before the parser.
+
+51. **Reading a field the query did not select throws at RUNTIME and compiles clean.**
+    `C360ActionStaging.findCompleted` does not select `cm_Idempotency_Key__c`, and a replay sentence
+    that named the key back to the caller died with `System.SObjectException: SObject row was
+    retrieved via SOQL without querying the requested field`. Nothing about the expression looks
+    wrong. RULE: when a helper hands back an sObject it queried itself, read its SELECT list before
+    touching a field on it.
+
+52. **An amend needs no relay and no second hop, and that is a fact about the ENGINE rather than about
+    writes.** `ExecuteLoanModification` splits into two transactions and calls back into the org over
+    REST for two reasons, both of them nCino's credit action: a hosted-MCP context cannot host the
+    managed engine (JWT, no session id), and the engine plus the arm together spend more than the
+    LLC_BI namespace's own hundred-query budget. `ExecuteAmendVersion` runs the same arm code against
+    records that already exist, invokes no engine, and therefore runs inline in one transaction with
+    the relay ABSENT rather than carried unused. Measured: fifteen test methods, two of which write
+    every arm, in 18 seconds.
+
+53. **The loan stage ladder is ELEVEN rungs and the approval rung is spelled `Approval / Loan
+    Committee`.** Off the describe, 2026-09-13: Qualification, Proposal, Credit Underwriting, Final
+    Review, Approval / Loan Committee, Processing, Doc Prep, Closing, Boarding, Booked, Complete.
+    "Past approval" is a POSITION on that list rather than a word, and a stage the list does not name
+    must fail closed rather than rank as early. The PACKAGE stage picklist is three values only
+    (Pending, In Review, Complete), which is why a package-level "before approval" test has to read
+    `cm_Credit_Stage__c` beside it even though that field is never an authority.
+
+54. **The write guard already admitted the amend's whole field set, and reading the table beat
+    assuming.** `UPDATE_TRANSITIONS` constrains only the fields it LISTS (on Loan, just the one legal
+    Stage hop to Proposal) and admits any other non-forbidden field, so commitment, rate, term,
+    maturity, amortised term and first payment date pass `OP_UPDATE` with no guard change at all. The
+    one shape a new tool did have to borrow is the collateral aggregate shell, which lives in
+    `CARRY_OBJECTS` and not in `CREATE_STATES`: it is minted under `OP_CARRY`, exactly as the
+    modification's arm mints one for its own AUTHORED pledges. A new write target does not always
+    mean a `Changed` receipt on the guard. Read the table before planning one.
+
+55. **Sharing a parser is cheaper than sharing a wire type, and the two have opposite rules.** Lesson
+    16 keeps wire types duplicated per class because that is the only serialization shape proven in
+    this org. The ARM PARSERS are the other way round: `stage_amend_version` takes the same seven JSON
+    arms as `stage_loan_modification` by contract, and a second copy of roughly fifteen hundred lines
+    of org resolution (covenant type catalog, fee picklists, collateral types and their advance rates,
+    account names, the field-wave describe) is duplication that drifts the first time a picklist
+    moves. The change to the existing class was thirteen `private static` keywords becoming `public
+    static`, no body touched, and its own 67-test suite ran green in the same validation.
+
+### 8j. A CAUGHT `DmlException` makes the org's CDC queueable unmockable, so a failing delete cannot be tested.
+
+47. **`EventBridgeCallout` is a `Database.AllowsCallouts` Queueable that eleven unmanaged CDC
+    triggers enqueue, and Apex flushes queued jobs at the END OF EVERY TEST METHOD, not only at
+    `Test.stopTest()`.** The triggers are org-local: `LoanCDC`, `ProductPackageCDC`,
+    `LoanCollateral2CDC`, `LoanCovenantCDC`, `LegalEntitiesCDC`, `Covenant2CDC`, `CollateralCDC`,
+    `AccountCollateralCDC`, `AccountCovenantCDC`, `CollateralValuationCDC`, `PolicyExceptionCDC`.
+    The job does a plain `new Http().send(req)` to an AWS API Gateway endpoint.
+
+    **The discriminator is a CAUGHT `DmlException`, not the amount of DML.** Every execute test in
+    the discard suite deletes pledges, junctions, involvements, facilities and a package, and they
+    all pass with `C360TestFixture.armCalloutMock()` armed: the flush is served by the mock. The ONE
+    method that provoked a real delete failure (a restricted `LLC_BI__Opportunity_History__c` child
+    on the clone) and caught it failed every time with
+    `System.CalloutException: You have uncommitted work pending` raised from
+    `EventBridgeCallout.execute` line 18. Three arrangements were tried against the org on
+    2026-09-13 and all three reproduced it: `Test.stopTest()` moved before the second execute,
+    `Test.startTest()` with no `stopTest`, and no window at all. Dropping the window also surfaced a
+    second failure mode on the way, `System.LimitException: Too many SOQL queries: 101`, because a
+    stage plus two full executes do not fit one governor budget.
+
+    **RULE: a delete chain's stop-and-resume path must be proven with an INJECTED refusal, never a
+    real one.** `ExecuteDiscardVersion` carries a `@TestVisible private static String
+    refuseGroupOnce` that names one plan step, is null in every non-test context, and consumes
+    itself on first use. Same shape as `ExecuteLoanModification.engineOverride`, and for the same
+    reason: the seam stubs the thing the org will not let a test do, and stubs nothing else. Every
+    other group in that test really deletes, every verification really re-queries, and the resume
+    really re-discovers.
+
+    Corollary for the governor budget: open the `Test.startTest()` window AFTER the stage, so the
+    stage's own reads do not eat into the budget the two executes share.
+
+### 8k. Token rotation on an untouched replay, 2026-09-13 (A3: the relay-502 gap).
+
+56. **A single-use token and a lossy channel need ROTATION, not withholding, and the two are not in
+    tension.** `stagePlan` returned `decisionToken = null` on every idempotency-key hit, on the
+    reasoning that re-minting would hand out a second token for a plan the banker already confirmed.
+    That reasoning holds only for a row that was USED. When the artifact-to-connector relay lost the
+    stage answer after the org had already staged it (the 502 seen today), the row existed at
+    `Staged` and the page held nothing: the same-key re-ask got the plan with no token, could not
+    execute, and the cockpit re-staged under a derived key `<key>#r2`, minting a second row and
+    stranding the first at `Staged` forever. The fix is to rotate on an UNTOUCHED replay: mint a new
+    token, overwrite `cm_Decision_Token_Hash__c` on the SAME row, return it with `replayed` and the
+    new `tokenRotated` both true. Because the row stores one digest and rotation REPLACES it, exactly
+    one token is valid per staging row at any moment and it is the one the caller holds; the digest
+    the page never received stops claiming the instant the new one lands. Single use is preserved by
+    the definition of untouched: status `Staged`, `cm_Token_Consumed_At__c` null, `cm_Executed_At__c`
+    null, `cm_Result_Record_Id__c` null. `Executing`, `Completed`, `Partial`, `Failed` and
+    `Withdrawn` all still return null, unchanged. GENERALISE: when a single-use credential travels a
+    channel that can drop the response, the invariant worth defending is "one valid credential at a
+    time", not "one mint per lifetime". Withholding on replay does not make the system safer, it
+    makes the client mint a second row.
+
+57. **Rotation has to be bound to the identity that staged, or it widens the gate.** The digest binds
+    token + planHash + user, so rotating for whoever presents the idempotency key would mint a token
+    bound to a SECOND banker for a plan the first one staged, and `execute_*` would accept it because
+    `approverUserId` would equal that banker's running identity. The untouched test therefore carries
+    `cm_Actor_User__c == UserInfo.getUserId()` as its fifth condition, typed `Id` to `Id` per lesson
+    27. A replay by a different identity gets a null token exactly as before.
+
+58. **An existing test that asserts the behaviour you are deliberately changing is not a regression,
+    and it must be rewritten rather than preserved.** `repeatedStageOnOneKeyReturnsOnePlanAndOneToken`
+    asserted `second.decisionToken == null` in so many words, with a comment citing A33.5.4. Keeping
+    it green would have meant not shipping the rule. It became
+    `anUntouchedReplayRotatesTheTokenAndVoidsTheOldOne`, which keeps every claim the old test made
+    that still holds (one row, one plan hash, the replay declares itself) and replaces the token
+    assertion with the stronger pair: the new token executes, and the old one is refused by
+    `assertClaimable`. RULE: when changing a rule, grep the suite for the OLD rule's sentence before
+    writing the new test, and rewrite that method in place so the diff shows the claim changing.
+
+---
+
 *Maintained by the orchestrator. Add to this file in the same build wave a lesson is learned; a lesson
 that lives only in a session transcript does not exist.*

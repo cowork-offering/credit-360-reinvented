@@ -5,8 +5,15 @@ import { ACTIONS, ACTIONS_BY_ID, CATEGORY_ORDER, renderPrompt, stageRationale } 
 const ID = "001TEST";
 const NAME = "Testco Industries, Inc.";
 
+const PACKAGE = "a5Fbb000000FULLP1";
+const VERSION_PACKAGE = "a5Fbb000000FULLV1";
+
 /** A fully-capable bundle: booked active facility, collateral, covenants,
- *  Boom financials and a risk rating — every predicate should pass. */
+ *  Boom financials, a risk rating, and (0.9.23) one unbooked modification
+ *  version of the booked package, so the discard door's own predicate has
+ *  something to be capable of. The version is a member-for-member copy at
+ *  Qualification, which is the shape `book/packages.ts` recognises as a fork
+ *  and the shape nCino actually produces. Every predicate should pass. */
 function fullBundle(): BorrowerBundle {
   return {
     snapshot: { accountId: ID, name: NAME, primaryRiskRating: "5" },
@@ -15,11 +22,19 @@ function fullBundle(): BorrowerBundle {
         {
           loanId: "L1",
           name: "Term Loan",
+          productPackageId: PACKAGE,
           // A credit action runs only against a BOOKED facility, so the
           // fully-capable fixture has to actually be one.
           stage: "Booked",
           maturityDate: "2028-01-31",
           collateral: [{ collateralType: "Equipment", collateralValue: 100 }],
+        },
+        {
+          loanId: "L1M",
+          name: "Term Loan",
+          productPackageId: VERSION_PACKAGE,
+          stage: "Qualification",
+          maturityDate: "2028-01-31",
         },
       ],
     },
@@ -45,14 +60,16 @@ function dataWith(bundle: BorrowerBundle): C360Data {
 const ALWAYS_AVAILABLE = ["new-facility-request", "create-service-request"];
 
 describe("registry shape", () => {
-  it("declares the ten v1 actions (A27.6)", () => {
-    expect(ACTIONS).toHaveLength(10);
+  it("declares the eleven actions (A27.6, plus the 0.9.23 undo)", () => {
+    expect(ACTIONS).toHaveLength(11);
     expect(ACTIONS.map((a) => a.id).sort()).toEqual(
       [
         "annual-review",
         "collateral-valuation",
         "covenant-review",
         "create-service-request",
+        // THE ONLY ROW THAT TAKES SOMETHING OFF THE ORG (0.9.23).
+        "discard-version",
         "draft-credit-memo",
         "generate-spreading",
         "loan-modification",
@@ -173,7 +190,9 @@ describe("availability — unavailable actions give a concrete banker reason", (
 describe("availability — a CLOSED facility is not a booked loan (F6 carries through)", () => {
   it("gates modification/renewal when the only facility is closed", () => {
     const b = fullBundle();
-    b.exposure!.facilities![0].status = "Closed";
+    // EVERY facility, booked parent and version clone alike: the case under
+    // test is "the only facility is closed", not "one of two is".
+    for (const f of b.exposure!.facilities!) f.status = "Closed";
     const data = dataWith(b);
     for (const id of ["draft-credit-memo", "annual-review"]) {
       const r = ACTIONS_BY_ID[id].availability(data, ID);
@@ -185,7 +204,7 @@ describe("availability — a CLOSED facility is not a booked loan (F6 carries th
 
 describe("C1 — staging is a precondition for EVERY action", () => {
   const data = dataWith(fullBundle());
-  it("disables all ten actions for an account in the portfolio but not staged", () => {
+  it("disables every action for an account in the portfolio but not staged", () => {
     // In portfolio.accounts, absent from borrowers -> not actionable.
     const withUnstaged = {
       ...data,

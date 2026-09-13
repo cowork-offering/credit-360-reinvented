@@ -29,6 +29,7 @@
 
 import type { Boom, BorrowerBundle, CollateralValuationRow, Covenant, Facility } from "../data/contract";
 import { fmtMoney } from "../data/format";
+import { packageRoster } from "../book/packages";
 import icRaw from "./vendor/plugin-assets/ic_placeholder.json?raw";
 import peersRaw from "./vendor/plugin-assets/peers_placeholder.json?raw";
 import narrativesRaw from "./vendor/plugin-assets/piedmont-narratives.json?raw";
@@ -52,6 +53,7 @@ import {
   type MemoRelationshipContext,
   type MemoSeries,
   type MemoSpread,
+  type MemoVersionInFlight,
   type Text,
 } from "./types";
 
@@ -380,6 +382,176 @@ function covenantCompliance(covenants: Covenant[], asOf: string): MemoCovenantCo
 }
 
 /* -----------------------------------------------------------------------------
+   THE VERSION IN FLIGHT (0.9.23, spec 2a.6)
+
+   THE MEMO'S PROPOSED COLUMN IS THE PROPOSAL, and where the relationship
+   carries an editable version that proposal is the version, not the staged
+   step. Before this, a bundle holding one produced a memo that listed the
+   booked facilities AND their clones as separate loans, summed both into
+   exposure, and printed no pro forma column at all because no step had
+   executed. Every figure in it was wrong in the same direction.
+
+   THE PAIRING IS THE WHOLE PROBLEM, and nCino's own naming solves it. A clone
+   carries its parent's name VERBATIM unless the filing moved the figure, and
+   when it did, only the money on the end of the name changed:
+
+     Hartwell - Purchase - $6,500,000.00   ->   Hartwell - Purchase - $12,000,000.00
+
+   So the match is the name with the trailing money stripped, and an exact name
+   wins over that where a package holds two facilities of one product. A pair
+   the names cannot settle is NOT guessed: an unmatched clone is read as a
+   facility the version ADDS, which is the honest reading of a loan the booked
+   package has no counterpart for, and it never invents a before side for one.
+
+   NULL IS THE COMMON CASE. No version, a version the org has taken to approval,
+   or a version forked off a package the snapshot does not anchor: all three
+   render exactly as they always did, off the staged-step path.
+   ----------------------------------------------------------------------------- */
+
+/** The trailing " - $12,000,000.00" nCino writes into a facility's own name. */
+const NAME_MONEY_TAIL = /\s*-\s*\$[\d,]+(?:\.\d+)?\s*$/;
+
+const facilityName = (f: Facility): string => (f.name ?? "").trim();
+const facilityBaseName = (f: Facility): string => facilityName(f).replace(NAME_MONEY_TAIL, "").trim();
+
+export interface VersionOverlay {
+  versionPackageId: string;
+  sourcePackageId: string;
+  versionName: string;
+  /** The clone that restates each booked member, keyed by the member's loan id. */
+  byParent: Map<string, Facility>;
+  /** The same pairing as a list, so a reader can name the figures each pair
+   *  moves without a second lookup through the roster. */
+  pairs: Array<{ parent: Facility; clone: Facility }>;
+  /** Clones that restate nothing: facilities the version adds. */
+  added: Facility[];
+  /** Every clone's loan id, so no clone is also listed as a loan of its own. */
+  cloneIds: Set<string>;
+}
+
+/** Pair each clone to a parent on `key`, consuming both sides as it goes. */
+function pairOn(
+  parents: Facility[],
+  clones: Facility[],
+  key: (f: Facility) => string,
+  out: Map<string, Facility>,
+): void {
+  const pool = new Map<string, Facility[]>();
+  for (const p of parents) {
+    const k = key(p);
+    if (!k) continue;
+    const held = pool.get(k);
+    if (held) held.push(p);
+    else pool.set(k, [p]);
+  }
+  for (let i = clones.length - 1; i >= 0; i--) {
+    const k = key(clones[i]);
+    const held = k ? pool.get(k) : undefined;
+    const parent = held?.shift();
+    if (!parent?.loanId) continue;
+    out.set(parent.loanId, clones[i]);
+    parents.splice(parents.indexOf(parent), 1);
+    clones.splice(i, 1);
+  }
+}
+
+/** The editable version this bundle's anchored package carries, or null. */
+export function versionOverlayFor(bundle: BorrowerBundle | null | undefined): VersionOverlay | null {
+  const roster = packageRoster(bundle);
+  const anchor = bundle?.snapshot?.productPackageId ?? null;
+  const source = roster.find((p) => p.inFlightVersionId && (!anchor || p.id === anchor));
+  if (!source) return null;
+  const version = roster.find((p) => p.id === source.inFlightVersionId);
+  /* THE ORG HAS TAKEN IT, so it is no longer a proposal the banker is writing a
+     memo about: it is a proposal the committee is holding, and its figures are
+     the org's. The memo reads it exactly as it reads any other package. */
+  if (!version?.inFlightVersion || !version.inFlightEditable) return null;
+
+  const parents = [...source.members];
+  const clones = [...version.members];
+  const byParent = new Map<string, Facility>();
+  pairOn(parents, clones, facilityName, byParent);
+  pairOn(parents, clones, facilityBaseName, byParent);
+
+  const pairs: Array<{ parent: Facility; clone: Facility }> = [];
+  for (const [parentId, clone] of byParent) {
+    const parent = source.members.find((m) => m.loanId === parentId);
+    if (parent) pairs.push({ parent, clone });
+  }
+
+  return {
+    versionPackageId: version.id,
+    sourcePackageId: source.id,
+    versionName: version.name,
+    byParent,
+    pairs,
+    added: clones,
+    cloneIds: new Set(version.members.map((f) => f.loanId).filter((id): id is string => !!id)),
+  };
+}
+
+/** The phrase every surface marks a version figure with. One string, so the
+ *  memo's callout, its Key Metrics footnote and its narrative say it once. */
+export const PER_THE_VERSION = "per the version in flight";
+
+/** A rate, as the read carries it: a percentage, never a fraction. */
+const pct = (n: number): string => `${n}%`;
+
+/**
+ * WHAT THE VERSION MOVES, ONE LINE PER MEMBER, for the narrative's FIGURES
+ * block. Amount, rate and term: the three the amend wire can move, and the two
+ * the memo's own tables have no column for.
+ *
+ * ONLY WHAT MOVED. A member the version restates without changing a figure gets
+ * no line, because a list of unchanged facilities is noise in a prompt about
+ * what is changing. A facility the version ADDS is stated as new money.
+ */
+function versionCalloutNote(overlay: VersionOverlay, delta: number): string {
+  const restated = overlay.pairs.length;
+  const added = overlay.added.length;
+  const parts = [
+    `${restated} booked ${restated === 1 ? "facility" : "facilities"}`,
+    added ? `and adds ${added} ${added === 1 ? "facility" : "facilities"}` : null,
+  ].filter(Boolean);
+  return (
+    `Read ${PER_THE_VERSION}: ${overlay.versionName} restates ${parts.join(" ")}, ` +
+    `moving the commitment by ${fmtMoney(delta)}. Nobody has booked it, and the booked package behind it is unchanged.`
+  );
+}
+
+function versionSignalLines(overlay: VersionOverlay | null): string[] {
+  if (!overlay) return [];
+  const out: string[] = [];
+  for (const { parent, clone } of overlay.pairs) {
+    const moves: string[] = [];
+    const amount = num(clone.committed);
+    const wasAmount = num(parent.committed);
+    if (amount != null && wasAmount != null && amount !== wasAmount) {
+      moves.push(`commitment ${fmtMoney(wasAmount)} to ${fmtMoney(amount)}`);
+    }
+    const rate = num(clone.interestRate);
+    const wasRate = num(parent.interestRate);
+    if (rate != null && wasRate != null && rate !== wasRate) moves.push(`rate ${pct(wasRate)} to ${pct(rate)}`);
+    const term = num(clone.termMonths);
+    const wasTerm = num(parent.termMonths);
+    if (term != null && wasTerm != null && term !== wasTerm) moves.push(`term ${wasTerm} to ${term} months`);
+    const maturity = str(clone.maturityDate);
+    const wasMaturity = str(parent.maturityDate);
+    if (maturity && wasMaturity && maturity !== wasMaturity) moves.push(`maturity ${wasMaturity} to ${maturity}`);
+    if (moves.length) {
+      out.push(`${overlay.versionName} moves ${facilityName(parent) || parent.loanId}: ${moves.join(", ")} (${PER_THE_VERSION}, unbooked).`);
+    }
+  }
+  for (const clone of overlay.added) {
+    const amount = num(clone.committed);
+    out.push(
+      `${overlay.versionName} adds ${facilityName(clone) || clone.loanId}${amount != null ? ` at ${fmtMoney(amount)}` : ""}, which the booked package carries no counterpart for (${PER_THE_VERSION}, unbooked).`,
+    );
+  }
+  return out;
+}
+
+/* -----------------------------------------------------------------------------
    FACILITIES — the org's current state, plus what the executed plan changed.
    ----------------------------------------------------------------------------- */
 
@@ -431,8 +603,61 @@ function sidesFor(f: Facility, steps: MemoChange[]) {
   };
 }
 
-function toLoan(f: Facility, steps: MemoChange[]): MemoLoan {
-  const sides = sidesFor(f, steps);
+/**
+ * A facility's before and after WHERE A VERSION RESTATES IT.
+ *
+ * The booked facility is the existing side and its clone on the version is the
+ * proposed side, which is what the version IS. Two things are deliberately not
+ * taken from the clone:
+ *
+ *   THE DRAWN BALANCE. nCino clones a loan at an unbooked stage carrying no
+ *   balance of its own, so the clone's outstanding reads zero on every version
+ *   this cockpit has seen. Printing it would say the borrower repaid the line.
+ *   The drawn balance is the booked facility's and it does not move until the
+ *   version books.
+ *
+ *   A MATURITY THE CLONE DOES NOT CARRY. An amendment that moved only the
+ *   commitment leaves the maturity where the parent has it, and the parent's
+ *   date is the version's date until something moves it.
+ */
+function versionSidesOf(f: Facility, clone: Facility) {
+  const existing = { commitment: fig(f.committed), outstanding: fig(f.outstanding), maturity: str(f.maturityDate) };
+  const proposed = {
+    commitment: fig(clone.committed),
+    outstanding: fig(f.outstanding),
+    maturity: str(clone.maturityDate) ?? str(f.maturityDate),
+  };
+  const before = num(existing.commitment);
+  const after = num(proposed.commitment);
+  return {
+    existing,
+    proposed,
+    isNewMoney: false,
+    isIncrease: before != null && after != null && after > before,
+    // A version of a booked facility is a restatement of it, which is what the
+    // renderer's renewal flag means on this table.
+    isRenewal: true,
+  };
+}
+
+/** A facility the version ADDS: the booked package has no counterpart for it,
+ *  so its before side is zero rather than a repeat of its after. */
+function addedSidesOf(clone: Facility) {
+  return {
+    existing: { commitment: 0 as Figure, outstanding: 0 as Figure, maturity: null },
+    proposed: { commitment: fig(clone.committed), outstanding: fig(clone.outstanding), maturity: str(clone.maturityDate) },
+    isNewMoney: true,
+    isIncrease: false,
+    isRenewal: false,
+  };
+}
+
+function toLoan(f: Facility, steps: MemoChange[], version?: { clone?: Facility; added?: boolean }): MemoLoan {
+  const sides = version?.clone
+    ? versionSidesOf(f, version.clone)
+    : version?.added
+      ? addedSidesOf(f)
+      : sidesFor(f, steps);
   return {
     id: f.loanId ?? f.name ?? "facility",
     ncinoId: f.loanId ?? null,
@@ -575,7 +800,11 @@ function profileFrom(bundle: BorrowerBundle): Text {
  * an executed step landed can get into the memo's prose at all. Every line is
  * one bundle field, stated. A list the bundle cannot fill is absent, not empty.
  */
-function relationshipContext(bundle: BorrowerBundle, changes: readonly MemoChange[]): MemoRelationshipContext | undefined {
+function relationshipContext(
+  bundle: BorrowerBundle,
+  changes: readonly MemoChange[],
+  overlay: VersionOverlay | null,
+): MemoRelationshipContext | undefined {
   const some = (xs: string[]) => (xs.length ? xs : undefined);
 
   // DEDUPED. The legal-entity read returns one row PER FACILITY, so one
@@ -602,6 +831,12 @@ function relationshipContext(bundle: BorrowerBundle, changes: readonly MemoChang
 
   const sig = bundle.signals;
   const signals = [
+    /* THE VERSION IN FLIGHT, MEMBER BY MEMBER. The memo's tables carry a
+       commitment and a maturity per facility and no column for a rate or a
+       term, so the three figures the version actually moves reach the prose
+       here or nowhere. Only what MOVED is stated: a clause per figure, and a
+       member the version restated without changing anything gets no line. */
+    ...versionSignalLines(overlay),
     (sig?.modifications ?? []).length
       ? `${sig!.modifications!.length} recorded loan modification${sig!.modifications!.length === 1 ? "" : "s"}${sig?.modificationClusterFlag ? ", flagged as a cluster" : ""}.`
       : null,
@@ -784,8 +1019,29 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
   const snapshot = bundle.snapshot;
   const facilities = bundle.exposure?.facilities ?? [];
 
-  const loans = facilities.map((f) => toLoan(f, changes));
-  const collateral = collateralRecords(facilities, bundle.collateralValuations ?? []);
+  /* THE VERSION IN FLIGHT, WHERE THE ANCHORED PACKAGE CARRIES ONE (spec 2a.6).
+     The org's exposure read returns the booked facilities AND their clones, so
+     without this the memo listed both as separate loans, summed both into
+     exposure and printed no pro forma column at all. */
+  const overlay = versionOverlayFor(bundle);
+  const addedIds = new Set(overlay?.added.map((f) => f.loanId).filter((id): id is string => !!id) ?? []);
+  /* A CLONE IS NEVER A LOAN OF ITS OWN. It is the proposed side of the booked
+     facility it restates, or, where it restates nothing, a facility the version
+     ADDS, which is the one case a clone is listed on its own account. */
+  const listed = overlay
+    ? facilities.filter((f) => !f.loanId || !overlay.cloneIds.has(f.loanId) || addedIds.has(f.loanId))
+    : facilities;
+  const loans = listed.map((f) =>
+    toLoan(f, changes, overlay ? { clone: overlay.byParent.get(f.loanId ?? ""), added: addedIds.has(f.loanId ?? "") } : undefined),
+  );
+  /* AND THE SECURITY IS THE VERSION'S TOO. A pledge is per facility, and the
+     clone carries the copies the fork made plus whatever the amendment added,
+     so reading the parent's would show the security as it was before the
+     version and reading both would count every cross-pledged asset twice. */
+  const secured = overlay
+    ? listed.map((f) => (f.loanId ? (overlay.byParent.get(f.loanId) ?? f) : f))
+    : facilities;
+  const collateral = collateralRecords(secured, bundle.collateralValuations ?? []);
   const guarantor = guarantorFrom(bundle);
   const { spread, boom } = financialsFrom(bundle.boom);
   const measured = ratiosFrom(bundle);
@@ -801,13 +1057,46 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
     const after = num(l.proposed.commitment);
     return before != null && after != null ? sum + (after - before) : sum;
   }, 0);
-  const proposedCommitment = fig(bundle.exposure?.totalCommitted);
-  const proposedOutstanding = fig(bundle.exposure?.totalOutstanding);
-  const existingCommitment: Figure = num(proposedCommitment) != null ? (proposedCommitment as number) - delta : NOT_IN_SOURCE;
+  /* WITH A VERSION IN FLIGHT THE ORG'S OWN TOTAL IS NEITHER SIDE.
+     `Customer360Exposure` sums every loan it returns, which is the booked
+     facilities AND their clones, so it over-states the existing side and the
+     proposed side at once. Both columns are summed off the loans instead, which
+     are the pairing this dossier just made; the no-version path is untouched
+     and still reads the org's total, because there it IS the after. */
+  const sumOf = (pick: (l: MemoLoan) => Figure | null): Figure => {
+    let total = 0;
+    let any = false;
+    for (const l of loans) {
+      const v = num(pick(l));
+      if (v == null) continue;
+      total += v;
+      any = true;
+    }
+    return any ? total : NOT_IN_SOURCE;
+  };
+  const proposedCommitment = overlay ? sumOf((l) => l.proposed.commitment) : fig(bundle.exposure?.totalCommitted);
+  const proposedOutstanding = overlay ? sumOf((l) => l.proposed.outstanding) : fig(bundle.exposure?.totalOutstanding);
+  const existingCommitment: Figure = overlay
+    ? sumOf((l) => l.existing.commitment)
+    : num(proposedCommitment) != null
+      ? (proposedCommitment as number) - delta
+      : NOT_IN_SOURCE;
+  const existingOutstanding: Figure = overlay ? sumOf((l) => l.existing.outstanding) : proposedOutstanding;
 
-  const changeNote = changes.length
+  const stepNote = changes.length
     ? `${changes.length} executed plan step${changes.length === 1 ? "" : "s"} on this relationship: ${changes.map((c) => c.label).join("; ")}.`
     : "No executed plan step was handed to this memo, so existing and proposed exposure are the same figures.";
+  /* AND THE CALLOUT SAYS WHERE THE PROPOSED COLUMN CAME FROM. With a version in
+     flight the step sentence is replaced rather than joined: "existing and
+     proposed exposure are the same figures" is false on a memo whose proposed
+     column is a version, and two notes disagreeing in one callout is worse than
+     either. Where steps ALSO executed, both are said, version first. */
+  const versionNote = overlay ? versionCalloutNote(overlay, delta) : null;
+  const changeNote = versionNote
+    ? changes.length
+      ? `${versionNote} ${stepNote}`
+      : versionNote
+    : stepNote;
 
   const asOf = str(ratios?.asOf) ?? spread.periods[spread.periods.length - 1] ?? "Latest";
 
@@ -838,8 +1127,21 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
         flags: flagsFrom(bundle, loans, guarantor),
       },
       loans,
+      ...(overlay
+        ? {
+            versionInFlight: {
+              versionPackageId: overlay.versionPackageId,
+              sourcePackageId: overlay.sourcePackageId,
+              versionName: overlay.versionName,
+              restated: overlay.pairs.length,
+              added: overlay.added.length,
+              commitmentDelta: delta,
+              note: PER_THE_VERSION,
+            } satisfies MemoVersionInFlight,
+          }
+        : {}),
       exposureSummary: {
-        existing: { commitment: existingCommitment, outstanding: proposedOutstanding },
+        existing: { commitment: existingCommitment, outstanding: existingOutstanding },
         proposed: { commitment: proposedCommitment, outstanding: proposedOutstanding },
         changeInExposure: { commitment: delta, note: changeNote },
       },
@@ -868,7 +1170,7 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
       // documents on the book, and they are the two the cockpit can name.
       supportingDocuments: supportingDocuments(bundle),
       // Read by narrative.ts, never by the renderer. See MemoRelationshipContext.
-      context: relationshipContext(bundle, changes),
+      context: relationshipContext(bundle, changes, overlay),
     },
     boom,
     // Servicing is not on the cockpit's grant. No `revolverUsage` means the

@@ -17,7 +17,9 @@
    and Result inner classes), never guessed.
    ============================================================================= */
 
-import { callTool, SERVERS, TOOLS, unwrapInvocableOne, type McpFailure } from "./mcp";
+import { callTool, failedAttempts, SERVERS, TOOLS, unwrapInvocableOne, type McpFailure } from "./mcp";
+import { isTerminalStatus, readActionState } from "./cockpitTools";
+import type { ActionHistoryRow } from "../data/contract";
 import type { PlanStep, StagedCovenant, StagedFacility, StagedItem, StagedOutput, StepType } from "../actions/stagedPlan";
 
 /** The deployed write actions, and the tools each one runs on. */
@@ -27,6 +29,13 @@ export const WRITE_TOOLS = {
   "annual-review": { stage: "stage_annual_review", execute: "execute_annual_review", heldReason: null },
   "new-facility-request": { stage: "stage_new_facility", execute: "execute_new_facility", heldReason: null },
   "risk-rating-review": { stage: "stage_risk_rating_review", execute: "execute_risk_rating_review", heldReason: null },
+  /* THE VERSION LIFECYCLE (0.9.23, knowledge/SPEC-0.9.23-TOOL-CONTRACT.md).
+     Amend an unbooked version or a cockpit-created package in place, and discard
+     a version back to the booked package. Built to the frozen contract; until
+     the pair is published on the connector it fails as the unavailable tool it
+     is, never as a room that pretended. */
+  "amend-version": { stage: "stage_amend_version", execute: "execute_amend_version", heldReason: null },
+  "discard-version": { stage: "stage_discard_version", execute: "execute_discard_version", heldReason: null },
   // UNHELD 2026-08-22 (WS0.5 item 1). `execute_loan_modification` is deployed
   // and was exercised live over the REST Actions API on throwaway data, so the
   // client no longer carries a hold of its own. What the org still enforces is
@@ -129,6 +138,11 @@ export type ToolOutcome<T> = { ok: true; result: T } | { ok: false; error: ToolE
  * array; which half is populated is read from what is present, never assumed.
  */
 export interface ExecutedItem {
+  /** 0.9.23 discard inventory: the org object, id, name and the reason a row went. */
+  object?: string;
+  id?: string;
+  name?: string;
+  reason?: string;
   /** Both: null means the read-back did not confirm the name — filed,
    *  unverified. Same semantic as the single-record case, per item. */
   recordName?: string | null;
@@ -216,6 +230,8 @@ export interface ExecuteStepResult {
 
 export interface ExecuteResult {
   stagingId: string;
+  /** Discard: the booked package the version was forked from, so the trail lands where the banker looks. */
+  sourcePackageId?: string;
   terminalState: string;
   steps: ExecuteStepResult[];
   outcome: string;
@@ -401,6 +417,11 @@ function toExecutedItem(raw: Record<string, unknown>): ExecutedItem {
     written: typeof raw.written === "boolean" ? raw.written : undefined,
     status: str(raw.status),
     sourceStatus: str(raw.sourceStatus),
+    // 0.9.23 discard inventory (SPEC-0.9.23-TOOL-CONTRACT pair 2).
+    object: typeof raw.object === "string" ? raw.object : undefined,
+    id: typeof raw.id === "string" ? raw.id : undefined,
+    name: typeof raw.name === "string" ? raw.name : undefined,
+    reason: typeof raw.reason === "string" ? raw.reason : undefined,
   };
 }
 
@@ -436,6 +457,11 @@ function toStagedItem(raw: Record<string, unknown>): StagedItem {
     writeStepId: typeof raw.writeStepId === "string" ? raw.writeStepId : undefined,
     verifyStepId: typeof raw.verifyStepId === "string" ? raw.verifyStepId : undefined,
     rollupStepId: typeof raw.rollupStepId === "string" ? raw.rollupStepId : undefined,
+    // 0.9.23 discard inventory (SPEC-0.9.23-TOOL-CONTRACT pair 2).
+    object: typeof raw.object === "string" ? raw.object : undefined,
+    id: typeof raw.id === "string" ? raw.id : undefined,
+    name: typeof raw.name === "string" ? raw.name : undefined,
+    reason: typeof raw.reason === "string" ? raw.reason : undefined,
   };
 }
 
@@ -886,6 +912,26 @@ export interface StagePayloads {
     newMaturityDate?: string | null;
     requestedRate?: number | null;
   };
+  /* THE VERSION LIFECYCLE (0.9.23). Shapes frozen in
+     knowledge/SPEC-0.9.23-TOOL-CONTRACT.md; the arms carry the same JSON the
+     modification's arms carry, landing on the version's own loans. */
+  "amend-version": {
+    idempotencyKey: string;
+    rationale: string;
+    versionPackageId: string;
+    scalarChangesJson?: string;
+    fieldChangesJson?: string;
+    covenantAddsJson?: string;
+    covenantAttachesJson?: string;
+    pledgeAddsJson?: string;
+    feeAddsJson?: string;
+    involvementChangesJson?: string;
+  };
+  "discard-version": {
+    idempotencyKey: string;
+    rationale: string;
+    versionPackageId: string;
+  };
 }
 
 /**
@@ -972,21 +1018,272 @@ export async function completeNewFacilityDetail(
   }));
 }
 
-/** Call `stage_*`. USER GESTURE ONLY — never on mount, never polled. */
+
+/* ============================================================ THE LOST ANSWER
+
+   WHAT HAPPENED (2026-09-13, the founder's cockpit, Hartwell). A long
+   modification staged cleanly in the org: STG-0000000149, Staged, an 18-step
+   plan, a decision token minted at 15:17:39 UTC. The page said "request failed
+   (502)" twice and the room stopped there. The same request, replayed over REST
+   under the same idempotency key, answered in 2.8s with `replayed: true`, the
+   same stagingId and the same plan. The org was fast and correct; the answer was
+   lost on the artifact-to-connector relay, the same failure shape as the
+   2026-09-03 outage recorded in laneHealth.ts.
+
+   WHY RE-ASKING IS SAFE HERE, AND ONLY HERE. Both governed tools are fenced on
+   the key, in Apex, and this is what the fence actually does (read from
+   C360ActionStaging.cls and the Stage/Execute classes, not assumed):
+
+     stage_*   C360ActionStaging.stagePlan queries cm_Action_Staging__c by
+               cm_Idempotency_Key__c. A hit returns THAT row's id and plan hash
+               with `replayed: true` and, deliberately, decisionToken = NULL: a
+               second single-use token for a plan the banker may already have
+               confirmed is the one thing A33.5.4 forbids. The tool still
+               recomputes and returns the whole plan, so a replay carries the
+               summary, the steps and the facilities; it is the TOKEN that does
+               not come back. No second row is ever created.
+
+     execute_* Execute*.cls calls C360ActionStaging.findCompleted(key) first,
+               which matches only a row that already has a result record id, and
+               replays that run's tracker with `replayed: true` and no write. If
+               the key has no completed row the call goes to claimForExecute,
+               which refuses a consumed token outright.
+
+   SO THE TWO RECOVERIES ARE DIFFERENT SHAPES, and the code below keeps them
+   apart. A stage that lost its answer can be re-asked freely and, if the row
+   turns out to exist, has to be RE-ISSUED under a fresh key to obtain a token,
+   because the org mints one only on the first stage. An execute that lost its
+   answer is re-asked at most twice and only while the org's own trail still
+   reads Staged; past that the trail, not the wire, is what says how the run
+   ended. */
+
+/** What the room says while the same key goes back out. */
+export const ASKING_AGAIN = "Salesforce took the plan; the answer did not come back, asking again.";
+
+/** The room's own sentence for a lost answer. The platform's code rides in
+ *  parentheses behind it: the banker needs the state, the person diagnosing it
+ *  needs the code, and neither is served by showing the code alone. */
+export const TRANSPORT_SENTENCE =
+  "Salesforce did not get its answer back to this page. Nothing here says the work failed, and nothing here says it landed.";
+
+/** What a caller can tell the write lane about the plan it is sending, so a lost
+ *  answer can be chased on the org's own trail instead of guessed at. */
+export interface WriteCallOptions {
+  /** The relationship the plan is filed against. Without it there is no trail to
+   *  read, and a lost answer can only be reported, never resolved. */
+  accountId?: string | null;
+  /** The deal anchor, where the plan carries one. Narrows the STAGE recovery's
+   *  trail search; an execute recovery has the stagingId and needs no narrowing. */
+  productPackageId?: string | null;
+  /** Called before each re-ask with the attempt about to be made. */
+  onAttempt?: (attempt: number) => void;
+}
+
+/** A transport failure on a write that carried a key, after every attempt was
+ *  spent. Structurally an {@link McpFailure}, so every existing branch still
+ *  reads it, plus what the trail was able to add. */
+export interface LostWriteAnswer extends McpFailure {
+  /** How many times the same key went out. */
+  attempts: number;
+  /** The room's sentence for this, ready to say out loud. */
+  said: string;
+  /** The staging row the org turned out to be holding. Absent means the trail
+   *  was not readable or held nothing, which is not evidence either way. */
+  stagedAnyway?: { stagingId: string; createdDate?: string };
+}
+
+export /** Did this failure LOSE the answer rather than refuse the call? The same three
+ *  shapes the transport ladder re-asks on: the relay's 502, an upstream that
+ *  fell over, and the page's own clock running out on one attempt. */
+function isLostAnswer(failure: McpFailure): boolean {
+  if (failure.retract || failure.noCapability) return false;
+  return (
+    (failure as { timedOut?: boolean }).timedOut === true ||
+    failure.code === "server_unavailable" ||
+    failure.code === "upstream_error"
+  );
+}
+
+export function isLostWriteAnswer(e: unknown): e is LostWriteAnswer {
+  return typeof (e as LostWriteAnswer | undefined)?.said === "string" && typeof (e as LostWriteAnswer).attempts === "number";
+}
+
+/** Keys whose stage call lost its answer in this page session. A row may exist
+ *  in the org under any of them, so the next stage on that key is read as a
+ *  possible replay rather than as a first ask. */
+const keysWithLostAnswers = new Set<string>();
+
+/** The fresh key a re-issued plan is staged under. Derived from the original so
+ *  the audit trail can see the two belong together, and never the same string:
+ *  the same key would replay the tokenless row all over again. */
+function reissuedKey(key: string): string {
+  const m = /^(.*)#r(\d+)$/.exec(key);
+  return m ? `${m[1]}#r${Number(m[2]) + 1}` : `${key}#r2`;
+}
+
+/** How wide a window around the lost attempt a trail row may fall in and still
+ *  be the row that attempt created. The relay's own hop is inside a second; a
+ *  minute is generous and still short enough that a row from an earlier gesture
+ *  cannot be mistaken for this one. */
+const TRAIL_WINDOW_MS = 60_000;
+
+/**
+ * THE NEWEST STAGED ROW THIS ACTION COULD HAVE LEFT BEHIND.
+ *
+ * Read FRESH: the row is seconds old and a cached trail predates it.
+ *
+ * MATCHED ON WHAT THE TRAIL ACTUALLY CARRIES. Customer360ActionHistory returns
+ * neither the idempotency key nor the plan hash (it returns `planHashPresent`, a
+ * boolean, by design), so a key-for-key or hash-for-hash match is not available
+ * to any client. What it does carry is the action id, the status, the package
+ * and the created date, and that is what this matches on, inside a minute of the
+ * attempt that lost its answer. A row found this way says the org HOLDS a plan;
+ * it does not say which token belongs to it, because the trail never carries
+ * token material at all.
+ */
+async function findStagedRow(args: {
+  actionId: string;
+  accountId: string;
+  productPackageId?: string | null;
+  since: number;
+}): Promise<{ stagingId: string; createdDate?: string } | undefined> {
+  const res = await callTool(
+    SERVERS.customer360,
+    TOOLS.actionHistory,
+    { inputs: [{ accountId: args.accountId, maxResults: 25 }] },
+    { cache: false, read: true },
+  );
+  const slot = unwrapInvocableOne<Record<string, unknown>>(res.payload);
+  if (!slot.ok) return undefined;
+  const entries = (slot.data as { entries?: unknown }).entries;
+  if (!Array.isArray(entries)) return undefined;
+
+  let best: { stagingId: string; createdDate?: string; at: number } | undefined;
+  for (const raw of entries as Array<Record<string, unknown>>) {
+    const stagingId = typeof raw.stagingId === "string" ? raw.stagingId : "";
+    if (!stagingId) continue;
+    if (raw.actionId !== args.actionId) continue;
+    if (raw.status !== "Staged") continue;
+    if (args.productPackageId && raw.productPackageId && raw.productPackageId !== args.productPackageId) continue;
+    const createdDate = typeof raw.createdDate === "string" ? raw.createdDate : undefined;
+    const at = createdDate ? Date.parse(createdDate) : NaN;
+    if (!Number.isFinite(at) || at < args.since - TRAIL_WINDOW_MS) continue;
+    if (!best || at > best.at) best = { stagingId, createdDate, at };
+  }
+  return best ? { stagingId: best.stagingId, createdDate: best.createdDate } : undefined;
+}
+
+
+/** What a stage answered, plus how it was obtained. */
+export type StageOutcome = ToolOutcome<StagedOutput> & {
+  /** How many times the same key went out. One means it answered first time. */
+  attempts: number;
+  /** The staging row an earlier lost attempt left in the org, when this plan had
+   *  to be re-issued under a fresh key to obtain a token. Its presence is what
+   *  lets a room say "filed as STG-0000000149 on the second ask" rather than
+   *  pretending this was the first. */
+  reissuedFrom?: string;
+};
+
+/** Call `stage_*`. USER GESTURE ONLY — never on mount, never polled.
+ *
+ *  THE KEY IS THE WHOLE CONTRACT. It is in the payload, the same one goes out on
+ *  every attempt, and a stage without one is refused here rather than at the org:
+ *  C360ActionStaging.stagePlan throws on a blank key, and a client that let it
+ *  get that far would be relying on the fence it just failed to use. */
 export async function stageAction<K extends WriteActionId>(
   actionId: K,
   payload: StagePayloads[K],
-): Promise<ToolOutcome<StagedOutput>> {
-  const res = await callTool(
-    SERVERS.customer360,
-    WRITE_TOOLS[actionId].stage,
-    { inputs: [payload] },
-    // A stage call computes and plans; it writes nothing, but it is not a read
-    // either. No caching, no retry: `read` stays false so a stamped-retryable
-    // failure is never auto-repeated.
-    { cache: false },
-  );
-  return unwrapToolOutcome<StagedOutput>(res.payload, (r) => ({
+  opts: WriteCallOptions = {},
+): Promise<StageOutcome> {
+  const key = (payload as { idempotencyKey?: unknown }).idempotencyKey;
+  if (typeof key !== "string" || key.trim() === "") {
+    return {
+      ok: false,
+      attempts: 0,
+      error: {
+        code: "NO_IDEMPOTENCY_KEY",
+        message:
+          "This plan carries no idempotency key, and the org fences every staging row on one. Nothing was sent.",
+        resumable: false,
+      },
+    };
+  }
+
+  const first = await stageOnce(actionId, payload, opts);
+  if (!first.ok) return first;
+
+  /* A REPLAY WITH NO TOKEN IS A PLAN WITH NO WAY TO EXECUTE IT.
+     The org returns the existing row and a null token on any repeat of the key,
+     which is exactly right for its own safety and leaves the banker holding a
+     plan the confirm gate cannot file. It is only OUR problem when the repeat
+     was ours: a first ask that lost its answer, in this call or in an earlier
+     gesture on the same key. Then the plan is re-issued under a fresh key, which
+     mints a token against an identical plan, and the row the lost ask left
+     behind is named rather than hidden. A replay the BANKER asked for is left
+     exactly as it was: the gate already says the plan needs staging again. */
+  const ourReplay = first.attempts > 1 || keysWithLostAnswers.has(key);
+  if (first.result.decisionToken || !first.result.replayed || !ourReplay) {
+    keysWithLostAnswers.delete(key);
+    return first;
+  }
+
+  const again = await stageOnce(actionId, { ...payload, idempotencyKey: reissuedKey(key) }, opts);
+  keysWithLostAnswers.delete(key);
+  return { ...again, attempts: first.attempts + again.attempts, reissuedFrom: first.result.stagingId };
+}
+
+/** ONE stage call, with the transport ladder under it and the trail behind it. */
+async function stageOnce<K extends WriteActionId>(
+  actionId: K,
+  payload: StagePayloads[K],
+  opts: WriteCallOptions,
+): Promise<StageOutcome> {
+  const key = String((payload as { idempotencyKey?: unknown }).idempotencyKey ?? "");
+  const startedAt = Date.now();
+  let res;
+  try {
+    res = await callTool(
+      SERVERS.customer360,
+      WRITE_TOOLS[actionId].stage,
+      { inputs: [payload] },
+      /* A stage call computes and plans; it writes nothing but the staging row,
+         and that row is fenced on the key in the payload above. So it is never
+         cached and never a `read`, and it MAY be re-asked: same key, same row. */
+      { cache: false, idempotent: true, onAttempt: (i) => opts.onAttempt?.(i.attempt) },
+    );
+  } catch (e) {
+    const failure = e as McpFailure;
+    const attempts = failedAttempts(e);
+    // A refusal is an answer, and it travels as it always has: only a LOST
+    // answer is worth chasing on the trail, and only it marks the key.
+    if (!isLostAnswer(failure)) throw e;
+    keysWithLostAnswers.add(key);
+    /* THE PLAN MAY BE IN SALESFORCE ANYWAY. The trail is the only instrument
+       that can say so, and it is read once, here, before the room is told
+       anything: "nothing was filed" over a row that exists is the sentence this
+       whole path exists to stop. */
+    const staged = opts.accountId
+      ? await findStagedRow({
+          actionId,
+          accountId: opts.accountId,
+          productPackageId: opts.productPackageId,
+          since: startedAt,
+        }).catch(() => undefined)
+      : undefined;
+    const lost: LostWriteAnswer = {
+      ...failure,
+      attempts,
+      stagedAnyway: staged,
+      said: staged
+        ? `Salesforce holds this plan as ${staged.stagingId} and its answer did not reach this page after ${attempts} asks. ` +
+          "Nothing has been executed. Say it again and I will re-issue the same plan under a fresh key, which is the only way Salesforce will mint the confirmation token."
+        : `${TRANSPORT_SENTENCE} Staging writes nothing but the plan itself, so nothing has been filed against the relationship. (${failure.code})`,
+    };
+    throw lost;
+  }
+
+  const out = unwrapToolOutcome<StagedOutput>(res.payload, (r) => ({
     /* `planId` IS THE SAME THING UNDER THE INTAKE CONTRACT'S OWN NAME. Every
        tool deployed before it answers under `stagingId` and reaches this
        fallback never; the intake pair names the staging row `planId`, and a
@@ -996,6 +1293,12 @@ export async function stageAction<K extends WriteActionId>(
     planHash: String(r.planHash ?? ""),
     decisionToken: typeof r.decisionToken === "string" ? r.decisionToken : null,
     replayed: r.replayed === true,
+    /* THE ORG RE-ISSUED THE TOKEN ON THE SAME ROW (C360ActionStaging, 2026-09-13):
+       a same-key re-ask of a plan still at Staged, unexecuted, by the same
+       actor, mints a fresh token and voids the one this page never received.
+       With it present the branch above keeps the row; the derived-key re-issue
+       below is only for a replay that carries no token at all. */
+    tokenRotated: r.tokenRotated === true,
     accountId: typeof r.accountId === "string" ? r.accountId : undefined,
     productPackageId: typeof r.productPackageId === "string" ? r.productPackageId : undefined,
     summary: String(r.summary ?? ""),
@@ -1030,6 +1333,7 @@ export async function stageAction<K extends WriteActionId>(
     covenantCarryoverCount: typeof r.covenantCarryoverCount === "number" ? r.covenantCarryoverCount : undefined,
     provenance: parseProvenance(r.provenanceJson),
   }));
+  return { ...out, attempts: res.attempts ?? 1 };
 }
 
 /* ---------------------------------------------------------------- execute */
@@ -1082,29 +1386,150 @@ export function resolveApproverUserId(meta: { user?: string; userId?: string } |
  * So the caller resends the original stage token. That is the natural caller
  * behaviour and the one the verified envelope captured.
  */
+/** What an execute answered, plus how the answer was obtained. */
+export type ExecuteOutcome = ToolOutcome<ExecuteResult> & {
+  attempts: number;
+  /** True when the wire never answered and this outcome was read off the org's
+   *  own trail. The run is the org's either way; the room says which. */
+  recovered?: boolean;
+  /** True when neither the wire nor the trail settled inside the clock. Nothing
+   *  here says the run failed, and nothing here says it landed. */
+  pending?: boolean;
+};
+
+/** How long the trail is polled for a run whose answer was lost, and how often.
+ *  The same 45 seconds the confirm gate waits before it says the org has not
+ *  come back: past that the banker is owed a sentence, not a spinner. */
+export const EXECUTE_CLOCK_MS = 45_000;
+const TRAIL_POLL_MS = 3_000;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * THE RUN, AS THE ORG'S OWN TRAIL HAS IT.
+ *
+ * Polled until the staging row reaches a terminal status or the clock runs out.
+ * A row that is still `Executing` is not a failure and never reads as one: it is
+ * the org still working, and the honest answer is that nobody knows yet.
+ */
+async function settleFromTrail(accountId: string, stagingId: string, budgetMs: number): Promise<ActionHistoryRow | undefined> {
+  const until = Date.now() + budgetMs;
+  for (;;) {
+    const row = await readActionState(accountId, stagingId).catch(() => undefined);
+    if (row && isTerminalStatus(row.status)) return row;
+    if (Date.now() + TRAIL_POLL_MS > until) return row;
+    await sleep(TRAIL_POLL_MS);
+  }
+}
+
+/** The trail row read back as an execution result. Every field comes off the
+ *  row: the status the org holds, the tracker steps it recorded, the record it
+ *  named. Nothing here is inferred, and nothing claims a verification the
+ *  tracker did not carry. */
+function executionFromTrail(row: ActionHistoryRow): ExecuteResult {
+  const terminalState = row.status === "Completed" ? "success" : row.status === "Partial" ? "partial" : "failed";
+  const named = row.resultRecordName ? ` It names ${row.resultRecordName}.` : "";
+  const outcome =
+    row.status === "Completed"
+      ? `Salesforce finished this run. Its trail reads Completed.${named}`
+      : row.status === "Partial"
+        ? `Salesforce reports this run as Partial. Its trail carries the steps that landed.${named}`
+        : "Salesforce reports this run as Failed. Its trail carries the steps it got through.";
+  return {
+    stagingId: row.stagingId,
+    terminalState,
+    outcome,
+    recordName: row.resultRecordName ?? null,
+    anchorName: null,
+    productPackageId: row.productPackageId,
+    steps: (row.steps ?? []).map((s) => ({
+      id: s.id,
+      type: String(s.type ?? ""),
+      label: String(s.label ?? ""),
+      state: String(s.state ?? "pending"),
+      detail: s.verification,
+    })),
+  };
+}
+
 /** Call `execute_*`. USER GESTURE ONLY, and only behind a confirmed plan. */
 export async function executeAction(
   actionId: WriteActionId,
   payload: ExecutePayload,
-): Promise<ToolOutcome<ExecuteResult>> {
+  opts: WriteCallOptions = {},
+): Promise<ExecuteOutcome> {
   const tool = WRITE_TOOLS[actionId].execute;
   // Defence in depth: the gate disables the gesture, and the call is refused
   // anyway rather than sending a tool name that does not exist.
   if (!tool) {
     return {
       ok: false,
+      attempts: 0,
       error: { code: "EXECUTION_HELD", message: executionHeldReason(actionId) ?? EXECUTION_HELD_COPY, resumable: false },
     };
   }
-  const res = await callTool(
-    SERVERS.customer360,
-    tool,
-    { inputs: [payload] },
-    // A write is never cached and never auto-retried: an ambiguous transport
-    // outcome is not proof the tool did not run.
-    { cache: false, read: false },
-  );
-  return unwrapToolOutcome<ExecuteResult>(res.payload, (r) => ({
+  const accountId = opts.accountId ?? null;
+  let res;
+  try {
+    res = await callTool(
+      SERVERS.customer360,
+      tool,
+      { inputs: [payload] },
+      {
+        cache: false,
+        read: false,
+        /* THE SAME stagingId AND THE SAME TOKEN GO BACK OUT, which is what makes
+           this safe to ask twice: Execute*.cls answers a key that already
+           produced a record with that run's own tracker and writes nothing. */
+        idempotent: true,
+        onAttempt: (i) => opts.onAttempt?.(i.attempt),
+        /* AND THE TRAIL GETS A VETO. The org's fence closes over a COMMITTED
+           transaction; a first ask still inside its own is invisible to every
+           reader there is, which is why the second ask waits a second or two and
+           asks the trail first. A row that has left Staged means the first ask
+           reached Apex and consumed the token, and re-asking it can only be
+           refused or, worse, land beside a transaction still open. Where the
+           trail cannot answer, the ladder continues: the common lost answer is
+           one the relay dropped before Salesforce ever saw it. */
+        beforeRetry: accountId
+          ? async () => {
+              const row = await readActionState(accountId, payload.stagingId).catch(() => undefined);
+              return !row || row.status === "Staged";
+            }
+          : undefined,
+      },
+    );
+  } catch (e) {
+    const failure = e as McpFailure;
+    const attempts = failedAttempts(e);
+    /* ONLY A LOST ANSWER IS TAKEN OVER HERE. A denial, a missing grant or a view
+       with no connector bridge is a REFUSAL with its own meaning and its own
+       copy upstream, and every caller already branches on the rejection it has
+       always thrown. Swallowing those into a tool error would take the "this
+       view is not connected" notice away from the rooms that raise it. */
+    if (!isLostAnswer(failure)) throw e;
+    /* THE WIRE IS OUT OF ANSWERS, SO THE TRAIL IS ASKED. The run may be filed,
+       running, or never started, and each of those is a different sentence. What
+       must never happen is the banker reading a platform string as the last word
+       on a governed write. */
+    const row = accountId ? await settleFromTrail(accountId, payload.stagingId, EXECUTE_CLOCK_MS) : undefined;
+    if (row && isTerminalStatus(row.status)) {
+      return { ok: true, attempts, recovered: true, result: executionFromTrail(row) };
+    }
+    const said = row
+      ? `Salesforce is still working on ${row.stagingId}: its trail reads ${row.status ?? "Executing"} and has not settled. ` +
+        "Nothing here says it failed. Open the record in Salesforce before staging this again."
+      : `${TRANSPORT_SENTENCE} (${failure.code})`;
+    return {
+      ok: false,
+      attempts,
+      pending: true,
+      // The platform's own code AND its string, so the sentence the banker reads
+      // carries the thing an engineer needs to look it up.
+      error: { code: "TRANSPORT", message: said, orgError: `${failure.code}: ${failure.message}`, resumable: true },
+    };
+  }
+  const out = unwrapToolOutcome<ExecuteResult>(res.payload, (r) => ({
     stagingId: String(r.stagingId ?? ""),
     terminalState: String(r.terminalState ?? "failed"),
     outcome: String(r.outcome ?? ""),
@@ -1137,6 +1562,7 @@ export async function executeAction(
     loanDetailId: typeof r.loanDetailId === "string" ? r.loanDetailId : undefined,
     executionHeld: r.executionHeld === true,
     heldReason: typeof r.heldReason === "string" ? r.heldReason : undefined,
+    sourcePackageId: typeof r.sourcePackageId === "string" ? r.sourcePackageId : undefined,
     // `recordName` is canonical; the per-action aliases carry the SAME fact for
     // tools that predate it. All absent means the read-back did not confirm a
     // name, which is a state the UI must show rather than fill in.
@@ -1155,15 +1581,31 @@ export async function executeAction(
         })
       : [],
   }));
+  return { ...out, attempts: res.attempts ?? 1 };
 }
 
 /** A non-empty string, or undefined. Blank is not a name. */
 const str = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
-/** Banker-readable copy for a domain failure, keeping the org's own words. */
+/**
+ * Banker-readable copy for a domain failure, keeping the org's own words.
+ *
+ * A DOMAIN failure is rendered verbatim: it is the org refusing, in its own
+ * words, and paraphrasing one has already cost a live session.
+ *
+ * A TRANSPORT failure is not the org speaking at all, and the platform's string
+ * ("request failed (502)") told a banker nothing except that something broke.
+ * So the room says what is true of the state, and the platform's own code rides
+ * behind it in parentheses for whoever has to diagnose it. A caller that already
+ * wrote the sentence itself puts the platform text in `orgError`, and that
+ * sentence stands.
+ */
 export function toolErrorCopy(e: ToolError): string {
-  if (e.code === "TRANSPORT") return e.message;
-  return e.message;
+  if (e.code !== "TRANSPORT") return e.message;
+  const own = (e.message ?? "").trim();
+  const platform = (e.orgError ?? "").trim();
+  if (platform) return own ? `${own} (${platform})` : `${TRANSPORT_SENTENCE} (${platform})`;
+  return own ? `${TRANSPORT_SENTENCE} (${own})` : TRANSPORT_SENTENCE;
 }
 
 export type { McpFailure };

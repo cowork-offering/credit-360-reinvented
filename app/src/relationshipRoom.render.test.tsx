@@ -58,6 +58,10 @@ function ctxFor(overrides: Partial<BorrowerBundle> = {}): RelContext {
         {
           loanId: "0Cb1",
           status: "Active",
+          /* A stage the read carries. The amend gate fails closed on an unstaged
+             member (absent means not staged in this view, never not booked), so
+             a package the room can shape in place names its stage. */
+          stage: "Qualification",
           productPackageId: PACKAGE,
           committed: 10_000_000,
           collateral: [{ collateralId: "a35A", collateralName: "COL-000762", collateralType: "Equipment" }],
@@ -275,7 +279,11 @@ describe("the smart opening", () => {
 describe("the neutral six-way", () => {
   it("offers all six and binds the one the banker taps", () => {
     const { bound } = open({ question: neutralRelAsk() });
-    expect(document.body.querySelectorAll(".wk-opts .wk-opt")).toHaveLength(6);
+    /* EIGHT SINCE 0.9.23: the six the room has always taken, and the two that
+       shape the version in flight. The two version chips are always on the
+       glass and are DISABLED with their reason where the relationship carries
+       nothing amendable (A27.3), so the count does not move with the book. */
+    expect(document.body.querySelectorAll(".wk-opts .wk-opt")).toHaveLength(8);
     click(byText(/Collateral valuation/));
     expect(bound[0].route).toBe("valuation");
   });
@@ -290,7 +298,12 @@ describe("the neutral six-way", () => {
     const { room, bound } = open({ question: neutralRelAsk() });
     await type(room, "how is this client doing");
     expect(bound).toEqual([]);
-    expect(document.body.textContent).toContain("Pick one above, or name which of the six this is.");
+    /* THE MENU NAMES ONLY DOORS THAT OPEN (golden rule 4). This book's package
+       carries no booked member, so it is one the room can shape in place and
+       the two version routes are named with the six; a relationship whose every
+       package is booked reads the six-way, unchanged. */
+    expect(document.body.textContent).toContain("Pick one above, or name which of the eight this is.");
+    expect(document.body.textContent).toContain("onto the version already in flight");
   });
 
   /* THE DRIVE'S LINE 13. "james wants the june certificate" names no review at
@@ -305,7 +318,7 @@ describe("the neutral six-way", () => {
     await type(room, "pledge the equipment to the 8M loan");
     expect(bound).toEqual([]);
     expect(document.body.textContent).toContain("That is facility work.");
-    expect(document.body.textContent).not.toContain("Pick one above, or name which of the six this is.");
+    expect(document.body.textContent).not.toContain("Pick one above, or name which of the");
   });
 
   it("offers the service request in ONE line when the client asked for something", async () => {
@@ -313,7 +326,7 @@ describe("the neutral six-way", () => {
     await type(room, "james wants the june certificate");
     // It does NOT bind. Guessing here picks a write path.
     expect(bound).toEqual([]);
-    expect(document.body.textContent).not.toContain("Pick one above, or name which of the six this is.");
+    expect(document.body.textContent).not.toContain("Pick one above, or name which of the");
     expect(document.body.textContent).toContain("which is a service request on this relationship");
     // One offer, and the way out of it. Never the five.
     expect(document.body.querySelectorAll(".wk-opts .wk-opt")).toHaveLength(2);
@@ -335,7 +348,11 @@ describe("the neutral six-way", () => {
     await type(room, "james wants the june certificate");
     click(byText(/Something else/));
     expect(bound).toEqual([]);
-    expect(document.body.querySelectorAll(".wk-opts .wk-opt")).toHaveLength(6);
+    /* EIGHT SINCE 0.9.23: the six the room has always taken, and the two that
+       shape the version in flight. The two version chips are always on the
+       glass and are DISABLED with their reason where the relationship carries
+       nothing amendable (A27.3), so the count does not move with the book. */
+    expect(document.body.querySelectorAll(".wk-opts .wk-opt")).toHaveLength(8);
   });
 
   /* A FIELD EXAM IS NOT ONE OF THE FIVE. No route word matches "field exam",

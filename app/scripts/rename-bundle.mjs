@@ -61,7 +61,7 @@ console.log(`bundle: dist/cockpit.html \u2014 ${bytes.toLocaleString()} bytes ($
 //                  say what the bytes bought. Bump BASELINE_BYTES in the same
 //                  commit that ships the growth.
 const HARD_CAP_MIB = 2.0;
-const BASELINE_BYTES = 1_952_974; // 0.9.19 shipped size, 2026-09-13 (spread room + audits + latency, +97.8 KB over 0.9.18, justified in STATUS.md)
+const BASELINE_BYTES = 2_064_906; // 0.9.23 shipped size, 2026-09-13 (the version lifecycle: amend mode, version routes, discard door, idempotent write ladder, parties grammar; +109.3 KB over 0.9.19, justified in STATUS.md)
 const SOFT_TIER_BYTES = 50 * 1024;
 if (mib > HARD_CAP_MIB) {
   console.error(`FAIL: bundle ${mib.toFixed(3)} MiB exceeds the ${HARD_CAP_MIB} MiB hard cap (load-derived; founder decision to move)`);

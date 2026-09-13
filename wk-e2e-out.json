@@ -1,0 +1,957 @@
+{
+ "founderTranscript": {
+  "name": "founderTranscript",
+  "picked": "Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real E",
+  "turns": [
+   {
+    "you": "Increase the line of credit by 20M USD",
+    "ms": 1923,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 2,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "Line of Credit $15M",
+     "Line of Credit $2.50M"
+    ],
+    "reply": "This package carries 2 of those: Line of Credit - $15,000,000.00, Line of Credit - $2,500,000.00. Which one?Line of Credit $15MLine of Credit $2.50M"
+   },
+   {
+    "you": "[chip] Confirm",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "[chip] Acknowledge",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "the $15M line of credit",
+    "ms": 6343,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 4,
+    "refusal": false,
+    "visibleChips": 4,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "240 months",
+     "300 months",
+     "Another figure",
+     "Leave pricing for later"
+    ],
+    "reply": "Confirming stages the next version of the package: nothing booked moves until the bank's own approval books it. || Commitment amount on Line of Credit ($15M): $15M → $35M, staged on the clone. That takes the package from $49M to $69M. || Coverage thinsDerived here from the org's collateral poolCommitted goes to $69M against $42.37M of lendable collateral. Fully drawn, the pool covers 0.61x of th || What is the amortisation term on the $15.0MM Line of Credit? Salesforce needs the amount, the term, the amortised term and the first payment date before it will"
+   },
+   {
+    "you": "[chip] Confirm",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "240 months",
+    "ms": 4127,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 3,
+    "refusal": false,
+    "visibleChips": 4,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "1 September 2026",
+     "1 October 2026",
+     "Another date",
+     "Leave pricing for later"
+    ],
+    "reply": "The amortisation term on the $15.0MM Line of Credit goes onto the plan at 240 months. Salesforce needs the amount, the term, the amortised term and the first pa || Amortisation term (months) on Line of Credit ($15M): not carried in this read → 240 months, staged on the clone. The package total holds at $69M. || What is the first payment date on the $15.0MM Line of Credit? The org holds it blank on every loan on this relationship, so this is the last of the four.1 Septe"
+   },
+   {
+    "you": "[chip] Confirm",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "1 October 2026",
+    "ms": 4136,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 3,
+    "refusal": false,
+    "visibleChips": 3,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "Hold 6.58%",
+     "New all-in rate",
+     "Index + spread"
+    ],
+    "reply": "The first payment date on the $15.0MM Line of Credit goes onto the plan at Oct 1, 2026. Salesforce needs the amount, the term, the amortised term and the first  || First payment date on Line of Credit ($15M): not carried in this read → Oct 1, 2026, staged on the clone. The package total holds at $69M. || What rate should the $15.0MM Line of Credit carry? The read carries 6.58% on it. This read carries no index name and no spread, so the room works in all-in rate"
+   },
+   {
+    "you": "Hold 6.58%",
+    "ms": 1919,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "The $15.0MM Line of Credit keeps 6.58%. Nothing is staged for the rate and the new version carries it forward."
+   },
+   {
+    "you": "what borrowers are on this loan already ?",
+    "ms": 1919,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "[card] 5 parties are on this package today, each once, with the role it holds and the facilities behind it.On this packageHartwell Precision Manufacturing LLCon"
+   },
+   {
+    "you": "[chip] Confirm",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "yes increase to 7.25%",
+    "ms": 4130,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 2,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "The $15.0MM Line of Credit moves to 7.25%. Confirm it and it goes on the plan. || Interest rate on Line of Credit ($15M): 6.58% → 7.25%, staged on the clone. The package total holds at $69M."
+   },
+   {
+    "you": "show me the pledges on this loan",
+    "ms": 1920,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "[card] 8 pledges are recorded against this package, by facility, at the share each facility holds.Line of CreditUCC-Accounts · All present and future accounts r"
+   }
+  ],
+  "approveDoors": [],
+  "findings": [],
+  "pageErrors": [],
+  "pending": null
+ },
+ "stressRate": {
+  "name": "stressRate",
+  "picked": "Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real E",
+  "turns": [
+   {
+    "you": "Increase the line of credit to 20M",
+    "ms": 1917,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 2,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "Line of Credit $15M",
+     "Line of Credit $2.50M"
+    ],
+    "reply": "This package carries 2 of those: Line of Credit - $15,000,000.00, Line of Credit - $2,500,000.00. Which one?Line of Credit $15MLine of Credit $2.50M"
+   },
+   {
+    "you": "[chip] Confirm",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "[chip] Acknowledge",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "the $15M line of credit",
+    "ms": 6345,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 4,
+    "refusal": false,
+    "visibleChips": 4,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "240 months",
+     "300 months",
+     "Another figure",
+     "Leave pricing for later"
+    ],
+    "reply": "Confirming stages the next version of the package: nothing booked moves until the bank's own approval books it. || Commitment amount on Line of Credit ($15M): $15M → $20M, staged on the clone. That takes the package from $49M to $54M. || Coverage thinsDerived here from the org's collateral poolCommitted goes to $54M against $42.37M of lendable collateral. Fully drawn, the pool covers 0.78x of th || What is the amortisation term on the $15.0MM Line of Credit? Salesforce needs the amount, the term, the amortised term and the first payment date before it will"
+   },
+   {
+    "you": "[chip] Confirm",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "7.25%",
+    "ms": 4134,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 4,
+    "refusal": false,
+    "visibleChips": 8,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "240 months",
+     "300 months",
+     "Another figure",
+     "Leave pricing for later",
+     "240 months",
+     "300 months",
+     "Another figure",
+     "Leave pricing for later"
+    ],
+    "reply": "The $15.0MM Line of Credit moves to 7.25%. Confirm it and it goes on the plan. || What is the amortisation term on the $15.0MM Line of Credit? Salesforce needs the amount, the term, the amortised term and the first payment date before it will || Interest rate on Line of Credit ($15M): 6.58% → 7.25%, staged on the clone. The package total holds at $54M. || What is the amortisation term on the $15.0MM Line of Credit? This read carries no amortisation for it, and the org holds it blank on the booked loan and on the "
+   },
+   {
+    "you": "asdf",
+    "ms": 1921,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 4,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "240 months",
+     "300 months",
+     "Another figure",
+     "Leave pricing for later"
+    ],
+    "reply": "I heard \"asdf\", and I cannot read it as a length in months or years. What is the amortisation term on the $15.0MM Line of Credit? Salesforce needs the amount, t"
+   },
+   {
+    "you": "keep it",
+    "ms": 1918,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "Pricing fields on the $15.0MM Line of Credit: left for later. The amortisation term and the first payment date are not on this plan, so the new version will not"
+   },
+   {
+    "you": "[chip] Confirm",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "240 months",
+    "ms": 4132,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 2,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": " || Term (months) on Line of Credit ($15M): not carried in this read → 240 months, staged on the clone. The package total holds at $54M."
+   },
+   {
+    "you": "1 October 2026",
+    "ms": 2331,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "I could not match that to anything on this package: it names no facility on this package and no field I can change. Nothing in \"1 October 2026\" is a member or a"
+   },
+   {
+    "you": "no change",
+    "ms": 2327,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "I could not match that to anything on this package: it names no facility on this package and no field I can change. Nothing in \"no change\" is a member or a chan"
+   }
+  ],
+  "approveDoors": [],
+  "findings": [],
+  "pageErrors": [],
+  "pending": null
+ },
+ "relativeAndSign": {
+  "name": "relativeAndSign",
+  "picked": "Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real E",
+  "turns": [
+   {
+    "you": "add 50bps on the line of credit",
+    "ms": 1917,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 2,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "Line of Credit $15M",
+     "Line of Credit $2.50M"
+    ],
+    "reply": "This package carries 2 of those: Line of Credit - $15,000,000.00, Line of Credit - $2,500,000.00. Which one?Line of Credit $15MLine of Credit $2.50M"
+   },
+   {
+    "you": "[chip] Confirm",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "the $15M line of credit",
+    "ms": 4130,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 2,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "Confirming stages the next version of the package: nothing booked moves until the bank's own approval books it. || Interest rate on Line of Credit ($15M): 6.58% → 7.08%, staged on the clone. The package total holds at $49M."
+   },
+   {
+    "you": "-5%",
+    "ms": 2346,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 2,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "Lower the rate to 1.58%",
+     "Reduce the commitment to $14,250,000.00"
+    ],
+    "reply": "\"-5%\" could be the rate down 5 points, to 1.58%, or the commitment cut 5%, to $14,250,000.00. Those are different changes, so say which.Lower the rate to 1.58%R"
+   },
+   {
+    "you": "[chip] Confirm",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "actually 8%",
+    "ms": 4125,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 2,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": " || Interest rate on Line of Credit ($15M): 6.58% → 8%, staged on the clone. The package total holds at $49M. That replaces the earlier 7.08%."
+   },
+   {
+    "you": "what is this covenant doing?",
+    "ms": 1917,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "[card] 6 covenant tests run against this package, with the org's own thresholds and last verdicts.Line of CreditAccounts Receivablethreshold 80, measured 80 · n"
+   }
+  ],
+  "approveDoors": [],
+  "findings": [],
+  "pageErrors": [],
+  "pending": null
+ },
+ "founderParties": {
+  "name": "founderParties",
+  "picked": "Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real E",
+  "turns": [
+   {
+    "you": "show me all my collaterals",
+    "ms": 1921,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "[card] 8 pledges are recorded against this package, by facility, at the share each facility holds.Line of CreditUCC-Accounts · All present and future accounts r"
+   },
+   {
+    "you": "show my full collaterals",
+    "ms": 1918,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "That is the same read as a moment ago, and nothing on it has moved. Here it is again."
+   },
+   {
+    "you": "who are the guarantors on this package",
+    "ms": 1928,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "[card] 3 guarantors are on this package today, each once with the role the org wrote. Limited guarantors are guarantors: the cap is on the amount, not on the ob"
+   },
+   {
+    "you": "which entities are on the $15M line of credit",
+    "ms": 1917,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "[card] 4 parties are on the Line of Credit ($15M) today, each once, with the role it holds and the facilities behind it.Line of Credit ($15M)Hartwell Precision "
+   },
+   {
+    "you": "remove Elena from this loan",
+    "ms": 1918,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 2,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "Line of Credit $15M",
+     "Construction $12M"
+    ],
+    "reply": "Elena Hartwell is on 2 of these facilities: the Line of Credit $15M as Limited Guarantor and the Construction $12M as Limited Guarantor. Which one should come o"
+   },
+   {
+    "you": "remove Elena Hartwell from this loan",
+    "ms": 1922,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 2,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "Line of Credit $15M",
+     "Construction $12M"
+    ],
+    "reply": "That is the same instruction, and the facility is still what is open. Pick one: Line of Credit $15M or Construction $12M.Line of Credit $15MConstruction $12M"
+   },
+   {
+    "you": "[chip] Confirm",
+    "ms": 0,
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "freshCount": 0,
+    "reply": ""
+   },
+   {
+    "you": "remove Elena Hartwell as guarantor from the 15M line of credit",
+    "ms": 4131,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 2,
+    "refusal": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [],
+    "reply": "Remove a legal entity on Line of Credit ($15M): Limited Guarantor, carried over from the parent → off the modification. || Remove a legal entity on Line of Credit ($15M): Limited Guarantor, carried over from the parent → off the modification, staged on the clone. The package total h"
+   },
+   {
+    "you": "add James as guarantor on the 15M line",
+    "ms": 1920,
+    "replied": true,
+    "repeat": false,
+    "freshCount": 1,
+    "refusal": false,
+    "visibleChips": 2,
+    "openCard": 0,
+    "emDash": false,
+    "chipLabels": [
+     "Take James Hartwell off that facility",
+     "A different facility"
+    ],
+    "reply": "James Hartwell is already Guarantor on $15.0MM Line of Credit, and a modification carries the row onto the clone. The org holds involvement as rows, so adding t"
+   }
+  ],
+  "approveDoors": [],
+  "findings": [],
+  "pageErrors": [],
+  "pending": null
+ },
+ "discardVersion": {
+  "name": "discardVersion",
+  "turns": [
+   {
+    "you": "[open] Activity trail",
+    "reply": "Modification in ProgressHartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real Estate is unbooked with the org: Modification in flight · editable until approval · 7 facilities · $54M. Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real Estate stays booked and cannot take a second modification until this version is booked or discarded.Discard this versionRemoves the unbooked version and its copies; the booked package stays exactly as it is.",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[chip] Discard this version",
+    "reply": "Discard this versionHartwell Precision Manufacturing LLCRemoves the unbooked version and its copies; the booked package stays exactly as it is. Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real Estate stays exactly as it is, and so do the collateral assets and the covena",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[chip] Review the plan",
+    "reply": "14 records in this discardVersion chain rowsRL-00000198 revision 0the self-anchor row on the booked parentRL-00000199 revision 1points the booked parent at the clonePledges and junctionsPledge copied onto the versiona copy of the parent pledge; the asset and its ownership row stayMinimum Debt Service Coverage junctiona copy of the parent junction; the covenant record staysPricing and feesPricing stream on the versioncloned by the nCino pricing engineThe version's facilitiesHartwell Precision Manufacturing LLC - Line of Credit - $20,000,000.00a modification clone at QualificationHartwell Precis",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[chip] Confirm and file",
+    "reply": "Discard this versionHartwell Precision Manufacturing LLCRemoves the unbooked version and its copies; the booked package stays exactly as it is. The booked package stays exactly as it is, and so do the collateral assets and the covenant records themselves; only the version's own copies of them go.Bri",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[read] the trail after the undo",
+    "reply": "Audit trailActivityExplainVersion discarded from Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real EstateFabian Goetzens · just now7 clone facilities, 1 version package, 5 supporting rows removed. 1 staging row marked Withdrawn. Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real Estate is unchanged.This sessionCustomer 360LLC_BI__Product_Pac",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[read] the package ask after the undo",
+    "reply": "Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real EstatePart booked · 7 facilities · $49M c || Hartwell Precision Manufacturing LLC credit package · Real Estate and Non-Real EstateBooked · 2 facilities · $8M committ",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   }
+  ],
+  "findings": [],
+  "pageErrors": [],
+  "pending": null
+ },
+ "createFromRelationship": {
+  "name": "createFromRelationship",
+  "turns": [
+   {
+    "you": "[open] New Facility Request from the relationship",
+    "reply": "New package",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 1,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   }
+  ],
+  "findings": [],
+  "pageErrors": [],
+  "pending": null
+ },
+ "createInsideVersion": {
+  "name": "createInsideVersion",
+  "turns": [
+   {
+    "you": "[stand in] the in-flight version",
+    "reply": "Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real E",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[route] New facility",
+    "reply": "Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real Estate || New package",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 2,
+    "openCard": 0,
+    "freshCount": 2,
+    "ms": 0
+   }
+  ],
+  "findings": [],
+  "pageErrors": [],
+  "pending": null
+ },
+ "amendVersion": {
+  "name": "amendVersion",
+  "turns": [
+   {
+    "you": "[stand in] the in-flight version",
+    "reply": "Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real E",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[read] the routes inside a version",
+    "reply": "Modify || Renew || New facility || Shape this version",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "take the 15M line of credit to 7.10%",
+    "reply": "?Hey Fabian. The Maximum Debt to Worth covenant is due in 36 days. Start the review?PackageCovenantsCollateralMaturities || The borrower's leverage stands inside policy and the coverage cushion is intact at the tested quarter. Working capital is seasonal and the revolver carries it; the term facility amortises on schedule. Collateral is the plant and equipment, valued within the year, and the advance rate is unchanged from the last review. || This package carries 2 of those: Line of Credit - $20",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[chip] Line of Credit $20M",
+    "reply": "?Hey Fabian. The Maximum Debt to Worth covenant is due in 36 days. Start the review?PackageCovenantsCollateralMaturities || The borrower's leverage stands inside policy and the coverage cushion is intact at the tested quarter. Working capital is seasonal and the revolver carries it; the term facility amortises on schedule. Collateral is the plant and equipment, valued within the year, and the advance rate is unchanged from the last review. || This package carries 2 of those: Line of Credit - $20",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[chip] Review & execute",
+    "reply": "decision token · single use · amen…9687 || Approve and file 1 change",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[wire] stage_amend_version",
+    "reply": "[{\"versionPackageId\":\"a5Fbb0000009TESTV1\",\"scalars\":[{\"key\":\"requestedRate\",\"value\":7.1,\"targetLoanId\":\"a4Zbb00000CLONE0\"}]}]",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[chip] Approve and file",
+    "reply": "1 of these goes on this version. Confirming changes the version the org already holds: Line of Credit ($20M) takes the new figures in place. || Interest rate on Line of Credit ($20M): 6.58% → 7.1%, staged on this version. The package total holds at $54M. || The borrower's leverage stands inside policy and the coverage cushion is intact at the tested quarter. Working capital is seasonal and the revolver carries it; the term facility amortises on schedule.",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[read] the version's facility after the amendment",
+    "reply": "{\"version\":{\"loanId\":\"a4Zbb00000CLONE0\",\"name\":\"Hartwell Precision Manufacturing LLC - Line of Credit - $20,000,000.00\",\"interestRate\":7.1},\"parent\":{\"name\":\"Hartwell Precision Manufacturing LLC - Line of Credit - $15,000,000.00\",\"interestRate\":6.58}}",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   }
+  ],
+  "findings": [],
+  "pageErrors": [],
+  "pending": null
+ },
+ "relayDrop": {
+  "name": "relayDrop",
+  "turns": [
+   {
+    "you": "[route] Modify, then the package carrying the $15M line",
+    "reply": "Hartwell Precision Manufacturing LLC credit package · Non-Real Estate and Real E",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "Increase the line of credit to 20M",
+    "reply": "This package carries 2 of those: Line of Credit - $15,000,000.00, Line of Credit - $2,500,000.00. Which one?Line of Credit $15MLine of Credit $2.50M",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "the $15M line of credit",
+    "reply": "What is the amortisation term on the $15.0MM Line of Credit? Salesforce needs the amount, the term, the amortised term and the first payment date before it will price this loan. This read carries no amortisation for it, and the org holds it blank on the booked loan and on the new version, so nobody can price the change until it is set. This plan sets no term either, so there is nothing here for me",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "240 months",
+    "reply": "What is the first payment date on the $15.0MM Line of Credit? The org holds it blank on every loan on this relationship, so this is the last of the four.1 September 20261 October 2026Another dateLeave pricing for later",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "1 October 2026",
+    "reply": "What rate should the $15.0MM Line of Credit carry? The read carries 6.58% on it. This read carries no index name and no spread, so the room works in all-in rates: the org stores the rate itself. e.g. 7.25% fixed, paid monthlyHold 6.58%New all-in rateIndex + spread",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "no change",
+    "reply": "The borrower's leverage stands inside policy and the coverage cushion is intact at the tested quarter. Working capital is seasonal and the revolver carries it; the term facility amortises on schedule.",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[chip] Review & execute, with one answer dropped",
+    "reply": "decision token · single use · 4f8a…4d10 || rows: STG-0000000149, STG-0000000150",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   },
+   {
+    "you": "[chip] Review & execute, with every answer dropped",
+    "reply": "The $15.0MM Line of Credit keeps 6.58%. Nothing is staged for the rate and the new version carries it forward. || Salesforce holds this plan as STG-0000000150 and its answer did not reach this page after 3 asks. Nothing has been executed. Say it again and I will re-issue the same plan under a fresh key, which is the only way Salesforce will mint the confirmation token.",
+    "replied": true,
+    "repeat": false,
+    "refusal": false,
+    "emDash": false,
+    "visibleChips": 0,
+    "openCard": 0,
+    "freshCount": 1,
+    "ms": 0
+   }
+  ],
+  "findings": [],
+  "pageErrors": [],
+  "pending": null
+ }
+}

@@ -44,15 +44,34 @@ export interface PlanStep {
   transition?: { field: string; from: string; to: string };
 }
 
-/** One collateral record inside a bulk valuation plan, with the step ids that
- *  will report on it. A failure on one item is reported against ITS collateral. */
+/**
+ * One row of a plan's `items[]`, and the slot now carries two kinds of row.
+ *
+ * A BULK VALUATION names collateral: `collateralId` plus the step ids that will
+ * report on it, so a failure on one item is reported against ITS collateral.
+ *
+ * A DISCARD names the INVENTORY (0.9.23, SPEC-0.9.23-TOOL-CONTRACT pair 2):
+ * object, id, name and the reason the row goes, discovered by query on the org
+ * from the version package id. It carries no `collateralId`, which is why that
+ * field is optional here; the renderer tells the two shapes apart by `object`.
+ * Nothing derives an inventory locally, so a row without `object` is simply not
+ * an inventory row.
+ */
 export interface StagedItem {
-  collateralId: string;
+  collateralId?: string;
   collateralName?: string;
   value?: number | null;
   writeStepId?: string;
   verifyStepId?: string;
   rollupStepId?: string;
+  /** Discard inventory: the org object this row belongs to, API name. */
+  object?: string;
+  /** The record's own id, as the org resolved it. */
+  id?: string;
+  /** The record's name, in the org's words. */
+  name?: string;
+  /** Why this row goes, in the org's words. Rendered verbatim. */
+  reason?: string;
 }
 
 /** One facility inside a package-anchored credit action, with the step ids that
@@ -114,6 +133,9 @@ export interface StagedOutput {
   decisionToken?: string | null;
   /** True when this idempotency key had already staged. Nothing was re-planned. */
   replayed?: boolean;
+  /** True when a replay re-issued the confirmation token on the same staging
+   *  row (the earlier token, never received, is void). */
+  tokenRotated?: boolean;
   accountId?: string;
   productPackageId?: string;
   /** Per-field provenance map, delivered as a JSON STRING on the wire. */
@@ -228,6 +250,21 @@ function isTransitionState(path: string): boolean {
   return /\.transition\.(?:from|to)$/.test(path);
 }
 
+/**
+ * A DISCARD INVENTORY ROW'S OWN ID (0.9.23).
+ *
+ * `items[n].id` on a discard plan is a record the org found by query and would
+ * DELETE. Every one of them existed long before this plan was staged, so
+ * finding one proves the opposite of what the fence looks for: it is the plan
+ * naming what it is aimed at, exactly as `facilityId` is on a credit action.
+ *
+ * PATH-SHAPED, NOT KEY-SHAPED. `id` is too generic a key to allowlist globally;
+ * a stray `id` anywhere else in a plan must still be flagged.
+ */
+function isInventoryId(path: string): boolean {
+  return /^items\[\d+\]\.id$/.test(path);
+}
+
 export function assertNoRecordIds(plan: StagedOutput): string[] {
   const violations: string[] = [];
 
@@ -245,7 +282,7 @@ export function assertNoRecordIds(plan: StagedOutput): string[] {
       }
 
       // 2. Otherwise only flag ids outside the known carriers.
-      if (ID_CARRYING_KEYS.has(key) || isProvenanceCitation(path) || isTransitionState(path)) return;
+      if (ID_CARRYING_KEYS.has(key) || isProvenanceCitation(path) || isTransitionState(path) || isInventoryId(path)) return;
       violations.push(`${path} looks like an org record id (${value})`);
       return;
     }

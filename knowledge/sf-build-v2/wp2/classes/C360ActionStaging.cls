@@ -19,28 +19,51 @@
  *      identity, and the Customer 360 server runs as-user, so a replay still executes as the
  *      named banker against the exact planHash the banker saw. Closing the gap fully needs a
  *      panel-side mint endpoint that A33 does not currently specify.
+ *
+ * The mint is not once per row: an untouched replay ROTATES the token, replacing the stored
+ * digest so exactly one token is ever valid for a staging row. See stagePlan.
  */
 public with sharing class C360ActionStaging {
 
     /** Raised when staging, token or idempotency preconditions are not met. */
     public class StagingException extends Exception {}
 
-    /** The outcome of a stage_* call: the handle, the hash, and the freshly minted token. */
+    /** The outcome of a stage_* call: the handle, the hash, and the token this caller now holds. */
     public class Staged {
         public Id stagingId;
         public String planHash;
         public String decisionToken;
         public Boolean replayed;
+        public Boolean tokenRotated;
     }
 
     /**
      * Persists a plan and mints its decision token, or returns the existing staging record when
      * the idempotency key has been seen before.
      *
-     * A replayed stage never re-mints: re-minting would hand out a second single-use token for
-     * a plan the banker already confirmed, which is precisely the property A33.5.4 forbids. A
-     * replay returns the same plan hash with a null token, and the caller resumes with the token
-     * it already holds.
+     * TOKEN ROTATION ON AN UNTOUCHED REPLAY. The relay between the page and this org can lose the
+     * stage_* answer after the org has already staged it: the row exists, and the page holds
+     * nothing. The page re-asks under the same idempotency key, and the old rule handed it the plan
+     * with a null token, so it could not execute and the cockpit had to re-stage under a derived
+     * key, minting a second row and stranding the first at Staged forever.
+     *
+     * So a replay of a row that is still UNTOUCHED rotates the token rather than withholding it: a
+     * new token is minted, its digest REPLACES the old one on the SAME row, and it comes back with
+     * `replayed` and `tokenRotated` both true. Untouched means every one of: status Staged, token
+     * never consumed, never executed, no result record, and the replaying identity is the actor who
+     * staged it.
+     *
+     * This does not weaken A33.5.4, it enforces it against a lossy channel. Rotation replaces the
+     * only stored digest, so at any moment exactly ONE token is valid for a staging row, and it is
+     * the one the caller is holding; the digest the page never received stops claiming the instant
+     * the new one lands. The single-use property is unchanged, because a token that was USED is not
+     * untouched: a row that is Executing, Completed, Partial, Failed or Withdrawn, or whose token
+     * was consumed, still returns a null token exactly as before. Nothing here re-opens a plan the
+     * banker already confirmed.
+     *
+     * A replay by a DIFFERENT identity never rotates. The digest binds the token to a named human,
+     * and minting one bound to whoever replayed the key would let a second banker execute a plan
+     * the first one staged. Such a replay gets a null token, as it did before.
      *
      * @param actionId Registry action id (A27.2).
      * @param idempotencyKey Client-generated, stable across resume (A33.5.2).
@@ -48,7 +71,8 @@ public with sharing class C360ActionStaging {
      * @param productPackageId The deal anchor and deep-link target, may be null.
      * @param planJson The serialised plan from C360Plan.serializePlan.
      * @param planHash The canonical plan hash from C360Plan.hash.
-     * @return The staging handle. `replayed` is true when an existing record was returned.
+     * @return The staging handle. `replayed` is true when an existing record was returned, and
+     *         `tokenRotated` is true when that replay re-issued the token on it.
      */
     public static Staged stagePlan(
         String actionId,
@@ -63,7 +87,8 @@ public with sharing class C360ActionStaging {
         }
 
         List<cm_Action_Staging__c> existing = [
-            SELECT Id, cm_Plan_Hash__c, cm_Status__c
+            SELECT Id, cm_Plan_Hash__c, cm_Status__c, cm_Actor_User__c,
+                   cm_Token_Consumed_At__c, cm_Executed_At__c, cm_Result_Record_Id__c
             FROM cm_Action_Staging__c
             WHERE cm_Idempotency_Key__c = :idempotencyKey
             WITH USER_MODE
@@ -72,10 +97,28 @@ public with sharing class C360ActionStaging {
 
         Staged out = new Staged();
         if (!existing.isEmpty()) {
-            out.stagingId = existing[0].Id;
-            out.planHash = existing[0].cm_Plan_Hash__c;
+            cm_Action_Staging__c prior = existing[0];
+            out.stagingId = prior.Id;
+            out.planHash = prior.cm_Plan_Hash__c;
             out.decisionToken = null;
             out.replayed = true;
+            out.tokenRotated = false;
+
+            Id me = UserInfo.getUserId();
+            Boolean untouched =
+                prior.cm_Status__c == 'Staged'
+                && prior.cm_Token_Consumed_At__c == null
+                && prior.cm_Executed_At__c == null
+                && prior.cm_Result_Record_Id__c == null
+                && prior.cm_Actor_User__c == me;
+
+            if (untouched) {
+                String reissued = EncodingUtil.convertToHex(Crypto.generateAesKey(256));
+                prior.cm_Decision_Token_Hash__c = tokenDigest(reissued, prior.cm_Plan_Hash__c, me);
+                update as user prior;
+                out.decisionToken = reissued;
+                out.tokenRotated = true;
+            }
             return out;
         }
 
@@ -98,6 +141,7 @@ public with sharing class C360ActionStaging {
         out.planHash = planHash;
         out.decisionToken = token;
         out.replayed = false;
+        out.tokenRotated = false;
         return out;
     }
 

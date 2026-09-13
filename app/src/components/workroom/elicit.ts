@@ -2,6 +2,7 @@ import type { BorrowerBundle, Covenant, Facility, LegalEntity } from "../../data
 import { isActiveFacility } from "../../data/worklist";
 import { chipSet, orgAccepted, orgRefused, orgValues, type OrgCatalog } from "../../channel/catalog";
 import { shortAssetTitle } from "../../domain/collateralAssets";
+import { partyShorthand } from "../../workroom/parseModify";
 import type { WorkroomDelta, WorkroomMode, WorkroomRefusal } from "../../workroom/types";
 
 /* =============================================================================
@@ -410,6 +411,14 @@ function readPartyName(line: string, book: Book): { name: string; onBook: boolea
   }
   const fresh = NEW_PARTY_NAMED.exec(line)?.[1]?.trim();
   if (!fresh || NOT_A_PARTY_NAME.test(fresh)) return null;
+  /* A SHORTHAND IS STILL THE BOOK'S NAME. "add James as guarantor on the 15M
+     line" names James Hartwell, and the parser resolves it that way; a guided
+     lane holding the banker's own word instead would compose a sentence and
+     then refuse the delta it produced for naming somebody else. One reader,
+     shared (`partyShorthand`). Ambiguity settles nothing and the machine asks. */
+  const fits = partyShorthand(fresh, bookPartyNames(book));
+  if (fits.length === 1) return { name: fits[0], onBook: true };
+  if (fits.length > 1) return null;
   return { name: fresh, onBook: false };
 }
 
@@ -2814,6 +2823,9 @@ const ROUTE_FILES: Record<WorkroomMode, string | null> = {
     "The renewal files a new maturity and a repricing onto the clone, and plans a net-new facility on the new version without filing one, " +
     "because execution of a renewal is held.",
   create: "The new facility files the product, the amount, the term and the purpose against the package anchor, and nothing else.",
+  /* AN AMENDMENT FILES THE SAME ARMS AS A MODIFICATION, on the version's own
+     loans instead of on a clone, so it needs no caveat either. */
+  amend: null,
 };
 
 /** Why this route cannot file this create, in the route's own words, or null

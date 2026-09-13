@@ -15,6 +15,8 @@ import { packageRecords } from "../actions/schemas";
 import { validatePlan } from "../actions/transitionAllowlist";
 import { facilityProduct, facilityStagesStaged } from "../data/facilityStage";
 import { fmtDate, fmtMoney } from "../data/format";
+import { packageRoster, type PackageEntry } from "../book/packages";
+import { canAmendHere } from "./amendEngine";
 import { packageJoinability } from "../data/packageStage";
 import { isActiveFacility } from "../data/worklist";
 import type { BorrowerBundle, C360Data, Facility } from "../data/contract";
@@ -135,11 +137,11 @@ interface JoinableChoice extends PackageChoice {
   stage: string | null;
 }
 
-function joinableChoices(bundle: BorrowerBundle | null): JoinableChoice[] {
+function joinableChoices(bundle: BorrowerBundle | null, roster: readonly PackageEntry[]): JoinableChoice[] {
   const facilities = activeFacilities(bundle);
   const records = packageRecords(bundle);
   const out: JoinableChoice[] = [];
-  for (const verdict of packageJoinability(bundle)) {
+  for (const verdict of packageJoinability(bundle, roster)) {
     if (!verdict.joinable) continue;
     const record = records.find((r) => r.id === verdict.id);
     if (!record) continue;
@@ -224,24 +226,67 @@ export function createCreateEngine(args: {
      opened from the relationship compose the same plan. */
   const joining = Boolean(context.productPackageId);
   const createsPackage = !joining;
-  const joinable = joinableChoices(bundle);
+  /* THE ROSTER, READ ONCE. It is what tells a booked source with a version in
+     flight from an ordinary booked package, and what names the version this
+     room may have been opened from. No trail is passed: the mirror names a
+     version without one, and the trail only ever CORRECTS which booked package
+     a version forked from, which changes nothing this room asks. */
+  const roster = packageRoster(bundle);
+  const joinable = joinableChoices(bundle, roster);
+
+  /* THE VERSION THE BANKER CAME FROM (0.9.23, spec 2c.1).
+     `workroomContextFor` deliberately drops the ambient package on a create, so
+     the room from a package tile and the room from the relationship compose the
+     same plan. WHERE they came from is still a fact, and here it decides the
+     ORDER of the offer: a banker who opened this room from inside a version
+     they are still shaping means that version far more often than a package of
+     its own, so it is offered first and marked. It is offered at all only where
+     it can still take a facility, which is `amendablePackage`: the same
+     judgement the amend route and `StageAmendVersion` both read. */
+  const originEntry = context.originPackageId
+    ? (roster.find((e) => e.id === context.originPackageId) ?? null)
+    : null;
+  const originVersion = originEntry?.inFlightVersion && canAmendHere(bundle, originEntry.id) ? originEntry : null;
 
   /** THE OFFER, WHICH IS NEVER A GATE. Empty where nothing on the relationship
    *  is still before approval, which is the ordinary case and the one where the
    *  room says nothing about packages at all. "New package" leads it and is the
    *  one marked: an existing package is never pre-selected. */
-  const offer: PackageChoice[] = joinable.length
-    ? [
-        {
-          id: NEW_PACKAGE_CHOICE,
-          label: NEW_PACKAGE,
-          figure: "The plan creates it, named to the org's own convention",
-          eligible: true,
-          selected: !joining,
-        },
-        ...joinable.map((c) => ({ ...c, selected: c.id === context.productPackageId })),
-      ]
-    : [];
+  /** THE VERSION'S OWN ROW, where the room was opened inside one. Its line is
+   *  the roster's, which already says "editable until approval" in the org's
+   *  own vocabulary and is the same line every picker in the cockpit shows. */
+  const versionChoice: PackageChoice | null = originVersion
+    ? {
+        id: originVersion.id,
+        label: originVersion.name,
+        figure: originVersion.reason ?? originVersion.line,
+        eligible: true,
+        selected: context.productPackageId === originVersion.id,
+      }
+    : null;
+
+  const newPackageChoice: PackageChoice = {
+    id: NEW_PACKAGE_CHOICE,
+    label: NEW_PACKAGE,
+    figure: "The plan creates it, named to the org's own convention",
+    eligible: true,
+    selected: !joining,
+  };
+
+  /* THE OFFER, WHICH IS NEVER A GATE.
+     "NEW PACKAGE" LEADS IT AND IS ALWAYS ON IT (founder, 2026-09-13). It used
+     to appear only where something else was joinable, so a room opened from
+     inside a package with nothing else before approval offered NOTHING and the
+     banker had no way to see, or say, that this facility gets a package of its
+     own. That is the dodgy path: the plan already stood on a new package and
+     the room did not show it.
+     THE ONE REORDERING is a room opened inside a version the banker is still
+     shaping: that version leads, because it is where they already are, and
+     "New package" follows it. The booked SOURCE of a version is on neither
+     list - `packageJoinability` refuses it by name. */
+  const offer: PackageChoice[] = versionChoice
+    ? [versionChoice, { ...newPackageChoice, selected: !joining }, ...joinable.filter((c) => c.id !== versionChoice.id).map((c) => ({ ...c, selected: c.id === context.productPackageId }))]
+    : [newPackageChoice, ...joinable.map((c) => ({ ...c, selected: c.id === context.productPackageId }))];
 
   /* THE STRIP IS THE PACKAGE'S MEMBERS, AND A NEW PACKAGE HAS NONE.
      Showing the relationship's other facilities here was tried and taken back:
@@ -583,6 +628,15 @@ export function createCreateEngine(args: {
    *  exception follows as an alternative the banker may take or ignore. A room
    *  that led with the exception would be asking the question again. */
   function joinOffer(): string {
+    /* THE VERSION THE BANKER IS ALREADY IN LEADS THE SENTENCE TOO, and it says
+       what the roster says about it: editable until approval. */
+    if (originVersion) {
+      const rest = joinable.filter((c) => c.id !== originVersion.id).length;
+      return (
+        ` ${originVersion.name} is the modification you have in flight and it is editable until approval, so it can take this facility instead: say so, or carry on.` +
+        (rest ? ` ${rest} other ${rest === 1 ? "package is" : "packages are"} still before approval and could take it too.` : "")
+      );
+    }
     if (!joinable.length) return "";
     if (joinable.length === 1) {
       const one = joinable[0];
@@ -595,6 +649,14 @@ export function createCreateEngine(args: {
 
   function position(): string {
     if (joining) {
+      /* A VERSION SAYS WHAT IT IS. "still in Qualification" is the stage of a
+         loan on it and reads like an ordinary package still in review; what
+         this package actually is, is the modification the banker has in flight,
+         and the facility they are about to file joins THAT rather than the
+         booked package behind it. */
+      if (versionChoice && context.productPackageId === versionChoice.id) {
+        return `${context.packageName} is the modification you have in flight, editable until approval, and it is taking this facility instead of a new package. It holds ${members.length} ${members.length === 1 ? "facility" : "facilities"} and ${fmtMoney(committed)} committed. The booked package behind it is not touched. Tell me the product and the amount.`;
+      }
       const stage = joinable.find((c) => c.id === context.productPackageId)?.stage;
       return `${context.packageName} is${stage ? ` still in ${stage} and` : ""} taking this facility instead of a new package. It holds ${members.length} ${members.length === 1 ? "member" : "members"} and ${fmtMoney(committed)} committed. Tell me the product and the amount.`;
     }

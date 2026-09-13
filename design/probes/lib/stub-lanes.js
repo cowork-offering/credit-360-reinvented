@@ -36,11 +36,43 @@
                  300 / 500 / 800ms relay against the real bundle. Default 0, so
                  every drive written before this knob existed is unchanged.
      attempts    per-tool attempt counter, so the drive can count retries
+     failNext    THE RELAY DROP (2026-09-13), per UNPREFIXED tool name: how many
+                 of the next answers this stub swallows with the relay's own
+                 `server_unavailable: request failed (502)` before answering
+                 normally again. THE ORG STILL DOES THE WORK. A dropped stage
+                 answer still files its staging row, which is exactly the founder
+                 502 of 2026-09-13: STG-0000000149 existed in Salesforce while
+                 the page said the request had failed. Default {} , so every
+                 drive written before it is unchanged.
+     staging     THE STAGING LEDGER, fenced on the idempotency key the way
+                 C360ActionStaging.stagePlan is: one row per key, a repeat
+                 returns that row with `replayed: true` and a NULL decision
+                 token, and `staging.calls` carries every stage call so a drive
+                 can prove no key ever produced two rows.
      settled     one row per ANSWER, `{ server, tool, at, ok }`, so a probe can
                  time the sixth slice landing without reading the glass
      livePatch    per-tool fields merged over the LIVE body, so a drive that
                  needs one more field (a package id, for a room that will not
                  open without one) does not have to fork this table
+     version     THE IN-FLIGHT MODIFICATION VERSION (0.9.23), OFF by default so
+                 every drive written before it is unchanged. Set it to
+                   { source: "<booked package id>", id: "<version package id>",
+                     moved: { loanId: "<parent loan id>", committed: 20000000 } }
+                 and the stub's book carries ONE unbooked version of `source`:
+                 a clone of EVERY active member of that package at stage
+                 Qualification with `isModification` true, the moved facility
+                 renamed to its new figure, and a Completed `loan-modification`
+                 row on Customer360ActionHistory tying the version to its source.
+                 MEMBER FOR MEMBER, and that is not a simplification: nCino's
+                 credit action clones the whole package (the org's own verified
+                 Hartwell fork of a5Fbb000000IHFJEA4 held seven Qualification
+                 loans against seven Booked ones), and `book/packages.ts`
+                 recognises a fork by exactly that mirror.
+                 The four version tools answer off the same fixture, and the
+                 state is PER PAGE: after `execute_discard_version` the exposure
+                 and history reads no longer carry the version at all, and after
+                 `execute_amend_version` the facilities read carries the new
+                 figure.
      boom        THE BOOM UPLOAD LANE (2026-09-12), the stand-in for Noland's
                  read + write Boom MCP server, which does not exist yet:
                    mode          "ok" | "failed", what the file ends as
@@ -62,7 +94,7 @@
 
   var BACKUP_SERVER = "Salesforce Read Backup";
 
-  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, relayMs: 0, attempts: {}, calls: [], settled: [], livePatch: {}, boom: { mode: "ok", processingMs: 4000, files: {} } };
+  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, relayMs: 0, attempts: {}, calls: [], settled: [], livePatch: {}, boom: { mode: "ok", processingMs: 4000, files: {} }, version: null, failNext: {}, staging: { seq: 148, byKey: {}, rows: [], calls: [] } };
   window.__DRIVE_OUT = { errors: [] };
   window.addEventListener("error", function (e) {
     window.__DRIVE_OUT.errors.push(String((e && e.message) || e));
@@ -114,6 +146,59 @@
     return tool.indexOf("gw_") === 0 ? tool.slice(3) : tool;
   }
 
+  /** The one `inputs[0]` row a Customer 360 invocable call carries. */
+  function firstInput(input) {
+    return (((input || {}).inputs || [])[0]) || {};
+  }
+
+  /**
+   * THE IDEMPOTENCY FENCE, as C360ActionStaging.stagePlan keeps it: the row is
+   * looked up by key, a hit is returned as a replay, and a miss files exactly one
+   * new row. Nothing here ever files two rows for one key, which is the property
+   * a drive asserts after the relay has dropped an answer.
+   */
+  function stageRow(tool, one) {
+    var led = window.__LANES.staging;
+    var key = String(one.idempotencyKey || "");
+    led.calls.push({ tool: tool, key: key, at: Date.now() });
+    if (led.byKey[key]) {
+      led.byKey[key].replays += 1;
+      return { id: led.byKey[key].id, replayed: true };
+    }
+    led.seq += 1;
+    var id = "STG-" + String(led.seq).padStart(10, "0");
+    var row = {
+      stagingId: id,
+      actionId: tool.replace(/^stage_/, "").replace(/_/g, "-"),
+      status: "Staged",
+      createdDate: new Date().toISOString(),
+      accountId: one.accountId || ACCOUNT,
+      productPackageId: one.productPackageId || null,
+      planHashPresent: true,
+      key: key,
+      replays: 0,
+      id: id,
+    };
+    led.byKey[key] = row;
+    led.rows.push(row);
+    return { id: id, replayed: false };
+  }
+
+  /** The trail, carrying whatever this page session has staged. A row filed by a
+   *  call whose answer was lost is on it like any other: that is the whole point
+   *  of reading the trail after a 502. */
+  function withStaged(body) {
+    var rows = window.__LANES.staging.rows.map(function (r) {
+      return {
+        stagingId: r.stagingId, actionId: r.actionId, status: r.status, createdDate: r.createdDate,
+        accountId: r.accountId, productPackageId: r.productPackageId, planHashPresent: true,
+      };
+    });
+    if (!rows.length) return body;
+    var entries = ((body || {}).entries || []).concat(rows);
+    return Object.assign({}, body || {}, { entries: entries, count: entries.length });
+  }
+
   /* EVERY ANSWER PAYS THE RELAY, AND SO DOES EVERY REFUSAL. A 502 comes back
      over the same hop a figure does, so a stub that refused instantly would
      make the retry ladder look free and flatter every fallback measurement. */
@@ -145,6 +230,18 @@
     if (mode === "denied") return refuse(DENIED);
     if (mode === "down") return refuse(UNAVAILABLE);
     if (mode === "failTwice" && L.attempts[tool] <= 2) return refuse(UNAVAILABLE);
+
+    /* THE RELAY DROPS THE ANSWER, AND THE ORG DOES THE WORK ANYWAY. This is the
+       2026-09-13 shape and not a refusal: the staging row is filed first, under
+       the key the payload carries, and only then is the answer swallowed. A stub
+       that refused before filing would make the whole recovery path untestable,
+       because there would be nothing in the org for the trail to find. */
+    var dropping = (L.failNext || {})[unprefixed(tool)];
+    if (dropping > 0) {
+      L.failNext[unprefixed(tool)] = dropping - 1;
+      if (/^stage_/.test(tool) && VERSION_TOOLS.indexOf(tool) === -1) stageRow(tool, firstInput(input));
+      return refuse(UNAVAILABLE);
+    }
     // NEVER SETTLES. Not an error and not an answer: the shape a sweep with no
     // wall clock of its own hangs on forever.
     if (mode === "hang") return new Promise(function () {});
@@ -172,17 +269,36 @@
       return give({ payload: boomAnswer(tool, input || {}) });
     }
 
+    /* ------------------------------------------------- the version lifecycle
+
+       The four 0.9.23 tools, answered off the same fabricated version the
+       exposure and history reads carry. The envelope, the `ok` discriminator
+       and the field names are the frozen contract's
+       (knowledge/SPEC-0.9.23-TOOL-CONTRACT.md), so a drive here exercises the
+       wire shape rather than a paraphrase of it. */
+    if (VERSION_TOOLS.indexOf(tool) !== -1) {
+      var one = (((input || {}).inputs || [])[0]) || {};
+      return give(envelope(versionAnswer(tool, one)));
+    }
+
     /* THE STAGED PLAN, so a probe can time the room's one write-path round
        trip. The shape is the one lib/stub-connector.js already answers with;
        nothing here executes and nothing here is a figure the room may print. */
     if (/^stage_/.test(tool)) {
-      var one = (((input || {}).inputs || [])[0]) || {};
+      var one = firstInput(input);
+      var row = stageRow(tool, one);
       return give(envelope({
         ok: true,
         result: {
-          stagingId: "a5Sbb0000001PROBE",
+          /* THE ROW IS THE LEDGER'S, AND A REPLAY CARRIES NO TOKEN. Both come
+             straight from C360ActionStaging.stagePlan: a key it has seen returns
+             that row with `replayed: true` and a null decisionToken, because
+             minting a second single-use token for a plan the banker may already
+             have confirmed is the one thing A33.5.4 forbids. */
+          stagingId: row.id,
           planHash: "9c41e08bf27a4d10",
-          decisionToken: "4f8ac21e-probe-token",
+          decisionToken: row.replayed ? null : "4f8ac21e-probe-token",
+          replayed: row.replayed,
           summary: "Probe plan.",
           steps: [{ id: "w1", type: "write", label: "Apply the commitment", objectName: "LLC_BI__Loan__c" },
                   { id: "v1", type: "verification", label: "Re-query the clone", dependsOn: ["w1"] }],
@@ -200,8 +316,281 @@
     var body = LIVE[unprefixed(tool)];
     var extra = (L.livePatch || {})[unprefixed(tool)];
     if (body && extra) body = Object.assign({}, body, extra);
+    // THE VERSION RIDES OVER THE PATCH, not under it: the drive replaces the
+    // whole exposure body with Hartwell's real one, so a fixture merged in
+    // first would be thrown away by the very patch it has to extend.
+    body = withVersion(unprefixed(tool), body);
+    if (unprefixed(tool) === "Customer360ActionHistory") body = withStaged(body);
     var wait = mode === "slow" ? (L.latencyMs || 3000) : 0;
     return sleep(wait).then(function () { return give(body ? envelope(body) : { payload: {} }); });
+  }
+
+  /* ----------------------------------------------- the version lifecycle
+
+     ONE IN-FLIGHT MODIFICATION VERSION, built out of whatever book the lane is
+     serving. The fixture is not a table of loans: it is DERIVED from the source
+     package's own active members at read time, so the version mirrors the book
+     the drive patched in, member for member, which is the shape
+     `book/packages.ts` recognises as a fork and the shape nCino produces.
+
+     THE STATE IS PER PAGE. `discarded` is what `execute_discard_version` sets,
+     and from then on the exposure and the history reads carry no version at
+     all: the roster drops it, the source unlocks, and the drive can assert the
+     undo landed by reading the page rather than by trusting the tool's reply.
+     `amended` is what `execute_amend_version` writes, per version loan, so the
+     figures read back changed on the version and unchanged on the parent, and
+     `requests` is every version call as the page sent it. */
+
+  var VERSION_TOOLS = ["stage_discard_version", "execute_discard_version", "stage_amend_version", "execute_amend_version"];
+  /* `requests` is the wire ledger: every version call with the body the page
+     actually sent, so a drive can assert the ARM rather than the prose the room
+     printed over it. */
+  var vstate = { discarded: false, amended: {}, staged: {}, requests: [] };
+  window.__LANES.versionState = vstate;
+
+  /** The version fixture, or null where the drive did not ask for one. */
+  function versionSpec() {
+    var v = window.__LANES.version;
+    if (!v || vstate.discarded) return null;
+    return { source: v.source, id: v.id, moved: v.moved || null, name: v.name || null };
+  }
+
+  /** The booked members of the source package, off the body being served. */
+  function sourceMembers(body) {
+    var spec = versionSpec();
+    if (!spec || !body || !body.facilities) return [];
+    return body.facilities.filter(function (f) {
+      return f.productPackageId === spec.source && f.status !== "Closed";
+    });
+  }
+
+  /** MONEY AS THE ORG WRITES IT INTO A LOAN NAME: "$20,000,000.00". */
+  function moneyName(n) {
+    return "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  /** One clone per active member of the source package. */
+  function versionClones(body) {
+    var spec = versionSpec();
+    if (!spec) return [];
+    return sourceMembers(body).map(function (f, i) {
+      var id = "a4Zbb00000CLONE" + i;
+      var moved = spec.moved && spec.moved.loanId === f.loanId ? spec.moved : null;
+      var committed = moved && moved.committed != null ? moved.committed : f.committed;
+      var clone = Object.assign({}, f, {
+        loanId: id,
+        productPackageId: spec.id,
+        // The whole point of a version: unbooked, and the banker's until a
+        // member reaches Approval / Loan Committee.
+        stage: "Qualification",
+        status: "Open",
+        isModification: true,
+        outstanding: 0,
+        available: committed,
+        committed: committed,
+        // The filing RENAMES the facility it moved, which is how the org's own
+        // fork of this package reads.
+        name: moved && f.name ? f.name.replace(moneyName(f.committed), moneyName(committed)) : f.name,
+      });
+      var amended = vstate.amended[id];
+      if (amended) Object.assign(clone, amended);
+      return clone;
+    });
+  }
+
+  /** The exposure / history body a read should carry once a version exists. */
+  function withVersion(tool, body) {
+    var spec = versionSpec();
+    if (!spec || !body) return body;
+    if (tool === "Customer360Exposure") {
+      var clones = versionClones(body);
+      if (!clones.length) return body;
+      var facilities = (body.facilities || []).concat(clones);
+      return Object.assign({}, body, {
+        facilities: facilities,
+        // Customer360Exposure sums every loan it returns, the version's
+        // included. The cockpit is what corrects that; the stub must not.
+        totalCommitted: facilities.reduce(function (n, f) { return n + (f.committed || 0); }, 0),
+        totalOutstanding: facilities.reduce(function (n, f) { return n + (f.outstanding || 0); }, 0),
+      });
+    }
+    if (tool === "Customer360ActionHistory") {
+      var entries = (body.entries || []).concat([modificationRow(spec)]);
+      return Object.assign({}, body, { entries: entries, count: entries.length });
+    }
+    return body;
+  }
+
+  /* THE TRAIL ROW THAT TIES THE VERSION TO ITS SOURCE. Observed shape: the row
+     names the SOURCE package in `productPackageId` and a member of the VERSION
+     in `resultRecordId`, never the version package's own id. */
+  function modificationRow(spec) {
+    return {
+      stagingId: "a5Sbb00000MODSTG1",
+      actionId: "loan-modification",
+      status: "Completed",
+      executedAt: "2026-09-12T14:20:00.000Z",
+      createdDate: "2026-09-12T14:19:00.000Z",
+      approverUserId: "005bb00000ftouDAAQ",
+      resultRecordId: "a4Zbb00000CLONE0",
+      productPackageId: spec.source,
+      summary: "Modification filed against the booked package; the version carries the new figure.",
+    };
+  }
+
+  /** The inventory `stage_discard_version` discovers by query. */
+  function discardInventory(spec, clones) {
+    var items = [
+      { object: "LLC_BI__LoanRenewal__c", id: "a3Xbb00000CHAIN0", name: "RL-00000198 revision 0", reason: "the self-anchor row on the booked parent" },
+      { object: "LLC_BI__LoanRenewal__c", id: "a3Xbb00000CHAIN1", name: "RL-00000199 revision 1", reason: "points the booked parent at the clone" },
+      { object: "LLC_BI__Loan_Collateral2__c", id: "a3Ybb00000PLDGE0", name: "Pledge copied onto the version", reason: "a copy of the parent pledge; the asset and its ownership row stay" },
+      { object: "LLC_BI__Loan_Covenant__c", id: "a3Zbb00000JUNCT0", name: "Minimum Debt Service Coverage junction", reason: "a copy of the parent junction; the covenant record stays" },
+      { object: "LLC_BI__Pricing_Stream__c", id: "a40bb00000STREM0", name: "Pricing stream on the version", reason: "cloned by the nCino pricing engine" },
+    ];
+    clones.forEach(function (c) {
+      items.push({ object: "LLC_BI__Loan__c", id: c.loanId, name: c.name, reason: "a modification clone at Qualification" });
+    });
+    items.push({ object: "LLC_BI__Product_Package__c", id: spec.id, name: spec.name || "the version package", reason: "the version package itself" });
+    items.push({ object: "cm_Action_Staging__c", id: "a5Sbb00000MODSTG1", name: "Staging a5Sbb00000MODSTG1", reason: "kept as the audit and marked Withdrawn" });
+    return items;
+  }
+
+  function versionAnswer(tool, input) {
+    vstate.requests.push({ tool: tool, input: input });
+    var spec = versionSpec();
+    if (!spec) {
+      return { ok: false, error: { code: "NOT_A_VERSION", message: "No unbooked version resolves from that id." } };
+    }
+    var body = withVersion("Customer360Exposure", Object.assign({}, LIVE.Customer360Exposure, (window.__LANES.livePatch || {}).Customer360Exposure));
+    var clones = (body.facilities || []).filter(function (f) { return f.productPackageId === spec.id; });
+
+    if (tool === "stage_discard_version") {
+      if (input.versionPackageId && input.versionPackageId !== spec.id) {
+        return { ok: false, error: { code: "NOT_A_VERSION", message: "That package is not an unbooked version." } };
+      }
+      var items = discardInventory(spec, clones);
+      return {
+        ok: true,
+        result: {
+          stagingId: "a5Sbb00000DISCRD1",
+          planHash: "a1b2c3d4e5f60718",
+          decisionToken: "discard-probe-token",
+          productPackageId: spec.id,
+          summary: "Removes the unbooked version and its copies. The booked package is untouched.",
+          steps: [
+            { id: "d1", type: "write", label: "Delete the version chain rows", objectName: "LLC_BI__LoanRenewal__c" },
+            { id: "d2", type: "write", label: "Delete the copied pledges, junctions and pricing", objectName: "LLC_BI__Loan_Collateral2__c" },
+            { id: "d3", type: "write", label: "Delete the clone facilities", objectName: "LLC_BI__Loan__c" },
+            { id: "d4", type: "write", label: "Delete the version package", objectName: "LLC_BI__Product_Package__c" },
+            { id: "d5", type: "write", label: "Mark the staging rows Withdrawn", objectName: "cm_Action_Staging__c" },
+            { id: "v1", type: "verification", label: "Re-query every booked parent for hasRenewal false", dependsOn: ["d3"] },
+          ],
+          warnings: [],
+          items: items,
+          itemCount: items.length,
+        },
+      };
+    }
+
+    if (tool === "execute_discard_version") {
+      var gone = discardInventory(spec, clones);
+      vstate.discarded = true;
+      return {
+        ok: true,
+        result: {
+          stagingId: "a5Sbb00000DISCRD1",
+          terminalState: "success",
+          outcome: "The version package and its members were deleted; every booked parent reads hasRenewal false.",
+          sourcePackageId: spec.source,
+          items: gone,
+          steps: [
+            { id: "d1", type: "write", label: "Delete the version chain rows", state: "verified" },
+            { id: "d2", type: "write", label: "Delete the copied pledges, junctions and pricing", state: "verified" },
+            { id: "d3", type: "write", label: "Delete the clone facilities", state: "verified" },
+            { id: "d4", type: "write", label: "Delete the version package", state: "verified" },
+            { id: "d5", type: "write", label: "Mark the staging rows Withdrawn", state: "verified" },
+            { id: "v1", type: "verification", label: "Re-query every booked parent for hasRenewal false", state: "verified" },
+          ],
+        },
+      };
+    }
+
+    /* AMEND: the arms echo back as `facilities[]`, from -> to, one row per
+       touched member of the version. The stub reads the scalar arm only, which
+       is the arm the amend room sends for a figure on a facility.
+
+       THE ARM'S OWN SHAPE, off the org rather than off the spec's prose:
+       `StageLoanModification.parseScalarChanges` reads each entry as
+       `{ key, value, targetLoanId }` with `key` one of the four request-key
+       names (StageLoanModification.cls:2325-2387, class ScalarChange:117), and
+       `StageAmendVersion` reuses that parser verbatim. An earlier stub read the
+       four names as KEYS of the entry, so every amendment echoed back as no
+       change at all. */
+    var SCALAR_FIELD = {
+      requestedRate: { field: "LLC_BI__Interest_Rate__c", from: "interestRate" },
+      requestedAmount: { field: "LLC_BI__Amount__c", from: "committed" },
+      requestedMaturityDate: { field: "LLC_BI__Maturity_Date__c", from: "maturityDate" },
+      requestedTermMonths: { field: "LLC_BI__Term_Months__c", from: "termMonths" },
+    };
+    var AMEND_STAGING = "a5Sbb00000AMENDV1";
+    /* THE EXECUTE CARRIES THE STAGING ROW, NOT THE ARMS, which is the whole
+       point of a staged plan: the org holds what was planned and the second
+       call names it by id and token. So the stage keeps the touched set and
+       the execute reads it back rather than re-parsing a body it never gets. */
+    var touched = vstate.staged[AMEND_STAGING] || [];
+
+    if (tool === "stage_amend_version") {
+      var scalars = [];
+      try { scalars = JSON.parse(input.scalarChangesJson || "[]"); } catch (e) { scalars = []; }
+      touched = [];
+      scalars.forEach(function (c) {
+        var at = SCALAR_FIELD[c && c.key];
+        if (!at) return;
+        var loan = clones.filter(function (f) { return f.loanId === c.targetLoanId; })[0] || clones[0] || {};
+        touched.push({ facilityId: loan.loanId, facilityName: loan.name, field: at.field, from: loan[at.from], to: c.value });
+      });
+      vstate.staged[AMEND_STAGING] = touched;
+      return {
+        ok: true,
+        result: {
+          stagingId: AMEND_STAGING,
+          planHash: "f0e1d2c3b4a59687",
+          decisionToken: "amend-probe-token",
+          productPackageId: spec.id,
+          summary: "Writes the figures on the version's own loans. No credit action, no clone.",
+          steps: touched.map(function (t, i) {
+            return { id: "a" + (i + 1), type: "write", label: "Apply " + t.field + " on " + t.facilityName, objectName: "LLC_BI__Loan__c", fields: [t.field] };
+          }).concat([{ id: "av1", type: "verification", label: "Re-query the version's loans", dependsOn: ["a1"] }]),
+          warnings: [],
+          facilities: touched,
+          facilityCount: touched.length,
+        },
+      };
+    }
+
+    // execute_amend_version
+    touched.forEach(function (t) {
+      if (!t.facilityId) return;
+      var patch = vstate.amended[t.facilityId] || (vstate.amended[t.facilityId] = {});
+      if (t.field === "LLC_BI__Interest_Rate__c") patch.interestRate = Number(t.to);
+      if (t.field === "LLC_BI__Amount__c") { patch.committed = Number(t.to); patch.available = Number(t.to); }
+      if (t.field === "LLC_BI__Maturity_Date__c") patch.maturityDate = t.to;
+      if (t.field === "LLC_BI__Term_Months__c") patch.termMonths = Number(t.to);
+    });
+    return {
+      ok: true,
+      result: {
+        stagingId: AMEND_STAGING,
+        terminalState: "success",
+        outcome: "The version's own loans carry the new figures; the booked parents are untouched.",
+        productPackageId: spec.id,
+        facilities: touched,
+        facilityCount: touched.length,
+        steps: touched.map(function (t, i) {
+          return { id: "a" + (i + 1), type: "write", label: "Apply " + t.field + " on " + t.facilityName, state: "verified" };
+        }).concat([{ id: "av1", type: "verification", label: "Re-query the version's loans", state: "verified" }]),
+      },
+    };
   }
 
   /* ---------------------------------------------------------------- boom */

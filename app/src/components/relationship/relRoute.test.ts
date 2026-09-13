@@ -6,7 +6,9 @@ import {
   REL_ROUTE_CHIPS,
   REL_ROUTE_WORD,
   asksForFacilityWork,
+  isVersionRoute,
   readRelRouteIntent,
+  readVersionRoute,
   readRelRouteSwitch,
   readsAsClientRequest,
   relOpeningFor,
@@ -53,11 +55,14 @@ function due(days: number, type = "Debt Service Coverage", id = "cov-1"): Covena
   };
 }
 
-describe("the six routes", () => {
+describe("the eight routes", () => {
   /* THE FIVE REVIEWS IN THE GOVERNANCE CALENDAR'S ORDER, then the one that
-     AUTHORS. The intake is not a review and sits last for that reason: a banker
-     scanning for a review meets the five first. */
-  it("offers exactly six, the five reviews first and the intake last", () => {
+     AUTHORS, then the two that SHAPE THE VERSION (0.9.23). The intake is not a
+     review and sits after the five for that reason: a banker scanning for a
+     review meets the five first. The two version routes sit last because they
+     are the narrowest: neither runs at all unless the relationship carries an
+     editable version, or a package the cockpit created that nobody has booked. */
+  it("offers exactly eight, the five reviews first and the two version routes last", () => {
     expect(REL_ROUTE_CHIPS.map((c) => c.route)).toEqual([
       "annual",
       "covenant",
@@ -65,7 +70,21 @@ describe("the six routes", () => {
       "rating",
       "service",
       "intake",
+      "versionCovenant",
+      "versionPledge",
     ]);
+  });
+
+  it("names the two version routes in the founder's own words", () => {
+    const byRoute = new Map(REL_ROUTE_CHIPS.map((c) => [c.route, c.label]));
+    expect(byRoute.get("versionCovenant")).toBe("Add a covenant to this version");
+    expect(byRoute.get("versionPledge")).toBe("Pledge collateral to this version");
+    expect(isVersionRoute("versionCovenant")).toBe(true);
+    expect(isVersionRoute("versionPledge")).toBe(true);
+    for (const route of ["annual", "covenant", "valuation", "rating", "service", "intake"] as const) {
+      expect(isVersionRoute(route), route).toBe(false);
+    }
+    expect(isVersionRoute(null)).toBe(false);
   });
 
   it("names each route in banker grammar", () => {
@@ -244,8 +263,15 @@ describe("facility work", () => {
      are asserted together, so adding a seventh route fails here rather than in
      front of a banker. */
   it("counts the reviews this room actually takes", () => {
-    expect(Object.keys(REL_ROUTE_WORD)).toHaveLength(6);
+    expect(Object.keys(REL_ROUTE_WORD)).toHaveLength(8);
+    /* THE HANDOFF STILL COUNTS SIX REVIEWS, and that stays exact: the two
+       version routes are not reviews, they shape a package nobody has booked.
+       What the handoff gained is the second sentence naming them, because this
+       room pledges collateral now and a handoff that sent every pledge to
+       Facility Actions would send the banker to a room that cannot take it. */
     expect(FACILITY_HANDOFF).toContain("This room takes the six reviews.");
+    expect(FACILITY_HANDOFF).toContain("It also shapes the version already in flight");
+    expect(FACILITY_HANDOFF).toContain("Pledging security onto a booked facility");
   });
 });
 
@@ -323,5 +349,56 @@ describe("a plain client request is read as one, and still not routed", () => {
     expect(readRelRouteIntent("james wants the june certificate")).toBeNull();
     // "payoff" is already a service word, so this one binds without the offer.
     expect(readRelRouteIntent("send them the payoff letter")).toBe("service");
+  });
+});
+
+/* =============================================================================
+   THE VERSION READ (0.9.23): a line that names the UNBOOKED version.
+
+   The reader runs FIRST in `readRelRouteIntent`, ahead of the intake and ahead
+   of every review word, on the same specificity rule that puts the intake ahead
+   of the covenant review. Two words carry it and only two, and the tests below
+   are as much about what it does NOT take as about what it does.
+   ============================================================================= */
+
+describe("the version routes read off a typed line", () => {
+  it("binds the covenant add and the pledge, from the room's own chip labels", () => {
+    // THE COMPOSER'S OWN TEMPLATE. `relationshipTopics()` writes
+    // `run the <label>` for every chip, so the chip label has to bind.
+    expect(readRelRouteIntent("run the add a covenant to this version")).toBe("versionCovenant");
+    expect(readRelRouteIntent("run the pledge collateral to this version")).toBe("versionPledge");
+  });
+
+  it("binds the way a banker actually writes it", () => {
+    expect(readVersionRoute("add a covenant to the version")).toBe("versionCovenant");
+    expect(readVersionRoute("put a covenant on the in-flight modification")).toBe("versionCovenant");
+    expect(readVersionRoute("pledge the warehouse to the version")).toBe("versionPledge");
+    expect(readVersionRoute("add collateral to the in flight version")).toBe("versionPledge");
+  });
+
+  it("takes no line that does not name the version", () => {
+    expect(readVersionRoute("add a covenant to this relationship")).toBeNull();
+    expect(readVersionRoute("pledge the equipment to the 8M loan")).toBeNull();
+    expect(readVersionRoute("")).toBeNull();
+    // Named the version and asked for nothing to be written on it.
+    expect(readVersionRoute("open the version")).toBeNull();
+  });
+
+  it("does not shadow the six routes it runs ahead of", () => {
+    expect(readRelRouteIntent("run the covenant review")).toBe("covenant");
+    expect(readRelRouteIntent("add a relationship covenant: minimum tangible net worth of 12M")).toBe("intake");
+    expect(readRelRouteIntent("collateral valuation")).toBe("valuation");
+    // "the modification" is a word a banker uses for a review's SUBJECT, so it
+    // is deliberately not a version word: guessing here picks a write path.
+    expect(readVersionRoute("run the covenant review on the modification")).toBeNull();
+  });
+
+  it("keeps a version pledge out of the facility handoff", () => {
+    // `FACILITY_WORK` reads `pledge\w*`, so this line used to be sent to a room
+    // that cannot take it: a credit action runs against a BOOKED loan and a
+    // version holds none.
+    expect(asksForFacilityWork("pledge collateral to this version")).toBe(false);
+    // And a pledge onto a booked facility still hands off, unchanged.
+    expect(asksForFacilityWork("pledge the equipment to the 8M loan")).toBe(true);
   });
 });

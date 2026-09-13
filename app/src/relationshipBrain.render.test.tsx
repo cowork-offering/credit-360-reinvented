@@ -377,7 +377,11 @@ describe("with no bridge the room is exactly the room that shipped", () => {
     await type(room, "the client called about their plans for next quarter");
 
     expect(bound).toHaveLength(0);
-    expect(room.textContent).toMatch(/Pick one above, or name which of the six this is/);
+    /* SIX OR EIGHT depends on the book: the two version routes are named only
+       where the relationship carries a package the room can shape in place.
+       What this asserts is that the room repeats its own menu rather than
+       guessing a write path. */
+    expect(room.textContent).toMatch(/Pick one above, or name which of the (six|eight) this is/);
   });
 
   it("still answers a read from the book", async () => {
