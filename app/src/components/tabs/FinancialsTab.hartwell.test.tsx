@@ -113,9 +113,14 @@ describe("the stub carries both columns and the book keeps its own periods", () 
     expect(STATEMENTS[0].periods.map((p) => p.endDate)).toEqual(["2025-12-31", "2024-12-31"]);
   });
 
-  it("keeps every on-file period and takes the two the spread carries", () => {
+  /* THE ORDER MOVED ON 2026-09-13 (founder review of the spreading room: the
+     trend "dips into an older LTM"). The book still opens FY2023, FY2024,
+     FY2025, LTM; a spread of FY2025 now ends the series, because a
+     trailing-twelve-months window closed before the year-end just spread.
+     `publishSpread`'s module header carries the rule. */
+  it("keeps every on-file period, takes the two the spread carries, and ends on the spread", () => {
     expect(keys(hartwell().boom)).toEqual(["FY2023", "FY2024", "FY2025", "LTM"]);
-    expect(keys(published())).toEqual(["FY2023", "FY2024", "FY2025", "LTM"]);
+    expect(keys(published())).toEqual(["FY2023", "FY2024", "LTM", "FY2025"]);
   });
 
   it("puts the dropped file's figures on the periods it spread, and only those", () => {
@@ -130,7 +135,7 @@ describe("the stub carries both columns and the book keeps its own periods", () 
   it("appends nothing on a second publish of the same statements", () => {
     const once = published();
     const twice = publishSpread({ onFile: once, statements: STATEMENTS, provenance: "stub-provisional" });
-    expect(keys(twice)).toEqual(["FY2023", "FY2024", "FY2025", "LTM"]);
+    expect(keys(twice)).toEqual(["FY2023", "FY2024", "LTM", "FY2025"]);
     expect(twice?.spread?.periods).toEqual(once?.spread?.periods);
   });
 
@@ -160,7 +165,7 @@ describe("the stub carries both columns and the book keeps its own periods", () 
       statements: statementsFromPreRead("stub-dateless", dateless),
       provenance: "stub-provisional",
     });
-    expect(keys(after)).toEqual(["FY2023", "FY2024", "FY2025", "LTM"]);
+    expect(keys(after)).toEqual(["FY2023", "FY2024", "LTM", "FY2025"]);
     // FY2024 stays the book's own figure: the drop's column never arrived.
     expect(revenueOf(after, "FY2024")).toBe(58_900_000);
     expect(revenueOf(after, "FY2025")).toBe(71_200_000);

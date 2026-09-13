@@ -102,7 +102,14 @@ describe("buildMemoDossier over a live cockpit bundle", () => {
     expect(renderMemo(d).html).toContain(NOT_IN_SOURCE);
     // The plugin's own written-up demo content is NOT borrowed for this borrower.
     expect(d.canon.riskMitigants).toEqual([]);
-    expect(d.canon.supportingDocuments).toEqual([]);
+    // The appendix carries what the BUNDLE names and nothing else (2026-09-13
+    // gap audit): the Boom spread file the financial section was read off. It
+    // is emphatically not the plugin's demo document list, and the demo's own
+    // rows are asserted absent so an empty-list regression cannot bring them back.
+    expect(d.canon.supportingDocuments).toEqual([
+      { name: `Boom spread: ${bundle.boom?.spread?.sourceFile}`, status: "On file" },
+    ]);
+    expect(d.canon.supportingDocuments?.map((doc) => doc.name).join(" ")).not.toContain("Mazak");
   });
 
   it("takes the covenant direction from the org's verdict, not from the covenant's name", () => {

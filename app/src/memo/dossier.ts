@@ -27,7 +27,8 @@
    they feed with a dashed "stub" provenance chip. They announce themselves.
    ============================================================================= */
 
-import type { BorrowerBundle, Covenant, Facility } from "../data/contract";
+import type { Boom, BorrowerBundle, CollateralValuationRow, Covenant, Facility } from "../data/contract";
+import { fmtMoney } from "../data/format";
 import icRaw from "./vendor/plugin-assets/ic_placeholder.json?raw";
 import peersRaw from "./vendor/plugin-assets/peers_placeholder.json?raw";
 import narrativesRaw from "./vendor/plugin-assets/piedmont-narratives.json?raw";
@@ -48,6 +49,7 @@ import {
   type MemoNarratives,
   type MemoPeers,
   type MemoRatios,
+  type MemoRelationshipContext,
   type MemoSeries,
   type MemoSpread,
   type Text,
@@ -202,6 +204,11 @@ export function adaptBoomSpread(file: unknown): { spread: MemoSpread; boom: Memo
     },
   };
 
+  return { spread, boom: boomFrom(spread, "C360-BOOM-ADAPTED") };
+}
+
+/** The payload `li(statementType, accountCode)` indexes into, built from a spread. */
+function boomFrom(spread: MemoSpread, source: string): MemoBoom {
   const stmt = (statementType: string, section: Record<string, MemoSeries>) => ({
     statementType,
     endDate: "",
@@ -213,22 +220,88 @@ export function adaptBoomSpread(file: unknown): { spread: MemoSpread; boom: Memo
       periodValues: values,
     })),
   });
-
   return {
-    spread,
-    boom: {
-      files: {
-        f: {
-          _source: "C360-BOOM-ADAPTED",
-          financialStatements: [
-            stmt("income_statement", spread.incomeStatement),
-            stmt("balance_sheet", spread.balanceSheet),
-            stmt("cash_flow_statement", spread.cashFlow),
-          ],
-        },
+    files: {
+      f: {
+        _source: source,
+        financialStatements: [
+          stmt("income_statement", spread.incomeStatement),
+          stmt("balance_sheet", spread.balanceSheet),
+          stmt("cash_flow_statement", spread.cashFlow),
+        ],
       },
     },
   };
+}
+
+/* -----------------------------------------------------------------------------
+   THE DISPLAY BOOK: a relationship Boom has spread, with no raw file staged.
+
+   `boom.spread.file` is the verbatim `boom_get_spread` payload, and a bundle
+   that carries one gets the full adaptation above: three statements, every
+   account code, the whole period axis. NOT EVERY BUNDLE CARRIES ONE. Hartwell's
+   Boom block stages the DISPLAY form the Financials tab reads — a period series
+   (revenue, EBITDA, margin per FY) and a line-item summary (LTM and prior FY) —
+   and nothing else.
+
+   Those are figures on the book with a source file named beside them, not
+   estimates, so the memo prints them. What it does NOT do is fabricate a Boom
+   file to get there: the balance sheet and the cash-flow statement stay EMPTY,
+   because a display book carries neither, and the renderer's own gap cells
+   ("flagged for RM") are what a reader meets in the rows they would have filled.
+   Leverage, cash and free cash flow are gaps on a display-only borrower, and
+   they say so.
+
+   THE SOURCE TRAVELS. `_source` names the display book rather than the
+   adaptation, so a later reader can tell the two apart. The renderer does not
+   print it today; see the vendor-side note in the gap audit.
+   ----------------------------------------------------------------------------- */
+
+/** The display book's own line names, to the account codes the renderer reads.
+ *  A line that is not here has no cell in the memo and is simply not carried. */
+const DISPLAY_LINES: Record<string, string> = {
+  "gross profit": "gross_profit",
+  "net income": "net_income",
+  "interest expense": "interest_expense",
+};
+
+function displaySpread(boom: Boom | undefined): { spread: MemoSpread; boom: MemoBoom } | null {
+  const rows = (boom?.spread?.periods ?? []).filter((p) => str(p.period));
+  if (!rows.length) return null;
+  const periods = rows.map((p) => String(p.period));
+
+  const sales_revenue: MemoSeries = {};
+  const adjusted_ebitda: MemoSeries = {};
+  rows.forEach((p, i) => {
+    sales_revenue[periods[i]] = num(p.revenue);
+    adjusted_ebitda[periods[i]] = num(p.ebitda);
+  });
+
+  // The line-item summary carries TWO columns and the period axis says which
+  // two they are: `ltm` is the last period on the axis and `priorFy` the one
+  // before it. A one-period axis has no prior column, so only `ltm` lands.
+  const ltmLabel = periods[periods.length - 1];
+  const priorLabel = periods.length > 1 ? periods[periods.length - 2] : null;
+  const incomeStatement: Record<string, MemoSeries> = { sales_revenue, adjusted_ebitda };
+  for (const l of boom?.spread?.lineItems ?? []) {
+    const code = DISPLAY_LINES[String(l.line ?? "").trim().toLowerCase()];
+    if (!code) continue;
+    const series: MemoSeries = {};
+    if (num(l.ltm) != null) series[ltmLabel] = num(l.ltm);
+    if (priorLabel && num(l.priorFy) != null) series[priorLabel] = num(l.priorFy);
+    if (Object.keys(series).length) incomeStatement[code] = series;
+  }
+
+  const spread: MemoSpread = { periods, incomeStatement, balanceSheet: {}, cashFlow: {} };
+  return { spread, boom: boomFrom(spread, "Boom, as displayed on the cockpit's book") };
+}
+
+/** The spread the memo's period axis is built from: the raw file where the
+ *  bundle stages one, the display book where it does not, empty where neither. */
+function financialsFrom(boom: Boom | undefined): { spread: MemoSpread; boom: MemoBoom } {
+  const adapted = adaptBoomSpread(boom?.spread?.file);
+  if (adapted.spread.periods.length) return adapted;
+  return displaySpread(boom) ?? adapted;
 }
 
 /* -----------------------------------------------------------------------------
@@ -278,8 +351,11 @@ function covenantCompliance(covenants: Covenant[], asOf: string): MemoCovenantCo
       trigger: num(c.thresholdValue) ?? undefined,
       frequency: c.frequency,
       // ONE period, because the read carries one measured actual. A trend line
-      // across quarters the org never returned would be a drawn guess.
-      quarters: [asOf],
+      // across quarters the org never returned would be a drawn guess. The
+      // period is the covenant's OWN last evaluation date where it has one:
+      // four covenants tested on four different dates are four periods, and
+      // labelling them all with the spread's as-of date said otherwise.
+      quarters: [str(c.lastEvaluationDate) ?? asOf],
       actuals: [actual],
       perPeriod: [{ value: actual, flag, arrow: "" }],
       currentFlag: flag,
@@ -314,12 +390,19 @@ function sidesFor(f: Facility, steps: MemoChange[]) {
     outstanding: fig(f.outstanding),
     maturity: str(f.maturityDate),
   };
+  // A KEY ABSENT FROM `before` WAS NOT PART OF THE CHANGE, which is not the
+  // same fact as a key the step set to null (contract.ts, MemoChangeFields). A
+  // step that moved the commitment and left the outstanding alone carries no
+  // `outstanding`, and the outstanding that did not move is the org's own
+  // current figure: writing the gap marker there said the bank does not know a
+  // balance it is showing two columns to the right.
+  const b = firstBefore;
   const existing = created
     ? { commitment: 0 as Figure, outstanding: 0 as Figure, maturity: null }
     : {
-        commitment: firstBefore ? fig(firstBefore.commitment) : proposed.commitment,
-        outstanding: firstBefore ? fig(firstBefore.outstanding) : proposed.outstanding,
-        maturity: firstBefore && "maturity" in firstBefore ? str(firstBefore.maturity) : proposed.maturity,
+        commitment: b && "commitment" in b ? fig(b.commitment) : proposed.commitment,
+        outstanding: b && "outstanding" in b ? fig(b.outstanding) : proposed.outstanding,
+        maturity: b && "maturity" in b ? str(b.maturity) : proposed.maturity,
       };
 
   const before = num(existing.commitment);
@@ -354,31 +437,197 @@ function toLoan(f: Facility, steps: MemoChange[]): MemoLoan {
    THE REST OF canon
    ----------------------------------------------------------------------------- */
 
-function collateralRecords(facilities: Facility[]): MemoCollateralRecord[] {
+/**
+ * THE VALUATION CLOCK ON ONE ASSET, as one clause.
+ *
+ * The renderer's collateral table has four columns and none of them is a date,
+ * so a credit officer reading it cannot tell a warehouse appraised this quarter
+ * from one appraised three years ago. The valuation rides in the description
+ * cell instead, verbatim off `bundle.collateralValuations` and never derived:
+ * the basis, the date it was struck, who struck it, and the org's own next
+ * revaluation date. An asset with no staged valuation gets no clause.
+ */
+function valuationClause(v: CollateralValuationRow | undefined): string | null {
+  if (!v) return null;
+  const parts = [
+    str(v.valuationDate) ? `valued ${str(v.valuationDate)}` : null,
+    str(v.valuationType) ? `${str(v.valuationType)} basis` : null,
+    str(v.valuationSource) ? `source ${str(v.valuationSource)}` : null,
+    str(v.nextRevaluationDue) ? `next revaluation due ${str(v.nextRevaluationDue)}` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(", ") : null;
+}
+
+function collateralRecords(facilities: Facility[], valuations: readonly CollateralValuationRow[]): MemoCollateralRecord[] {
+  const byCollateral = new Map(valuations.map((v) => [v.collateralId, v]));
   return facilities.flatMap((f) =>
-    (f.collateral ?? []).map((c) => ({
-      loan: f.name,
-      description: str(c.collateralDescription) ?? str(c.collateralName) ?? NOT_IN_SOURCE,
-      // The whole asset's lendable value, never the summed pledges: a
-      // cross-pledged asset repeats its lendable value on every pledge row.
-      value: num(c.currentLendableValue) ?? num(c.collateralValue),
-      // The read carries an ADVANCE RATE, which is not a coverage percentage.
-      // Rendering one as the other would be a wrong figure, so this stays empty
-      // and the renderer prints an em dash.
-      coveragePct: null,
-      lienPosition: text(c.lienPosition),
-    })),
+    (f.collateral ?? []).map((c) => {
+      const base = str(c.collateralDescription) ?? str(c.collateralName);
+      // The org's autonumber and the valuation clock, appended to the org's own
+      // description. Both are facts on the pledge's asset; the description cell
+      // is the only place in the renderer's table that can carry them.
+      const tail = [str(c.collateralName), valuationClause(byCollateral.get(c.collateralId ?? ""))]
+        .filter(Boolean)
+        .join("; ");
+      return {
+        loan: f.name,
+        description: base ? (tail ? `${base} (${tail})` : base) : NOT_IN_SOURCE,
+        // The whole asset's lendable value, never the summed pledges: a
+        // cross-pledged asset repeats its lendable value on every pledge row.
+        value: num(c.currentLendableValue) ?? num(c.collateralValue),
+        // The read carries an ADVANCE RATE, which is not a coverage percentage.
+        // Rendering one as the other would be a wrong figure, so this stays empty
+        // and the renderer prints an em dash.
+        coveragePct: null,
+        lienPosition: text(c.lienPosition),
+      };
+    }),
   );
 }
 
+/**
+ * The guarantor, off the package's legal-entity rows.
+ *
+ * THE GUARANTY TYPE IS `guarantyAmountType`, NOT `relationshipType`. nCino
+ * records what the guaranty covers (Unlimited, Limited) on the first and what
+ * form it takes (Personal Guaranty) on the second, and Hartwell's rows carry
+ * the first and leave the second null — so reading only the second printed an
+ * unlimited corporate guaranty as a gap. Both are used where both are present,
+ * and the clause says which is which.
+ */
 function guarantorFrom(bundle: BorrowerBundle): MemoGuarantor | null {
   const entity = (bundle.graph?.legalEntities ?? []).find((e) => /guarantor/i.test(e.borrowerType ?? ""));
   if (!entity) return null;
+  const amount = str(entity.guarantyAmountType);
+  const relationship = str(entity.relationshipType);
+  const guaranty = [amount, relationship].filter(Boolean).join(", ");
   return {
-    type: /personal|individual/i.test(entity.relationshipType ?? "") ? "individual" : "entity",
+    type: /personal|individual/i.test(relationship ?? "") ? "individual" : "entity",
     name: entity.accountName ?? NOT_IN_SOURCE,
-    guarantyType: text(entity.relationshipType),
+    guarantyType: guaranty || NOT_IN_SOURCE,
   };
+}
+
+/**
+ * THE DOCUMENTS THE COCKPIT CAN ACTUALLY NAME.
+ *
+ * The appendix index was empty on every relationship, because nothing on the
+ * cockpit's grant reads nCino DocMan. Two things it does read ARE documents:
+ * the Boom spread file every figure in the financial section was read off, and
+ * each collateral valuation on the book. Naming those two is the difference
+ * between an appendix that says nothing and one that says what the memo stands
+ * on. Everything else in DocMan stays off this list rather than being guessed.
+ */
+function supportingDocuments(bundle: BorrowerBundle): Array<{ name: string; status?: string }> {
+  const out: Array<{ name: string; status?: string }> = [];
+  const spreadFile = str(bundle.boom?.spread?.sourceFile);
+  if (spreadFile) out.push({ name: `Boom spread: ${spreadFile}`, status: "On file" });
+  for (const v of bundle.collateralValuations ?? []) {
+    const clause = valuationClause(v);
+    const name = str(v.valuationName) ?? v.collateralId;
+    out.push({ name: `Collateral valuation ${name}${clause ? `: ${clause}` : ""}`, status: "On file" });
+  }
+  return out;
+}
+
+/**
+ * THE BORROWER, IN THE ACCOUNT RECORD'S OWN FIELDS.
+ *
+ * `profile` is the floor the Borrower Description module renders under when no
+ * analyst prose has been written yet, and it was the marker on every
+ * relationship — which read as "the bank knows nothing about this borrower"
+ * while the account record carried its industry, its NAICS code and its annual
+ * revenue. Those three are stated, in the org's own words and figures, and
+ * nothing is inferred from them. A snapshot carrying none of the three is still
+ * the marker.
+ */
+function profileFrom(bundle: BorrowerBundle): Text {
+  const s = bundle.snapshot;
+  const parts = [
+    str(s.industry) ? `Industry ${str(s.industry)} on the account record` : null,
+    str(s.naicsCode) ? `NAICS ${str(s.naicsCode)}` : null,
+    num(s.annualRevenue) != null ? `annual revenue ${fmtMoney(num(s.annualRevenue))}` : null,
+  ].filter(Boolean);
+  return parts.length ? `${parts.join(", ")}.` : NOT_IN_SOURCE;
+}
+
+/**
+ * THE FIVE THINGS THE BOOK CARRIES AND THE MEMO HAD NO COLUMN FOR.
+ *
+ * See `MemoRelationshipContext`. Nothing here reaches the rendered tables: it
+ * reaches the FIGURES block the narrative is written against, which is the only
+ * way ownership, coverage, structural signals, opportunities and the proof that
+ * an executed step landed can get into the memo's prose at all. Every line is
+ * one bundle field, stated. A list the bundle cannot fill is absent, not empty.
+ */
+function relationshipContext(bundle: BorrowerBundle, changes: readonly MemoChange[]): MemoRelationshipContext | undefined {
+  const some = (xs: string[]) => (xs.length ? xs : undefined);
+
+  // DEDUPED. The legal-entity read returns one row PER FACILITY, so one
+  // guarantor on a nine-facility package arrives nine times, and nine identical
+  // lines in a prompt are nine chances to read them as nine parties.
+  const ownership = [
+    ...new Set([
+      ...(bundle.graph?.connections ?? [])
+        .filter((c) => str(c.counterpartyName) && num(c.totalOwnershipPercent))
+        .map((c) => `${c.counterpartyName}: ${c.role ?? "connected party"}, ${num(c.totalOwnershipPercent)}% ownership.`),
+      ...(bundle.graph?.legalEntities ?? [])
+        .filter((e) => /guarantor/i.test(e.borrowerType ?? ""))
+        .map((e) => `${e.accountName}: ${e.borrowerType}${e.guarantyAmountType ? `, ${e.guarantyAmountType}` : ""}.`),
+    ]),
+  ];
+
+  const ex = bundle.exposure;
+  const coverage = [
+    num(ex?.coverageRatio) != null
+      ? `Relationship collateral coverage ${num(ex?.coverageRatio)!.toFixed(2)}x over ${ex?.uniqueCollateralCount ?? 0} distinct assets, ${fmtMoney(num(ex?.totalUniqueCollateralLendableValue))} lendable.`
+      : null,
+    ...(ex?.facilities ?? []).map((f) => (str(f.coverageNote) ? `${f.name}: ${str(f.coverageNote)}` : null)),
+  ].filter(Boolean) as string[];
+
+  const sig = bundle.signals;
+  const signals = [
+    (sig?.modifications ?? []).length
+      ? `${sig!.modifications!.length} recorded loan modification${sig!.modifications!.length === 1 ? "" : "s"}${sig?.modificationClusterFlag ? ", flagged as a cluster" : ""}.`
+      : null,
+    // THE IN-FLIGHT PACKAGE VERSION. A revision open on the package is what a
+    // credit officer means by "is something already moving on this deal".
+    ...(sig?.renewals ?? []).map(
+      (r) =>
+        `Package revision ${r.revisionNumber ?? NOT_IN_SOURCE}, status ${r.revisionStatus ?? NOT_IN_SOURCE}${r.hasActiveRenewalLoan ? ", with an active renewal facility" : ""}.`,
+    ),
+    ...(sig?.maturityWatch ?? []).map((m) => `Maturity watch: ${m.name ?? m.loanId} matures ${m.maturityDate ?? NOT_IN_SOURCE}.`),
+    // One line per guarantor, not one per facility, and only where the signal
+    // carries something: a grade the org has not set is the ownership list's
+    // business, not an early-warning line that says nothing.
+    ...[...new Map((sig?.guarantorSignals ?? []).map((g) => [g.guarantorName, g])).values()]
+      .filter((g) => g.highestRiskGrade != null || str(g.riskStatus))
+      .map(
+        (g) =>
+          `Guarantor ${g.guarantorName}: ${[
+            g.highestRiskGrade != null ? `highest risk grade ${g.highestRiskGrade}` : null,
+            str(g.riskStatus) ? `status ${str(g.riskStatus)}` : null,
+          ]
+            .filter(Boolean)
+            .join(", ")}.`,
+      ),
+  ].filter(Boolean) as string[];
+
+  const opportunities = (bundle.opportunities?.opportunities ?? []).map(
+    (o) =>
+      `${o.name}: ${o.stage ?? NOT_IN_SOURCE}, ${fmtMoney(num(o.amount))}${o.probability != null ? `, ${o.probability}% probability` : ""}${o.closeDate ? `, close ${String(o.closeDate).slice(0, 10)}` : ""}.`,
+  );
+
+  const priorActions = changes.map((c) => `${c.label}${c.verification ? ` (verified: ${c.verification})` : ""}.`);
+
+  const context: MemoRelationshipContext = {
+    ownership: some(ownership),
+    coverage: some(coverage),
+    signals: some(signals),
+    opportunities: some(opportunities),
+    priorActions: some(priorActions),
+  };
+  return Object.values(context).some(Boolean) ? context : undefined;
 }
 
 function ratiosFrom(bundle: BorrowerBundle): MemoRatios | undefined {
@@ -497,9 +746,9 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
   const facilities = bundle.exposure?.facilities ?? [];
 
   const loans = facilities.map((f) => toLoan(f, changes));
-  const collateral = collateralRecords(facilities);
+  const collateral = collateralRecords(facilities, bundle.collateralValuations ?? []);
   const guarantor = guarantorFrom(bundle);
-  const { spread, boom } = adaptBoomSpread(bundle.boom?.spread?.file);
+  const { spread, boom } = financialsFrom(bundle.boom);
   const ratios = ratiosFrom(bundle);
 
   // The org's totals are the AFTER, because the steps have executed. The BEFORE
@@ -535,8 +784,9 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
         instanceUrl,
         salesforceAccountId: snapshot.accountId,
         currentRiskRating: text(snapshot.primaryRiskRating),
-        // No read carries a borrower profile / business description today.
-        profile: NOT_IN_SOURCE,
+        // The account record's own industry, NAICS code and annual revenue.
+        // No read carries a written business description; see profileFrom().
+        profile: profileFrom(bundle),
       },
       creditAction: {
         productPackageName: text(options.productPackageName),
@@ -572,7 +822,11 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
       // someone else's credit judgement under this borrower's name.
       riskMitigants: [],
       riskRatingFactors: [],
-      supportingDocuments: [],
+      // NOT empty any more: the spread file and the collateral valuations are
+      // documents on the book, and they are the two the cockpit can name.
+      supportingDocuments: supportingDocuments(bundle),
+      // Read by narrative.ts, never by the renderer. See MemoRelationshipContext.
+      context: relationshipContext(bundle, changes),
     },
     boom,
     // Servicing is not on the cockpit's grant. No `revolverUsage` means the

@@ -11,19 +11,24 @@
    WHAT IS IN THIS FILE is the one flow the other rooms have no equivalent of:
 
      .sp-body    the room's one scroller
+     .sp-steps   the five-step spine, in the workrooms' own register
+     .sp-guide   the one sentence that leads the stage
      .sp-drop    the drop zone, painted on the first frame
      .sp-card    one dropped file, filling in place
      .sp-ask     the one ask and its chips
-     .sp-plan    the governed plan and its confirm
-     .sp-ladder  Boom's own rungs, one row per file
-     .sp-fin     the live financials panel: tiles, trend, statements
-     .sp-post    the post-read prose
+     .sp-act     the LAST thing on the column, and from the confirm onward it
+                 IS the filed sheet: one element that grows from the plan into
+                 the ladder into the spread, in `.wk-sheet`'s own register
+     .sp-plan    state, not a surface: the sheet is showing the plan
+     .sp-ladder  state, not a surface: the sheet is showing Boom's rungs
+     .sp-fin     the live financials block: tiles, trend, statements
+     .sp-post    the post-read block
 
    MATERIAL SPLIT, HONOURED. Every surface below is CONTENT, so every surface
    below is SOLID: opaque, hairline, the card shadow. Not one declares a
-   `backdrop-filter`, so the glass census is unchanged by this room — the only
-   blurred surface it opens is `.wk-room` itself, cut from the one sheet by
-   `.eg-glass.eg-glass-workroom`.
+   `backdrop-filter`, so the glass census is unchanged by this room — the two
+   blurred surfaces it opens are `.wk-room` and the sheet, and BOTH are cut from
+   the one sheet by `.eg-glass.eg-glass-workroom` and workroom.css `.wk-sheet`.
 
    TOKENS ONLY. No hex, no named colour, no font stack: everything is a
    variable from tokens.css, so calm, liquid and reduced motion reach this room
@@ -51,10 +56,15 @@
 .sp-body::-webkit-scrollbar {
   display: none;
 }
-/* One column, centred, at the reading width the other rooms hold. */
+/* One column, centred, at the reading width the other rooms hold. The width is
+   a property because the finale sheet has to take the same one back off
+   `.wk-sheet`'s own 720px cap, and one column may only be measured once. */
+.sp-body {
+  --sp-col: 880px;
+}
 .sp-body > * {
   width: 100%;
-  max-width: 880px;
+  max-width: var(--sp-col);
   margin: 0 auto;
 }
 
@@ -100,21 +110,41 @@
   border-color: var(--accent);
   background: var(--accent-wash);
 }
-/* Past the first drop the zone is a band, not a stage. */
-.sp-drop:not([data-stage="idle"]) {
-  padding: 14px 18px;
+/* PAST THE FIRST FILE THE ZONE IS A BAR (founder, 2026-09-13: the zone was
+   pinned at the top of the room at full height, so the card a banker had just
+   dropped opened below the fold). One row, the count on the right, and it
+   OPENS AGAIN on drag-over so the target is a target when something is coming
+   at it. */
+.sp-drop.is-bar {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  text-align: left;
 }
-.sp-drop:not([data-stage="idle"]) .sp-drop-s {
+.sp-drop.is-bar .sp-drop-s {
   display: none;
+}
+.sp-drop.is-bar .sp-drop-h {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+.sp-drop-c {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--ink-faint);
 }
 .sp-drop-g {
   width: 26px;
   height: 26px;
   color: var(--ink-muted);
 }
-.sp-drop:not([data-stage="idle"]) .sp-drop-g {
-  width: 18px;
-  height: 18px;
+.sp-drop.is-bar .sp-drop-g {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 .sp-drop-h {
   font-size: 13.5px;
@@ -125,9 +155,16 @@
   color: var(--ink-muted);
   max-width: 52ch;
 }
+/* PURPLE TEXT IS `--accent`, NEVER `--accent-ink` (fixed 2026-09-13 off the
+   founder's own screenshots: "the button font and colour is off"). `--accent-ink`
+   is the ink that sits ON an accent FILL and it is #ffffff, so every one of the
+   five places this file used it as a violet text colour on a light ground was
+   rendering white on white: "Browse files" was an underline with nothing above
+   it, the recommended chip's label was blank, and the new period's column of
+   figures was invisible. */
 .sp-drop-b {
   font-size: 12px;
-  color: var(--accent-ink);
+  color: var(--accent);
   border-bottom: 1px solid var(--accent-hairline);
 }
 .sp-file {
@@ -194,18 +231,63 @@
   font-size: 12.5px;
   color: var(--warning-prose);
 }
-.sp-card-l {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* THE FACTS, ONE ROW EACH (founder, 2026-09-13: "a wall of eleven lines").
+   A fixed label column so the eye reads DOWN the values rather than hunting the
+   start of each sentence; the tag qualifies its value in place, and the quote
+   is the fragment of the file behind it. */
+.sp-card-f {
+  margin: 10px 0 0;
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 5px 14px;
 }
-.sp-card-l li {
+.sp-fact {
+  display: contents;
+}
+.sp-fact-k {
+  font-size: 11px;
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+  color: var(--ink-label);
+  padding-top: 1px;
+  animation: wk-in 380ms var(--ease-settle) both;
+}
+.sp-fact-v {
+  margin: 0;
+  min-width: 0;
   font-size: 12.5px;
   color: var(--ink-body);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px;
   animation: wk-in 380ms var(--ease-settle) both;
+}
+.sp-fact-t {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--warning-bg);
+  color: var(--warning-prose);
+  font-size: 10.5px;
+}
+.sp-fact[data-fact="periods"] .sp-fact-t {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.sp-fact-q {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.sp-card-w {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--warning-prose);
+}
+.sp-card-fn {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
 }
 
 /* ------------------------------------------------------------------ the ask
@@ -257,7 +339,7 @@
 .sp-chip.is-rec {
   border-color: var(--accent-hairline-strong);
   background: var(--accent-tint);
-  color: var(--accent-ink);
+  color: var(--accent);
 }
 .sp-chip-why {
   font-style: normal;
@@ -265,49 +347,169 @@
   color: var(--ink-faint);
 }
 
-/* ----------------------------------------------------------------- the plan */
-.sp-plan,
-.sp-ladder,
-.sp-fin,
-.sp-post {
-  padding: 16px 18px;
-  border-radius: 14px;
+/* ------------------------------------------------------- the spine and guide
+
+   THE STEPS ARE THE WORKROOMS' OWN SPINE with this room's five words on it:
+   derived from the stage, nothing clickable, the current one lit and every
+   passed one ticked. The rail behind them is the only thing that moves.     */
+.sp-steps {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sp-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  transition: color var(--dur-mid) var(--ease-settle);
+}
+.sp-step + .sp-step::before {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--divider-soft);
+}
+.sp-step-d {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
   background: var(--surface-raised);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-card);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  transition: all var(--dur-mid) var(--ease-settle);
+}
+.sp-step[data-state="on"] {
+  color: var(--ink-strong);
+  font-weight: 600;
+}
+.sp-step[data-state="on"] .sp-step-d {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+.sp-step[data-state="done"] {
+  color: var(--ink-muted);
+}
+.sp-step[data-state="done"] .sp-step-d {
+  border-color: var(--accent-hairline-strong);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.sp-step-l {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ONE SENTENCE, AND IT LEADS. Golden rule 4: the banker is never left working
+   out what this room wants from them next. */
+.sp-guide {
+  margin: 0 auto;
+  font-size: 13px;
+  color: var(--ink-body);
+}
+
+/* ------------------------------------------------ the sheet the room ends on
+
+   FROM CONFIRM ONWARD `.sp-act` IS THE FILED SHEET (founder, 2026-09-13: "make
+   it at the end also with this glowing rainbow card so it is all unified").
+   Everything that DRAWS it is the modification finale's own register, carried
+   by class from workroom.css: `.wk-sheet` for the glass, the rim and the type,
+   `.aura` for the rainbow thinned to an edge, `.wk-sheet-sec` for the rule
+   between blocks, `.wk-sheet-go` / `.wk-sheet-back` for the two doors. Not one
+   of those recipes is restated here, and this file still declares no
+   backdrop-filter of its own: the sheet's blur is `.wk-sheet`'s.
+
+   WHAT IS LEFT IN THIS FILE is the two things that register has no opinion
+   about: how wide the sheet is in THIS room, and how its three extra blocks
+   arrive.
+
+   IT IS THE ROOM'S COLUMN WIDE. The finale's sheet is capped at 720px because
+   it stands alone in a thread; this one stands under the room's own file card
+   and over a statement table, and a narrower sheet under a wider card reads as
+   a different surface rather than as the same one grown. So the cap is the
+   column's, from the one property that measures it. */
+.sp-act.wk-sheet {
+  max-width: var(--sp-col);
   animation: wk-in 550ms var(--ease-settle) both;
 }
-.sp-plan-k {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: var(--tracking);
-  text-transform: uppercase;
-  color: var(--ink-label);
+/* THE THREE BLOCKS THE FINALE'S SHEET DOES NOT HAVE arrive as the room reaches
+   them, in the room's own arrival. The plan block does not: it is there from
+   the sheet's first frame and the sheet's own arrival already carried it. */
+.sp-act .wk-sheet-sec[data-block="ladder"],
+.sp-act .wk-sheet-sec[data-block="financials"],
+.sp-act .wk-sheet-sec[data-block="changes"] {
+  animation: wk-in 450ms var(--ease-settle) both;
 }
+/* EACH BLOCK BREATHES AT ITS SECTION'S OWN GAP, and nothing inside a block
+   carries a top margin of its own. A margin ON TOP of a flex gap is two
+   spacings for one join: the room's surfaces were written as cards, and the
+   internal margins they came with pushed the doors off the fold once they all
+   stood on one sheet. Spacing is the parent's business here. */
+.sp-act .wk-sheet-sec[data-block="ladder"] {
+  gap: 10px;
+}
+.sp-act .wk-sheet-sec[data-block="plan"] {
+  gap: 8px;
+}
+.sp-act .wk-sheet-sec[data-block="read"] {
+  gap: 6px;
+}
+.sp-act .wk-sheet-sec[data-block="financials"] {
+  gap: 14px;
+}
+.sp-act .wk-sheet-sec[data-block="changes"] {
+  gap: 6px;
+}
+/* `.sp-note` is the one surface with two homes: inside the panel it is a block
+   of the sheet, and outside it is the room's own clock line under the column. */
+.sp-act .sp-note {
+  margin-top: 0;
+}
+
+/* ------------------------------------------------- the plan, on that sheet
+
+   EVERY HEAD IN THE SHEET IS `.wk-sheet-k` and there is no second label style
+   here: the room used to carry `.sp-plan-k`, which was the same ten and a half
+   pixels of uppercase ink-label written twice. `.sp-plan` and `.sp-ladder` are
+   now STATE, not surfaces — they say which half of the sheet is on stage and
+   they draw nothing. */
 .sp-plan-s {
-  margin: 10px 0 0;
+  margin: 0;
   font-size: 14px;
   color: var(--ink-strong);
 }
 .sp-plan-n {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: 12.5px;
   color: var(--ink-muted);
 }
-.sp-go {
-  margin-top: 14px;
-  padding: 9px 18px;
-  border-radius: var(--radius-ctl);
-  border: 1px solid transparent;
-  background: var(--brand);
-  color: var(--ink-inverse);
-  font-family: var(--font-sans);
+.sp-plan-w {
+  margin: 0;
   font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
+  color: var(--warning-prose);
 }
-.sp-go:hover {
-  background: var(--accent);
+
+/* WHAT THE FILE READS AS, BEFORE IT GOES. Four lines at most, in a block of the
+   sheet's own rather than a card inside a card, because a provisional panel of
+   tiles under an unsent plan read as a spread that had already happened. */
+.sp-brief p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-body);
 }
 
 /* ---------------------------------------------------------------- the ladder
@@ -316,11 +518,6 @@
    five rungs, the current one lit. The dots do not spin: a rung that is waiting
    BREATHES, so a stalled step still reads as a state rather than as a loader
    that has hung. */
-.sp-ladder {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 .sp-rung {
   display: flex;
   align-items: center;
@@ -417,10 +614,31 @@
 .sp-verify {
   margin-left: auto;
   font-size: 12px;
-  color: var(--accent-ink);
+  color: var(--accent);
+}
+/* THE EXPLAIN AFFORDANCE, the panes' quiet pill (rule 27: an explanation is not
+   a commit, so it is never violet). */
+.sp-explain {
+  margin-left: auto;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--quiet-fill);
+  color: var(--ink-muted);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--dur-mid) var(--ease-out);
+}
+.sp-verify + .sp-explain {
+  margin-left: 0;
+}
+.sp-explain:hover {
+  background: var(--quiet-fill-hover);
+  color: var(--ink-strong);
 }
 .sp-tiles {
-  margin-top: 14px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 12px;
@@ -447,7 +665,6 @@
 .sp-trend {
   width: 100%;
   height: auto;
-  margin-top: 16px;
 }
 .sp-trend-line {
   stroke: var(--accent);
@@ -471,9 +688,6 @@
 /* The statement tabs. The table is the one thing in this room wide enough to
    need its own horizontal scroller, and it takes one rather than making the
    room scroll sideways. */
-.sp-st {
-  margin-top: 16px;
-}
 .sp-st-tabs {
   display: flex;
   gap: 6px;
@@ -521,7 +735,7 @@
 }
 .sp-st-t .is-new {
   background: var(--accent-wash);
-  color: var(--accent-ink);
+  color: var(--accent);
 }
 .sp-st-t tr[data-hierarchy="total"] td,
 .sp-st-t tr[data-hierarchy="subtotal"] td {
@@ -534,4 +748,7 @@
   margin: 10px 0 0;
   font-size: 13px;
   color: var(--prose-deep);
+}
+.sp-prose p:first-child {
+  margin-top: 0;
 }

@@ -146,7 +146,7 @@ describe("the substitution seam", () => {
 
 describe("the literal table is the inventory", () => {
   it("names every literal, where it lives and why it cannot stay", () => {
-    expect(HARDCODED_LITERALS.length).toBe(8);
+    expect(HARDCODED_LITERALS.length).toBe(9);
     for (const spec of HARDCODED_LITERALS) {
       expect(spec.id).toBeTruthy();
       expect(spec.where).toMatch(/render-memo\.mjs:\d+/);

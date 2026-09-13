@@ -9,7 +9,7 @@ vi.mock("./channel/mcp", async (importOriginal) => {
 });
 
 import { normaliseBoom } from "../../client-360/render/boom-normalise.mjs";
-import { createSpreadEngine, PRE_READ_BEAT_MS, type SpreadDeps, type SpreadEngine } from "./workroom/spreadEngine";
+import { createSpreadEngine, DEGRADED_FOOTNOTE, PRE_READ_BEAT_MS, type SpreadDeps, type SpreadEngine } from "./workroom/spreadEngine";
 import { extractDocument, readDroppedFile } from "./spread/extract";
 import { MODEL_FAILED_NOTE, preReadFile, type RelationshipSpreadContext } from "./spread/preRead";
 import { provisionalRead } from "./spread/provisional";
@@ -196,16 +196,19 @@ describe("a clean statement spreads with no model in the path", () => {
     await dropAndRead(e, droppedCsv());
     const card = e.getState().cards[0];
     expect(card.phase).toBe("read");
-    expect(card.lines.slice(0, 3)).toEqual([
-      "CSV, 0.0 MB",
-      "2 statements: income statement, balance sheet",
-      "Periods: FY2025, FY2024",
+    /* PIN MOVED 2026-09-13 (founder: "a wall of eleven lines with duplicates").
+       Same findings, same order, one labelled row each. */
+    expect(card.facts.slice(0, 3).map((f) => [f.key, f.value])).toEqual([
+      ["read", "CSV"],
+      ["statements", "Income statement, balance sheet"],
+      ["periods", "FY2025, FY2024"],
     ]);
-    // The desk answered with nothing usable, twice, and the card says so in
-    // words that are now true: the lines below were placed from the text.
-    expect(card.lines).toContain(MODEL_FAILED_NOTE);
+    // The desk answered with nothing usable, twice, and the card says so in one
+    // muted footnote instead of a paragraph about the desk.
+    expect(card.footnote).toBe(DEGRADED_FOOTNOTE);
+    expect(MODEL_FAILED_NOTE).toContain("did not return a usable read");
     // AND THE SCALE IS READ, NOT ASKED.
-    expect(card.lines).toContain("Figures in thousands, as the statement says.");
+    expect(card.facts.find((f) => f.key === "units")?.value).toBe("Thousands, as the statement says");
     expect(card.pre?.unitsMultiplier).toBe(1_000);
 
     /* ----------------------------------------------------------- the ask */

@@ -11,6 +11,15 @@
    here that the banker did not ask for: this runs on the Sync gesture only.
    There is no polling and no auto-sync.
 
+   AND THE GESTURE ASKS FOR EVERYTHING (`force`, founder 2026-09-13: "a
+   modification only appears after Sync AND a full page refresh"). The slow tier
+   below serves the graph, the covenants and the snapshot from cache inside
+   their window, which is right for a read nobody asked for and wrong for the
+   one gesture that exists to go and look: package versions and stages ride
+   those slices, so a Sync inside the window could not show a change the banker
+   had just made and a reload could. A FORCED sweep therefore calls every lane.
+   The open path keeps the skip, deliberately: see channel/openRefresh.ts.
+
    Failure doctrine (unchanged): a failed read keeps the last-good value and
    says so on its line. A failed sweep never blanks the workspace.
    ============================================================================= */
@@ -129,6 +138,10 @@ export interface SweepOptions {
   /** When each slow-tier read last succeeded, by bundle key. Inside the window
    *  the sweep serves cache and does not call the tool at all. */
   slowTierFetchedAt?: Record<string, number>;
+  /** THE BANKER PRESSED SYNC. Every lane is read, window or no window, because
+   *  a gesture that means "go and look" cannot answer out of a cache. The Sync
+   *  button passes it; nothing automatic does. */
+  force?: boolean;
   /** Injected for tests; never used for data-derived reasoning (A10). */
   now?: () => number;
   /** Launch pacing, overridable for tests. */
@@ -307,8 +320,10 @@ export async function runSyncSweep(opts: SweepOptions): Promise<SyncResult> {
   const fetchedBefore = opts.slowTierFetchedAt ?? {};
   const startedAt = now();
 
-  /** Is this slow-tier read still fresh enough to skip entirely? */
+  /** Is this slow-tier read still fresh enough to skip entirely? Never on a
+   *  forced sweep: the banker asked, so every lane goes and looks. */
   const servedFromCache = (key: string) =>
+    !opts.force &&
     SLOW_TIER_KEYS.has(key) &&
     typeof fetchedBefore[key] === "number" &&
     startedAt - fetchedBefore[key] < slowTierWindowMs(key);

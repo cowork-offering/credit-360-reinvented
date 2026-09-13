@@ -2,6 +2,33 @@
 
 ## Changelog
 
+- **0.9.20 (2026-09-13)** THE GUIDED SPREADING ROOM, SYNC THAT FORCES, GRANTS UP FRONT, AND THE
+  MEMO'S GAPS. Founder test of 0.9.19 in the browser: the send step sat in the middle with the
+  financials already showing below it, the file card said the same fact twice, the button was a
+  solid fill outside the glass register, the trend showed FY2025 twice, and the post-read read
+  facts without connecting them. SPREADING ROOM: five-step spine (Drop, Read, Confirm, Boom,
+  Financials) with one guidance sentence per stage; the drop zone collapses to a bar after the
+  first file; the card is a fact list with tags ("already on file", "differs from the
+  relationship"); the plan is the LAST element and lives on the workroom finale sheet (the same
+  glass and rim as the filed summary) with glass doors: "Confirm and spread" / "Leave it for now",
+  then "Draft the credit memo" / "Back to <account>"; the plan morphs into the Boom ladder in
+  place; the financials panel and the narrative reveal only when the spread lands; trend merged by
+  label with the newest spread as the latest point (an older LTM sits before it); an "Explain"
+  door on the panel. CONNECT THE DOTS, honestly: the post-read now re-tests EVERY covenant on the
+  book where its ratio is derivable ("Maximum Debt to Worth tests at 1.60x against its 3.00x
+  ceiling, inside it") and says why the others cannot be recomputed from a statement, states the
+  three-period direction, the margin and balance-sheet moves, and the committee questions that
+  RULES raise (margin fell while revenue grew; coverage moved toward its floor; debt outran EBITDA;
+  a covenant now tests within a tenth of its threshold); session Claude may only rephrase those
+  facts (S6 guard unchanged). Fixed on the way: "Browse files", the recommended chip and the new
+  column's figures rendered white on white (--accent-ink on a light ground). SYNC FORCES EVERY
+  LANE (founder: a modification showed only after Sync and a reload): the Sync gesture bypasses the
+  slow-tier skip window; the open path keeps it. CONNECTOR GRANTS UP FRONT (founder: prompts came
+  one by one per page): 1.2 s after first paint, one safe read per configured connector, so every
+  permission prompt comes at the start, once (AFS only where a servicing key exists). MEMO GAPS:
+  a gap audit (`memo/gapAudit.test.ts`) builds the dossier for Hartwell and Piedmont from the real bundles, renders it, and classifies every "[not in source system; flagged for RM]": class A (in the book, never mapped) is now FILLED: borrower profile (industry, NAICS, revenue), guaranty type, the Key Metrics table and spreading charts on display-only books (figures labelled "Boom, as displayed on the cockpit's book", no Boom file fabricated; balance-sheet ratios stay marked and a zero-debt leverage artefact is overridden), supporting documents (spread file, valuations), before-key semantics on the executive summary; the narrative FIGURES block now carries ownership, coverage, structural signals incl. the in-flight revision, opportunities and executed steps. Hartwell markers 8/9 to 6, empty blocks 8 to 5; Piedmont unchanged at 5 (all B/C). Class B (in the org, on no read: NAICS title, business description, package name, rating history, legal-entity ids, term/amortisation/first payment on Exposure, AFS coordinates) and class C (HRB, URE, past-due statements, scenarios, peers, written mitigants, an ungraded Proposal facility) keep the marker by doctrine; both lists are in the audit test. Org hygiene: Hartwell's 09-11 test modification removed in full (clone loans, package
+  version, chain rows, staging rows; parents read hasRenewal=false). tsc clean; vitest 201 files, 4,770 passed, 0 failed, 11 todo; bundle 1.882 MiB (+20.8 KB, inside the soft tier); browser gate: CSV, XLSX and PDF driven through the built page, six screenshots reviewed per state.
+
 - **0.9.19 (2026-09-13)** SPREAD FINANCIALS (on the stub), THE GOLDEN RULE PART TWO, AND THE
   FALLBACK AND LATENCY AUDITS. SPREAD FINANCIALS: a sixth FAB satellite opens the Spreading
   room (arc respread r=124 → r=150, 46.9 px rhythm kept, both anchors unchanged): drop

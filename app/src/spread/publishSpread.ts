@@ -48,6 +48,15 @@
    PROVENANCE IS CARRIED, NOT IMPLIED. A spread that came from the stub is
    marked `provisional` on the period it added, and the Financials tab says so
    in words. Nothing here may make a stub spread look like Boom's.
+
+   THE NEWEST SPREAD IS THE LATEST POINT; AN LTM OLDER THAN A SPREAD YEAR-END
+   SITS BEFORE IT (founder review, 2026-09-13). The book's own order stands for
+   everything the book already held, but a fiscal year THIS spread moved is
+   placed last whenever every row behind it is a non-fiscal one (LTM, TTM). A
+   trailing-twelve-months window closed before the year-end just spread, so
+   leaving it after the spread drew the trend dipping into an older figure and
+   put an older figure in the tab's headline. Nothing is reordered where no
+   period moved. See `mergeDisplayPeriods` below.
    ============================================================================= */
 
 import { normaliseBoom } from "../../../client-360/render/boom-normalise.mjs";
@@ -215,8 +224,18 @@ function samePeriodFigures(a: BoomPeriod | undefined, b: BoomPeriod | undefined)
  * assembler put those periods in and nothing here knows better: a display row
  * carries no end date to sort on. Periods the book does not hold are appended,
  * in the order the normaliser derived them, which is by end date ascending.
+ *
+ * EXPORTED FOR THE SPREADING ROOM'S OWN TREND (founder, 2026-09-13: the axis
+ * read FY2023, FY2024, FY2025, LTM, FY2025). The room was appending its new
+ * point to the book's periods instead of merging by label, so a re-spread of a
+ * year already on file drew that year twice. It is the same merge and it is
+ * called, never copied.
+ *
+ * AND THE PERIOD THIS SPREAD MOVED ENDS THE SERIES where the only rows behind
+ * it are non-fiscal, so the newest spread is the latest point. See the module
+ * header and `newestSpreadLast` below.
  */
-function mergeDisplayPeriods(book: BoomPeriod[], derived: BoomPeriod[]): BoomPeriod[] {
+export function mergeDisplayPeriods(book: BoomPeriod[], derived: BoomPeriod[]): BoomPeriod[] {
   if (!book.length) return derived;
   const byKey = new Map<string, BoomPeriod>();
   for (const p of derived) if (p.period) byKey.set(p.period, p);
@@ -233,7 +252,33 @@ function mergeDisplayPeriods(book: BoomPeriod[], derived: BoomPeriod[]): BoomPer
     }
   }
   for (const p of derived) if (!p.period || !taken.has(p.period)) out.push(p);
-  return out;
+  return newestSpreadLast(out, byKey);
+}
+
+/** A fiscal year-end label. "LTM" and "TTM" are windows, not fiscal years, and
+ *  that is the whole distinction the rule below turns on. */
+const FISCAL_YEAR = /^FY\s?(?:19|20)\d{2}$/i;
+
+/**
+ * THE NEWEST SPREAD, LAST.
+ *
+ * `moved` is keyed on the labels this spread carried, so a call with nothing
+ * incoming reorders nothing at all. The period picked is the LAST fiscal year
+ * among them, which on a multi-period drop is the newest one the banker just
+ * spread, and it only travels when every row behind it is non-fiscal: a later
+ * fiscal year on the book is newer than this spread and keeps its place.
+ */
+function newestSpreadLast(periods: BoomPeriod[], moved: Map<string, BoomPeriod>): BoomPeriod[] {
+  if (!moved.size) return periods;
+  let at = -1;
+  for (let i = 0; i < periods.length; i += 1) {
+    const key = periods[i].period;
+    if (key && moved.has(key) && FISCAL_YEAR.test(key)) at = i;
+  }
+  if (at < 0 || at === periods.length - 1) return periods;
+  const behind = periods.slice(at + 1);
+  if (!behind.every((p) => p.period && !FISCAL_YEAR.test(p.period))) return periods;
+  return [...periods.slice(0, at), ...behind, periods[at]];
 }
 
 export interface PublishSpreadArgs {

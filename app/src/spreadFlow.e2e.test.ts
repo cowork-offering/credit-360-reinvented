@@ -237,13 +237,15 @@ describe("one file, one question, one plan, one spread", () => {
     // order of the drop, which is the key Boom is asked to dedupe on.
     expect(card.id).toBe(`f_${card.sha256!.slice(0, 12)}`);
 
-    // THE SPEC'S ORDER: what the file is, then what it holds, then which
-    // periods, then whose it is.
-    expect(card.lines.slice(0, 4)).toEqual([
-      "CSV, 0.0 MB",
-      "2 statements: income statement, balance sheet",
-      "Periods: FY2025",
-      `Printed name: ${COMPANY}`,
+    /* THE SPEC'S ORDER: what the file is, then what it holds, then which
+       periods, then whose it is. PIN MOVED 2026-09-13 (founder: the card read
+       as a wall of duplicated sentences): the order is unchanged, the unit is a
+       labelled fact instead of a sentence. */
+    expect(card.facts.slice(0, 4).map((f) => [f.key, f.value])).toEqual([
+      ["read", "CSV"],
+      ["statements", "Income statement, balance sheet"],
+      ["periods", "FY2025"],
+      ["company", COMPANY],
     ]);
 
     /* ----------------------------------------------------------- the ask */

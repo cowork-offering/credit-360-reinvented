@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CAP_FILES_LINE,
+  cardFacts,
+  cardFootnote,
+  cardWarnings,
+  DEGRADED_FOOTNOTE,
+  provisionalBrief,
+  SPREAD_STEPS,
+  spreadGuidance,
+  spreadSteps,
+  type SpreadStage,
   MAX_FILES,
   PRE_READ_BEAT_MS,
   POLL_EVERY_MS,
@@ -8,7 +17,6 @@ import {
   createSpreadEngine,
   duplicateLine,
   leftWithBoomLine,
-  noPrintedNameLine,
   planSummary,
   tooBigLine,
   type SpreadDeps,
@@ -21,8 +29,9 @@ import type {
   DroppedFile,
   ExtractedDocument,
   FilePreRead,
+  ProvisionalRead,
 } from "../spread/types";
-import { unitsStatedNote, type RelationshipSpreadContext } from "../spread/preRead";
+import { MODEL_FAILED_NOTE, unitsStatedNote, type RelationshipSpreadContext } from "../spread/preRead";
 
 /* =============================================================================
    THE SPREADING ROOM'S ENGINE, AS A MACHINE.
@@ -160,7 +169,10 @@ describe("the stages", () => {
     expect(s.plan).toBeNull();
   });
 
-  it("makes a card the moment a file lands and fills it in place, one line to a beat", async () => {
+  /* PIN MOVED 2026-09-13 (founder: the card was "a wall of eleven lines with
+     duplicates"). The card fills with FACTS now, one to a beat, and the beat
+     itself is unchanged: it is the same pump over a richer unit. */
+  it("makes a card the moment a file lands and fills it in place, one fact to a beat", async () => {
     vi.useFakeTimers();
     const engine = (live = engineWith());
     const drop = engine.drop([file("hartwell-fy2025.pdf")]);
@@ -170,15 +182,15 @@ describe("the stages", () => {
     const card = engine.getState().cards[0];
     expect(card.name).toBe("hartwell-fy2025.pdf");
     expect(card.phase).toBe("read");
-    // The kind line is out the instant it is known; the rest wait their beat.
-    const first = card.lines.length;
-    expect(first).toBe(1);
+    // The first fact is out the instant the read has it; the rest wait a beat.
+    expect(card.facts.map((f) => f.key)).toEqual(["read"]);
     await vi.advanceTimersByTimeAsync(PRE_READ_BEAT_MS);
-    expect(engine.getState().cards[0].lines.length).toBe(2);
+    expect(engine.getState().cards[0].facts).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(PRE_READ_BEAT_MS * 6);
-    const lines = engine.getState().cards[0].lines;
-    expect(lines.length).toBeGreaterThan(2);
-    expect(lines.join(" ")).toContain("Periods: FY2025");
+    const facts = engine.getState().cards[0].facts;
+    expect(facts.map((f) => f.key)).toEqual(["read", "statements", "periods", "company", "quality", "units"]);
+    expect(facts.find((f) => f.key === "periods")?.value).toBe("FY2025");
+    expect(facts.find((f) => f.key === "read")?.value).toBe("PDF with a text layer, 12 pages");
   });
 
   it("goes straight to the plan when the pre-read settled everything", async () => {
@@ -201,8 +213,14 @@ describe("the stages", () => {
     await vi.advanceTimersByTimeAsync(PRE_READ_BEAT_MS * 10);
 
     const s = engine.getState();
-    expect(s.cards[0].lines).toContain(noPrintedNameLine("Hartwell Precision"));
-    // A scan already asks three things. This is a sentence, not a fourth ask.
+    /* PIN MOVED 2026-09-13: the sentence "Printed name not found in this file;
+       it spreads under X unless you say otherwise" is now the Printed name row
+       and its tag, which says the same thing in the column a banker is already
+       reading down. */
+    const printed = s.cards[0].facts.find((f) => f.key === "company");
+    expect(printed?.value).toBe("Not printed");
+    expect(printed?.tag).toBe("spreads under Hartwell Precision");
+    // A scan already asks three things. This is a row, not a fourth ask.
     expect(s.asks.some((a) => a.field === "company")).toBe(false);
     // And the plan the banker confirms repeats the relationship it goes under.
     expect(s.plan?.summary).toContain("Hartwell Precision");
@@ -343,6 +361,20 @@ describe("one ask at a time", () => {
     expect(ask.field).toBe("company");
     expect(ask.lead).toContain("Hartwell Holdings LLC");
     expect(ask.chips.some((c) => c.recommended)).toBe(false);
+  });
+
+  it("ends every clause of the mismatch on one full stop, legal name or not", async () => {
+    /* "piedmont-fy2025.pdf reads as Piedmont Precision Components, Inc.. The
+       relationship in view is ..." was on the founder's screenshot of
+       2026-09-13. A legal name ends in a period more often than not. */
+    const engine = (live = engineWith({
+      preReadFile: async (d) =>
+        complete(d.fileId, { company: "Piedmont Precision Components, Inc.", companyMatchesRelationship: false }),
+    }));
+    await engine.drop([file("piedmont-fy2025.pdf")]);
+    expect(engine.getState().ask!.lead).toBe(
+      "piedmont-fy2025.pdf reads as Piedmont Precision Components, Inc. The relationship in view is Hartwell Precision.",
+    );
   });
 
   /* ------------------------------------------------------------ the units
@@ -575,5 +607,198 @@ describe("the ladder", () => {
     await engine.drop([file("more.pdf")]);
     expect(engine.getState().cards).toHaveLength(1);
     expect(engine.getState().refusals.join(" ")).toContain("Boom has this plan");
+  });
+});
+
+/* =============================================================================
+   THE GUIDED FLOW (founder, 2026-09-13, after driving the shipped room:
+   "more streamlined, more guidance, more intuitive"; "the sent-to-Boom path is
+   misleading"; the card was "a wall of eleven lines with duplicates").
+
+   The spine, the one sentence that leads each stage, the curated card and the
+   four-line brief the confirm carries are all pure functions of state, so they
+   are proved here rather than in a DOM.
+   ============================================================================= */
+
+describe("the five-step spine", () => {
+  it("lights exactly one step, ticks the ones behind it, and never runs backwards", () => {
+    const stages: SpreadStage[] = ["idle", "reading", "asking", "plan", "sending", "spread"];
+    for (const stage of stages) {
+      const states = spreadSteps(stage);
+      expect(states).toHaveLength(SPREAD_STEPS.length);
+      expect(states.filter((s) => s === "on")).toHaveLength(1);
+      const on = states.indexOf("on");
+      expect(states.slice(0, on).every((s) => s === "done")).toBe(true);
+      expect(states.slice(on + 1).every((s) => s === "idle")).toBe(true);
+    }
+    // Reading and asking are ONE step: the banker is looking at what the file
+    // said and answering the one thing it did not.
+    expect(spreadSteps("reading")).toEqual(spreadSteps("asking"));
+    expect(SPREAD_STEPS.map((s) => s.label)).toEqual(["Drop", "Read", "Confirm", "Boom", "Financials"]);
+  });
+
+  it("walks the spine as the engine walks the stages", async () => {
+    const engine = (live = engineWith());
+    expect(spreadSteps(engine.getState().stage)[0]).toBe("on");
+    await engine.drop([file("hartwell-fy2025.pdf")]);
+    expect(engine.getState().stage).toBe("plan");
+    expect(spreadSteps(engine.getState().stage)[2]).toBe("on");
+    await engine.confirm();
+    expect(spreadSteps(engine.getState().stage)[4]).toBe("on");
+  });
+});
+
+describe("the one sentence that leads each stage", () => {
+  const said = (stage: SpreadStage, ask: boolean = false) =>
+    spreadGuidance({ stage, ask: ask ? ({} as never) : null, company: "Hartwell Precision" });
+
+  it("names the relationship at the door and at the spread", () => {
+    expect(said("idle")).toContain("Hartwell Precision");
+    expect(said("spread")).toContain("Hartwell Precision");
+  });
+
+  it("says nothing has left the cockpit at the moment of the confirm", () => {
+    expect(said("plan")).toContain("Nothing has left the cockpit yet");
+  });
+
+  it("asks for the answer only where there is a question on the glass", () => {
+    expect(said("asking", true)).toContain("answer the one question below");
+    expect(said("reading")).not.toContain("question");
+  });
+
+  it("is one sober line everywhere, with no em dash and no exclamation", () => {
+    for (const stage of ["idle", "reading", "asking", "plan", "sending", "spread"] as SpreadStage[]) {
+      for (const ask of [true, false]) {
+        const line = spreadGuidance({ stage, ask: ask ? ({} as never) : null, company: "Hartwell Precision" });
+        expect(line).not.toMatch(/—|!/);
+        expect(line.length).toBeLessThan(160);
+      }
+    }
+  });
+});
+
+describe("the card carries each fact once", () => {
+  /** A pre-read that trips every note the deterministic read can write: a name
+   *  that is not the relationship's, a period already on file, an auditor's
+   *  report, a stated scale, and a desk that never answered. */
+  const noisy = (fileId: string): FilePreRead =>
+    complete(fileId, {
+      company: "Piedmont Precision Components, Inc.",
+      companyMatchesRelationship: false,
+      unitsMultiplier: 1_000,
+      statements: [
+        {
+          statementType: "income_statement",
+          periods: [
+            { key: "FY2024", endDate: "2024-12-31", periodType: "annual" },
+            { key: "FY2025", endDate: "2025-12-31", periodType: "annual" },
+          ],
+          lines: [],
+        },
+      ],
+      quality: [
+        { level: "info", text: MODEL_FAILED_NOTE },
+        {
+          level: "info",
+          text:
+            'Read as audited: "Independent Auditor\'s Report: In our opinion, the financial statements present fairly, in all material respects, the financial position of the Company."',
+        },
+        { level: "info", text: unitsStatedNote(1_000) },
+        {
+          level: "warn",
+          text: "This reads as Piedmont Precision Components, Inc., not Hartwell Precision. Confirm which borrower it is spread under.",
+        },
+        {
+          level: "info",
+          text: "FY2024 is already on file from the last spread. Boom keys the file on its hash, so the same document does not fork a second period.",
+        },
+      ],
+    });
+
+  const cardOf = () => {
+    const pre = noisy("f1");
+    return {
+      pre,
+      facts: cardFacts({ pre, kind: "pdf-text", pages: 1, ctx: CTX }),
+      warnings: cardWarnings(pre),
+      footnote: cardFootnote(pre),
+    };
+  };
+
+  it("says the printed name once, and never twice", () => {
+    const card = cardOf();
+    const everything = [...card.facts.map((f) => [f.value, f.tag, f.quote].filter(Boolean).join(" ")), ...card.warnings];
+    expect(everything.filter((line) => /Piedmont/.test(line))).toHaveLength(1);
+    expect(card.facts.find((f) => f.key === "company")?.tag).toBe("differs from the relationship");
+  });
+
+  it("says the periods once, and puts what is already on file on the period itself", () => {
+    const card = cardOf();
+    const everything = [...card.facts.map((f) => [f.value, f.tag].filter(Boolean).join(" ")), ...card.warnings];
+    expect(everything.filter((line) => /FY20\d\d|period/i.test(line))).toHaveLength(1);
+    const periods = card.facts.find((f) => f.key === "periods");
+    expect(periods?.value).toBe("FY2024, FY2025");
+    expect(periods?.tag).toBe("FY2024 already on file");
+  });
+
+  it("quotes the auditor's report rather than printing the whole opinion", () => {
+    const quote = cardOf().facts.find((f) => f.key === "quality")?.quote ?? "";
+    expect(quote).toContain("Independent Auditor's Report");
+    expect(quote.length).toBeLessThanOrEqual(81);
+    expect(quote.endsWith("…")).toBe(true);
+  });
+
+  it("turns the desk's absence into one muted footnote in banker words", () => {
+    const card = cardOf();
+    expect(card.footnote).toBe(DEGRADED_FOOTNOTE);
+    expect(card.footnote).not.toMatch(/desk/i);
+    expect(card.warnings.join(" ")).not.toContain("desk");
+  });
+
+  it("keeps what the read could not do, which is not a fact restated", () => {
+    const pre = complete("f2", {
+      statements: [],
+      statementQuality: null,
+      quality: [{ level: "warn", text: "Sheet 2 is empty." }],
+    });
+    expect(cardWarnings(pre)).toEqual(["Sheet 2 is empty."]);
+  });
+});
+
+describe("the four lines the confirm carries", () => {
+  const read = (lines: string[]): ProvisionalRead => ({
+    period: "FY2025",
+    figures: {},
+    onFile: {},
+    onFilePeriod: "LTM",
+    lines,
+    provisional: true,
+  });
+
+  it("takes the top line, the ratios that move a test and the foot check, in that order", () => {
+    const brief = provisionalBrief(
+      read([
+        "Revenue $71.20M against $64.20M LTM on file, up 10.9%.",
+        "EBITDA is not stated: this file carries no depreciation and amortisation line.",
+        "Provisional interest coverage 3.09x against 2.95x on file, operating profit over interest expense.",
+        "Provisional leverage 2.10x against 2.42x on file.",
+        "The balance sheet foots: total assets $52.00M against liabilities and equity of $52.00M.",
+      ]),
+    );
+    expect(brief).toEqual([
+      "Revenue $71.20M against $64.20M LTM on file, up 10.9%.",
+      "Provisional interest coverage 3.09x against 2.95x on file, operating profit over interest expense.",
+      "Provisional leverage 2.10x against 2.42x on file.",
+      "The balance sheet foots: total assets $52.00M against liabilities and equity of $52.00M.",
+    ]);
+  });
+
+  it("never runs past four lines, whatever the read placed", () => {
+    expect(provisionalBrief(read(Array.from({ length: 12 }, (_, i) => `Line ${i}.`)))).toHaveLength(4);
+  });
+
+  it("has nothing to say where the read placed nothing", () => {
+    expect(provisionalBrief(null)).toEqual([]);
+    expect(provisionalBrief(read([]))).toEqual([]);
   });
 });

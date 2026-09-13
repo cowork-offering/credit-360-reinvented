@@ -2,6 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import type { Boom } from "../data/contract";
 import {
+  committeeQuestions,
+  covenantMeasure,
+  covenantNotDerivable,
   figuresAreGrounded,
   figuresFromSpread,
   groundedProse,
@@ -13,6 +16,8 @@ import {
 } from "./postRead";
 import type { RelationshipSpreadContext } from "./preRead";
 import type { BoomFinancialStatement, PeriodType, StatementType } from "./types";
+import { covenantDirection, covenantUnit } from "../data/finance";
+import live from "../../../artifact/live-data.json";
 
 /* =============================================================================
    THE POST-READ, AGAINST THE REAL SPREAD.
@@ -261,5 +266,262 @@ describe("postRead", () => {
   it("returns the deterministic read when the door rejects", async () => {
     const ask = vi.fn().mockRejectedValue({ code: "not_granted", message: "declined" });
     expect(await postRead(args(), { ask, available: () => true })).toEqual(postReadFacts(args()));
+  });
+});
+
+/* =============================================================================
+   CONNECTING THE DOTS, ON THE REAL RELATIONSHIP (founder, 2026-09-13, after
+   driving the shipped room: "it reads the information but is it explaining and
+   connecting the dots? it should help you understand the data in full detail").
+
+   `before` is Hartwell Precision Manufacturing LLC's own book out of
+   artifact/live-data.json: FY2023, FY2024, FY2025 and LTM on the spread, the
+   six covenants nCino carries, the ratios Boom last published. `after` is the
+   statement the browser drive actually drops on it (piedmont-fy2025, an FY2025
+   income statement and balance sheet with the FY2024 comparative), so every
+   sentence below is a sentence the founder can see on the glass.
+   ============================================================================= */
+
+const HARTWELL = (live as unknown as { borrowers: Record<string, { boom: Boom; covenants: { covenants: Array<Record<string, unknown>> } }> })
+  .borrowers["001bb00001I7FPNAA3"];
+
+/** The covenants exactly as the room maps them (`spreadContextFor`). */
+const HARTWELL_COVENANTS: RelationshipSpreadContext["covenants"] = HARTWELL.covenants.covenants.map((c) => ({
+  name: (c.covenantType as string) ?? "Covenant",
+  operator:
+    covenantDirection(c.covenantType as string, c.actualValue as number, c.thresholdValue as number) === "cap" ? "<=" : ">=",
+  threshold: (c.thresholdValue as number) ?? null,
+  current: (c.actualValue as number) ?? null,
+  unit: covenantUnit(c.covenantType as string, (c.actualValue as number) ?? (c.thresholdValue as number)),
+}));
+
+const P = (id: string, endDate: string) => ({ id, endDate, periodType: "annual" as PeriodType });
+
+const li = (
+  id: string,
+  name: string,
+  accountCode: string | null,
+  values: Record<string, number>,
+): BoomFinancialStatement["lineItems"][number] => ({
+  id,
+  name,
+  hierarchy: "line_item",
+  accountCode,
+  flipSign: false,
+  periodValues: values,
+});
+
+/** The drive's own file, spread: FY2025 with its FY2024 comparative. */
+const DROPPED: BoomFinancialStatement[] = [
+  {
+    id: "is",
+    statementType: "income_statement",
+    endDate: "2025-12-31",
+    validationStatus: "not_validated",
+    periods: [P("is25", "2025-12-31"), P("is24", "2024-12-31")],
+    lineItems: [
+      li("r", "Net sales revenue", "net_sales_revenue", { is25: 71_200_000, is24: 64_486_000 }),
+      li("gp", "Gross profit", "gross_profit", { is25: 21_360_000, is24: 19_346_000 }),
+      li("op", "Operating profit", "operating_profit", { is25: 5_400_000, is24: 5_246_000 }),
+      li("ie", "Interest expense", "interest_expense", { is25: 1_750_000, is24: 1_989_000 }),
+      li("ni", "Net income", "net_income", { is25: 2_700_000, is24: 2_400_000 }),
+    ],
+  },
+  {
+    id: "bs",
+    statementType: "balance_sheet",
+    endDate: "2025-12-31",
+    validationStatus: "not_validated",
+    periods: [P("bs25", "2025-12-31"), P("bs24", "2024-12-31")],
+    lineItems: [
+      li("ta", "Total assets", "total_assets", { bs25: 52_000_000, bs24: 50_000_000 }),
+      li("tl", "Total liabilities", "total_liabilities", { bs25: 32_000_000, bs24: 31_500_000 }),
+      li("te", "Total equity", "total_equity", { bs25: 20_000_000, bs24: 18_500_000 }),
+    ],
+  },
+];
+
+const hartwell = (over: Partial<Parameters<typeof postReadFacts>[0]> = {}) => ({
+  company: "Hartwell Precision Manufacturing LLC",
+  before: HARTWELL.boom,
+  after: DROPPED,
+  covenants: HARTWELL_COVENANTS,
+  validationStatus: "not_validated" as const,
+  ...over,
+});
+
+describe("the three-period direction", () => {
+  it("puts the top line across the book's own periods and says which way it ran", () => {
+    expect(postReadFacts(hartwell())).toContain(
+      "Revenue FY2023 $52.40M, FY2024 $58.90M, FY2025 $71.20M: up 12.4%, then up 20.9%.",
+    );
+  });
+
+  it("drops the period this spread replaces rather than printing that year twice", () => {
+    const line = postReadFacts(hartwell()).find((f) => f.startsWith("Revenue FY")) ?? "";
+    expect(line.match(/FY2025/g)).toHaveLength(1);
+    // And LTM is not a fiscal year, so it is not a point on a fiscal series.
+    expect(line).not.toContain("LTM");
+  });
+
+  it("falls back to the one period on file where the book carries no series", () => {
+    const facts = postReadFacts(hartwell({ before: { ratios: { asOf: "2024-12-31", raw: { revenue: 64_486_000 } } } }));
+    expect(facts.some((f) => f.startsWith("Revenue $71.20M in FY2025 against $64.49M FY2024 on file"))).toBe(true);
+    expect(facts.some((f) => f.startsWith("Revenue FY"))).toBe(false);
+  });
+});
+
+describe("the margin, in words and with the numbers", () => {
+  it("reads the operating margin against the spread's own prior column where EBITDA is not derivable", () => {
+    expect(postReadFacts(hartwell())).toContain("Operating margin 7.6% in FY2025 against 8.1% in FY2024, down 0.6 points.");
+  });
+
+  it("reads the EBITDA margin where the file carried a depreciation line", () => {
+    const withDa = DROPPED.map((s) =>
+      s.id === "is"
+        ? { ...s, lineItems: [...s.lineItems, li("da", "Depreciation and amortisation", null, { is25: 2_100_000, is24: 1_900_000 })] }
+        : s,
+    );
+    const facts = postReadFacts(hartwell({ after: withDa }));
+    expect(facts.some((f) => /^EBITDA margin 10\.5% in FY2025 against 11\.1% in FY2024/.test(f))).toBe(true);
+  });
+});
+
+describe("the balance sheet", () => {
+  it("states the three totals and what they imply about the borrower's own leverage", () => {
+    expect(postReadFacts(hartwell())).toContain(
+      "The balance sheet carries total assets $52M, total liabilities $32M and equity $20M, so liabilities are 1.60x equity.",
+    );
+  });
+
+  it("says nothing at all where the spread carries no balance sheet", () => {
+    const facts = postReadFacts(hartwell({ after: [DROPPED[0]] }));
+    expect(facts.some((f) => /balance sheet carries/.test(f))).toBe(false);
+  });
+});
+
+describe("every covenant on the book is spoken to", () => {
+  const facts = () => postReadFacts(hartwell());
+
+  it("names all six, once each", () => {
+    const said = facts();
+    for (const covenant of HARTWELL_COVENANTS) {
+      expect(said.filter((f) => f.startsWith(`${covenant.name} `))).toHaveLength(1);
+    }
+    expect(HARTWELL_COVENANTS).toHaveLength(6);
+  });
+
+  it("recomputes debt to worth from the spread's own balance sheet", () => {
+    expect(facts()).toContain(
+      "Maximum Debt to Worth tests at 1.60x on this spread against its 3.00x ceiling, inside it. The last test nCino carries is 2.42x.",
+    );
+  });
+
+  it("says why a debt service test cannot be recomputed, and that it stands as nCino tested it", () => {
+    expect(facts()).toContain(
+      "Debt Service Coverage of Borrower is not recomputable from this spread: it needs a debt service schedule no statement prints. It stands at 1.38x against its 1.25x floor, as nCino last tested it.",
+    );
+  });
+
+  it("says a borrowing base test is measured on a borrowing base and not on a spread", () => {
+    expect(facts().some((f) => /^Accounts Receivable is not recomputable from this spread: it is measured on a borrowing base/.test(f))).toBe(true);
+  });
+
+  it("says so where nCino carries no tested value at all", () => {
+    expect(facts().some((f) => /^Term Covenants is not recomputable from this spread: .* nCino carries no tested value for it\.$/.test(f))).toBe(true);
+  });
+
+  it("leaves a current ratio and a tangible net worth alone, and says which input is missing", () => {
+    expect(covenantNotDerivable("Minimum Current Ratio")).toBe("the spread carries no current asset and current liability split");
+    expect(covenantNotDerivable("Minimum Tangible Net Worth")).toBe("the spread carries no intangible asset line");
+    expect(covenantMeasure("Minimum Tangible Net Worth")).toBeNull();
+    expect(covenantMeasure("Minimum Net Worth")).toEqual({ key: "totalEquity", unit: "currency" });
+    expect(covenantMeasure("Minimum Liquidity")).toEqual({ key: "cash", unit: "currency" });
+  });
+});
+
+describe("what the committee will ask", () => {
+  it("asks about the margin, because it fell while revenue grew", () => {
+    expect(postReadFacts(hartwell())).toContain(
+      "The committee will ask why the margin fell from 8.1% to 7.6% while revenue grew from $64.49M to $71.20M.",
+    );
+  });
+
+  it("asks nothing the figures did not raise", () => {
+    const asked = postReadFacts(hartwell()).filter((f) => f.startsWith("The committee will ask"));
+    // Coverage ROSE, leverage is not derivable, the sheet foots, and no
+    // recomputable covenant is near its threshold. One rule fires, so one
+    // question is asked.
+    expect(asked).toHaveLength(1);
+  });
+
+  it("asks about coverage only where it moved toward a floor it can see", () => {
+    const covenants: RelationshipSpreadContext["covenants"] = [
+      { name: "Interest Coverage Ratio", operator: ">=", threshold: 2.5, current: 3.4 },
+    ];
+    const fell = committeeQuestions({
+      now: figuresFromSpread(DROPPED)!,
+      prior: null,
+      before: { interestCoverage: 4.1 },
+      covenants,
+    });
+    expect(fell).toContain("The committee will ask why interest coverage moved from 4.10x to 3.09x against its 2.50x floor.");
+    const rose = committeeQuestions({
+      now: figuresFromSpread(DROPPED)!,
+      prior: null,
+      before: { interestCoverage: 2.6 },
+      covenants,
+    });
+    expect(rose.some((q) => /interest coverage/.test(q))).toBe(false);
+  });
+
+  it("asks about debt that outran EBITDA, and only when leverage actually rose", () => {
+    const now = { ...figuresFromSpread(DROPPED)!, ebitda: 7_500_000, totalDebt: 30_000_000, leverage: 4 };
+    expect(
+      committeeQuestions({ now, prior: null, before: { leverage: 2.42 }, covenants: [] }),
+    ).toContain("The committee will ask why total bank debt of $30M outran EBITDA of $7.50M, taking leverage from 2.42x to 4.00x.");
+    expect(committeeQuestions({ now, prior: null, before: { leverage: 4.5 }, covenants: [] })).toEqual([]);
+  });
+
+  it("asks about a test that now sits inside a tenth of its threshold", () => {
+    const asked = committeeQuestions({
+      now: figuresFromSpread(DROPPED)!,
+      prior: null,
+      before: {},
+      covenants: [{ name: "Maximum Debt to Worth", operator: "<=", threshold: 1.7, current: 2.42 }],
+    });
+    expect(asked).toContain(
+      "The committee will ask about Maximum Debt to Worth, which tests at 1.60x on this spread against its 1.70x ceiling, inside a tenth of it.",
+    );
+  });
+
+  it("asks why a spread does not foot", () => {
+    const asked = committeeQuestions({
+      now: { ...figuresFromSpread(DROPPED)!, totalEquity: 12_000_000 },
+      prior: null,
+      before: {},
+      covenants: [],
+    });
+    expect(asked).toContain(
+      "The committee will ask why the balance sheet does not foot: total assets $52M against liabilities and equity of $44M.",
+    );
+  });
+});
+
+describe("the post-read reads as one note", () => {
+  it("passes its own sentence guard, so the desk's paragraph has real ground to stand on", () => {
+    const facts = postReadFacts(hartwell());
+    const rephrase =
+      "Revenue grew from $58.90M in FY2024 to $71.20M in FY2025 while the operating margin fell to 7.6%, and Maximum Debt to Worth tests at 1.60x against its 3.00x ceiling.";
+    expect(groundedProse(rephrase, facts, "Hartwell Precision Manufacturing LLC")).toBe(rephrase);
+  });
+
+  it("still drops the judgement the facts never passed, however rich they are", () => {
+    const facts = postReadFacts(hartwell());
+    expect(groundedProse("Leverage of 1.60x is comfortably inside policy.", facts, "Hartwell Precision Manufacturing LLC")).toBe("");
+  });
+
+  it("says nothing with an em dash and nothing with an exclamation", () => {
+    for (const fact of postReadFacts(hartwell())) expect(fact).not.toMatch(/—|!/);
   });
 });

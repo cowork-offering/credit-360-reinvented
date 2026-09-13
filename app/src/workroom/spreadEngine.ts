@@ -1,7 +1,14 @@
 import { DEADLINES, isDeadline, waitedFor, withDeadline } from "../components/workroom/deadline";
 import { figuresFromSpread, type PostReadFigures } from "../spread/postRead";
 import { onFileBoomFigures } from "../spread/provisional";
-import { unitsStated, type RelationshipSpreadContext } from "../spread/preRead";
+import {
+  DOOR_ABSENT_NOTE,
+  MODEL_FAILED_NOTE,
+  sentence,
+  unitsStated,
+  unitsStatedNote,
+  type RelationshipSpreadContext,
+} from "../spread/preRead";
 import { unitsWord } from "../spread/periods";
 import type { Boom } from "../data/contract";
 import type {
@@ -102,6 +109,27 @@ export interface SpreadAsk {
   chips: SpreadChip[];
 }
 
+/**
+ * ONE FACT ON THE CARD: a label, a value, and at most one qualifier.
+ *
+ * FOUNDER, 2026-09-13: the card was "a wall of eleven lines with duplicates".
+ * It had become a transcript of the pre-read, so the same fact arrived twice
+ * (once as a finding, once as a sentence) and the things a banker actually
+ * scans for — whose statement is this, which periods, what quality — were
+ * buried in prose. A fact is now a ROW; the qualifier that used to be a second
+ * sentence is a `tag`, and the report a quality was read from is a `quote`.
+ */
+export interface SpreadFact {
+  /** Stable, so a test names a fact instead of matching its prose. */
+  key: "read" | "statements" | "periods" | "company" | "quality" | "units";
+  label: string;
+  value: string;
+  /** A qualifier ON the value. Never a sentence, never a second fact. */
+  tag?: string;
+  /** The fragment of the file the fact was read from, where there is one. */
+  quote?: string;
+}
+
 export interface SpreadCard {
   id: string;
   name: string;
@@ -109,8 +137,12 @@ export interface SpreadCard {
   kind: SourceKind;
   sha256: string | null;
   phase: "reading" | "read" | "rejected";
-  /** The pre-read, released one line at a beat. */
-  lines: string[];
+  /** The pre-read as facts, released one at a beat. */
+  facts: SpreadFact[];
+  /** What the read could not do, in its own words. Never a fact restated. */
+  warnings: string[];
+  /** One muted line, where the desk was not in the path. */
+  footnote: string | null;
   pre: FilePreRead | null;
   dropped: DroppedFile | null;
   /** Why this file is out, in the room's own words. */
@@ -286,6 +318,228 @@ export const postReadDeadlineLine = (waited: string): string =>
 export const PROVISIONAL_NOTE =
   "Provisional, read in the browser before anything was sent. Boom's own spread replaces it.";
 
+/* ------------------------------------------------------------- the spine
+
+   FIVE STEPS, AND THE BANKER KNOWS WHICH ONE THEY ARE ON (founder, 2026-09-13:
+   "more streamlined, more guidance, more intuitive"). It is the workrooms' own
+   step spine — derived from what has happened, never clickable, never a form
+   wizard — with this room's five words instead of their four.               */
+
+export type SpreadStep = "drop" | "read" | "confirm" | "boom" | "financials";
+
+export type StepState = "idle" | "on" | "done";
+
+export const SPREAD_STEPS: Array<{ id: SpreadStep; label: string }> = [
+  { id: "drop", label: "Drop" },
+  { id: "read", label: "Read" },
+  { id: "confirm", label: "Confirm" },
+  { id: "boom", label: "Boom" },
+  { id: "financials", label: "Financials" },
+];
+
+/** Which step the room is on, and which it has passed. Reading and asking are
+ *  ONE step: they are the same moment to a banker, who is looking at what the
+ *  file said and answering the one thing it did not. */
+export function spreadSteps(stage: SpreadStage): StepState[] {
+  const at: Record<SpreadStage, number> = {
+    idle: 0,
+    reading: 1,
+    asking: 1,
+    plan: 2,
+    sending: 3,
+    spread: 4,
+  };
+  const here = at[stage];
+  return SPREAD_STEPS.map((_, i) => (i < here ? "done" : i === here ? "on" : "idle"));
+}
+
+/**
+ * THE ONE SENTENCE THAT LEADS EACH STAGE.
+ *
+ * Golden rule 4, "it takes your hand to the end": at every turn the banker is
+ * told where they are and what the next move is, in this room's own terms. One
+ * sentence per stage and never more, so the guidance does not become the wall
+ * it was written to replace.
+ */
+export function spreadGuidance(state: { stage: SpreadStage; ask: SpreadAsk | null; company: string }): string {
+  switch (state.stage) {
+    case "idle":
+      return `Drop the statements for ${state.company}. I read them in the browser before anything leaves the cockpit.`;
+    case "reading":
+    case "asking":
+      return state.ask
+        ? "I read the file in the browser before anything leaves. Check what it found, then answer the one question below."
+        : "I read the file in the browser before anything leaves. Check what it found below.";
+    case "plan":
+      return "Nothing has left the cockpit yet. Confirm and Boom spreads these statements; the financials here refresh from Boom's own read.";
+    case "sending":
+      return "Boom is spreading. This usually takes a few seconds.";
+    case "spread":
+      return `The spread is in. Here is what it changes for ${state.company}.`;
+  }
+}
+
+/* -------------------------------------------------------------- the card
+
+   WHAT THE PRE-READ'S NOTES ARE ABOUT, so the card can carry each fact ONCE.
+   A note whose topic is already a fact is not printed again as a sentence: the
+   printed name's tag says it differs, the period's tag says it is on file, the
+   quality's quote says what the report said. What is left over is what the read
+   could not do, which is a different thing and stays in words.              */
+
+export type NoteTopic = "company" | "periods" | "quality" | "units" | "degrade" | "scan" | "other";
+
+export function noteTopic(text: string, pre: FilePreRead): NoteTopic {
+  if (text === DOOR_ABSENT_NOTE || text === MODEL_FAILED_NOTE) return "degrade";
+  if (text === unitsStatedNote(pre.unitsMultiplier)) return "units";
+  if (/^Read as .+?: "/.test(text)) return "quality";
+  if (/^This reads as /.test(text)) return "company";
+  if (/already on file from the last spread|^No fiscal period is printed/.test(text)) return "periods";
+  if (/reads as a scan|no text layer/i.test(text)) return "scan";
+  return "other";
+}
+
+/** The one-line footnote a degraded read earns, in banker words. The long
+ *  version named the desk and its own machinery, which is not the banker's
+ *  problem and read as an apology (founder, 2026-09-13). */
+export const DEGRADED_FOOTNOTE = "Lines placed from the text of the file; Boom maps them itself.";
+
+/** At most `max` characters of a quoted report, cut on a word. */
+export function fragment(said: string, max = 80): string {
+  const clean = said.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 40 ? cut.slice(0, space) : cut).replace(/[,;:.]$/, "")}…`;
+}
+
+const capitalise = (said: string): string => said.replace(/^./, (c) => c.toUpperCase());
+
+/**
+ * THE CARD, CURATED: one row per fact, in the order a banker reads a statement.
+ *
+ * What it is, what it holds, which periods, whose name is on it, what quality,
+ * at what scale. Everything else the pre-read said is either a tag on one of
+ * those rows or a warning about something the read could not do.
+ */
+export function cardFacts(args: {
+  pre: FilePreRead;
+  kind: SourceKind;
+  pages: number | null;
+  ctx: RelationshipSpreadContext;
+}): SpreadFact[] {
+  const { pre, ctx } = args;
+  const out: SpreadFact[] = [];
+
+  const pages = args.pages && args.pages > 0 ? `, ${args.pages} page${args.pages === 1 ? "" : "s"}` : "";
+  out.push({ key: "read", label: "Read as", value: `${KIND_WORD[args.kind]}${pages}` });
+
+  if (pre.statements.length) {
+    out.push({
+      key: "statements",
+      label: "Statements",
+      value: capitalise(pre.statements.map((s) => STATEMENT_WORD[s.statementType]).join(", ")),
+    });
+    const periods = [...new Set(pre.statements.flatMap((s) => s.periods.map((p) => p.key)))];
+    if (periods.length) {
+      /* THE TAG NAMES ONLY WHAT THE VALUE DOES NOT. Where every period in the
+         file is already on file the tag is the bare fact, because repeating
+         "FY2025" beside "FY2025" is the duplication this card was cured of. */
+      const held = periods.filter((k) => ctx.onFilePeriods.includes(k));
+      out.push({
+        key: "periods",
+        label: "Periods",
+        value: periods.join(", "),
+        tag: held.length
+          ? held.length === periods.length
+            ? "already on file"
+            : `${held.join(", ")} already on file`
+          : undefined,
+      });
+    }
+  }
+
+  out.push(
+    pre.company
+      ? {
+          key: "company",
+          label: "Printed name",
+          value: pre.company,
+          tag: pre.companyMatchesRelationship === false ? "differs from the relationship" : undefined,
+        }
+      : { key: "company", label: "Printed name", value: "Not printed", tag: `spreads under ${ctx.company}` },
+  );
+
+  if (pre.statementQuality) {
+    const grounding = pre.quality.find((q) => noteTopic(q.text, pre) === "quality")?.text ?? "";
+    const quoted = /"([\s\S]+)"\s*$/.exec(grounding)?.[1];
+    out.push({
+      key: "quality",
+      label: "Quality",
+      value: QUALITY_CHIP[pre.statementQuality],
+      quote: quoted ? fragment(quoted) : undefined,
+    });
+  }
+
+  if (pre.statements.length) out.push({ key: "units", label: "Units", value: unitsFactValue(pre) });
+
+  return out;
+}
+
+/** The scale, and whether the statement said it or the figures did. Read back
+ *  when the banker corrects the units, so the row moves with the answer. */
+export function unitsFactValue(pre: FilePreRead): string {
+  return `${capitalise(unitsWord(pre.unitsMultiplier))}, as the ${unitsStated(pre) ? "statement says" : "figures read"}`;
+}
+
+/** What the read could not do, once per topic, with everything already a fact
+ *  left out. A second sentence about the printed name or the periods is the
+ *  duplication the founder read as a wall. */
+export function cardWarnings(pre: FilePreRead): string[] {
+  const seen = new Set<NoteTopic>(["company", "periods", "quality", "units", "degrade"]);
+  const out: string[] = [];
+  for (const note of pre.quality) {
+    const topic = noteTopic(note.text, pre);
+    if (topic === "other") {
+      if (!out.includes(note.text)) out.push(note.text);
+      continue;
+    }
+    if (seen.has(topic)) continue;
+    seen.add(topic);
+    out.push(note.text);
+  }
+  return out;
+}
+
+/** The footnote, or null where the desk was in the path. */
+export function cardFootnote(pre: FilePreRead): string | null {
+  return pre.quality.some((q) => noteTopic(q.text, pre) === "degrade") ? DEGRADED_FOOTNOTE : null;
+}
+
+/* -------------------------------------------------------------- the plan
+
+   THE PROVISIONAL READ, CUT TO WHAT THE CONFIRM NEEDS. The full read is a dozen
+   sentences and belongs under the spread; what a banker wants BEFORE confirming
+   is the top line against the book, the ratio that moves a test, and whether the
+   balance sheet foots. Four lines, in that order.                           */
+
+export const PROVISIONAL_BRIEF_MAX = 4;
+
+export function provisionalBrief(read: ProvisionalRead | null): string[] {
+  if (!read?.lines.length) return [];
+  const want = [/^Revenue\b/i, /coverage/i, /leverage/i, /balance sheet/i];
+  const out: string[] = [];
+  for (const re of want) {
+    const line = read.lines.find((l) => re.test(l) && !out.includes(l));
+    if (line) out.push(line);
+  }
+  for (const line of read.lines) {
+    if (out.length >= PROVISIONAL_BRIEF_MAX) break;
+    if (!out.includes(line)) out.push(line);
+  }
+  return out.slice(0, PROVISIONAL_BRIEF_MAX);
+}
+
 /* ------------------------------------------------------------------ helpers */
 
 function mb(bytes: number): string {
@@ -376,7 +630,10 @@ function asksForCard(card: SpreadCard, ctx: RelationshipSpreadContext, ground: D
        relationship's own anchor, which this room does not hold. */
     ask(
       "company",
-      `${card.name} reads as ${pre.company}. The relationship in view is ${ctx.company}.`,
+      /* A LEGAL NAME ENDS IN A PERIOD MORE OFTEN THAN NOT, and the lead read
+         "Piedmont Precision Components, Inc.. The relationship" until
+         2026-09-13. `sentence` is the room's own one-full-stop rule. */
+      `${card.name} reads as ${sentence(pre.company)} The relationship in view is ${sentence(ctx.company)}`,
       [
         { value: "anchor", label: `Spread under ${ctx.company}` },
         { value: "exclude", label: "Leave this file out" },
@@ -480,20 +737,6 @@ export function unitsAmbiguous(pre: FilePreRead): boolean {
   return largest > 0 && largest < UNITS_AMBIGUOUS_BELOW;
 }
 
-/**
- * NEVER SILENT ON THE COMPANY.
- *
- * A file whose printed name cannot be read raises no mismatch and therefore no
- * ask, and until 2026-09-12 the card simply said nothing: the statement went
- * under the relationship in view without a word about whose name was on it.
- * The banker is told instead. The plan sentence names the relationship too
- * ({@link planSummary}), so the fact is on the glass at the moment of the
- * confirm as well as at the moment of the read.
- */
-export function noPrintedNameLine(company: string): string {
-  return `Printed name not found in this file; it spreads under ${company} unless you say otherwise.`;
-}
-
 /* ------------------------------------------------------------------ the plan */
 
 /** The one sentence the banker confirms. Counts the statements, names the
@@ -595,7 +838,7 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
 
   const listeners = new Set<() => void>();
   const beats = new Map<string, ReturnType<typeof setTimeout>>();
-  const queued = new Map<string, string[]>();
+  const queued = new Map<string, SpreadFact[]>();
   let stallDecision: ((keep: boolean) => void) | null = null;
   let seq = 0;
   let dead = false;
@@ -615,14 +858,14 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
     set({ refusals: [...state.refusals, line] });
   };
 
-  /* THE BEAT. A line lands the moment it is known and the next waits one beat,
+  /* THE BEAT. A fact lands the moment it is known and the next waits one beat,
      so a card fills the way a person reads it rather than appearing whole. */
   const pump = (cardId: string) => {
     if (dead || beats.has(cardId)) return;
-    const pendingLines = queued.get(cardId);
-    if (!pendingLines?.length) return;
-    const next = pendingLines.shift() as string;
-    set({ cards: state.cards.map((c) => (c.id === cardId ? { ...c, lines: [...c.lines, next] } : c)) });
+    const pending = queued.get(cardId);
+    if (!pending?.length) return;
+    const next = pending.shift() as SpreadFact;
+    set({ cards: state.cards.map((c) => (c.id === cardId ? { ...c, facts: [...c.facts, next] } : c)) });
     beats.set(
       cardId,
       setTimeout(() => {
@@ -631,37 +874,11 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
       }, PRE_READ_BEAT_MS),
     );
   };
-  const say = (cardId: string, ...lines: string[]) => {
+  const say = (cardId: string, ...facts: SpreadFact[]) => {
     const q = queued.get(cardId) ?? [];
-    q.push(...lines.filter(Boolean));
+    q.push(...facts);
     queued.set(cardId, q);
     pump(cardId);
-  };
-
-  const preReadLines = (pre: FilePreRead): string[] => {
-    const out: string[] = [];
-    if (pre.statements.length) {
-      out.push(
-        `${pre.statements.length} statement${pre.statements.length === 1 ? "" : "s"}: ` +
-          pre.statements.map((s) => STATEMENT_WORD[s.statementType]).join(", "),
-      );
-      const periods = [...new Set(pre.statements.flatMap((s) => s.periods.map((p) => p.key)))];
-      if (periods.length) out.push(`Periods: ${periods.join(", ")}`);
-    }
-    if (pre.company) {
-      out.push(
-        pre.companyMatchesRelationship === false
-          ? `Printed name: ${pre.company}, which is not ${ctx.company}`
-          : `Printed name: ${pre.company}`,
-      );
-    } else {
-      out.push(noPrintedNameLine(ctx.company));
-    }
-    if (pre.statementQuality) {
-      out.push(`Quality: ${QUALITY_CHIP[pre.statementQuality]}, from the report in the file`);
-    }
-    for (const q of pre.quality) out.push(q.text);
-    return out;
   };
 
   async function readOne(file: File): Promise<void> {
@@ -682,7 +899,9 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
           kind: "unknown",
           sha256: null,
           phase: "reading",
-          lines: [],
+          facts: [],
+          warnings: [],
+          footnote: null,
           pre: null,
           dropped: null,
           refusal: null,
@@ -713,15 +932,16 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
         c.id === placeholder ? { ...c, id, kind: dropped.kind, sha256: dropped.sha256, dropped } : c,
       ),
     });
-    say(id, `${KIND_WORD[dropped.kind]}, ${mb(dropped.bytes)}`);
-
+    /* NOTHING IS SAID UNTIL THERE IS SOMETHING TO SAY. The card is on the glass
+       with its name, its size and the reading state from the frame the file
+       lands; the FACTS start once the pre-read has them, and then one to a beat.
+       The old card said the kind, then the page count, then each finding as its
+       own line, which is how eleven lines happened. */
     try {
       const doc = await deps.extractDocument(dropped);
-      if (doc.pages) say(id, `${doc.pages} page${doc.pages === 1 ? "" : "s"}`);
-      for (const w of doc.warnings) say(id, w);
       const pre = await deps.preReadFile(doc, ctx);
-      patchCard(id, { pre, phase: "read" });
-      say(id, ...preReadLines(pre));
+      patchCard(id, { pre, phase: "read", warnings: cardWarnings(pre), footnote: cardFootnote(pre) });
+      say(id, ...cardFacts({ pre, kind: dropped.kind, pages: doc.pages ?? null, ctx }));
     } catch {
       patchCard(id, { phase: "rejected", refusal: unreadableLine(file.name) });
     }
@@ -988,9 +1208,13 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
         const multiplier = Number(value);
         set({
           answers,
-          cards: state.cards.map((c) =>
-            c.id === ask.fileId && c.pre ? { ...c, pre: rescale(c.pre, multiplier) } : c,
-          ),
+          cards: state.cards.map((c) => {
+            if (c.id !== ask.fileId || !c.pre) return c;
+            const pre = rescale(c.pre, multiplier);
+            // The Units row moves with the answer rather than standing there
+            // stating the scale the banker has just corrected.
+            return { ...c, pre, facts: c.facts.map((f) => (f.key === "units" ? { ...f, value: unitsFactValue(pre) } : f)) };
+          }),
         });
         settle();
         return;

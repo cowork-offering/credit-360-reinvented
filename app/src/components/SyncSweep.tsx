@@ -202,6 +202,11 @@ export function SyncButton({ accountId, accountName, bundle }: { accountId: stri
         generatedAt: data.meta?.generatedAt ?? new Date().toISOString(),
         bundle,
         slowTierFetchedAt: state.slowTierFetchedAt[accountId],
+        /* THE GESTURE READS EVERYTHING (founder, 2026-09-13: a modification
+           only showed after Sync AND a full page refresh). The slow tier is for
+           reads the banker did not ask for; this one they did. The window is
+           still recorded below, so the open path keeps its own skip. */
+        force: true,
         onLines: setLines,
       });
       // The delta is measured on what the banker was actually reading, against

@@ -202,6 +202,10 @@ describe("nothing from staging or execution is ever persisted", () => {
   });
 });
 
+/* THE UNFORCED PATH, and only that one. Since 2026-09-13 the Sync BUTTON passes
+   `force: true` and reads every lane (founder: a modification only appeared
+   after Sync AND a full page refresh); these sweeps deliberately pass no
+   `force`, which is the open path's behaviour and is what they pin. */
 describe("slow-moving reads are served from cache inside the window", () => {
   const envelope = (outputValues: unknown) => ({
     payload: { content: [{ actionName: "t", errors: null, isSuccess: true, outputValues, sortOrder: 0, version: 1 }] },

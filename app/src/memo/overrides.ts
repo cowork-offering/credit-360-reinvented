@@ -25,12 +25,14 @@
    ============================================================================= */
 
 import { NOT_IN_SOURCE } from "./types";
-import type { MemoChange } from "./types";
+import type { MemoChange, MemoDossier } from "./types";
 
 /** The multiplication sign and the em dash as the vendored source writes them.
  *  Written as escapes so this file carries neither character in its own prose. */
 const TIMES = "\u00d7";
 const DASH = "\u2014";
+/** The division sign, as the Key Metrics row label writes it. */
+const DIV = "\u00f7";
 
 /* -----------------------------------------------------------------------------
    WHAT THE ROOM KNOWS WHEN IT ASKS FOR A MEMO
@@ -64,6 +66,15 @@ export interface MemoOverrides {
   /** The pro forma fixed-charge cell: a figure the ratios support, or the
    *  marker. Never the demo's "~$2.5M". */
   proFormaFixedCharges?: string | null;
+  /**
+   * The pro forma leverage cell, WHERE THE DOSSIER CANNOT SUPPORT ONE.
+   *
+   * The only override with no value side: nothing the cockpit reads could stand
+   * in for a leverage multiple, so the choice is the marker or the renderer's
+   * own cell. Null writes the marker; ABSENT leaves the cell alone, which is
+   * every dossier that carries a balance sheet. See the literal's `why`.
+   */
+  proFormaLeverage?: null;
 }
 
 /* -----------------------------------------------------------------------------
@@ -173,6 +184,16 @@ export const HARDCODED_LITERALS: readonly LiteralSpec[] = [
       `<tr><td>Relationship to borrower</td><td>${esc(o.guarantorRelation?.trim() || gap())}</td></tr>`,
   },
   {
+    id: "pro_forma_leverage",
+    where: "render-memo.mjs:406 and :413, the Key Metrics pro forma leverage cell",
+    why: "The renderer reads a missing total debt as ZERO, divides it into a real EBITDA and prints the result as a leverage multiple: 0.00x on a memo with no executed step, this action's new money alone on one with a step. A Boom book staged in its display form carries figures and no balance sheet, so a live relationship reaches it. Where the dossier does carry the debt the cell is right and is left untouched.",
+    // The trailing cell must be a plain figure for this to match at all: where
+    // the renderer already wrote its own gap span there is nothing to correct.
+    find: new RegExp(`(<tr><td>Debt ${DIV} EBITDA</td>.*?)<td class="numeric">[^<]*</td></tr>`),
+    replace: (o, m) =>
+      o.proFormaLeverage === undefined ? (m?.[0] ?? "") : `${m?.[1] ?? ""}<td class="numeric">${gap()}</td></tr>`,
+  },
+  {
     id: "pro_forma_fixed_charges",
     where: "render-memo.mjs:489, the cash-flow block's pro forma row",
     find: /<tr><td>Pro forma fixed charges \(interest \+ scheduled principal\)<\/td><td class="numeric">~\$2\.5M<\/td><\/tr>/,
@@ -252,6 +273,27 @@ export function memoDateFrom(generatedAt: string | undefined): string | null {
   if (Number.isNaN(ms)) return null;
   const d = new Date(ms);
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+}
+
+/**
+ * WHETHER THE PRO FORMA LEVERAGE CELL CAN STAND.
+ *
+ * The renderer computes it as (latest total debt + this action's new money) over
+ * latest EBITDA and reads a MISSING total debt as zero, so a dossier with no
+ * balance sheet prints a multiple built out of nothing: 0.00x on a memo with no
+ * executed step, this action's new money alone on one with a step. A Boom book
+ * staged in its display form carries real revenue and real EBITDA and no balance
+ * sheet at all, which is how a live relationship reaches it.
+ *
+ * Returns null where the dossier cannot support the cell (the seam writes the
+ * marker) and undefined where it can (the seam leaves the renderer's own figure
+ * alone). It is the only override with a third state, and that is why.
+ */
+export function proFormaLeverageFrom(dossier: MemoDossier): null | undefined {
+  const { periods, balanceSheet } = dossier.canon.spread;
+  const latest = periods[periods.length - 1];
+  const debt = latest ? balanceSheet.total_debt?.[latest] : null;
+  return debt == null ? null : undefined;
 }
 
 /**

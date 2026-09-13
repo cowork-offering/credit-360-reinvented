@@ -21,10 +21,11 @@
    ============================================================================= */
 
 import { askSession, sampleAvailable } from "../channel/sampleDoor";
-import type { Boom } from "../data/contract";
+import type { Boom, BoomPeriod } from "../data/contract";
+import { covenantUnit, type CovenantUnit } from "../data/finance";
 import { fmtMoney, fmtPct } from "../data/format";
 import { sentence, type RelationshipSpreadContext } from "./preRead";
-import { covenantDirection, covenantFigureKey, onFileBoomFigures, thresholdSide, thresholdWord } from "./provisional";
+import { covenantDirection, onFileBoomFigures, thresholdSide, thresholdWord } from "./provisional";
 import type { BoomFinancialStatement } from "./types";
 
 export interface PostReadDeps {
@@ -121,11 +122,73 @@ export interface PostReadFigures {
   period: string;
   endDate: string;
   revenue: number | null;
-  ebitda: number | null;
+  grossProfit: number | null;
   operatingProfit: number | null;
+  netIncome: number | null;
+  ebitda: number | null;
+  interestExpense: number | null;
   totalDebt: number | null;
   leverage: number | null;
   interestCoverage: number | null;
+  /** Percent, and null where EBITDA is not derivable from the spread. */
+  ebitdaMarginPct: number | null;
+  /** Percent. Operating profit over revenue, which the spread always carries
+   *  where it carries both, EBITDA or no EBITDA. */
+  operatingMarginPct: number | null;
+  totalAssets: number | null;
+  totalLiabilities: number | null;
+  totalEquity: number | null;
+  cash: number | null;
+  /** Total liabilities over total equity, the test a "debt to worth" covenant
+   *  measures. Null where either side is missing or equity is not positive. */
+  debtToWorth: number | null;
+}
+
+const div = (a: number | null, b: number | null): number | null =>
+  a !== null && b !== null && b !== 0 ? a / b : null;
+
+const pct = (a: number | null, b: number | null): number | null =>
+  a !== null && b !== null && b !== 0 ? (a / b) * 100 : null;
+
+/** Every figure the post-read reads, for ONE period column of the spread. */
+function figuresAt(index: AfterIndex, day: string): PostReadFigures {
+  const revenue = pick(index, REVENUE_CODES, day);
+  const grossProfit = pick(index, ["gross_profit"], day);
+  const operatingProfit = pick(index, ["operating_profit"], day);
+  const netIncome = pick(index, ["net_income"], day);
+  const da = pickByName(index, DA_NAME, day);
+  const interest = pick(index, ["interest_expense"], day);
+  const shortTerm = pick(index, ["st_loans_payable_bank"], day);
+  const longTerm = pick(index, ["long_term_debt_bank"], day);
+  const totalAssets = pick(index, ["total_assets"], day);
+  const totalLiabilities = pick(index, ["total_liabilities"], day);
+  const totalEquity = pick(index, ["total_equity"], day);
+  const cash = pick(index, ["cash_and_equivalents"], day);
+
+  const ebitda = operatingProfit !== null && da !== null ? operatingProfit + da : null;
+  const totalDebt = shortTerm !== null || longTerm !== null ? (shortTerm ?? 0) + (longTerm ?? 0) : null;
+
+  return {
+    period: index.annual ? `FY${day.slice(0, 4)}` : day,
+    endDate: day,
+    revenue,
+    grossProfit,
+    operatingProfit,
+    netIncome,
+    ebitda,
+    interestExpense: interest === null ? null : Math.abs(interest),
+    totalDebt,
+    leverage: ebitda !== null && ebitda > 0 && totalDebt !== null ? totalDebt / ebitda : null,
+    interestCoverage:
+      operatingProfit !== null && interest !== null && Math.abs(interest) > 0 ? operatingProfit / Math.abs(interest) : null,
+    ebitdaMarginPct: pct(ebitda, revenue),
+    operatingMarginPct: pct(operatingProfit, revenue),
+    totalAssets,
+    totalLiabilities,
+    totalEquity,
+    cash,
+    debtToWorth: totalEquity !== null && totalEquity > 0 ? div(totalLiabilities, totalEquity) : null,
+  };
 }
 
 /** The new period's figures, from the spread Boom returned. EBITDA is derived
@@ -135,29 +198,131 @@ export interface PostReadFigures {
 export function figuresFromSpread(statements: BoomFinancialStatement[]): PostReadFigures | null {
   const index = indexAfter(statements);
   const day = index.endDates[0];
-  if (!day) return null;
+  return day ? figuresAt(index, day) : null;
+}
 
-  const revenue = pick(index, REVENUE_CODES, day);
-  const operatingProfit = pick(index, ["operating_profit"], day);
-  const da = pickByName(index, DA_NAME, day);
-  const interest = pick(index, ["interest_expense"], day);
-  const shortTerm = pick(index, ["st_loans_payable_bank"], day);
-  const longTerm = pick(index, ["long_term_debt_bank"], day);
+/**
+ * THE COLUMN BESIDE THE NEW ONE, where the spread carries two.
+ *
+ * A statement almost always prints the comparative year, and that column is the
+ * only like-for-like this room has: the book's display periods were spread from
+ * a different file by a different pass. A margin that moved inside ONE spread is
+ * a fact about the borrower; a margin that moved between two spreads may be a
+ * fact about the two spreads.
+ */
+export function priorFromSpread(statements: BoomFinancialStatement[]): PostReadFigures | null {
+  const index = indexAfter(statements);
+  const day = index.endDates[1];
+  return day ? figuresAt(index, day) : null;
+}
 
-  const ebitda = operatingProfit !== null && da !== null ? operatingProfit + da : null;
-  const totalDebt = shortTerm !== null || longTerm !== null ? (shortTerm ?? 0) + (longTerm ?? 0) : null;
 
-  return {
-    period: index.annual ? `FY${day.slice(0, 4)}` : day,
-    endDate: day,
-    revenue,
-    ebitda,
-    operatingProfit,
-    totalDebt,
-    leverage: ebitda !== null && ebitda > 0 && totalDebt !== null ? totalDebt / ebitda : null,
-    interestCoverage:
-      operatingProfit !== null && interest !== null && Math.abs(interest) > 0 ? operatingProfit / Math.abs(interest) : null,
-  };
+/* ------------------------------------------------------- the covenant book
+
+   EVERY COVENANT ON THE BOOK IS SPOKEN TO (founder, 2026-09-13: "it reads the
+   information but is it explaining and connecting the dots"). A covenant this
+   spread can recompute is recomputed; a covenant it cannot is NAMED, with the
+   reason it cannot and the test nCino last carried, rather than left out. A
+   covenant left out of the note is a covenant the committee has to go and look
+   up, which is the opposite of connecting the dots.
+
+   THIS IS THE POST-READ'S OWN MAP AND NOT `provisional.ts`'s. That one runs
+   BEFORE anything is sent, over the handful of lines the browser placed, and is
+   deliberately narrower. This one runs over Boom's whole spread, balance sheet
+   included, so it reaches tests the pre-read cannot.                          */
+
+/** A numeric figure of the spread a covenant can be tested against. */
+type MeasureKey = "interestCoverage" | "leverage" | "debtToWorth" | "totalEquity" | "cash";
+
+export interface CovenantMeasure {
+  key: MeasureKey;
+  unit: CovenantUnit;
+}
+
+/** Why a named covenant cannot be recomputed from a spread. Null where it can. */
+export function covenantNotDerivable(name: string): string | null {
+  if (/current\s*ratio|working\s*capital\s*ratio/i.test(name)) {
+    return "the spread carries no current asset and current liability split";
+  }
+  if (/tangible/i.test(name)) return "the spread carries no intangible asset line";
+  if (/debt\s*service|dscr|fixed\s*charge/i.test(name)) return "it needs a debt service schedule no statement prints";
+  if (/receivable|inventory|borrowing\s*base|advance\s*rate/i.test(name)) return "it is measured on a borrowing base and not on a spread";
+  return null;
+}
+
+/** Which figure of the spread tests this covenant, or null where none does. */
+export function covenantMeasure(name: string): CovenantMeasure | null {
+  if (covenantNotDerivable(name)) return null;
+  if (/interest\s*coverage|times\s*interest/i.test(name)) return { key: "interestCoverage", unit: "ratio" };
+  if (/leverage|debt\s*(?:to|\/)\s*ebitda|funded\s*debt/i.test(name)) return { key: "leverage", unit: "ratio" };
+  if (/debt\s*to\s*(?:net\s*)?worth|liabilities\s*to\s*(?:net\s*)?worth/i.test(name)) return { key: "debtToWorth", unit: "ratio" };
+  if (/net\s*worth|equity/i.test(name)) return { key: "totalEquity", unit: "currency" };
+  if (/liquidity|minimum\s*cash/i.test(name)) return { key: "cash", unit: "currency" };
+  return null;
+}
+
+/**
+ * A COVENANT'S NUMBER IN ITS OWN UNIT.
+ *
+ * An advance test at 80 percent printed "80.00x" and a liquidity floor of five
+ * million printed "5000000.00x": both are a different statement rather than a
+ * rougher version of the same one. `covenantUnit` is the cockpit's own rule for
+ * this (data/finance.ts, validation audit 2026-07-27 finding 6) and the room
+ * now carries its answer on the context, so this reads it and falls back to the
+ * same rule where a caller did not.
+ */
+export function unitOfCovenant(covenant: RelationshipSpreadContext["covenants"][number]): CovenantUnit {
+  const said = covenant.unit;
+  if (said === "ratio" || said === "percent" || said === "currency") return said;
+  return covenantUnit(covenant.name, covenant.current ?? covenant.threshold);
+}
+
+const say = (value: number, unit: CovenantUnit): string =>
+  unit === "currency" ? fmtMoney(value) : unit === "percent" ? `${Number(value.toFixed(2))}%` : ratio(value);
+
+/* --------------------------------------------------------- the three periods
+
+   THE DIRECTION, NOT THE POINT. One period against one period says a figure
+   moved; three say whether it is a trend, and that is the sentence a committee
+   actually asks for. The book's own display periods are the only three-point
+   series either side of this room holds, so the series is theirs with the new
+   period on the end of it.                                                   */
+
+interface SeriesPoint {
+  period: string;
+  value: number;
+}
+
+const FISCAL = /^FY\d{4}$/;
+
+/** The book's fiscal periods, with the new one last and the period it replaces
+ *  taken out. Fewer than three points is not a direction and returns none. */
+export function seriesOf(
+  before: Boom | null | undefined,
+  read: (p: BoomPeriod) => number | null | undefined,
+  now: { period: string; value: number | null },
+): SeriesPoint[] {
+  if (now.value === null) return [];
+  const held: SeriesPoint[] = [];
+  for (const period of before?.spread?.periods ?? []) {
+    const key = period.period;
+    const value = read(period);
+    if (!key || !FISCAL.test(key) || key === now.period || !isNum(value)) continue;
+    held.push({ period: key, value });
+  }
+  const out = [...held.slice(-2), { period: now.period, value: now.value }];
+  return out.length >= 3 ? out : [];
+}
+
+/** "up 12.4% then 20.9%", in the order the periods run. */
+function directionWord(points: SeriesPoint[]): string {
+  const steps: string[] = [];
+  for (let i = 1; i < points.length; i += 1) {
+    const before = points[i - 1].value;
+    const move = before === 0 ? 0 : ((points[i].value - before) / Math.abs(before)) * 100;
+    steps.push(Math.abs(move) < 0.05 ? "level" : `${move > 0 ? "up" : "down"} ${fmtPct(Math.abs(move))}`);
+  }
+  return steps.join(", then ");
 }
 
 /* ------------------------------------------------------------- the facts */
@@ -167,6 +332,87 @@ function deltaWord(now: number, before: number): string {
   const pct = ((now - before) / Math.abs(before)) * 100;
   if (Math.abs(pct) < 0.05) return ", level with it";
   return `, ${pct > 0 ? "up" : "down"} ${fmtPct(Math.abs(pct))}`;
+}
+
+/** WHAT THE COMMITTEE WILL ASK, by rule and only by rule.
+ *
+ *  Each question fires on a condition the figures themselves satisfy and names
+ *  the figures that made it fire. Nothing here is a view: a question about a
+ *  margin that fell while revenue grew is the arithmetic asking it, not this
+ *  module. Where no rule fires there is no question, which is a real answer. */
+export function committeeQuestions(args: {
+  now: PostReadFigures;
+  prior: PostReadFigures | null;
+  before: Record<string, number | null>;
+  covenants: RelationshipSpreadContext["covenants"];
+}): string[] {
+  const { now, prior, before } = args;
+  const out: string[] = [];
+  /** The same figure a period earlier: the spread's own prior column first, the
+   *  book's on-file read second, and null where neither carries it. */
+  const was = <K extends keyof PostReadFigures>(key: K, onFileKey?: string): number | null => {
+    const fromSpread = prior ? (prior[key] as number | null) : null;
+    if (isNum(fromSpread)) return fromSpread;
+    const held = onFileKey ? before[onFileKey] : null;
+    return isNum(held) ? held : null;
+  };
+
+  const coverageFloor = args.covenants.find(
+    (c) => covenantMeasure(c.name)?.key === "interestCoverage" && c.threshold !== null,
+  );
+  const coverageWas = was("interestCoverage", "interestCoverage");
+  if (now.interestCoverage !== null && coverageWas !== null && now.interestCoverage < coverageWas && coverageFloor) {
+    out.push(
+      `The committee will ask why interest coverage moved from ${ratio(coverageWas)} to ${ratio(now.interestCoverage)} against its ${ratio(coverageFloor.threshold as number)} floor.`,
+    );
+  }
+
+  const onEbitda = now.ebitdaMarginPct !== null;
+  const marginNow = onEbitda ? now.ebitdaMarginPct : now.operatingMarginPct;
+  const marginWas = onEbitda ? was("ebitdaMarginPct", "ebitdaMarginPct") : was("operatingMarginPct");
+  const revenueWas = was("revenue", "revenue");
+  if (
+    marginNow !== null &&
+    marginWas !== null &&
+    marginNow < marginWas &&
+    now.revenue !== null &&
+    revenueWas !== null &&
+    now.revenue > revenueWas
+  ) {
+    out.push(
+      `The committee will ask why the margin fell from ${fmtPct(marginWas)} to ${fmtPct(marginNow)} while revenue grew from ${fmtMoney(revenueWas)} to ${fmtMoney(now.revenue)}.`,
+    );
+  }
+
+  const leverageWas = was("leverage", "leverage");
+  if (now.leverage !== null && leverageWas !== null && now.leverage > leverageWas && now.totalDebt !== null && now.ebitda !== null) {
+    out.push(
+      `The committee will ask why total bank debt of ${fmtMoney(now.totalDebt)} outran EBITDA of ${fmtMoney(now.ebitda)}, taking leverage from ${ratio(leverageWas)} to ${ratio(now.leverage)}.`,
+    );
+  }
+
+  for (const covenant of args.covenants) {
+    const measure = covenantMeasure(covenant.name);
+    const value = measure ? (now[measure.key] as number | null) : null;
+    if (!measure || value === null || covenant.threshold === null || covenant.threshold === 0) continue;
+    const room = Math.abs(value - covenant.threshold) / Math.abs(covenant.threshold);
+    if (room > 0.1) continue;
+    out.push(
+      `The committee will ask about ${covenant.name}, which tests at ${say(value, measure.unit)} on this spread against its ${say(covenant.threshold, unitOfCovenant(covenant))} ${thresholdWord(covenantDirection(covenant.operator))}, inside a tenth of it.`,
+    );
+  }
+
+  if (now.totalAssets !== null && now.totalLiabilities !== null && now.totalEquity !== null) {
+    const other = now.totalLiabilities + now.totalEquity;
+    const tolerance = Math.max(Math.abs(now.totalAssets) * 0.005, 1000);
+    if (Math.abs(now.totalAssets - other) > tolerance) {
+      out.push(
+        `The committee will ask why the balance sheet does not foot: total assets ${fmtMoney(now.totalAssets)} against liabilities and equity of ${fmtMoney(other)}.`,
+      );
+    }
+  }
+
+  return out;
 }
 
 /** The deterministic post-read: what changed, which tests move, and where the
@@ -180,6 +426,7 @@ export function postReadFacts(args: {
   validationStatus: "not_validated" | "validated";
 }): string[] {
   const now = figuresFromSpread(args.after);
+  const prior = priorFromSpread(args.after);
   const { figures: before, period: beforePeriod } = onFileBoomFigures(args.before);
   const out: string[] = [];
 
@@ -200,8 +447,51 @@ export function postReadFacts(args: {
     out.push(`${label} ${fmtMoney(value)} in ${now.period} against ${fmtMoney(prior)} ${beforePeriod} on file${deltaWord(value, prior)}.`);
   };
 
-  against("Revenue", now.revenue, before.revenue);
+  /* THE TOP LINE OVER THREE PERIODS where the book carries them, and against
+     the one period on file where it does not. Never both: two sentences about
+     the same revenue is the duplication the card was just cured of. */
+  const revenueSeries = seriesOf(args.before, (p) => p.revenue, { period: now.period, value: now.revenue });
+  if (revenueSeries.length) {
+    out.push(
+      `Revenue ${revenueSeries.map((p) => `${p.period} ${fmtMoney(p.value)}`).join(", ")}: ${directionWord(revenueSeries)}.`,
+    );
+  } else {
+    against("Revenue", now.revenue, before.revenue);
+  }
+
   against("EBITDA", now.ebitda, before.ebitda);
+
+  /* THE MARGIN, IN WORDS AND WITH THE NUMBERS. EBITDA's margin where the file
+     carried a depreciation line, the operating margin where it did not, and the
+     comparison is the spread's OWN prior column before the book's, because two
+     columns of one spread are the only like-for-like this room has. */
+  const onEbitda = now.ebitdaMarginPct !== null;
+  const marginNow = onEbitda ? now.ebitdaMarginPct : now.operatingMarginPct;
+  const marginWord = onEbitda ? "EBITDA margin" : "Operating margin";
+  const fromPrior = (onEbitda ? prior?.ebitdaMarginPct : prior?.operatingMarginPct) ?? null;
+  const marginPrior = fromPrior ?? (onEbitda ? (before.ebitdaMarginPct ?? null) : null);
+  const marginPeriod = fromPrior !== null ? (prior as PostReadFigures).period : beforePeriod;
+  if (marginNow !== null) {
+    if (marginPrior !== null && marginPeriod) {
+      const points = marginNow - marginPrior;
+      const moved =
+        Math.abs(points) < 0.05 ? "level with it" : `${points > 0 ? "up" : "down"} ${Math.abs(points).toFixed(1)} points`;
+      out.push(`${marginWord} ${fmtPct(marginNow)} in ${now.period} against ${fmtPct(marginPrior)} in ${marginPeriod}, ${moved}.`);
+    } else {
+      out.push(`${marginWord} ${fmtPct(marginNow)} in ${now.period}.`);
+    }
+  }
+
+  /* THE BALANCE SHEET, WHICH THE BOOK'S DISPLAY PERIODS DO NOT CARRY AT ALL.
+     Where the spread holds one, its three totals and what they imply about the
+     borrower's own leverage are facts nothing else on the glass states. */
+  if (now.totalAssets !== null && now.totalLiabilities !== null && now.totalEquity !== null) {
+    out.push(
+      `The balance sheet carries total assets ${fmtMoney(now.totalAssets)}, total liabilities ${fmtMoney(now.totalLiabilities)} and equity ${fmtMoney(now.totalEquity)}` +
+        (now.debtToWorth !== null ? `, so liabilities are ${ratio(now.debtToWorth)} equity.` : "."),
+    );
+  }
+
   against("Total bank debt", now.totalDebt, before.totalDebt);
 
   if (now.leverage !== null) {
@@ -219,27 +509,37 @@ export function postReadFacts(args: {
     );
   }
 
-  const untested: string[] = [];
+  /* EVERY COVENANT, ONE SENTENCE EACH. Recomputed where the spread reaches it,
+     and where it does not, named with the reason and the test nCino carries so
+     the committee reads a book rather than a gap. */
   for (const covenant of args.covenants) {
-    const key = covenantFigureKey(covenant.name);
-    const value = key ? now[key] : null;
-    if (key === null || value === null || covenant.threshold === null) {
-      untested.push(covenant.name);
+    const measure = covenantMeasure(covenant.name);
+    const value = measure ? (now[measure.key] as number | null) : null;
+    if (measure && value !== null && covenant.threshold !== null) {
+      const direction = covenantDirection(covenant.operator);
+      const word = thresholdWord(direction);
+      const where = thresholdSide(direction, value, covenant.threshold);
+      const side = where ? `, ${where}` : "";
+      const unit = unitOfCovenant(covenant);
+      const moved =
+        covenant.current !== null && covenant.current !== undefined
+          ? ` The last test nCino carries is ${say(covenant.current, unit)}.`
+          : "";
+      out.push(
+        `${covenant.name} tests at ${say(value, measure.unit)} on this spread against its ${say(covenant.threshold, unit)} ${word}${side}.${moved}`,
+      );
       continue;
     }
-    const direction = covenantDirection(covenant.operator);
-    const word = thresholdWord(direction);
-    const where = thresholdSide(direction, value, covenant.threshold);
-    const side = where ? `, ${where}` : "";
-    const moved =
-      covenant.current !== null && covenant.current !== undefined
-        ? ` The last test nCino carries is ${ratio(covenant.current)}.`
-        : "";
-    out.push(`${covenant.name} tests at ${ratio(value)} on this spread against its ${ratio(covenant.threshold)} ${word}${side}.${moved}`);
+    const why = covenantNotDerivable(covenant.name) ?? "this spread carries no figure that measures it";
+    const unit = unitOfCovenant(covenant);
+    const stands =
+      covenant.current !== null && covenant.current !== undefined && covenant.threshold !== null
+        ? ` It stands at ${say(covenant.current, unit)} against its ${say(covenant.threshold, unit)} ${thresholdWord(covenantDirection(covenant.operator))}, as nCino last tested it.`
+        : " nCino carries no tested value for it.";
+    out.push(`${covenant.name} is not recomputable from this spread: ${why}.${stands}`);
   }
-  if (untested.length) {
-    out.push(`${untested.join(", ")} ${untested.length === 1 ? "is" : "are"} not recomputable from this spread, so ${untested.length === 1 ? "it stands" : "they stand"} as nCino last tested ${untested.length === 1 ? "it" : "them"}.`);
-  }
+
+  for (const question of committeeQuestions({ now, prior, before, covenants: args.covenants })) out.push(question);
 
   out.push(args.validationStatus === "validated" ? VERIFIED_LINE : NOT_VERIFIED_LINE);
   return out;

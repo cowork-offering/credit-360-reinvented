@@ -257,6 +257,27 @@ function figuresBlock(dossier: MemoDossier): string {
     lines.push(`Peer medians (stub source): ${Object.entries(m).map(([k, v]) => `${k} ${v}`).join(", ")}.`);
   }
 
+  /* THE BOOK THE RENDERER HAS NO COLUMN FOR (2026-09-13 gap audit).
+     Ownership, collateral coverage, the structural signals, the open
+     opportunities and the executed steps are all on the relationship and none
+     of them reaches a table in the memo. They reach the prose here, stated as
+     the bundle states them, so management and ownership, the early-warning
+     summary and the recommendation are written against the book rather than
+     against nothing. The rule above still binds: use these, compute none. */
+  const ctx = c.context;
+  if (ctx) {
+    const section = (label: string, items?: readonly string[]) => {
+      if (!items?.length) return;
+      lines.push(`${label}:`);
+      for (const item of items) lines.push(`  ${item}`);
+    };
+    section("Ownership and connected parties", ctx.ownership);
+    section("Collateral coverage, as the org computed it", ctx.coverage);
+    section("Structural signals", ctx.signals);
+    section("Open opportunities", ctx.opportunities);
+    section("Executed plan steps on this relationship", ctx.priorActions);
+  }
+
   return lines.join("\n");
 }
 

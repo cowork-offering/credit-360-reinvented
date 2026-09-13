@@ -8,7 +8,7 @@ import { expandLabel, rowForRead, settleAttrs, useSettleChoreography, type Settl
 import { STAGE_CAP } from "../workroom/stage";
 import { Words } from "../workroom/Words";
 import { renderMemo, renderPlanFor, sectionsFrom, type MemoSection, type RenderPlan } from "../../memo/renderMemo";
-import { applyMemoOverrides, memoDateFrom, usesFromChanges, MEMO_TYPE_FOR, type MemoOverrides } from "../../memo/overrides";
+import { applyMemoOverrides, memoDateFrom, proFormaLeverageFrom, usesFromChanges, MEMO_TYPE_FOR, type MemoOverrides } from "../../memo/overrides";
 import { NARRATIVE_SPECS, narrativePrompt, narrativesFromReply, specFor, type NarrativeSpec } from "../../memo/narrative";
 import { attestedCount, fullyAttested, type MemoDraft, type MemoSectionRecord } from "../../memo/store";
 import { reviewerFor, withReviewShell } from "../../memo/reviewShell";
@@ -306,6 +306,7 @@ export function MemoRoom({ ctx, dossier, changes, greeting, filed, settled = tru
       uses: usesFromChanges(changes, fmtMoney),
       guarantorRelation: guarantorRelationOf(dossier),
       proFormaFixedCharges: proFormaOf(dossier),
+      proFormaLeverage: proFormaLeverageFrom(dossier),
     }),
     [ctx.generatedAt, ctx.trigger, ctx.user, changes, dossier],
   );

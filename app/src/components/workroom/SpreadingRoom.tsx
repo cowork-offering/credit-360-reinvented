@@ -15,22 +15,29 @@ import { Portal } from "../Portal";
 import { odoRoll } from "../Odometer";
 import { RoomBoundary } from "./RoomBoundary";
 import { closeSpreadingRoom, useSpreadingRoom } from "./spreadSession";
+import { openMemoRoom } from "../memo/memoSession";
 import { startPacer } from "../../channel/streamPacer";
 import { prefersReducedMotion } from "../../data/motion";
 import { fmtMoney, fmtPct } from "../../data/format";
-import { covenantDirection, fmtRatio } from "../../data/finance";
+import { covenantDirection, covenantUnit, fmtRatio } from "../../data/finance";
 import {
   createSpreadEngine,
+  provisionalBrief,
   PROVISIONAL_NOTE,
+  SPREAD_STEPS,
+  spreadGuidance,
+  spreadSteps,
   type LadderRow,
   type SpreadCard,
   type SpreadDeps,
   type SpreadEngine,
+  type SpreadFact,
   type SpreadFigures,
+  type SpreadStage,
   type SpreadState,
 } from "../../workroom/spreadEngine";
 import type { BoomFinancialStatement, StatementType, UploadState } from "../../spread/types";
-import type { Boom, BorrowerBundle } from "../../data/contract";
+import type { Boom, BoomPeriod, BorrowerBundle } from "../../data/contract";
 /* THE TWO SIBLING MODULES, IN ONE IMPORT BLOCK. The two reads around the spread
    come from `spread/`; the transport comes from the one adapter in
    `channel/boomUpload.ts`. This is the only place in the room that knows either
@@ -44,7 +51,7 @@ import {
   readDroppedFile,
   type RelationshipSpreadContext,
 } from "../../spread";
-import type { SpreadProvenance } from "../../spread/publishSpread";
+import { mergeDisplayPeriods, type SpreadProvenance } from "../../spread/publishSpread";
 import { applySpreadEvent, boomSystemWord, type SpreadRoomEvent } from "../../state/spreadPublish";
 import { BOOM_UPLOAD_LANE, boomAdapter, registerPreRead, resetStubBoom } from "../../channel/boomUpload";
 import "../../styles/workroom.css";
@@ -83,14 +90,29 @@ const BROWSE = "Browse files";
 const DROP_ARIA = "Drop financial statements here, or browse for them";
 const ACCEPT = ".pdf,.xlsx,.xls,.csv,image/png,image/jpeg";
 
+/** Past the first file the zone is a bar, so the card is the first thing the
+ *  banker's eye lands on (founder, 2026-09-13). */
+const ADD_MORE = "Add another statement";
+const addedWord = (n: number): string => `${n} file${n === 1 ? "" : "s"} in this plan`;
+
+const STEPS_ARIA = "Where this spread has got to";
 const PLAN_HEAD = "The plan";
+const PLAN_SEC_HEAD = "What goes to Boom";
+const SPREAD_HEAD = "The spread is in";
+const DRAFT_MEMO = "Draft the credit memo";
+const backTo = (company: string): string => `Back to ${company}`;
 const PLAN_NOTE =
-  "Boom spreads these and stays the record of the spread. The financials here refresh from its own read when it has them.";
-const CONFIRM = "Send to Boom";
-const LADDER_HEAD = "Boom";
+  "When you confirm, these files go to Boom. Boom spreads them and stays the record of the spread; the financials here refresh from its own read.";
+const STUB_NOTE =
+  "Boom's server is not connected yet, so this spread is provisional until it is.";
+const PROVISIONAL_HEAD = "What the file reads as, before it goes";
+const CONFIRM = "Confirm and spread";
+const LEAVE = "Leave it for now";
 const KEEP_WAITING = "Keep waiting";
 const LEAVE_WITH_BOOM = "Leave it with Boom";
 const FIN_HEAD = "Financials";
+const FIN_EXPLAIN =
+  "Explain these financials: revenue trend, leverage, coverage, and which covenant tests move.";
 const VERIFY = "Verify in Boom";
 const NOT_VALIDATED = "Not validated in Boom";
 const VALIDATED = "Validated in Boom";
@@ -100,6 +122,20 @@ const NO_STATEMENTS =
   "Boom has not returned a spread for these files yet. The provisional read above is what the browser could place.";
 const READING = "Reading";
 const LEFT_OUT = "Out of this plan";
+
+/** WHO IS SPREADING, AND IS IT BOOM. The stub is named on the ladder's own
+ *  heading, because the ladder is the moment a banker believes the spread left
+ *  the building. */
+const ladderHead = (lane: "stub" | "live", settled: boolean): string =>
+  `${lane === "live" ? "Boom" : "Boom (stub)"} ${settled ? "has spread these files" : "is spreading"}`;
+
+/** THE SHEET'S OWN TITLE, one per stage. The middle one names the system doing
+ *  the work, stub included, for the same reason the ladder's heading does. */
+const sheetTitle = (stage: SpreadStage, lane: "stub" | "live"): string => {
+  if (stage === "spread") return SPREAD_HEAD;
+  if (stage === "sending") return ladderHead(lane, false);
+  return PLAN_HEAD;
+};
 
 const RUNG_WORD: Record<UploadState, string> = {
   pending: "Queued",
@@ -168,6 +204,8 @@ const TREND_BOTTOM = 104;
 export interface TrendPoint {
   period: string;
   revenue: number | null;
+  /** The point this spread just put on the chart. */
+  isNew?: boolean;
 }
 
 function trendPath(points: TrendPoint[], scale: number): string {
@@ -177,17 +215,26 @@ function trendPath(points: TrendPoint[], scale: number): string {
   return points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.revenue ?? 0).toFixed(1)}`).join(" ");
 }
 
-function SpreadTrend({ points }: { points: TrendPoint[] }) {
+function SpreadTrend({ points, provisional }: { points: TrendPoint[]; provisional?: boolean }) {
   if (points.length < 2) return null;
   const scale = Math.max(0, ...points.map((p) => p.revenue ?? 0)) * 1.08;
   const path = trendPath(points, scale);
-  const lastX = TW;
-  const lastY =
-    TREND_BOTTOM - (Math.max(0, points[points.length - 1].revenue ?? 0) / (scale || 1)) * (TREND_BOTTOM - TREND_TOP);
+  /* THE MARK SITS ON THE PERIOD THIS SPREAD MOVED, wherever that period fell in
+     the book's own order. It is not always the last point: a re-spread of a
+     year the book already carries lands mid-axis, with LTM after it. */
+  const at = Math.max(0, points.findIndex((p) => p.isNew));
+  const lastX = (at / (points.length - 1)) * TW;
+  const lastY = TREND_BOTTOM - (Math.max(0, points[at].revenue ?? 0) / (scale || 1)) * (TREND_BOTTOM - TREND_TOP);
   return (
     <svg className="sp-trend" viewBox={`0 0 ${TW} ${TH}`} role="img" aria-label="Revenue trend, including the new period">
       <path className="sp-trend-line" d={path} fill="none" pathLength={1} />
-      <circle className="sp-trend-new" cx={lastX} cy={lastY} r="4" />
+      <circle
+        className="sp-trend-new"
+        cx={lastX}
+        cy={lastY}
+        r="4"
+        data-provisional-period={provisional ? points[at].period : undefined}
+      />
       <g className="sp-trend-ax">
         {points.map((p, i) => (
           <text
@@ -246,10 +293,28 @@ export interface SpreadingRoomProps {
    *  activity trail and `bundle.boom`. The host wires it; the room itself holds
    *  no store and reaches no reducer. */
   onSpreadEvent?: (event: SpreadRoomEvent) => void;
+  /** Opens the cockpit's own chat on a grounded question about this panel, the
+   *  way every section of the Financials tab already does. Absent where the
+   *  host has no chat to open, and then the affordance is not drawn. */
+  onExplain?: (prompt: string) => void;
+  /** THE DOOR OUT OF THE FINALE, the modification room's own: the spread is in,
+   *  and the next thing a banker does with it is write it up. The room hands up
+   *  the period it just spread so the memo can name what asked for it; the host
+   *  owns the session. Absent where the host has no memo room to open. */
+  onDraftMemo?: (period: string | null) => void;
   onClose: () => void;
 }
 
-export function SpreadingRoom({ ctx, onFileBoom, trend = [], deps, onSpreadEvent, onClose }: SpreadingRoomProps) {
+export function SpreadingRoom({
+  ctx,
+  onFileBoom,
+  trend = [],
+  deps,
+  onSpreadEvent,
+  onExplain,
+  onDraftMemo,
+  onClose,
+}: SpreadingRoomProps) {
   const engineRef = useRef<SpreadEngine | null>(null);
   if (!engineRef.current) {
     engineRef.current = createSpreadEngine({ ctx, deps: deps ?? liveDeps(), onFileBoom });
@@ -326,12 +391,34 @@ export function SpreadingRoom({ ctx, onFileBoom, trend = [], deps, onSpreadEvent
     take(e.dataTransfer?.files ?? null);
   };
 
+  /* THE NEW PERIOD IS MERGED BY ITS LABEL, NOT APPENDED (founder, 2026-09-13:
+     the axis read FY2023, FY2024, FY2025, LTM, FY2025). A re-spread of a year
+     the book already carries REPLACES that year's point; a year it does not
+     carry is added at the end. It is `publishSpread`'s own display merge, the
+     one the Financials tab's periods already go through, called and not
+     copied. */
   const points = useMemo<TrendPoint[]>(() => {
     if (state.stage !== "spread" || state.figures.revenue == null) return trend;
     const period = state.newPeriod ?? "New period";
-    if (trend.length && trend[trend.length - 1].period === period) return trend;
-    return [...trend, { period, revenue: state.figures.revenue }];
+    const book: BoomPeriod[] = trend.map((p) => ({ period: p.period, revenue: p.revenue ?? undefined }));
+    return mergeDisplayPeriods(book, [{ period, revenue: state.figures.revenue }]).map((p) => ({
+      period: p.period ?? "",
+      revenue: p.revenue ?? null,
+      isNew: p.period === period,
+    }));
   }, [state.stage, state.figures.revenue, state.newPeriod, trend]);
+
+  /* THE ZONE IS A BAR ONCE A FILE IS IN, and a stage again while something is
+     being dragged over it. */
+  const collapsed = state.cards.length > 0 && !over;
+  const brief = useMemo(() => provisionalBrief(state.provisional), [state.provisional]);
+
+  /* WHAT THE SHEET IS ABOUT, IN ITS STAMP. Before the spread the period is the
+     one the browser read out of the file; after it, the one Boom moved. */
+  const settled = state.stage === "spread";
+  const period = (settled ? state.newPeriod : null) ?? state.provisional?.period ?? null;
+  const title = sheetTitle(state.stage, lane);
+  const stamp = period ? `${ctx.company} · ${period}` : ctx.company;
 
   return (
     <Portal>
@@ -360,8 +447,15 @@ export function SpreadingRoom({ ctx, onFileBoom, trend = [], deps, onSpreadEvent
           </header>
 
           <div className="sp-body">
+            {/* WHERE THE BANKER IS, AND WHAT TO DO NEXT. The spine first, then
+                the one sentence that leads this stage. Both are derived from the
+                engine's own stage, so the room cannot be in one place and say it
+                is in another. */}
+            <SpreadSteps stage={state.stage} />
+            <p className="sp-guide">{spreadGuidance(state)}</p>
+
             <div
-              className={`sp-drop${over ? " is-over" : ""}`}
+              className={`sp-drop${over ? " is-over" : ""}${collapsed ? " is-bar" : ""}`}
               data-stage={state.stage}
               role="button"
               tabIndex={0}
@@ -382,9 +476,13 @@ export function SpreadingRoom({ ctx, onFileBoom, trend = [], deps, onSpreadEvent
                 <path d="M14.5 3.5V8H19" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
                 <path d="M12 18v-6.4M9.4 14.2 12 11.6l2.6 2.6" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <div className="sp-drop-h">{DROP_HEAD(ctx.company)}</div>
+              <div className="sp-drop-h">{collapsed ? ADD_MORE : DROP_HEAD(ctx.company)}</div>
               <div className="sp-drop-s">{DROP_SUB}</div>
-              <span className="sp-drop-b">{BROWSE}</span>
+              {collapsed ? (
+                <span className="sp-drop-c">{addedWord(state.cards.length)}</span>
+              ) : (
+                <span className="sp-drop-b">{BROWSE}</span>
+              )}
               <input
                 ref={fileRef}
                 type="file"
@@ -438,81 +536,165 @@ export function SpreadingRoom({ ctx, onFileBoom, trend = [], deps, onSpreadEvent
               </section>
             )}
 
-            {state.plan && state.stage === "plan" && (
-              <section className="sp-plan" aria-label={PLAN_HEAD}>
-                <div className="sp-plan-k">{PLAN_HEAD}</div>
-                <p className="sp-plan-s">{state.plan.summary}</p>
-                <p className="sp-plan-n">{PLAN_NOTE}</p>
-                <button type="button" className="sp-go" onClick={() => void engine.confirm()}>
-                  {CONFIRM}
-                </button>
-              </section>
-            )}
+            {/* ============ THE SHEET THE ROOM ENDS ON (founder, 2026-09-13)
 
-            {state.rows.length > 0 && (
-              <section className="sp-ladder" aria-label={LADDER_HEAD}>
-                <div className="sp-plan-k">{LADDER_HEAD}</div>
-                {state.rows.map((row) => (
-                  <SpreadLadderRow key={row.fileId} row={row} />
-                ))}
-                {state.stall && (
-                  <div className="sp-stall" role="status">
-                    <p>{state.stall.line}</p>
-                    <div className="sp-chips">
-                      <button type="button" className="sp-chip" onClick={() => engine.keepWaiting()}>
-                        {KEEP_WAITING}
-                      </button>
-                      <button type="button" className="sp-chip" onClick={() => engine.leaveWithBoom()}>
-                        {LEAVE_WITH_BOOM}
-                      </button>
+                "Ideally make it at the end also with this glowing rainbow card
+                so it is all unified."
+
+                FROM CONFIRM ONWARD `.sp-act` IS THE FILED SHEET. It is the same
+                element all the way through — the plan grows into the ladder and
+                the ladder into the spread, one node, so the room never swaps a
+                surface for another one wearing its clothes. Every class that
+                draws it is the modification finale's own (`FiledSheet.tsx`,
+                workroom.css `.wk-sheet*`): the glass, the rim, the rainbow
+                thinned to an edge, the section rule, and the two doors. Nothing
+                about the look is written twice.
+
+                AND THE ROOM ENDS IN DOORS, like the modification finale: the
+                memo, and the way back to the relationship. */}
+            {(state.plan || state.rows.length > 0) && (
+              <section
+                className={`sp-act wk-sheet ${state.rows.length > 0 ? "sp-ladder" : "sp-plan"}`}
+                data-stage={state.stage}
+                role="group"
+                aria-label={title}
+              >
+                {/* THE RAINBOW, THINNED TO AN EDGE. The finale's own element at
+                    the finale's own opacity: the light settles, it does not
+                    pulse. */}
+                <span className="aura" aria-hidden="true" />
+
+                <div className="wk-sheet-h">
+                  <h3 className="wk-sheet-t">{title}</h3>
+                  <div className="wk-sheet-s">{stamp}</div>
+                </div>
+
+                {state.rows.length > 0 ? (
+                  <div className="wk-sheet-sec" data-block="ladder">
+                    {/* NOT THE SAME WORDS TWICE (the filed sheet's own rule for
+                        its ledger head). While Boom is spreading, the SHEET is
+                        already titled "Boom is spreading"; a label under it
+                        saying so again is a label. Once the spread is in, the
+                        title moves on and the block says whose spread it is. */}
+                    {settled && <div className="wk-sheet-k">{ladderHead(lane, true)}</div>}
+                    {state.rows.map((row) => (
+                      <SpreadLadderRow key={row.fileId} row={row} />
+                    ))}
+                    {state.stall && (
+                      <div className="sp-stall" role="status">
+                        <p>{state.stall.line}</p>
+                        <div className="sp-chips">
+                          <button type="button" className="sp-chip" onClick={() => engine.keepWaiting()}>
+                            {KEEP_WAITING}
+                          </button>
+                          <button type="button" className="sp-chip" onClick={() => engine.leaveWithBoom()}>
+                            {LEAVE_WITH_BOOM}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="wk-sheet-sec" data-block="plan">
+                      <div className="wk-sheet-k">{PLAN_SEC_HEAD}</div>
+                      <p className="sp-plan-s">{state.plan?.summary}</p>
+                      <p className="sp-plan-n">{PLAN_NOTE}</p>
+                      {lane !== "live" && <p className="sp-plan-w">{STUB_NOTE}</p>}
                     </div>
+                    {brief.length > 0 && (
+                      <div className="wk-sheet-sec sp-brief" data-block="read">
+                        <div className="wk-sheet-k">{PROVISIONAL_HEAD}</div>
+                        {brief.map((line) => (
+                          <p key={line}>{line}</p>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* THE PANEL EXISTS WHEN THERE IS A SPREAD AND NOT ONE FRAME
+                    BEFORE. It used to open on the provisional read, under the
+                    confirm, so a banker saw tiles, a trend and statement tabs
+                    for a spread nobody had sent yet. What the file reads as sits
+                    in the plan above, in four lines; this is the thing that
+                    lands. */}
+                {settled && (
+                  <section className="wk-sheet-sec sp-fin" data-block="financials" aria-label={FIN_HEAD}>
+                    <div className="sp-fin-head">
+                      <div className="wk-sheet-k">{FIN_HEAD}</div>
+                      {state.figuresProvisional ? (
+                        <span className="sp-badge is-prov">{PROVISIONAL_BADGE}</span>
+                      ) : (
+                        <span className={`sp-badge${state.validationStatus === "validated" ? " is-ok" : ""}`}>
+                          {state.validationStatus === "validated" ? VALIDATED : NOT_VALIDATED}
+                        </span>
+                      )}
+                      {state.validationUrl && (
+                        <a className="sp-verify" href={state.validationUrl} target="_blank" rel="noopener noreferrer">
+                          {VERIFY}
+                        </a>
+                      )}
+                      {onExplain && (
+                        <button
+                          type="button"
+                          className="sp-explain"
+                          aria-label="Explain these financials"
+                          onClick={() => onExplain(FIN_EXPLAIN)}
+                        >
+                          Explain
+                        </button>
+                      )}
+                    </div>
+                    <div className="sp-tiles">
+                      {tilesFor(state.figures).map((tile) => (
+                        <SpreadTile key={tile.key} tile={tile} />
+                      ))}
+                    </div>
+                    <SpreadTrend points={points} provisional={state.figuresProvisional} />
+                    {state.figuresProvisional && <p className="sp-note">{PROVISIONAL_NOTE}</p>}
+                    {state.statements.length ? (
+                      <SpreadStatements statements={state.statements} newPeriod={state.newPeriod} />
+                    ) : (
+                      <p className="sp-note">{NO_STATEMENTS}</p>
+                    )}
+                  </section>
+                )}
+
+                {state.postRead.length > 0 && (
+                  <section className="wk-sheet-sec sp-post" data-block="changes" aria-label={POST_HEAD}>
+                    <div className="wk-sheet-k">{POST_HEAD}</div>
+                    <SpreadProse lines={state.postRead} />
+                  </section>
+                )}
+
+                {/* TWO DOORS, AND NEVER A THIRD (workroom.css `.wk-sheet-acts`).
+                    While Boom is spreading there is no door at all: the sheet is
+                    working, the stall above is the only question it can ask, and
+                    the room's own close is always on the header. */}
+                {(state.stage === "plan" || settled) && (
+                  <div className="wk-sheet-acts">
+                    {settled
+                      ? onDraftMemo && (
+                          <button
+                            type="button"
+                            className="wk-sheet-go"
+                            data-door="memo"
+                            onClick={() => onDraftMemo(period)}
+                          >
+                            {DRAFT_MEMO}
+                          </button>
+                        )
+                      : (
+                          <button type="button" className="sp-go wk-sheet-go" onClick={() => void engine.confirm()}>
+                            {CONFIRM}
+                          </button>
+                        )}
+                    <button type="button" className="sp-back wk-sheet-back" onClick={onClose}>
+                      {settled ? backTo(ctx.company) : LEAVE}
+                    </button>
                   </div>
                 )}
-              </section>
-            )}
-
-            {(state.provisional || state.stage === "spread") && (
-              <section className="sp-fin" aria-label={FIN_HEAD}>
-                <div className="sp-fin-head">
-                  <div className="sp-plan-k">{FIN_HEAD}</div>
-                  {state.figuresProvisional ? (
-                    <span className="sp-badge is-prov">{PROVISIONAL_BADGE}</span>
-                  ) : (
-                    <span className={`sp-badge${state.validationStatus === "validated" ? " is-ok" : ""}`}>
-                      {state.validationStatus === "validated" ? VALIDATED : NOT_VALIDATED}
-                    </span>
-                  )}
-                  {state.validationUrl && (
-                    <a className="sp-verify" href={state.validationUrl} target="_blank" rel="noopener noreferrer">
-                      {VERIFY}
-                    </a>
-                  )}
-                </div>
-                <div className="sp-tiles">
-                  {tilesFor(state.figures).map((tile) => (
-                    <SpreadTile key={tile.key} tile={tile} />
-                  ))}
-                </div>
-                <SpreadTrend points={points} />
-                {state.figuresProvisional && <p className="sp-note">{PROVISIONAL_NOTE}</p>}
-                {state.provisional?.lines.map((line) => (
-                  <p className="sp-note" key={line}>
-                    {line}
-                  </p>
-                ))}
-                {state.stage === "spread" &&
-                  (state.statements.length ? (
-                    <SpreadStatements statements={state.statements} newPeriod={state.newPeriod} />
-                  ) : (
-                    <p className="sp-note">{NO_STATEMENTS}</p>
-                  ))}
-              </section>
-            )}
-
-            {state.postRead.length > 0 && (
-              <section className="sp-post" aria-label={POST_HEAD}>
-                <div className="sp-plan-k">{POST_HEAD}</div>
-                <SpreadProse lines={state.postRead} />
               </section>
             )}
 
@@ -521,6 +703,39 @@ export function SpreadingRoom({ ctx, onFileBoom, trend = [], deps, onSpreadEvent
         </div>
       </div>
     </Portal>
+  );
+}
+
+/** THE FIVE STEPS, IN THE WORKROOMS' OWN SPINE: derived from the stage, nothing
+ *  clickable, the current one lit and the passed ones ticked. */
+function SpreadSteps({ stage }: { stage: SpreadStage }) {
+  const states = spreadSteps(stage);
+  return (
+    <ol className="sp-steps" aria-label={STEPS_ARIA}>
+      {SPREAD_STEPS.map((step, i) => (
+        <li key={step.id} className="sp-step" data-state={states[i]} aria-current={states[i] === "on" ? "step" : undefined}>
+          <span className="sp-step-d" aria-hidden="true">
+            {states[i] === "done" ? "✓" : ""}
+          </span>
+          <span className="sp-step-l">{step.label}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** ONE FACT, ONE ROW. The tag qualifies the value and is never a sentence; the
+ *  quote is the fragment of the file the value was read from. */
+function SpreadFactRow({ fact }: { fact: SpreadFact }) {
+  return (
+    <div className="sp-fact" data-fact={fact.key}>
+      <dt className="sp-fact-k">{fact.label}</dt>
+      <dd className="sp-fact-v">
+        <span>{fact.value}</span>
+        {fact.tag && <span className="sp-fact-t">{fact.tag}</span>}
+        {fact.quote && <span className="sp-fact-q">{`"${fact.quote}"`}</span>}
+      </dd>
+    </div>
   );
 }
 
@@ -534,11 +749,17 @@ function SpreadFileCard({ card }: { card: SpreadCard }) {
         {card.excluded && <span className="sp-card-s">{LEFT_OUT}</span>}
       </div>
       {card.refusal && <p className="sp-card-r">{card.refusal}</p>}
-      <ul className="sp-card-l">
-        {card.lines.map((line, i) => (
-          <li key={`${i}:${line}`}>{line}</li>
+      <dl className="sp-card-f">
+        {card.facts.map((fact) => (
+          <SpreadFactRow key={fact.key} fact={fact} />
         ))}
-      </ul>
+      </dl>
+      {card.warnings.map((line) => (
+        <p className="sp-card-w" key={line}>
+          {line}
+        </p>
+      ))}
+      {card.footnote && <p className="sp-card-fn">{card.footnote}</p>}
     </article>
   );
 }
@@ -574,6 +795,13 @@ function SpreadStatements({
   const active = tabs[Math.min(at, tabs.length - 1)];
   if (!active) return null;
   const periods = active.periods ?? [];
+  /* THE NEW COLUMN IS MATCHED ON ITS FISCAL LABEL, not on the raw end date
+     (fixed 2026-09-13). `newPeriod` is "FY2025" and a period's `endDate` is
+     "2025-12-31", so the equality that was supposed to highlight the column the
+     banker opened this room for could never be true and the column was never
+     marked. The label is derived the way `figuresFromSpread` derives it. */
+  const isNew = (endDate: string | null | undefined): boolean =>
+    Boolean(endDate) && (endDate === newPeriod || `FY${String(endDate).slice(0, 4)}` === newPeriod);
   return (
     <div className="sp-st">
       <div className="sp-st-tabs" role="tablist">
@@ -596,7 +824,7 @@ function SpreadStatements({
             <tr>
               <th>Line</th>
               {periods.map((p) => (
-                <th key={p.id} className={`r${p.endDate && p.endDate === newPeriod ? " is-new" : ""}`}>
+                <th key={p.id} className={`r${isNew(p.endDate) ? " is-new" : ""}`}>
                   {p.endDate ?? ""}
                 </th>
               ))}
@@ -607,7 +835,7 @@ function SpreadStatements({
               <tr key={l.id} data-hierarchy={l.hierarchy}>
                 <td>{l.name}</td>
                 {periods.map((p) => (
-                  <td key={p.id} className={`r${p.endDate && p.endDate === newPeriod ? " is-new" : ""}`}>
+                  <td key={p.id} className={`r${isNew(p.endDate) ? " is-new" : ""}`}>
                     {fmtMoney(l.periodValues?.[p.id] ?? null)}
                   </td>
                 ))}
@@ -644,7 +872,9 @@ function transcriptOf(state: SpreadState, company: string): string {
   const lines = [
     `# Spread financials — ${company}`,
     `Stage: ${state.stage}`,
-    ...state.cards.map((c) => `- ${c.name} (${c.phase}): ${c.lines.join("; ")}`),
+    ...state.cards.map(
+      (c) => `- ${c.name} (${c.phase}): ${c.facts.map((f) => `${f.label}: ${f.value}`).join("; ")}`,
+    ),
     ...(state.plan ? [`Plan: ${state.plan.summary}`] : []),
     ...state.rows.map((r) => `- ${r.name}: ${r.state}${r.message ? ` — ${r.message}` : ""}`),
     ...state.refusals.map((r) => `- ${r}`),
@@ -667,11 +897,18 @@ export function spreadContextFor(args: {
     accountId: args.accountId,
     company: args.accountName,
     onFilePeriods: periods.map((p) => p.period ?? "").filter(Boolean),
+    /* THE UNIT TRAVELS WITH THE TEST (added 2026-09-13). The post-read speaks to
+       EVERY covenant on the book now, and an advance test at 80 percent read
+       "80.00x" and a liquidity floor of five million read "5000000.00x" while
+       the unit was left behind. `covenantUnit` is the cockpit's own rule for
+       this and the book is where the answer comes from, so it is carried here
+       rather than guessed downstream. */
     covenants: (bundle?.covenants?.covenants ?? []).map((c) => ({
       name: c.covenantType ?? "Covenant",
       operator: covenantDirection(c.covenantType, c.actualValue, c.thresholdValue) === "cap" ? "<=" : ">=",
       threshold: c.thresholdValue ?? null,
       current: c.actualValue ?? null,
+      unit: covenantUnit(c.covenantType, c.actualValue ?? c.thresholdValue),
     })),
     obligorGroup: (bundle?.graph?.connections ?? [])
       .filter((c) => c.counterpartyName)
@@ -718,6 +955,40 @@ export function SpreadingRoomHost() {
     [bundle?.boom, data.meta?.user, dispatch],
   );
 
+  /* THE EXPLAIN AFFORDANCE, the Financials tab's own (`SecHead explain=`): it
+     seeds the cockpit chat with the section's question. The room closes first,
+     because the chat drawer lives behind this room's scrim and a drawer nobody
+     can see is not an explanation. */
+  const onExplain = useCallback(
+    (prompt: string) => {
+      closeSpreadingRoom();
+      dispatch({ type: "SET_PANEL", panel: "chat" });
+      dispatch({ type: "SET_DRAFT", draft: prompt });
+    },
+    [dispatch],
+  );
+
+  /* THE MEMO DOOR, THE WAY THE MODIFICATION FINALE OPENS IT (`WorkroomHost`'s
+     `openMemo`). The spread filed no package version, so the anchor is the
+     relationship and the trigger is the neutral one, exactly as the FAB's own
+     memo door passes them; what this room adds is the SOURCE, so the memo's
+     first line can say the spread is what asked for it. The spreading room then
+     closes: one room at a time on the glass. */
+  const onDraftMemo = useCallback(
+    (period: string | null) => {
+      if (!session) return;
+      openMemoRoom({
+        accountId: session.accountId,
+        accountName: session.accountName,
+        productPackageId: null,
+        trigger: "adhoc",
+        source: { kind: period ? `the ${period} spread` : "the spread just filed" },
+      });
+      closeSpreadingRoom();
+    },
+    [session],
+  );
+
   if (!ctx || !session) return null;
   return (
     <RoomBoundary what="the spreading room" scope="room">
@@ -727,6 +998,8 @@ export function SpreadingRoomHost() {
         onFileBoom={bundle?.boom ?? null}
         trend={trend}
         onSpreadEvent={onSpreadEvent}
+        onExplain={onExplain}
+        onDraftMemo={onDraftMemo}
         onClose={closeSpreadingRoom}
       />
     </RoomBoundary>

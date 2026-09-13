@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normaliseBoom } from "../../../client-360/render/boom-normalise.mjs";
-import { isProvisionalPeriod, newPeriodOf, publishSpread } from "./publishSpread";
+import { isProvisionalPeriod, mergeDisplayPeriods, newPeriodOf, publishSpread } from "./publishSpread";
 import { adaptBoomSpread } from "../memo/dossier";
 import type { BoomFinancialStatement } from "./types";
 import type { Boom } from "../data/contract";
@@ -218,5 +218,62 @@ describe("it never clears the book", () => {
 
   it("returns null only where there was nothing on file and nothing to add", () => {
     expect(publishSpread({ onFile: null, statements: [], provenance: "boom" })).toBeNull();
+  });
+});
+
+/* =============================================================================
+   THE NEWEST SPREAD IS THE LATEST POINT (founder review, 2026-09-13: the
+   spreading room's trend "dips into an older LTM").
+
+   A trailing-twelve-months window closed BEFORE the year-end a banker has just
+   dropped, so a book that keeps LTM last drew the new spread and then fell away
+   to an older figure, and the Financials tab put that older figure in its
+   headline. The fiscal year this spread moved ends the series instead. The
+   book's own order is untouched everywhere else, and a call with nothing
+   incoming reorders nothing at all.
+   ============================================================================= */
+describe("the period a spread moved ends the series", () => {
+  const p = (period: string, revenue: number) => ({ period, revenue });
+  const book = () => [p("FY2023", 52), p("FY2024", 59), p("FY2025", 64), p("LTM", 64.2)];
+  const keys = (periods: Array<{ period?: string }>) => periods.map((x) => x.period);
+
+  it("puts the spread year after a trailing LTM", () => {
+    expect(keys(mergeDisplayPeriods(book(), [p("FY2025", 71.2)]))).toEqual([
+      "FY2023",
+      "FY2024",
+      "LTM",
+      "FY2025",
+    ]);
+  });
+
+  it("moves the NEWEST of several spread years and leaves the rest in place", () => {
+    expect(keys(mergeDisplayPeriods(book(), [p("FY2024", 64.5), p("FY2025", 71.2)]))).toEqual([
+      "FY2023",
+      "FY2024",
+      "LTM",
+      "FY2025",
+    ]);
+  });
+
+  it("appends a year the book does not carry without disturbing anything", () => {
+    expect(keys(mergeDisplayPeriods([p("FY2023", 52), p("FY2024", 59)], [p("FY2025", 71.2)]))).toEqual([
+      "FY2023",
+      "FY2024",
+      "FY2025",
+    ]);
+  });
+
+  it("leaves the book exactly as it stands when no period moved", () => {
+    expect(keys(mergeDisplayPeriods(book(), []))).toEqual(["FY2023", "FY2024", "FY2025", "LTM"]);
+  });
+
+  it("does not jump a spread year over a later fiscal year the book holds", () => {
+    const held = [p("FY2023", 52), p("FY2024", 59), p("LTM", 64.2), p("FY2026", 78)];
+    expect(keys(mergeDisplayPeriods(held, [p("FY2024", 64.5)]))).toEqual([
+      "FY2023",
+      "FY2024",
+      "LTM",
+      "FY2026",
+    ]);
   });
 });

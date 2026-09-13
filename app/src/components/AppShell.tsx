@@ -17,6 +17,8 @@ import { SpreadingRoomHost } from "./workroom/SpreadingRoom";
 import { buildWorklistRows } from "../data/worklistRows";
 import { useKeepAlive } from "../channel/keepAlive";
 import { useOpenRefresh } from "../channel/openRefresh";
+import { GRANT_WARMUP_DELAY_MS, warmConnectorGrants } from "../channel/grantWarmup";
+import { afsMapping } from "../memo/afsMapping";
 import { CockpitState } from "../state/cockpitState";
 import { HealthLine } from "./HealthLine";
 
@@ -98,6 +100,22 @@ export function AppShell() {
   useViewSwitch(homeRef, accountRef, state.view);
 
   const topRow = useMemo(() => buildWorklistRows(data, worklist)[0], [data, worklist]);
+
+  /* THE CONNECTOR PROMPTS ARRIVE TOGETHER, AT THE START (founder, 2026-09-13:
+     they used to come one by one, on different pages and on Sync). One cheap
+     read per connector, on a short timer so it is never in front of the first
+     paint, and nothing waits on it. See channel/grantWarmup.ts.
+
+     READ AT FIRE, NOT WATCHED: the timer is armed once at mount and reads the
+     top row through a ref when it goes off. A dependency on `data` would re-arm
+     the timer on every live patch and the warm-up would never fire at all. */
+  const warmup = { accountName: topRow?.name, afs: afsMapping((data.borrowers ?? {})[topRow?.accountId ?? ""]) };
+  const warmupRef = useRef(warmup);
+  warmupRef.current = warmup;
+  useEffect(() => {
+    const timer = setTimeout(() => void warmConnectorGrants(warmupRef.current), GRANT_WARMUP_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     /* THE WINDOW SCROLLS BOTH VIEWS. The client view used to be a

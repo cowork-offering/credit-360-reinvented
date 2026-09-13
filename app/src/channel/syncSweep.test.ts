@@ -236,6 +236,40 @@ describe("budget discipline", () => {
     expect(toolsCalled).toContain(DETAIL_TOOLS[2]); // exposure still fetched every sync
   });
 
+  /* THE SKIP ABOVE IS PINNED FOR THE PATH NOBODY ASKED FOR, and OFF for the
+     gesture. FOUNDER, 2026-09-13: a modification only appeared after Sync AND a
+     full page refresh, because package versions and stages ride the slow-tier
+     slices and a reload was the only thing that reset the window. */
+  it("a forced sweep reads every lane, however fresh the window", async () => {
+    const callTool = installMcp((_s, tool) => (tool === TOOLS.mailSearch ? { payload: { value: [] } } : ok({ ok: true })));
+    const t0 = 1_000_000;
+    const result = await runSyncSweep({
+      ...SWEEP,
+      force: true,
+      now: () => t0,
+      // Every slow-tier key fetched one second ago: the skip would take all three.
+      slowTierFetchedAt: { snapshot: t0 - 1_000, graph: t0 - 1_000, covenants: t0 - 1_000 },
+    });
+    const toolsCalled = callTool.mock.calls.map((c) => String(c[1]));
+    for (const tool of DETAIL_TOOLS) expect(toolsCalled).toContain(tool);
+    // And no line claims it was skipped.
+    for (const line of result.lines) expect(line.detail).not.toBe("unchanged since the last sync");
+  });
+
+  it("the window is still recorded on a forced sweep, so the open path keeps its skip", async () => {
+    installMcp((_s, tool) => (tool === TOOLS.mailSearch ? { payload: { value: [] } } : ok({ ok: true })));
+    const t0 = 1_000_000;
+    const result = await runSyncSweep({
+      ...SWEEP,
+      force: true,
+      now: () => t0,
+      slowTierFetchedAt: { graph: t0 - 1_000 },
+    });
+    expect(result.fetchedAt?.graph).toBe(t0);
+    expect(result.fetchedAt?.covenants).toBe(t0);
+    expect(result.fetchedAt?.exposure).toBeUndefined(); // not tiered, claims no window
+  });
+
   it("snapshot outside its window is fetched again", async () => {
     const { SNAPSHOT_STALE_MS } = await import("./syncSweep");
     const callTool = installMcp((_s, tool) => (tool === TOOLS.mailSearch ? { payload: { value: [] } } : ok({ ok: true })));

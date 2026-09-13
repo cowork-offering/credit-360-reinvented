@@ -212,7 +212,42 @@ export interface MemoCanon {
   riskMitigants?: Array<{ risk: string; mitigant: string; residual?: string }>;
   riskRatingFactors?: Array<{ factor: string; grade: string }>;
   supportingDocuments?: Array<{ name: string; status?: string }>;
+  context?: MemoRelationshipContext;
   attestation?: MemoAttestation;
+}
+
+/**
+ * WHAT THE BOOK KNOWS THAT NO CELL IN THE MEMO HAS A COLUMN FOR.
+ *
+ * The renderer prints tables, and a table needs a column. Five things the
+ * cockpit's reads carry have no column anywhere in the plugin's manifest:
+ * beneficial ownership, relationship-level collateral coverage, the structural
+ * signals (modifications, renewals, maturities, guarantor grades), the open
+ * opportunities, and the executed plan steps with the re-query that proved
+ * each one landed. Before this field they were simply dropped, and the memo's
+ * prose sections were written without facts the relationship already holds.
+ *
+ * THE RENDERER NEVER READS THIS. It is the FIGURES block in `narrative.ts`:
+ * the model writes management and ownership, the early-warning summary and the
+ * recommendation against these lines, and against nothing it made up. Every
+ * entry is one bundle field, stated, so a sentence built on one is traceable
+ * the same way a table cell is.
+ *
+ * Each list is ABSENT rather than empty where the bundle carries nothing, so
+ * the prompt says nothing rather than saying "none" about a read that never ran.
+ */
+export interface MemoRelationshipContext {
+  /** Beneficial owners and principals, with the ownership the graph records. */
+  ownership?: string[];
+  /** Collateral coverage as the org computed it, and its own reason where null. */
+  coverage?: string[];
+  /** Structural early-warning signals: modifications, renewals, maturities,
+   *  guarantor grades. Includes the in-flight package revision where there is one. */
+  signals?: string[];
+  /** Open opportunities on the relationship. */
+  opportunities?: string[];
+  /** The executed plan steps, each with the re-query that proved it landed. */
+  priorActions?: string[];
 }
 
 /* -----------------------------------------------------------------------------
