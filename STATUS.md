@@ -2,6 +2,25 @@
 
 ## Changelog
 
+- **0.9.21 (2026-09-13)** THE MEMO'S KEY METRICS TABLE (founder review of the Piedmont memo). Before:
+  one "as of" ratio set repeated across every fiscal column and stamped "(unchanged)" in a fourth,
+  three columns cap (Hartwell's FY2023 fell off silently), nCino's last covenant test printed inside
+  a fiscal-year column, three vocabularies for one absence ("flagged for RM", "not modeled", the
+  marker), and Debt ÷ EBITDA at 2.17x while the Executive Summary printed Boom's 3.85x. Root cause of
+  the last one was a data bug: the dossier's line picker matched Boom's "Line of Credit and Current
+  Portion of Long-Term Debt" as long-term debt, double-counting the short-term balance and dropping
+  the long-term one ($11.35M against a real $20.13M). After: one column per period the spread
+  carries, oldest to newest; revenue, cash and free cash flow per period off the spread; Adjusted
+  EBITDA and Debt ÷ EBITDA only in the period Boom computed them for (3.85x, equal to the KPI);
+  the covenant test moved under the table with its own evaluation date; the pro forma column only
+  where an executed step moved a commitment, and only the leverage that step supports (Piedmont
+  4.32x); one marker for every absence; two notes name the source of every row and claim no
+  estimate. The renderer's hardcoded cells are corrected post-render through the override seam
+  (`overrides.ts key_metrics_table`, `keyMetricsFrom`); `renderMemo.vendor.mjs` untouched, four
+  vendor-side notes recorded for Noland's renderer. `memo/keyMetrics.test.ts` (61 tests over four
+  memos). tsc clean; vitest 202 files, 4,831 passed, 0 failed, 11 todo; bundle 1.887 MiB (+25.5 KB
+  over 0.9.19's baseline, inside the soft tier). PDF drive through the built page green.
+
 - **0.9.20 (2026-09-13)** THE GUIDED SPREADING ROOM, SYNC THAT FORCES, GRANTS UP FRONT, AND THE
   MEMO'S GAPS. Founder test of 0.9.19 in the browser: the send step sat in the middle with the
   financials already showing below it, the file card said the same fact twice, the button was a

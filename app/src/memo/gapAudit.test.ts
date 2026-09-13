@@ -278,12 +278,12 @@ interface DataBlock {
 const DATA_BLOCKS: readonly DataBlock[] = [
   {
     module: "financial_commentary",
-    block: "Key Metrics table (3 fiscal years + pro forma)",
+    block: "Key Metrics table (one column per period the book carries)",
     needs: "canon.spread.periods",
     has: (d) => d.canon.spread.periods.length > 0,
     signature: "<th>Metric</th>",
     klass: "A",
-    note: "FIXED for a display-only book: Hartwell carries no raw boom.spread.file, but boom.spread.periods and boom.spread.lineItems are figures on file with a source, so the period axis is built from them.",
+    note: "FIXED for a display-only book: Hartwell carries no raw boom.spread.file, but boom.spread.periods and boom.spread.lineItems are figures on file with a source, so the period axis is built from them. The table itself is rebuilt by the seam (2026-09-13, founder report); keyMetrics.test.ts is the rule.",
   },
   {
     module: "financial_commentary",
@@ -381,10 +381,10 @@ const DATA_BLOCKS: readonly DataBlock[] = [
    WHAT ONLY THE VENDOR CAN FIX
 
    `renderMemo.vendor.mjs` is derived from a hash-checked copy of the plugin's
-   own renderer and neither may be edited here, so four findings from this audit
-   are written down rather than fixed. Three are cosmetic-but-real; the fourth
-   printed a wrong figure and is held off the glass by the post-render seam
-   (`overrides.ts`) until upstream takes it.
+   own renderer and neither may be edited here, so the findings below are
+   written down rather than fixed. Some are cosmetic-but-real; the ones that
+   printed a wrong figure are held off the glass by the post-render seam
+   (`overrides.ts`) until upstream takes them.
    ----------------------------------------------------------------------------- */
 
 export const VENDOR_SIDE: ReadonlyArray<{ where: string; finding: string }> = [
@@ -392,6 +392,30 @@ export const VENDOR_SIDE: ReadonlyArray<{ where: string; finding: string }> = [
     where: "render-memo.mjs, the Key Metrics pro forma leverage cell",
     finding:
       "Total debt missing is read as zero and divided into a real EBITDA, printing 0.00x. Reachable on any dossier with no balance sheet. Held off the glass by the `pro_forma_leverage` entry in overrides.ts; the renderer should emit its own gap cell instead.",
+  },
+  /* THE FOUR THE FOUNDER'S 2026-09-13 REPORT NAMED. All four are shape, not
+     data: no dossier can render them correctly, so the seam rebuilds the whole
+     block (`key_metrics_table` in overrides.ts) and keyMetrics.test.ts holds
+     the result. Upstream should take all four. */
+  {
+    where: "render-memo.mjs:411 and :412, the Key Metrics pro forma Revenue and Adjusted EBITDA cells",
+    finding:
+      "Both cells repeat the latest fiscal column's figure and stamp it \"(unchanged)\", on every memo, whether or not a step was executed. A reader meets the same figure twice and a fourth column that looks like a fourth year.",
+  },
+  {
+    where: "render-memo.mjs:387, the Key Metrics period axis",
+    finding:
+      "`periodsArr.slice(-3)` caps the table at three columns. Hartwell's book carries FY2023, FY2024, FY2025 and LTM, and FY2023 fell off with nothing on the page saying it had. The table should print one column per period the spread carries.",
+  },
+  {
+    where: "render-memo.mjs:416, the Key Metrics Debt Service Coverage row",
+    finding:
+      "nCino's last covenant test is printed in the LAST FISCAL COLUMN. That test has its own evaluation date (Hartwell 2026-07-15, Piedmont 2026-04-30), which is not the fiscal period it is printed under, so one row carries two source systems on two different clocks. It belongs in its own labelled column or in a footnote naming the test date.",
+  },
+  {
+    where: "render-memo.mjs:413 to :416, the Key Metrics gap cells",
+    finding:
+      "Three vocabularies for one absence inside one table: \"flagged for RM\" in a measured cell, \"not modeled\" in a pro forma one, and the doctrine marker written in by the seam's own `pro_forma_leverage` entry. \"not modeled\" also claims a modelling decision where the fact is that no source carries the figure.",
   },
   {
     where: "render-memo.mjs, the Key Metrics free cash flow row",

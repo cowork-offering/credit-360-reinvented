@@ -125,12 +125,27 @@ function scaleOf(st: RawStatement | undefined): number {
   return max && max < 1e6 ? 1000 : 1;
 }
 
-/** The first line item matching one of `codes`, else the first whose name matches. */
+/**
+ * The line item matching one of `codes`, else the first whose name matches.
+ *
+ * THE CODE WINS OVER THE NAME, AND THAT IS A DIVERGENCE FROM THE PLUGIN
+ * (2026-09-13, founder report on the Key Metrics table). The plugin's adapter
+ * takes the first line item matching EITHER, which on a real Boom chart is the
+ * wrong line: Boom names the short-term line "Line of Credit and Current
+ * Portion of Long-Term Debt", the long-term fallback regex matches it, and it
+ * sits above the real long-term line. Total debt then double-counted the
+ * short-term balance and dropped the long-term one (Piedmont FY2025: $11.35M
+ * instead of $20.13M), so the memo printed leverage of 2.17x in Key Metrics
+ * while the Executive Summary printed Boom's own 3.85x for the same as of
+ * period. An account code is an explicit mapping; a name regex is the fallback
+ * for a chart that carries no code, and a fallback must not outrank a mapping.
+ */
 function series(st: RawStatement | undefined, codes: string[], nameRe?: RegExp): MemoSeries {
   if (!st) return {};
-  const li = (st.lineItems ?? []).find(
-    (x) => (codes.length > 0 && x.accountCode != null && codes.includes(x.accountCode)) || (nameRe ? nameRe.test(x.name ?? "") : false),
-  );
+  const items = st.lineItems ?? [];
+  const li =
+    items.find((x) => x.accountCode != null && codes.includes(x.accountCode)) ??
+    (nameRe ? items.find((x) => nameRe.test(x.name ?? "")) : undefined);
   if (!li) return {};
   const k = scaleOf(st);
   const out: MemoSeries = {};
@@ -651,6 +666,30 @@ function ratiosFrom(bundle: BorrowerBundle): MemoRatios | undefined {
 }
 
 /**
+ * WHICH COLUMN ON THE PERIOD AXIS THE RATIO SET BELONGS TO.
+ *
+ * Boom strikes ONE ratio set, for one period, and `asOf` is the date it struck
+ * it. The memo's axis is fiscal labels, so the date is resolved to a label and
+ * checked against the axis: a set struck on a period the memo does not print
+ * belongs to no column and is stated in none of them.
+ *
+ * WHERE THE SET CARRIES NO DATE the book's own latest period owns it. A display
+ * book states its ratios off the last column it carries (Hartwell's LTM), and
+ * that is the only column they can honestly be placed in. A ratio set with no
+ * date AND no figures owns nothing.
+ */
+export function ratiosPeriodOf(spread: MemoSpread, ratios: MemoRatios | undefined): string | null {
+  if (!ratios) return null;
+  const asOf = str(ratios.asOf);
+  if (asOf) {
+    const label = fy(asOf);
+    return spread.periods.includes(label) ? label : null;
+  }
+  const stated = num(ratios.revenue) != null || num(ratios.ebitda) != null || num(ratios.totalLeverage) != null;
+  return stated ? (spread.periods[spread.periods.length - 1] ?? null) : null;
+}
+
+/**
  * nCino's collateral type becomes one of the manifest's four.
  *
  * The manifest's Collateral module has no unconditional component: every one of
@@ -749,7 +788,10 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
   const collateral = collateralRecords(facilities, bundle.collateralValuations ?? []);
   const guarantor = guarantorFrom(bundle);
   const { spread, boom } = financialsFrom(bundle.boom);
-  const ratios = ratiosFrom(bundle);
+  const measured = ratiosFrom(bundle);
+  // The ratio set travels with the column it was measured in, so a table can
+  // state it there and mark the rest. See `ratiosPeriodOf`.
+  const ratios = measured ? { ...measured, period: ratiosPeriodOf(spread, measured) } : undefined;
 
   // The org's totals are the AFTER, because the steps have executed. The BEFORE
   // is the after less what the steps moved, so the two sides and the delta are

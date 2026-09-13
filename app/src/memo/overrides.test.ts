@@ -146,7 +146,12 @@ describe("the substitution seam", () => {
 
 describe("the literal table is the inventory", () => {
   it("names every literal, where it lives and why it cannot stay", () => {
-    expect(HARDCODED_LITERALS.length).toBe(9);
+    // 9 to 10 on 2026-09-13: `key_metrics_table` joined the inventory when the
+    // founder's report on the Key Metrics table landed (the repeated pro forma
+    // column, the capped axis, the covenant test in a fiscal column, and three
+    // words for one absence). It is the first entry that replaces a whole block
+    // rather than one value; see its `why`.
+    expect(HARDCODED_LITERALS.length).toBe(10);
     for (const spec of HARDCODED_LITERALS) {
       expect(spec.id).toBeTruthy();
       expect(spec.where).toMatch(/render-memo\.mjs:\d+/);

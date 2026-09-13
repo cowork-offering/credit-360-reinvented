@@ -182,6 +182,18 @@ export interface MemoRatios {
   totalDebt?: number | null;
   interestCoverage?: number | null;
   asOf?: string | null;
+  /**
+   * THE ONE COLUMN THE RATIO SET DESCRIBES, as a label on the spread's own
+   * period axis ("FY2025", "LTM").
+   *
+   * Boom computes a ratio set for ONE period and `asOf` is the date it struck
+   * it. This is that date resolved against the axis the memo prints, so a table
+   * can state Adjusted EBITDA and leverage in the column they were measured in
+   * and mark every other column, rather than repeat one set across the axis.
+   * Null where no period on the axis can be said to own the set.
+   * Added 2026-09-13, founder report on the Key Metrics table (same date).
+   */
+  period?: string | null;
 }
 
 /** Analyst prose, keyed as the renderer's `narr(key)` calls read it. */

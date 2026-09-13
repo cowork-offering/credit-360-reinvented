@@ -8,7 +8,7 @@ import { expandLabel, rowForRead, settleAttrs, useSettleChoreography, type Settl
 import { STAGE_CAP } from "../workroom/stage";
 import { Words } from "../workroom/Words";
 import { renderMemo, renderPlanFor, sectionsFrom, type MemoSection, type RenderPlan } from "../../memo/renderMemo";
-import { applyMemoOverrides, memoDateFrom, proFormaLeverageFrom, usesFromChanges, MEMO_TYPE_FOR, type MemoOverrides } from "../../memo/overrides";
+import { applyMemoOverrides, keyMetricsFrom, memoDateFrom, proFormaLeverageFrom, usesFromChanges, MEMO_TYPE_FOR, type MemoOverrides } from "../../memo/overrides";
 import { NARRATIVE_SPECS, narrativePrompt, narrativesFromReply, specFor, type NarrativeSpec } from "../../memo/narrative";
 import { attestedCount, fullyAttested, type MemoDraft, type MemoSectionRecord } from "../../memo/store";
 import { reviewerFor, withReviewShell } from "../../memo/reviewShell";
@@ -307,6 +307,11 @@ export function MemoRoom({ ctx, dossier, changes, greeting, filed, settled = tru
       guarantorRelation: guarantorRelationOf(dossier),
       proFormaFixedCharges: proFormaOf(dossier),
       proFormaLeverage: proFormaLeverageFrom(dossier),
+      // The Key Metrics table, rebuilt on the book's own period axis: one column
+      // per period, the ratio set in the column it was measured in, the covenant
+      // test under the table instead of in a fiscal column, and a pro forma
+      // column only where a step moved a commitment (founder, 2026-09-13).
+      keyMetrics: keyMetricsFrom(dossier, changes),
     }),
     [ctx.generatedAt, ctx.trigger, ctx.user, changes, dossier],
   );

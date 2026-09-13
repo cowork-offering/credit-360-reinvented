@@ -2,12 +2,19 @@
    THE SUBSTITUTION SEAM: the memo says THIS borrower's facts, not the demo's.
 
    THE VENDORED RENDERER CARRIES LITERALS. It was written to render one fixture
-   for one demo, so eight values in it are typed into the source rather than
-   read off the dossier: the two names on the cover, the prepared date, the memo
-   type, two rows naming a specific machine, the guarantor's relationship line,
-   and a pro forma fixed-charge figure. Rendering a Hartwell
-   memo through it unchanged puts Piedmont's demo furniture under Hartwell's
-   name, which is the one thing a credit memo may never do.
+   for one demo, so values in it are typed into the source rather than read off
+   the dossier: the two names on the cover, the prepared date, the memo type,
+   two rows naming a specific machine, the guarantor's relationship line, and a
+   pro forma fixed-charge figure. Rendering a Hartwell memo through it unchanged
+   puts Piedmont's demo furniture under Hartwell's name, which is the one thing
+   a credit memo may never do.
+
+   AND IT CARRIES SHAPES, NOT ONLY VALUES (2026-09-13). The Key Metrics table is
+   built the way one demo's figures happened to fit: an always-on pro forma
+   column that repeats the latest year, an axis capped at three columns, a
+   covenant test printed in a fiscal column, and three different words for the
+   same absence. None of that is a dossier field either, so the last entry in
+   the table below replaces the whole block.
 
    THE FIX IS A POST-RENDER PASS, NOT AN EDIT. `vendor/` is hash-checked and
    `renderMemo.vendor.mjs` is generated from it, so neither can be touched: a
@@ -25,7 +32,7 @@
    ============================================================================= */
 
 import { NOT_IN_SOURCE } from "./types";
-import type { MemoChange, MemoDossier } from "./types";
+import type { MemoChange, MemoDossier, MemoSeries } from "./types";
 
 /** The multiplication sign and the em dash as the vendored source writes them.
  *  Written as escapes so this file carries neither character in its own prose. */
@@ -75,6 +82,239 @@ export interface MemoOverrides {
    * every dossier that carries a balance sheet. See the literal's `why`.
    */
   proFormaLeverage?: null;
+  /**
+   * The whole Key Metrics table, rebuilt from the dossier's own period axis.
+   *
+   * ABSENT LEAVES THE RENDERER'S TABLE ALONE, the same third state
+   * `proFormaLeverage` carries, so a caller that has no dossier in hand (the
+   * seam's own unit tests) still gets a memo. `keyMetricsFrom` builds it.
+   */
+  keyMetrics?: KeyMetricsSpec;
+}
+
+/* -----------------------------------------------------------------------------
+   THE KEY METRICS TABLE, REBUILT (2026-09-13, founder report)
+
+   FOUR THINGS THE RENDERER DOES TO THIS TABLE THAT THE DOSSIER CANNOT FIX.
+
+   1. It prints a Pro Forma column on every memo, and fills the Revenue and
+      Adjusted EBITDA cells by REPEATING the latest fiscal column's figure with
+      the words "(unchanged)" beside it. On a memo with no executed step there
+      is no pro forma to state, and a repeated figure reads as a fourth year.
+   2. It caps the axis at three columns (`periodsArr.slice(-3)`), so a book
+      carrying four periods loses its oldest one with nothing saying so.
+   3. It puts nCino's last covenant test in the LAST FISCAL COLUMN of the Debt
+      Service Coverage row. That test has its own date (Hartwell: 2026-07-15)
+      and is not a fiscal-year figure; printing it under "LTM" mixes two source
+      systems inside one row.
+   4. It writes three different words for the same absence in one table:
+      "flagged for RM" in a measured cell, "not modeled" in a pro forma one,
+      and the doctrine marker through the `pro_forma_leverage` entry above.
+
+   So the seam rebuilds the table. It is the largest entry in this inventory and
+   the only one that writes a whole block rather than a cell, which is exactly
+   why the shape below is data and not HTML: `keyMetricsFrom` makes every
+   judgement against the dossier, and `keyMetricsHtml` only writes it out.
+   ----------------------------------------------------------------------------- */
+
+/** One cell: a figure with the unit it is printed in, or null for the gap. */
+export type KeyMetricsCell = { value: number; unit: "$" | "x" } | null;
+
+/** One row: the label as the renderer writes it, and one cell per column. */
+export interface KeyMetricsRow {
+  label: string;
+  cells: readonly KeyMetricsCell[];
+}
+
+export interface KeyMetricsSpec {
+  /** Column headers in order, oldest to newest, pro forma last where present. */
+  columns: readonly string[];
+  rows: readonly KeyMetricsRow[];
+  /** The sentences printed under the table, in order. */
+  footnotes: readonly string[];
+}
+
+/** The pro forma column's header. Not a fiscal period, and labelled as such. */
+const PRO_FORMA = "Pro forma";
+
+/**
+ * WHAT AN EMPTY CELL SAYS. One vocabulary for absence in this table, and this
+ * is the one, because it is the renderer's own gap word and what every other
+ * empty cell in the memo already reads. "not modeled" is dropped: it claims a
+ * modelling decision where the only fact is that no source carries the figure.
+ * The doctrine marker is dropped from this table too: its cells hold figures or
+ * nothing, never a marker string, and the long form is unreadable in a numeric
+ * column repeated thirty times.
+ */
+const KEY_METRICS_GAP = "flagged for RM";
+
+/** The renderer's own money and multiple formatters, so a rebuilt cell and a
+ *  rendered cell print the same figure the same way. (render-memo.mjs:69) */
+const fmtUSD = (n: number): string => (Math.abs(n) >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${n.toLocaleString()}`);
+const fmtX = (n: number): string => `${n.toFixed(2)}x`;
+
+const finite = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const at = (s: MemoSeries | undefined, p: string): number | null => finite(s?.[p]);
+const money = (v: number | null): KeyMetricsCell => (v == null ? null : { value: v, unit: "$" });
+const times = (v: number | null): KeyMetricsCell => (v == null ? null : { value: v, unit: "x" });
+
+/** A step that moved a commitment. A step that moved only a maturity or a
+ *  covenant changes no debt, so it earns no pro forma column. */
+const movesDebt = (c: MemoChange): boolean => {
+  const after = finite(c.after?.commitment);
+  if (after == null) return false;
+  const before = finite(c.before?.commitment);
+  return before == null || after !== before;
+};
+
+/** "2026-07-15" as the memo writes dates. Deterministic and UTC; the renderer's
+ *  own `fmtDate` reads the host locale, which a test cannot pin. */
+const longDate = (iso: string | null): string | null => {
+  const m = iso ? /^(\d{4})-(\d{2})-(\d{2})/.exec(iso) : null;
+  if (!m) return iso;
+  return `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}`;
+};
+
+/**
+ * THE TABLE THE MEMO SHOULD CARRY, decided entirely from the dossier.
+ *
+ * ONE COLUMN PER PERIOD THE SPREAD CARRIES, oldest to newest, labelled by the
+ * book's own fiscal label. No slice: a book carrying four periods prints four.
+ *
+ * REVENUE, CASH AND FREE CASH FLOW ARE PER PERIOD, off the income statement,
+ * the balance sheet and the cash-flow statement. A period the file has no
+ * balance sheet or no cash-flow statement for gets the gap, not a carried
+ * figure.
+ *
+ * ADJUSTED EBITDA AND LEVERAGE ARE THE RATIO SET, and the ratio set has one
+ * period (`ratios.period`). They are stated in that column and marked in every
+ * other, because Boom struck them once and repeating them across the axis
+ * claims four measurements where there was one.
+ *
+ * DEBT SERVICE COVERAGE IS IN NO FISCAL COLUMN. It is nCino's last covenant
+ * test, on the covenant's own evaluation date, and it goes under the table as a
+ * footnote naming that date.
+ *
+ * THE PRO FORMA COLUMN EXISTS ONLY WHERE A STEP MOVED A COMMITMENT, and carries
+ * only what the step supports: the leverage multiple, from the as of period's
+ * total debt plus this action's commitment change over the as of period's
+ * Adjusted EBITDA. A step does not change last year's revenue, so every other
+ * pro forma cell is the gap.
+ */
+export function keyMetricsFrom(dossier: MemoDossier, changes: readonly MemoChange[] = []): KeyMetricsSpec {
+  const canon = dossier.canon;
+  const spread = canon.spread;
+  const periods = spread.periods;
+  const ratios = canon.ratios;
+  const ratioPeriod = ratios?.period ?? null;
+
+  const revenue = spread.incomeStatement.sales_revenue;
+  const ebitdaSeries = spread.incomeStatement.adjusted_ebitda;
+  const cash = spread.balanceSheet.cash_and_equivalents;
+  const totalDebt = spread.balanceSheet.total_debt;
+  const ocf = spread.cashFlow.operating_cash_flow;
+  // Boom signs capital expenditure negative, so free cash flow is the SUM. The
+  // renderer's own arithmetic, kept.
+  const capex = spread.cashFlow.capital_expenditures;
+  const fcf = (p: string): number | null => {
+    const o = at(ocf, p);
+    const c = at(capex, p);
+    return o == null || c == null ? null : o + c;
+  };
+
+  const asOfDebt = ratioPeriod ? at(totalDebt, ratioPeriod) : null;
+  const asOfEbitda = ratioPeriod ? (finite(ratios?.ebitda) ?? at(ebitdaSeries, ratioPeriod)) : null;
+  // Boom's own multiple where it struck one, else the same arithmetic over the
+  // two spread lines it would have used. Never a figure from another period.
+  const spreadLeverage = asOfDebt != null && asOfEbitda ? asOfDebt / asOfEbitda : null;
+  const asOfLeverage = ratioPeriod ? (finite(ratios?.totalLeverage) ?? spreadLeverage) : null;
+
+  const moved = changes.some(movesDebt);
+  const delta = finite(canon.exposureSummary?.changeInExposure?.commitment) ?? 0;
+  const proFormaLeverage = moved && asOfDebt != null && asOfEbitda ? (asOfDebt + delta) / asOfEbitda : null;
+
+  const columns = moved ? [...periods, PRO_FORMA] : [...periods];
+  /** A row measured per period, with nothing to say in the pro forma column. */
+  const perPeriod = (label: string, cell: (p: string) => KeyMetricsCell): KeyMetricsRow => ({
+    label,
+    cells: moved ? [...periods.map(cell), null] : periods.map(cell),
+  });
+  /** A row the ratio set owns: its own column, and the gap everywhere else. */
+  const atRatioPeriod = (label: string, value: KeyMetricsCell, pro: KeyMetricsCell): KeyMetricsRow => ({
+    label,
+    cells: moved
+      ? [...periods.map((p) => (p === ratioPeriod ? value : null)), pro]
+      : periods.map((p) => (p === ratioPeriod ? value : null)),
+  });
+
+  const rows: KeyMetricsRow[] = [
+    perPeriod("Revenue", (p) => money(at(revenue, p))),
+    atRatioPeriod("Adjusted EBITDA", money(asOfEbitda), null),
+    atRatioPeriod(`Debt ${DIV} EBITDA`, times(asOfLeverage), times(proFormaLeverage)),
+    perPeriod("Cash &amp; Equivalents", (p) => money(at(cash, p))),
+    perPeriod("Free Cash Flow", (p) => money(fcf(p))),
+    perPeriod("Debt Service Coverage", () => null),
+  ];
+
+  return { columns, rows, footnotes: keyMetricsFootnotes(dossier, ratioPeriod, moved, proFormaLeverage != null) };
+}
+
+/** The covenant the Debt Service Coverage footnote is written from. */
+const dscCovenant = (dossier: MemoDossier) =>
+  (dossier.ic?.covenantCompliance ?? []).find((c) => /debt service|fixed charge|coverage/i.test(String(c.name ?? "")));
+
+function keyMetricsFootnotes(
+  dossier: MemoDossier,
+  ratioPeriod: string | null,
+  moved: boolean,
+  proFormaStated: boolean,
+): string[] {
+  const out: string[] = [];
+
+  const dsc = dscCovenant(dossier);
+  const actual = finite(dsc?.actual) ?? finite(dsc?.actuals?.[dsc.actuals.length - 1]);
+  const tested = longDate(dsc?.quarters?.[0] ?? null);
+  out.push(
+    actual != null
+      ? `${esc(String(dsc?.name ?? "Debt Service Coverage"))} ${fmtX(actual)}, as nCino last tested it${tested ? ` on ${esc(tested)}` : ""}. A covenant test carries its own evaluation date and is not a fiscal-year figure, so it is stated here rather than in a fiscal column.`
+      : "No covenant the cockpit reads carries a debt service coverage actual, so the row is marked in every column rather than filled from another period.",
+  );
+
+  const asOf = ratioPeriod ? esc(ratioPeriod) : null;
+  out.push(
+    `Revenue, Cash and Equivalents and Free Cash Flow (operating cash flow less capital expenditures) are read per period off the Boom spread. ` +
+      (asOf
+        ? `Adjusted EBITDA and Debt ${DIV} EBITDA are Boom's ratio set for ${asOf} and are stated in that column only, because that is the one period they were computed for. `
+        : `Boom's ratio set names no period on this axis, so Adjusted EBITDA and Debt ${DIV} EBITDA are marked in every column. `) +
+      `Every cell the spread does not carry reads "${KEY_METRICS_GAP}". Nothing in this table is estimated.`,
+  );
+
+  if (moved) {
+    out.push(
+      proFormaStated
+        ? `The Pro forma column carries only what the executed step supports: this action's commitment change added to the as of period's total bank debt, over the as of period's Adjusted EBITDA. A step does not restate a prior year, so every other pro forma cell is marked.`
+        : `The Pro forma column is marked throughout: the book carries no balance sheet, so this action's effect on leverage cannot be computed from it, and no other line in this table is changed by the step.`,
+    );
+  }
+
+  return out;
+}
+
+/** The spec, written out as the renderer would have written it. */
+function keyMetricsHtml(spec: KeyMetricsSpec): string {
+  const head = spec.columns.map((c) => `<th class="numeric">${esc(c)}</th>`).join("");
+  const cell = (c: KeyMetricsCell): string =>
+    c == null
+      ? `<td class="numeric"><span class="gap">${KEY_METRICS_GAP}</span></td>`
+      : `<td class="numeric">${c.unit === "x" ? fmtX(c.value) : fmtUSD(c.value)}</td>`;
+  // The row labels are written the way the renderer writes them, entities and
+  // all ("Cash &amp; Equivalents"), so they are not escaped a second time.
+  const rows = spec.rows.map((r) => `<tr><td>${r.label}</td>${r.cells.map(cell).join("")}</tr>`).join("\n      ");
+  const notes = spec.footnotes.map((f) => `<div class="legend">${f}</div>`).join("");
+  return (
+    `<div class="subhead">Key Metrics</div>\n      ` +
+    `<table><thead><tr><th>Metric</th>${head}</tr></thead><tbody>\n      ${rows}\n      </tbody></table>\n      ${notes}`
+  );
 }
 
 /* -----------------------------------------------------------------------------
@@ -127,8 +367,11 @@ export function esc(s: string): string {
 }
 
 /**
- * THE INVENTORY. Eight literals, found by reading the vendored renderer in
- * Phase A and re-read against `renderMemo.vendor.mjs` on 2026-09-04.
+ * THE INVENTORY. Found by reading the vendored renderer in Phase A, re-read
+ * against `renderMemo.vendor.mjs` on 2026-09-04, and extended on 2026-09-13
+ * with the Key Metrics block (founder report, same date). Applied in this
+ * order, which is why `key_metrics_table` is last: it replaces the block the
+ * `pro_forma_leverage` entry corrects a cell of.
  */
 export const HARDCODED_LITERALS: readonly LiteralSpec[] = [
   {
@@ -202,6 +445,16 @@ export const HARDCODED_LITERALS: readonly LiteralSpec[] = [
       `<tr><td>Pro forma fixed charges (interest + scheduled principal)</td><td class="numeric">${esc(
         o.proFormaFixedCharges?.trim() || gap(),
       )}</td></tr>`,
+  },
+  /* LAST ON PURPOSE. `pro_forma_leverage` above still runs on the renderer's own
+     table for a caller that hands over no `keyMetrics`; where one is handed
+     over, this replaces the whole block and that correction goes with it. */
+  {
+    id: "key_metrics_table",
+    where: "render-memo.mjs:387 to :419 and :486, the Key Metrics subhead, table and legend",
+    why: "The renderer repeats the latest fiscal column into an always-on Pro Forma column and stamps it \"(unchanged)\", caps the axis at three columns however many the book carries, puts nCino's last covenant test in a fiscal column of the Debt Service Coverage row, and writes three different words for the same absence in one table. None of that is a dossier field, so none of it can be fixed by handing the renderer better data.",
+    find: /<div class="subhead">Key Metrics[^<]*<\/div>[\s\S]*?<\/table>\s*<div class="legend">[\s\S]*?<\/div>/,
+    replace: (o, m) => (o.keyMetrics ? keyMetricsHtml(o.keyMetrics) : (m?.[0] ?? "")),
   },
 ];
 
