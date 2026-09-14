@@ -2,6 +2,20 @@
 
 ## Changelog
 
+- **0.9.26 (2026-09-14)** HOTFIX: THE AGGREGATE SHELL ON THE TRANSITION ALLOWLIST. The founder's first
+  live modification on 0.9.25 was refused at the confirm gate: "step sweep_aggregates:
+  LLC_BI__Loan_Collateral_Aggregate__c is not on the transition allowlist". The morning's Apex (A5)
+  added that step to every version-creating plan (modification, amend, new facility); the page's
+  mirror of the fence refuses unknown objects by design and was not taught this one, and the drive
+  gate could not catch it because the stub's stage plan did not carry the org's step set. Fix:
+  `TRANSITION_ALLOWLIST` gains a policy for the aggregate object (never created, never updated by
+  this cockpit; `removesOwnRows` names `sweep_aggregates` as the one removal it may carry, the
+  org's own sweep of shells its transaction minted and left unlinked); `DISCARD_VERSION_OBJECTS`
+  names the object after the facilities and before the package, as the org deletes it; the stub's
+  stage plan and discard inventory now mirror the live objects, so the 33-row drive validates the
+  same plan the org sends. Rule from here: a new step object lands in three places in one commit,
+  the Apex plan, the allowlist (or the discard fence), and the stub's plan. Gates: tsc 0; vitest
+  226 files, 5,312 passed, 0 failed; drive matrix PASS, 33 workroom rows plus 3 spread files on 3 books, 0 findings (561 s); bundle 2,111,257 B (2.013 MiB, +563 B).
 - **0.9.25 (2026-09-14)** THE ENTRY-SHEET RELEASE. Founder, 2026-09-13 from the road, on the 0.9.22
   preview: "we need to think about that entry and make it more cinematic, elegant maybe; less a bubble,
   more centric; and it does not make sense to even offer booked PPs on the new facility flow"; then, on

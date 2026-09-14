@@ -46,6 +46,17 @@ export interface ObjectPolicy {
   refusedFields: Array<{ field: string; reason: string }>;
   /** Prose refusals that are not field-shaped (deletes, sub-record creation). */
   refusedOperations: string[];
+  /**
+   * THE ONE DELETE A WRITE PLAN MAY CARRY: rows the plan's own transaction
+   * minted and left unlinked, removed by the named steps and by nothing else.
+   * nCino's managed triggers mint one collateral aggregate shell per pledge the
+   * version creation copies onto a clone (proven on Hartwell, 2026-09-14: five
+   * per version, lookupKey null, nothing pointing at them). The org's step
+   * `sweep_aggregates` removes exactly those, in the same transaction, proven
+   * by re-query; a shell a facility or a pledge points at stays. Any other step
+   * on the object is still refused by the flags above.
+   */
+  removesOwnRows?: { steps: string[]; reason: string };
 }
 
 /** The A33.3.1 table, verbatim. Keys are the plan's `object` values. */
@@ -405,6 +416,24 @@ export const TRANSITION_ALLOWLIST: Record<string, ObjectPolicy> = {
     refusedOperations: ["updates of any kind", "deletes"],
   },
 
+  "LLC_BI__Loan_Collateral_Aggregate__c": {
+    object: "LLC_BI__Loan_Collateral_Aggregate__c",
+    label: "collateral aggregate shell",
+    // nCino owns this object: one rollup anchor per facility, minted and
+    // maintained by its own triggers. This cockpit never creates or updates one.
+    mayCreate: false,
+    mayUpdate: false,
+    createStates: [],
+    transitions: [],
+    refusedFields: [],
+    refusedOperations: ["creates", "updates of any kind", "deleting a shell a facility or a pledge points at"],
+    removesOwnRows: {
+      steps: ["sweep_aggregates"],
+      reason:
+        "the version creation removes the shells its own transaction minted and left unlinked, and only those (0.9.25, backlog 46)",
+    },
+  },
+
   "LLC_BI__Policy_Exception__c": {
     object: "LLC_BI__Policy_Exception__c",
     label: "policy exception",
@@ -510,6 +539,10 @@ export function validateStep(step: ValidatableStep, toolId?: string): AllowlistV
     }
   }
 
+  // The one delete a write plan may carry (see `removesOwnRows`): the org's own
+  // sweep of rows this transaction minted, by the step the policy names.
+  if (policy.removesOwnRows?.steps.includes(step.id)) return [];
+
   const out: AllowlistViolation[] = [];
   const fields = normalizeFields(step.fields);
 
@@ -604,6 +637,9 @@ export const DISCARD_VERSION_OBJECTS: readonly string[] = [
   "LLC_BI__Legal_Entities__c",
   "LLC_BI__Loan_Detail__c",
   "LLC_BI__Loan__c",
+  // The clones' own rollup anchors, frozen at stage time; nCino usually takes
+  // them with the facility and the org reads that as already_gone (0.9.25).
+  "LLC_BI__Loan_Collateral_Aggregate__c",
   "LLC_BI__Product_Package__c",
   // Kept and marked Withdrawn rather than deleted. It is on the fence because
   // the plan has a step for it; what that step does is the org's business.

@@ -323,8 +323,18 @@
           decisionToken: row.replayed ? null : "4f8ac21e-probe-token",
           replayed: row.replayed,
           summary: "Probe plan.",
+          /* THE STEP SET MIRRORS THE ORG'S OBJECTS. The page validates every plan
+             against its transition allowlist, so a stub plan that omits an object
+             the live plan carries lets the drive pass a plan the confirm gate
+             refuses on the real host (0.9.25 shipped exactly that: the org's
+             `sweep_aggregates` step on the aggregate object was on the live plan
+             and not here). Every version-creating tool declares the sweep. */
           steps: [{ id: "w1", type: "write", label: "Apply the commitment", objectName: "LLC_BI__Loan__c" },
-                  { id: "v1", type: "verification", label: "Re-query the clone", dependsOn: ["w1"] }],
+                  { id: "v1", type: "verification", label: "Re-query the clone", dependsOn: ["w1"] }]
+            .concat(/^stage_(loan_modification|new_facility|amend_version)$/.test(tool)
+              ? [{ id: "sweep_aggregates", type: "write", objectName: "LLC_BI__Loan_Collateral_Aggregate__c", fields: ["Id"],
+                   label: "Remove any collateral aggregate shell this version creation mints and leaves unlinked, and only those" }]
+              : []),
           warnings: [],
           accountId: one.accountId,
           productPackageId: one.productPackageId,
@@ -624,6 +634,12 @@
     ];
     clones.forEach(function (c) {
       items.push({ object: "LLC_BI__Loan__c", id: c.loanId, name: c.name, reason: "a modification clone at Qualification" });
+    });
+    /* The clones' rollup anchors, frozen at stage time (0.9.25): the live inventory
+       names them after the facilities and before the package, and the page's
+       discard fence has to accept the object or the confirm gate refuses. */
+    clones.forEach(function (c, i) {
+      items.push({ object: "LLC_BI__Loan_Collateral_Aggregate__c", id: "a4Sbb00000AGGSH" + i, name: "Collateral aggregate on " + c.name, reason: "the clone's own rollup anchor; nCino usually takes it with the facility" });
     });
     items.push({ object: "LLC_BI__Product_Package__c", id: spec.id, name: spec.name || "the version package", reason: "the version package itself" });
     items.push({ object: "cm_Action_Staging__c", id: "a5Sbb00000MODSTG1", name: "Staging a5Sbb00000MODSTG1", reason: "kept as the audit and marked Withdrawn" });
