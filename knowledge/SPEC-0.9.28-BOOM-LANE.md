@@ -90,3 +90,20 @@ D3 the wait: cap the in-room wait (e.g. 2 minutes with a "still processing, I wi
    line and resume on re-entry) or hold the room open until Boom finishes.
 D4 file groups: Boom returned "File groups require files-only mode" on this org; keep the group step
    optional until Boom enables it, or drop it.
+
+## 6. Decisions taken (orchestrator, 2026-09-15 00:05 UTC, founder: "wire it in based on the code, surgical")
+
+Live read from https://boom-mcp.vercel.app/headless/mcp first: `_source: BOOM-LIVE`, Piedmont linked by
+Salesforce Id, files cf677dcc (verified) and 8b941a16 (completed), d6a2ecc3 still `processing` since
+19:13 UTC; `boom_get_ratios.raw` equals the cockpit's bundled Piedmont ratios to the digit (leverage
+3.8460068781047, coverage 2.637546468401487). Fixture: `proofs/boom-live-2026-09-15-ratios.json`.
+
+D1 The connector is DISCOVERED by the tools it serves (`boom_get_ratios` + `boom_get_spread`), not by a
+   hard-wired display name; "Boom" is only the fallback label and the operator sentence. IDB Gateway goes.
+D2 Upload = `boom_upload_bytes` from the page, 3 MB cap refused in one sentence; ladder ensure_company ->
+   create_upload -> upload_bytes -> process_file behind `BoomAdapter`; a re-drop reuses the existing file.
+D3 Wait = repeated `boom_await_file` (20 s) inside a 2 minute in-room budget, one re-arm with "Boom is
+   still processing; I will keep checking", handle persisted in spreadSession, resume from `boom_get_file`.
+   `verified` and `completed` are ready; `failed` ends with Boom's own reason.
+D4 File groups skipped (Boom refuses them on this org); adapter seam kept.
+Build: agent C1 (0.9.28); the stub mirrors the live envelope exactly (row 52 rule); docs last.
