@@ -152,12 +152,21 @@ public with sharing class C360WriteGuard {
         // Probe 4: status defaults to 'Not Approved', which reads as a DECISION rather than as an
         // absent value. Worse than Review's null, so the create state is mandatory here.
         OBJ_RISK_RATING => new Map<String, Set<String>>{ 'LLC_BI__Status__c' => new Set<String>{ 'In Review' } },
-        // Package creation is name and account only. Live SOQL over this org: all 12 most recent
-        // packages carry a NULL RecordTypeId, including the ones nCino's own wizard created, and
-        // 516 of 518 follow the "<Account> - <M/D/YYYY> - PP" convention. We match the org rather
-        // than inventing a shape, and we set no stage or status: PPCacheCreation and
+        // Package creation is name, account and ONE opening stage. Live SOQL over this org: all 12
+        // most recent packages carry a NULL RecordTypeId, including the ones nCino's own wizard
+        // created, and 516 of 518 follow the "<Account> - <M/D/YYYY> - PP" convention. We match the
+        // org rather than inventing a shape, and status stays the org's own: PPCacheCreation and
         // ProductPackageBaselineCaptureTrigger own what happens next and swallow their own failures.
-        OBJ_PRODUCT_PACKAGE => new Map<String, Set<String>>(),
+        //
+        // THE STAGE IS PINNED RATHER THAN ABSENT (backlog 58, 2026-09-14). A package created with a
+        // null stage cannot afterwards be told apart from a package somebody keyed by hand, and
+        // `StageDiscardVersion` refused to roll one back for exactly that reason. The org's own
+        // LLC_BI__Stage__c picklist offers Pending, In Review and Complete, so Pending is the
+        // opening value this cockpit writes, and it is the ONLY value a create may carry. The field
+        // stays on the forbidden list below, which is what keeps it unwritable on an UPDATE.
+        OBJ_PRODUCT_PACKAGE => new Map<String, Set<String>>{
+            'LLC_BI__Stage__c' => new Set<String>{ 'Pending' }
+        },
         // Borrowing structure. The creation wave files the Borrower row; the modification arm
         // (2026-08-30) amends the fuller structure — guarantors, co-borrowers, related entities —
         // always on a CLONE, never on a booked facility. Grantor and Contractor stay refused:
@@ -311,7 +320,9 @@ public with sharing class C360WriteGuard {
         },
         // No record type: real packages in this org have none, and A33.4.3(d)'s Deal_Proposal
         // concern was moot (probe 9: only Master is available to the running profile anyway).
-        // No stage or status either: those belong to the org's own package automation.
+        // Status belongs to the org's own package automation. Stage is listed here so an UPDATE can
+        // never move a package through its lifecycle; the create state above pins it to the one
+        // opening value a package this cockpit makes is born with (backlog 58).
         OBJ_PRODUCT_PACKAGE => new Set<String>{
             'RecordTypeId', 'LLC_BI__Stage__c', 'LLC_BI__Status__c'
         },
@@ -635,14 +646,19 @@ public with sharing class C360WriteGuard {
 
         assertObjectWritable(objectApiName);
 
+        Map<String, Set<String>> required = CREATE_STATES.get(objectApiName);
+
+        // A field the create state PINS is writable at create, to the pinned values and to nothing
+        // else, however the forbidden list reads. The two tables would otherwise contradict each
+        // other on LLC_BI__Product_Package__c.LLC_BI__Stage__c, which a create must carry and an
+        // update must never touch, and `assertUpdateAllowed` still reads FORBIDDEN_FIELDS whole.
         Set<String> forbidden = FORBIDDEN_FIELDS.get(objectApiName);
         for (String f : values.keySet()) {
-            if (forbidden.contains(f)) {
+            if (forbidden.contains(f) && !required.containsKey(f)) {
                 throw new GuardException('Refused: ' + objectApiName + '.' + f + ' is never written by this tool (A33.3.1).');
             }
         }
 
-        Map<String, Set<String>> required = CREATE_STATES.get(objectApiName);
         for (String stateField : required.keySet()) {
             Object supplied = values.get(stateField);
             Set<String> allowed = required.get(stateField);

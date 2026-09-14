@@ -335,22 +335,42 @@ private class C360WriteGuardTest {
         }
     }
 
+    /**
+     * The claim this method used to make was "name and account only" (backlog 58, 2026-09-14). A
+     * package born with a null stage cannot be told apart from one a banker keyed by hand, which is
+     * how a package the cockpit created became undiscardable, so the create now PINS the opening
+     * stage. Record type and status are unchanged, and the stage stays unwritable on an update:
+     * `packageTakesTheNameRepairButNoFencedFieldAndNoDelete` holds that half.
+     */
     @IsTest
-    static void packageMayBeCreatedWithNameAndAccountOnly() {
+    static void packageIsCreatedAtTheOneOpeningStageOrNotAtAll() {
         C360TestFixture.armCalloutMock();
         C360WriteGuard.assertAllowed(C360WriteGuard.OBJ_PRODUCT_PACKAGE, C360WriteGuard.OP_CREATE,
-            new Map<String, Object>{ 'Name' => 'ACME - 7/26/2026 - PP', 'LLC_BI__Account__c' => '001000000000000AAA' });
+            new Map<String, Object>{
+                'Name' => 'ACME - 7/26/2026 - PP',
+                'LLC_BI__Account__c' => '001000000000000AAA',
+                'LLC_BI__Stage__c' => C360NewFacilities.PACKAGE_CREATE_STAGE
+            });
 
-        for (String f : new List<String>{ 'RecordTypeId', 'LLC_BI__Stage__c', 'LLC_BI__Status__c' }) {
+        Map<String, Map<String, Object>> refusals = new Map<String, Map<String, Object>>{
+            'no stage at all' => new Map<String, Object>{ 'Name' => 'x', 'LLC_BI__Account__c' => '001000000000000AAA' },
+            'a stage further down the lifecycle' => new Map<String, Object>{ 'Name' => 'x', 'LLC_BI__Stage__c' => 'Complete' },
+            'RecordTypeId' => new Map<String, Object>{
+                'Name' => 'x', 'LLC_BI__Stage__c' => C360NewFacilities.PACKAGE_CREATE_STAGE, 'RecordTypeId' => 'y'
+            },
+            'LLC_BI__Status__c' => new Map<String, Object>{
+                'Name' => 'x', 'LLC_BI__Stage__c' => C360NewFacilities.PACKAGE_CREATE_STAGE, 'LLC_BI__Status__c' => 'Approved'
+            }
+        };
+        for (String tried : refusals.keySet()) {
             Boolean refused = false;
             try {
-                C360WriteGuard.assertAllowed(C360WriteGuard.OBJ_PRODUCT_PACKAGE, C360WriteGuard.OP_CREATE,
-                    new Map<String, Object>{ 'Name' => 'x', f => 'y' });
+                C360WriteGuard.assertAllowed(C360WriteGuard.OBJ_PRODUCT_PACKAGE, C360WriteGuard.OP_CREATE, refusals.get(tried));
             } catch (C360WriteGuard.GuardException e) {
                 refused = true;
             }
             System.assertEquals(true, refused,
-                'Real packages in this org carry no record type, and stage/status belong to the org\'s package automation. Tried: ' + f);
+                'A package is created at ' + C360NewFacilities.PACKAGE_CREATE_STAGE + ' with no record type and no status. Tried: ' + tried);
         }
     }
 

@@ -53,10 +53,17 @@
  * guard's forbidden list.
  *
  * PACKAGE-FIRST. When the staged plan carries no product package, invocation 1 creates one for the
- * relationship BEFORE the loan, named to the convention this org actually uses. Package creation
- * wakes PPCacheCreation and ProductPackageBaselineCaptureTrigger, both of which swallow their own
- * failures to System.debug, so their effects are reported as org-side and unverifiable rather than
- * claimed as done. Idempotency covers the pair: a replay returns both ids and creates neither twice.
+ * relationship BEFORE the loan, named to the convention this org actually uses and filed at the
+ * org's own opening stage, Pending. Package creation wakes PPCacheCreation and
+ * ProductPackageBaselineCaptureTrigger, both of which swallow their own failures to System.debug,
+ * so their effects are reported as org-side and unverifiable rather than claimed as done.
+ * Idempotency covers the pair: a replay returns both ids and creates neither twice.
+ *
+ * AND THE LEDGER NAMES IT (backlog 58, 2026-09-14). The staging row's `cm_Product_Package__c` is
+ * stamped from the package this run created, because the row is the only durable record that the
+ * cockpit made that package: the stage a banker or the org can move, the ledger nobody can. That
+ * stamp plus the opening stage are what let `StageDiscardVersion` roll a created package back to
+ * nothing, which is the promise 0.9.23 made and could not keep.
  *
  * Booked stays unreachable. LV06 carries no bypass and nCino requires a human Submit for Approval.
  * This tool advances the facility exactly one step and stops.
@@ -260,34 +267,44 @@ global with sharing class ExecuteNewFacility {
         List<LLC_BI__Product_Package__c> anchor;
 
         if (createPackage) {
+            // THE OPENING STAGE IS PART OF THE CREATE, not decoration (backlog 58, 2026-09-14). A
+            // package filed with a null stage is indistinguishable from one a banker keyed by hand,
+            // and StageDiscardVersion refused to roll the first one of these back for that reason.
+            // The value is C360NewFacilities.PACKAGE_CREATE_STAGE, read off the org's own picklist,
+            // and the guard pins the create to it.
             Map<String, Object> pkgFields = new Map<String, Object>{
                 'Name' => C360Plan.asString(v.get('packageName')),
-                'LLC_BI__Account__c' => accountId
+                'LLC_BI__Account__c' => accountId,
+                'LLC_BI__Stage__c' => C360NewFacilities.PACKAGE_CREATE_STAGE
             };
             C360WriteGuard.assertAllowed(C360WriteGuard.OBJ_PRODUCT_PACKAGE, C360WriteGuard.OP_CREATE, pkgFields);
 
             LLC_BI__Product_Package__c pkg = new LLC_BI__Product_Package__c(
                 Name = (String) pkgFields.get('Name'),
-                LLC_BI__Account__c = accountId
+                LLC_BI__Account__c = accountId,
+                LLC_BI__Stage__c = C360NewFacilities.PACKAGE_CREATE_STAGE
             );
             LLC_BI__Product_Package__c cleanPkg = (LLC_BI__Product_Package__c) C360WriteGuard.stripAndVerify(
-                pkg, new Set<String>{ 'Name', 'LLC_BI__Account__c' }
+                pkg, new Set<String>{ 'Name', 'LLC_BI__Account__c', 'LLC_BI__Stage__c' }
             );
             insert as user cleanPkg;
             packageId = cleanPkg.Id;
 
-            anchor = [SELECT Id, Name FROM LLC_BI__Product_Package__c WHERE Id = :packageId WITH USER_MODE LIMIT 1];
+            anchor = [
+                SELECT Id, Name, LLC_BI__Stage__c FROM LLC_BI__Product_Package__c WHERE Id = :packageId WITH USER_MODE LIMIT 1
+            ];
             C360Plan.setState(
                 steps,
                 'create_package',
                 anchor.isEmpty() ? C360Plan.STATE_FILED_UNVERIFIED : C360Plan.STATE_VERIFIED,
                 anchor.isEmpty()
                     ? 'The package insert returned success but the record could not be read back.'
-                    : 'Credit package ' + anchor[0].Name + ' created. PPCacheCreation and ProductPackageBaselineCaptureTrigger ran org-side and report nothing back.'
+                    : 'Credit package ' + anchor[0].Name + ' created at stage ' + String.valueOf(anchor[0].LLC_BI__Stage__c) +
+                      '. PPCacheCreation and ProductPackageBaselineCaptureTrigger ran org-side and report nothing back.'
             );
             if (anchor.isEmpty()) {
                 C360Plan.markRefused(steps, 'The new credit package could not be read back. Re-stage the action.');
-                C360ActionStaging.recordOutcome(stg, steps, C360Plan.TERMINAL_FAILED, null);
+                C360ActionStaging.recordOutcome(stg, steps, C360Plan.TERMINAL_FAILED, null, packageId);
                 throw new ToolException('The credit package this plan created could not be read back. Re-stage the action.');
             }
         } else {
@@ -535,9 +552,18 @@ global with sharing class ExecuteNewFacility {
         return rows.isEmpty() ? null : rows[0];
     }
 
+    /**
+     * Closes the run out on the authority record.
+     *
+     * The package rides along because on the package-first path this action CREATES it, and a
+     * ledger row that does not name what it made cannot later prove the cockpit made it. That is
+     * the evidence `StageDiscardVersion` reads to let a created package be rolled back to nothing
+     * (backlog 58). On the supplied-package path the value is the one stage time already stamped,
+     * so the write is a no-op rather than a second source of truth.
+     */
     private static ExecuteResult finish(cm_Action_Staging__c stg, List<C360Plan.Step> steps, ExecuteResult out, String outcome) {
         String terminal = C360Plan.terminalState(steps);
-        C360ActionStaging.recordOutcome(stg, steps, terminal, out.loanId);
+        C360ActionStaging.recordOutcome(stg, steps, terminal, out.loanId, C360Plan.asId(out.productPackageId));
         out.terminalState = terminal;
         out.steps = toWireSteps(steps);
         out.outcome = outcome;

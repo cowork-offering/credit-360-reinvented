@@ -624,12 +624,27 @@ private class StageExecuteNewFacilityTest {
         System.assertEquals(pkgBefore + 1, [SELECT COUNT() FROM LLC_BI__Product_Package__c], 'Exactly one package created');
 
         LLC_BI__Product_Package__c pkg = [
-            SELECT Id, Name, RecordTypeId, LLC_BI__Account__c FROM LLC_BI__Product_Package__c WHERE Id = :done.result.productPackageId
+            SELECT Id, Name, RecordTypeId, LLC_BI__Account__c, LLC_BI__Stage__c
+            FROM LLC_BI__Product_Package__c WHERE Id = :done.result.productPackageId
         ];
         System.assertEquals(a.Id, pkg.LLC_BI__Account__c, 'The package hangs off the borrower');
         System.assertEquals(null, pkg.RecordTypeId, 'Real packages in this org carry no record type, and neither does ours');
         System.assertEquals(staged.result.plannedPackageName, pkg.Name, 'The package carries the name the banker was shown at confirm');
         System.assertEquals(pkg.Name, done.result.anchorName);
+
+        // The two marks that make this package rollbackable (backlog 58). A package filed with a
+        // null stage and a ledger row that does not name it reads exactly like a package somebody
+        // keyed by hand, and StageDiscardVersion refused to discard the first live one for that
+        // reason.
+        System.assertEquals(
+            C360NewFacilities.PACKAGE_CREATE_STAGE, pkg.LLC_BI__Stage__c,
+            'A created package is born at the org\'s opening stage, not at null'
+        );
+        cm_Action_Staging__c ledger = [
+            SELECT Id, cm_Product_Package__c, cm_Result_Record_Id__c FROM cm_Action_Staging__c WHERE Id = :done.result.stagingId
+        ];
+        System.assertEquals(pkg.Id, ledger.cm_Product_Package__c, 'The action trail row names the package this run created');
+        System.assertEquals(done.result.loanId, ledger.cm_Result_Record_Id__c, 'And still names the facility as its result');
 
         LLC_BI__Loan__c loan = [SELECT Id, LLC_BI__Product_Package__c FROM LLC_BI__Loan__c WHERE Id = :done.result.loanId];
         System.assertEquals(pkg.Id, loan.LLC_BI__Product_Package__c, 'The facility sits on the package this action created');

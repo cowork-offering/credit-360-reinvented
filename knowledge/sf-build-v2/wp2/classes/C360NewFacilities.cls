@@ -81,6 +81,22 @@ public with sharing class C360NewFacilities {
      */
     public static final String LOAN_DEFAULT_APP = 'loans.dashboard-loan';
 
+    /**
+     * The stage a credit package this cockpit creates is born at (backlog 58, 2026-09-14).
+     *
+     * `LLC_BI__Product_Package__c.LLC_BI__Stage__c` is an unrestricted picklist offering Pending,
+     * In Review and Complete in this org (describe, 2026-09-14), and Pending is its opening value.
+     * A package created with a NULL stage reads exactly like one somebody keyed by hand, which is
+     * why `StageDiscardVersion` refused to roll back the first package the new-facility room made:
+     * nothing on the record said the cockpit put it there. One constant, beside the Default App and
+     * for the same reason: the package-first execute writes it and the stage plan shows the banker
+     * the same value, so the plan and the write cannot describe different things. `C360WriteGuard`
+     * carries its own copy on purpose, because a fence that read its permitted value off the tool it
+     * fences would permit whatever that tool decided to send; `C360WriteGuardTest` asserts the two
+     * agree.
+     */
+    public static final String PACKAGE_CREATE_STAGE = 'Pending';
+
     /** At most this many net-new facilities on one plan. The banker confirms one manifest. */
     public static final Integer NEW_FACILITY_MAX = 5;
 

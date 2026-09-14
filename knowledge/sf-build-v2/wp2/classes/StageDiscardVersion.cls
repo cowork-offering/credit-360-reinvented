@@ -11,6 +11,14 @@
  * package only. It is the one action in this package that DELETES, so the fence around it is the
  * inventory: nothing is removed that this inventory did not name at the confirm gate.
  *
+ * AND WHAT A DISCARD ALSO IS (backlog 58, 2026-09-14). A banker can create a credit package from
+ * nothing through `execute_new_facility`, and the 0.9.23 promise is that such a package rolls back
+ * to nothing too. That package has no fork, no chain rows and no booked parent, so it is recognised
+ * by two other marks: the opening stage `create_package` files it at, and the `new-facility-request`
+ * trail row that names it in `cm_Product_Package__c`. The ledger is the stronger of the two, because
+ * a stage is a field anyone can move. Everything after the gate is identical to a version's discard:
+ * the same ordered chain, the same verifications, the same trail marked Withdrawn.
+ *
  * WHAT IS NEVER DELETED, AND THIS LIST IS THE CONTRACT. The booked source package. Every booked
  * parent facility. `LLC_BI__Collateral__c` assets and their `LLC_BI__Account_Collateral__c`
  * ownership junctions (the version's copied PLEDGES go, the assets they point at stay).
@@ -183,6 +191,27 @@ global with sharing class StageDiscardVersion {
     /** More empty shells in one build window than any version creation produces. */
     private static final Integer ORPHAN_SHELL_CAP = 25;
 
+    /**
+     * The action whose ledger rows prove this cockpit created a package outright (backlog 58).
+     *
+     * `execute_new_facility` is the only tool in this package that creates a credit package, and it
+     * stamps the package it made onto its own staging row. That row is the evidence: a banker or an
+     * org automation can move a package's stage, and nobody can move what the frozen ledger says.
+     */
+    private static final String CREATOR_ACTION_ID = 'new-facility-request';
+
+    /**
+     * The ledger statuses that count as evidence a creation actually ran.
+     *
+     * `Staged` is absent because a plan that has not executed has created nothing, and the stamp
+     * only lands at execute time anyway. `Partial` is present because it is the ORDINARY resting
+     * state of a new facility between its two invocations: the package exists from the first one.
+     * `Withdrawn` is present for the reason lesson 73 gives: this action marks the creation row
+     * Withdrawn when it finishes, so a discard that stopped part way would otherwise destroy the
+     * evidence its own gate reads and refuse every retry.
+     */
+    private static final Set<String> CREATOR_STATUSES = new Set<String>{ 'Completed', 'Partial', WITHDRAWN };
+
     // ---------------------------------------------------------------------------------------
     // Wire types. Lesson 16: every wire-visible type is a global inner class of the invocable
     // class itself, and wire types are never shared across classes.
@@ -337,6 +366,8 @@ global with sharing class StageDiscardVersion {
         public List<String> warnings = new List<String>();
         public Boolean withdrawnAvailable = false;
         public Integer openHistoryRows = 0;
+        /** The trail row that proves this cockpit created the package, where the ledger is what classified it. */
+        public String creationEvidence;
 
         /** Total records the chain will delete, trail rows excluded. */
         public Integer itemCount() {
@@ -546,7 +577,7 @@ global with sharing class StageDiscardVersion {
             ];
 
         if (classify) {
-            assertIsDiscardableVersion(pkg, members, chain);
+            assertIsDiscardableVersion(inv, pkg, members, chain);
         }
         assertNoForeignChildren(inv);
 
@@ -596,8 +627,27 @@ global with sharing class StageDiscardVersion {
      * This runs on a STAGE and on a FIRST execute. It does NOT run on a resume, because the chain
      * rows and the members it reads are the first and fifth things the chain deletes: see
      * `discoverForResume`.
+     *
+     * TWO WAYS A PACKAGE IS THIS COCKPIT'S TO REMOVE, and until 2026-09-14 this read only the first
+     * (backlog 58, live proof on Piedmont package a5Fbb000000JIXVEA4). The first is the package's
+     * own STAGE: a version nCino's credit action forked reads Pending or In Review, and so does a
+     * package the new-facility room creates now that `create_package` files one at Pending. The
+     * second is the LEDGER, and it is the stronger of the two: a stage is a field anyone can move,
+     * while `cm_Action_Staging__c` is the frozen audit of what this cockpit did. A completed,
+     * partial or already-withdrawn `new-facility-request` row that names this package in
+     * `cm_Product_Package__c` AND was written before the package itself says the cockpit made it,
+     * whatever its stage reads today; `creationRow` owns that second half, because a row younger
+     * than the package only says a facility was filed on one that already existed. Every package
+     * created before the stamp existed is reachable through neither mark, which is why the first
+     * one had to be removed by hand.
+     *
+     * @param inv The inventory being built, which carries the evidence into the banker's warnings.
+     * @param pkg The package under the gate.
+     * @param members Its facilities.
+     * @param chain The renewal rows pointing at those facilities.
      */
     private static void assertIsDiscardableVersion(
+        Inventory inv,
         LLC_BI__Product_Package__c pkg,
         List<LLC_BI__Loan__c> members,
         List<LLC_BI__LoanRenewal__c> chain
@@ -608,14 +658,16 @@ global with sharing class StageDiscardVersion {
                 forked = true;
             }
         }
-        Boolean cockpitPackage = pkg.LLC_BI__Stage__c == 'Pending' || pkg.LLC_BI__Stage__c == 'In Review';
+        Boolean cockpitStage = pkg.LLC_BI__Stage__c == 'Pending' || pkg.LLC_BI__Stage__c == 'In Review';
+        inv.creationEvidence = creationRow(pkg);
 
-        if (!forked && !cockpitPackage) {
+        if (!forked && !cockpitStage && inv.creationEvidence == null) {
             throw gate(
                 'NOT_A_VERSION',
                 'Package ' + pkg.Name + ' is not an in-flight version and is not a package this cockpit created. ' +
-                'It carries no modification or renewal chain, and its stage is ' + String.valueOf(pkg.LLC_BI__Stage__c) +
-                ' rather than Pending or In Review. Discard undoes a version; it is not a way to delete a package.'
+                'It carries no modification or renewal chain, its stage is ' + String.valueOf(pkg.LLC_BI__Stage__c) +
+                ' rather than Pending or In Review, and no action trail row records this cockpit creating it. ' +
+                'Discard undoes a version; it is not a way to delete a package.'
             );
         }
 
@@ -658,6 +710,46 @@ global with sharing class StageDiscardVersion {
                 );
             }
         }
+    }
+
+    /**
+     * The trail row that records this cockpit CREATING this package, or null.
+     *
+     * NAMING A PACKAGE IS NOT THE SAME AS MAKING ONE, and the difference decides whether a delete
+     * is permitted. `execute_new_facility` stamps `cm_Product_Package__c` on two different paths:
+     * the banker supplied an existing package, in which case stage time stamps the anchor they
+     * named; or the plan carried none and the execute created one, in which case the stamp lands
+     * afterwards. A row of the first kind says a facility was FILED ON this package, which is no
+     * licence to delete it.
+     *
+     * The two are told apart by WHEN the row was written against when the package was. A staging
+     * row is inserted at stage time, and on the package-first path the package does not exist yet,
+     * so the row is OLDER than the package it names. On the supplied path the package existed
+     * before the banker could name it, so the row is younger. The comparison is exact for this
+     * action and needs no new field.
+     *
+     * The rows are ordered oldest first so the earliest claim is the one read, and one is enough:
+     * the question is whether the creation happened, not how often it was replayed.
+     *
+     * @param pkg The package under the gate, which dates the comparison.
+     * @return The trail row's name, for the banker's warning, or null when there is none.
+     */
+    private static String creationRow(LLC_BI__Product_Package__c pkg) {
+        for (cm_Action_Staging__c row : [
+            SELECT Id, Name, CreatedDate
+            FROM cm_Action_Staging__c
+            WHERE cm_Product_Package__c = :pkg.Id
+              AND cm_Action_Id__c = :CREATOR_ACTION_ID
+              AND cm_Status__c IN :CREATOR_STATUSES
+            WITH USER_MODE
+            ORDER BY CreatedDate ASC
+            LIMIT 5
+        ]) {
+            if (row.CreatedDate < pkg.CreatedDate) {
+                return row.Name;
+            }
+        }
+        return null;
     }
 
     /**
@@ -1293,6 +1385,19 @@ global with sharing class StageDiscardVersion {
             inv.warnings.add(
                 'This version has no booked source package, so the audit row is anchored on the version itself. That is ' +
                 'the expected shape for a package this cockpit created outright rather than forked.'
+            );
+        }
+        // The other half of that shape, said plainly (backlog 58). A package the cockpit created
+        // has no parent to return to: there is no chain to unpick and no hasRenewal flag to clear,
+        // so the discard removes the package and everything filed on it and the relationship is
+        // simply left without it. The banker reads the evidence that makes it discardable at all.
+        if (inv.creationEvidence != null) {
+            inv.warnings.add(
+                'This credit package was created by this cockpit, on action trail row ' + inv.creationEvidence +
+                '. It was never forked from a booked package, so there are no booked parents to restore and no ' +
+                'renewal chain to unpick: the discard removes the package, its ' + inv.memberIds.size() + ' facilit' +
+                (inv.memberIds.size() == 1 ? 'y' : 'ies') + ' and everything filed on them, and the relationship is ' +
+                'left without it. The collateral assets, the covenant records and the accounts they name all stay.'
             );
         }
     }

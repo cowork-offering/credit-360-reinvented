@@ -272,6 +272,35 @@ public with sharing class C360ActionStaging {
         String terminalState,
         String resultRecordId
     ) {
+        recordOutcome(rec, steps, terminalState, resultRecordId, null);
+    }
+
+    /**
+     * The same close-out, for a run that CREATED the package it worked on (backlog 58, 2026-09-14).
+     *
+     * `stagePlan` stamps `cm_Product_Package__c` from the anchor the banker named, so a plan whose
+     * package does not exist yet leaves the field empty and the ledger never says what the run
+     * made. `StageDiscardVersion` reads that field as its evidence that this cockpit created a
+     * package, so a run that files one names it here, on the SAME record and in the SAME update the
+     * tracker already writes. A null leaves the field as it stands: a supplied package was stamped
+     * at stage time and is not re-derived from the result.
+     *
+     * @param rec The claimed staging record.
+     * @param steps The plan steps carrying their final states.
+     * @param terminalState One of C360Plan.TERMINAL_SUCCESS, TERMINAL_PARTIAL, TERMINAL_FAILED.
+     * @param resultRecordId The domain record id created, or null when nothing was written.
+     * @param productPackageId The package this run created, or null when it created none.
+     */
+    public static void recordOutcome(
+        cm_Action_Staging__c rec,
+        List<C360Plan.Step> steps,
+        String terminalState,
+        String resultRecordId,
+        Id productPackageId
+    ) {
+        if (productPackageId != null) {
+            rec.cm_Product_Package__c = productPackageId;
+        }
         rec.cm_Tracker_JSON__c = JSON.serialize(steps);
         rec.cm_Result_Record_Id__c = resultRecordId;
         rec.cm_Executed_At__c = System.now();

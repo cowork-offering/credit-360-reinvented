@@ -1,0 +1,237 @@
+[
+  {
+    "actionName": "ExecuteDiscardVersion",
+    "errors": null,
+    "expectedError": false,
+    "invocationId": null,
+    "isSuccess": true,
+    "outcome": null,
+    "outputValues": {
+      "error": null,
+      "ok": true,
+      "result": {
+        "versionPackageId": "a5Fbb000000JIXVEA4",
+        "terminalState": "success",
+        "steps": [
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the renewal chain rows that keep the booked parents flagged (0)",
+            "id": "delete_chain",
+            "detail": "Nothing to delete on this group."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__LoanRenewal__c in this group is gone",
+            "id": "delete_chain_verify",
+            "detail": "Confirmed empty."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the collateral pledges copied onto the version facilities (0)",
+            "id": "delete_pledges",
+            "detail": "Nothing to delete on this group."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Loan_Collateral2__c in this group is gone",
+            "id": "delete_pledges_verify",
+            "detail": "Confirmed empty."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Detach the covenants from the version facilities (0)",
+            "id": "delete_covenant_junctions",
+            "detail": "Nothing to delete on this group."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Loan_Covenant__c in this group is gone",
+            "id": "delete_covenant_junctions_verify",
+            "detail": "Confirmed empty."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the pricing rate components on the version facilities (0)",
+            "id": "delete_rate_components",
+            "detail": "Nothing to delete on this group."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Pricing_Rate_Component__c in this group is gone",
+            "id": "delete_rate_components_verify",
+            "detail": "Confirmed empty."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the pricing payment components on the version facilities (0)",
+            "id": "delete_payment_components",
+            "detail": "Nothing to delete on this group."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Pricing_Payment_Component__c in this group is gone",
+            "id": "delete_payment_components_verify",
+            "detail": "Confirmed empty."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the pricing streams nCino cloned onto the version facilities (0)",
+            "id": "delete_pricing_streams",
+            "detail": "Nothing to delete on this group."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Pricing_Stream__c in this group is gone",
+            "id": "delete_pricing_streams_verify",
+            "detail": "Confirmed empty."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the fees on the version facilities (0)",
+            "id": "delete_fees",
+            "detail": "Nothing to delete on this group."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Fee__c in this group is gone",
+            "id": "delete_fees_verify",
+            "detail": "Confirmed empty."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the borrowing structure rows on the version (1)",
+            "id": "delete_involvements",
+            "detail": "Deleted 1 LLC_BI__Legal_Entities__c record."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Legal_Entities__c in this group is gone",
+            "id": "delete_involvements_verify",
+            "detail": "Re-query confirms all 1 gone."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the version facilities (1)",
+            "id": "delete_members",
+            "detail": "Deleted 1 LLC_BI__Loan__c record."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Loan__c in this group is gone",
+            "id": "delete_members_verify",
+            "detail": "Re-query confirms all 1 gone."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the collateral aggregate shells this version owns (0)",
+            "id": "delete_aggregates",
+            "detail": "Nothing to delete on this group."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Loan_Collateral_Aggregate__c in this group is gone",
+            "id": "delete_aggregates_verify",
+            "detail": "Confirmed empty."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the version package (1)",
+            "id": "delete_package",
+            "detail": "Deleted 1 LLC_BI__Product_Package__c record."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Product_Package__c in this group is gone",
+            "id": "delete_package_verify",
+            "detail": "Re-query confirms all 1 gone."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every booked parent reads hasRenewal false",
+            "id": "verify_parents",
+            "detail": "This version had no booked parents, so there is no hasRenewal flag to clear."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm the version package id no longer resolves",
+            "id": "verify_version_gone",
+            "detail": "Version package a5Fbb000000JIXVEA4 no longer resolves."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Mark the version's action trail rows Withdrawn (1)",
+            "id": "withdraw_trail",
+            "detail": "1 of 1 trail row(s) read back at Withdrawn and were kept."
+          },
+          {
+            "type": "observed_side_effect",
+            "state": "filed_unverified",
+            "label": "Collateral aggregate shells left standing (0)",
+            "id": "observe_aggregates",
+            "detail": "Every collateral aggregate shell this version owned was on the frozen inventory and went with its facility. None was left standing."
+          }
+        ],
+        "stagingId": "a8abb00001Og9QUAAZ",
+        "sourcePackageId": null,
+        "replayed": false,
+        "remainingCount": 0,
+        "parentsCleared": [],
+        "outcome": "Version a5Fbb000000JIXVEA4 discarded: 3 records deleted, 0 booked parents confirmed back to hasRenewal false.",
+        "items": [
+          {
+            "recordId": "a4Lbb000000PqcvEAC",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000Pqcv"
+          },
+          {
+            "recordId": "a4Zbb000002KwhpEAC",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Piedmont Precision Components, Inc. - Equipment - $750,000.00"
+          },
+          {
+            "recordId": "a5Fbb000000JIXVEA4",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Product_Package__c",
+            "name": "Piedmont Precision Components, Inc. - 9/14/2026 - PP"
+          },
+          {
+            "recordId": "a8abb00001OfoxEAAR",
+            "outcome": "kept",
+            "objectName": "cm_Action_Staging__c",
+            "name": "a8abb00001OfoxEAAR"
+          }
+        ],
+        "deletedCount": 3
+      }
+    },
+    "sortOrder": 0,
+    "version": 1
+  }
+]

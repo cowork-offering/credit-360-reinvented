@@ -910,3 +910,14 @@ live-proven: the cycle-1 row STG-0000000157 had already been marked Failed and i
 NOT_A_VERSION refusal, so it could not be resumed. Residue removed by hand: the stranded package
 a5Fbb000000JHI5EAO, the 5 cycle-1 shells, the 4 proof staging rows. Org after: 65 aggregates (62 referenced,
 3 seed), 0 staging rows, Hartwell booked package untouched.
+
+## F. 0.9.27 new-facility and created-package proofs (2026-09-14, orchestrator)
+
+`StageNewFacility` (accountId only, Piedmont, Equipment $750,000, business_expansion, 60 months) →
+`ExecuteNewFacility` twice (the second hop resumes with the same key and token; `CompleteNewFacilityDetail`
+is the modification's tool and refuses a new-facility row by design): package a5Fbb000000JIXVEA4 and facility
+a4Zbb000002KwhpEAC at Proposal; `verify_loan` detail "Default App loans.dashboard-loan" (B2); the nCino Loan
+page renders in full (headless probe). Discard: refused NOT_A_VERSION before B4 (stage null, ledger not
+stamped); after B4 the package, set to Pending as the fixed create step now writes, discarded to zero rows
+(STG-0000000164). Saved: `proofs/0927-new-facility-complete.json`, `0927-new-facility-resume.json`,
+`0927-discard-created-package.json`.

@@ -353,12 +353,19 @@ global with sharing class StageNewFacility {
         List<C360Plan.Step> steps = new List<C360Plan.Step>();
         if (createPackage) {
             steps.add(
-                new C360Plan.Step('create_package', C360Plan.TYPE_WRITE, 'Create the credit package ' + packageLabel)
-                    .onObject(C360WriteGuard.OBJ_PRODUCT_PACKAGE, new List<String>{ 'Name', 'LLC_BI__Account__c' })
+                new C360Plan.Step(
+                    'create_package',
+                    C360Plan.TYPE_WRITE,
+                    'Create the credit package ' + packageLabel + ' at ' + C360NewFacilities.PACKAGE_CREATE_STAGE
+                )
+                    .onObject(
+                        C360WriteGuard.OBJ_PRODUCT_PACKAGE,
+                        new List<String>{ 'Name', 'LLC_BI__Account__c', 'LLC_BI__Stage__c' }
+                    )
                     .wakes(new List<String>{
                         'PPCacheCreation and ProductPackageBaselineCaptureTrigger, which swallow their own failures to System.debug and are therefore org-side unverifiable'
                     })
-                    .provenBy('SELECT Id, Name FROM LLC_BI__Product_Package__c WHERE Id = :newPackageId')
+                    .provenBy('SELECT Id, Name, LLC_BI__Stage__c FROM LLC_BI__Product_Package__c WHERE Id = :newPackageId')
             );
         }
         steps.add(
@@ -451,16 +458,18 @@ global with sharing class StageNewFacility {
         warnings.addAll(armWarnings);
         if (createPackage) {
             warnings.add(
-                'A new credit package will be created for this relationship first, named to the org\'s own convention. ' +
+                'A new credit package will be created for this relationship first, named to the org\'s own convention and ' +
+                'filed at ' + C360NewFacilities.PACKAGE_CREATE_STAGE + ', the org\'s opening stage for a package. ' +
                 'Its creation wakes PPCacheCreation and ProductPackageBaselineCaptureTrigger, which report nothing back on failure, ' +
-                'so those effects are surfaced as org-side and unverifiable rather than claimed as done.'
+                'so those effects are surfaced as org-side and unverifiable rather than claimed as done. The action trail row ' +
+                'records the package this run creates, which is what lets it be discarded again later.'
             );
         }
 
         Map<String, Object> provenance = new Map<String, Object>{
             'LLC_BI__Account__c' => new Map<String, String>{ 'prefill' => 'NCINO_RECORD', 'provenance' => 'NCINO', 'citation' => String.valueOf(accountId) },
             'LLC_BI__Product_Package__c' => createPackage
-                ? new Map<String, String>{ 'prefill' => 'COMPUTED', 'provenance' => 'DERIVED', 'citation' => 'New package, named to the org convention <Account> - <M/D/YYYY> - PP.' }
+                ? new Map<String, String>{ 'prefill' => 'COMPUTED', 'provenance' => 'DERIVED', 'citation' => 'New package, named to the org convention <Account> - <M/D/YYYY> - PP, created at ' + C360NewFacilities.PACKAGE_CREATE_STAGE + '.' }
                 : new Map<String, String>{ 'prefill' => 'NCINO_RECORD', 'provenance' => 'NCINO', 'citation' => req.productPackageId },
             'LLC_BI__Product__c' => new Map<String, String>{ 'prefill' => 'BANKER', 'provenance' => null, 'citation' => null },
             'LLC_BI__Amount__c' => new Map<String, String>{ 'prefill' => 'BANKER', 'provenance' => null, 'citation' => null },

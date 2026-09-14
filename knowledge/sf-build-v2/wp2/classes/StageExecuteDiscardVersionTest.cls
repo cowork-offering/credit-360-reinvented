@@ -299,6 +299,202 @@ private class StageExecuteDiscardVersionTest {
 
         System.assertEquals(false, res.ok, 'A package that is not a version is not a thing this tool deletes.');
         System.assertEquals('NOT_A_VERSION', res.error.code, 'Refusal code was ' + why(res));
+        System.assert(
+            res.error.message.contains('no action trail row'),
+            'The refusal names both marks it looked for, the stage and the ledger: ' + res.error.message
+        );
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The package this cockpit CREATED rather than forked (backlog 58).
+    //
+    // `execute_new_facility` files a package from nothing, so it carries no chain, no
+    // Is_Modification member and no booked parent. It is recognised by the opening stage
+    // `create_package` writes and by its own trail row, and the live defect was that it had
+    // neither: the stage was null and the row did not name the package, so the discard refused
+    // NOT_A_VERSION and the promise that a created package rolls back to nothing was not kept.
+    // The fixture below is that live shape exactly, ledger row included.
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * Builds a package in the shape `execute_new_facility` leaves behind: no chain, no parent, one
+     * facility at Qualification with no lookup key, its borrowing structure, a fee, a pledge and
+     * the aggregate shell the facility points at, plus the trail row that names the package.
+     *
+     * The package stage is left NULL deliberately. That is the state of every package created
+     * before this change, and it is the harder half of the defect: the ledger has to carry the
+     * classification on its own.
+     *
+     * @return The created package id.
+     */
+    private static Id createdPackageFixture() {
+        Account a = borrower();
+        LLC_BI__Product_Package__c pkg = new LLC_BI__Product_Package__c(
+            Name = 'ZZ-DISCARD-TEST Created Package',
+            LLC_BI__Account__c = a.Id
+        );
+        insert pkg;
+        pkg = [SELECT Id, CreatedDate FROM LLC_BI__Product_Package__c WHERE Id = :pkg.Id];
+
+        LLC_BI__Loan_Collateral_Aggregate__c shell = new LLC_BI__Loan_Collateral_Aggregate__c(
+            Name = 'ZZ-DISCARD-TEST Created Aggregate'
+        );
+        insert shell;
+
+        LLC_BI__Loan__c facility = new LLC_BI__Loan__c(
+            LLC_BI__Account__c = a.Id,
+            LLC_BI__Product_Package__c = pkg.Id,
+            LLC_BI__Stage__c = 'Qualification',
+            LLC_BI__Status__c = 'Open',
+            LLC_BI__Amount__c = 750000,
+            LLC_BI__Product_Line__c = 'Commercial',
+            LLC_BI__Product_Type__c = 'Term Loan',
+            LLC_BI__Product__c = 'Equipment',
+            LLC_BI__isRenewal__c = false,
+            LLC_BI__Is_Modification__c = false,
+            LLC_BI__Loan_Collateral_Aggregate__c = shell.Id
+        );
+        insert facility;
+
+        insert new LLC_BI__Legal_Entities__c(
+            LLC_BI__Loan__c = facility.Id,
+            LLC_BI__Product_Package__c = pkg.Id,
+            LLC_BI__Account__c = a.Id,
+            LLC_BI__Borrower_Type__c = 'Borrower',
+            LLC_BI__Ownership__c = 100
+        );
+        insert new LLC_BI__Fee__c(
+            LLC_BI__Loan__c = facility.Id,
+            LLC_BI__Record_Type__c = 'Fees',
+            LLC_BI__Fee_Type__c = 'Attorney',
+            LLC_BI__Calculation_Type__c = 'Flat Amount',
+            LLC_BI__Amount__c = 5000,
+            LLC_BI__Status__c = 'Active'
+        );
+        insert new LLC_BI__Loan_Collateral2__c(
+            LLC_BI__Loan__c = facility.Id,
+            LLC_BI__Collateral__c = [SELECT Id FROM LLC_BI__Collateral__c LIMIT 1].Id,
+            LLC_BI__Loan_Collateral_Aggregate__c = shell.Id,
+            LLC_BI__Lien_Position__c = '1st',
+            LLC_BI__Is_Primary__c = true,
+            LLC_BI__Amount_Pledged__c = 250000
+        );
+
+        cm_Action_Staging__c ledger = new cm_Action_Staging__c(
+            cm_Action_Id__c = 'new-facility-request',
+            cm_Idempotency_Key__c = key('created-ledger'),
+            cm_Plan_Hash__c = 'deadbeef',
+            cm_Plan_JSON__c = '{}',
+            cm_Status__c = 'Completed',
+            cm_Account__c = a.Id,
+            cm_Product_Package__c = pkg.Id,
+            cm_Result_Record_Id__c = String.valueOf(facility.Id)
+        );
+        insert ledger;
+        // The row is STAGED before the package exists and stamped after it is created, which is
+        // what tells a creation apart from a facility filed on a package somebody else made. A
+        // test transaction stamps every CreatedDate alike, so the two-transaction shape is set
+        // here with the platform's own seam rather than assumed.
+        Test.setCreatedDate(ledger.Id, pkg.CreatedDate.addMinutes(-5));
+        return pkg.Id;
+    }
+
+    @IsTest
+    static void aPackageTheLedgerSaysThisCockpitCreatedIsDiscardedToNothing() {
+        C360TestFixture.armCalloutMock();
+        Id pkgId = createdPackageFixture();
+        Id facilityId = [SELECT Id FROM LLC_BI__Loan__c WHERE LLC_BI__Product_Package__c = :pkgId LIMIT 1].Id;
+        Id shellId = [
+            SELECT LLC_BI__Loan_Collateral_Aggregate__c FROM LLC_BI__Loan__c WHERE Id = :facilityId
+        ].LLC_BI__Loan_Collateral_Aggregate__c;
+        Id ledgerId = [
+            SELECT Id FROM cm_Action_Staging__c WHERE cm_Product_Package__c = :pkgId AND cm_Action_Id__c = 'new-facility-request' LIMIT 1
+        ].Id;
+        Id assetId = [SELECT Id FROM LLC_BI__Collateral__c LIMIT 1].Id;
+        String k = key('created');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, pkgId);
+        System.assertEquals(true, staged.ok, 'The ledger says this cockpit created it, so it is discardable. ' + why(staged));
+        ExecuteDiscardVersion.Response res = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Execute should succeed. ' + whyExec(res));
+        System.assertEquals(null, staged.result.sourcePackageId, 'A created package was never forked, so it has no source.');
+
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :pkgId], 'The created package is gone.');
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Loan__c WHERE Id = :facilityId], 'Its facility is gone.');
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Legal_Entities__c WHERE LLC_BI__Product_Package__c = :pkgId], 'The borrowing structure is gone.');
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Fee__c WHERE LLC_BI__Loan__c = :facilityId], 'The fee is gone.');
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Loan_Collateral2__c WHERE LLC_BI__Loan__c = :facilityId], 'The pledge is gone.');
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Loan_Collateral_Aggregate__c WHERE Id = :shellId], 'The aggregate shell goes with its facility.');
+        System.assertEquals(0, res.result.remainingCount, 'Nothing was left behind: ' + res.result.outcome);
+
+        System.assertEquals(1, [SELECT COUNT() FROM LLC_BI__Collateral__c WHERE Id = :assetId], 'The asset survives its pledge, as on a version.');
+        System.assertEquals(1, [SELECT COUNT() FROM cm_Action_Staging__c WHERE Id = :ledgerId], 'The creation row is KEPT. It is the audit of what was made.');
+
+        Boolean offered = C360Picklist.activeValues('cm_Action_Staging__c', 'cm_Status__c').contains(StageDiscardVersion.WITHDRAWN);
+        cm_Action_Staging__c ledger = [SELECT Id, cm_Status__c FROM cm_Action_Staging__c WHERE Id = :ledgerId];
+        System.assertEquals(
+            offered ? StageDiscardVersion.WITHDRAWN : 'Completed', ledger.cm_Status__c,
+            'The row that filed the package ends Withdrawn where the org offers the value, and is left as it stands where it does not.'
+        );
+
+        String created = null;
+        for (String w : staged.result.warnings) {
+            if (w.contains('created by this cockpit')) {
+                created = w;
+            }
+        }
+        System.assertNotEquals(null, created, 'The banker reads why a package with no chain is discardable at all.');
+        System.assert(created.contains('no booked parents to restore'), 'And what a parentless discard means: ' + created);
+    }
+
+    @IsTest
+    static void aForkedVersionIsStillClassifiedByItsChainAndCarriesNoCreationSentence() {
+        C360TestFixture.armCalloutMock();
+        Test.startTest();
+        StageDiscardVersion.Response res = stage(key('forked'), versionPackageId());
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'The version route is unchanged. ' + why(res));
+        System.assertEquals(
+            String.valueOf(bookedPackageId()), res.result.sourcePackageId,
+            'A forked version still resolves its booked source through the chain.'
+        );
+        for (String w : res.result.warnings) {
+            System.assert(!w.contains('created by this cockpit'), 'A forked version was not created outright: ' + w);
+        }
+    }
+
+    @IsTest
+    static void aBookedPackageIsRefusedEvenWhenTheLedgerNamesIt() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Product_Package__c booked = [
+            SELECT Id, CreatedDate FROM LLC_BI__Product_Package__c WHERE Id = :bookedPackageId()
+        ];
+        Id bookedId = booked.Id;
+        cm_Action_Staging__c ledger = new cm_Action_Staging__c(
+            cm_Action_Id__c = 'new-facility-request',
+            cm_Idempotency_Key__c = key('booked-ledger'),
+            cm_Plan_Hash__c = 'deadbeef',
+            cm_Plan_JSON__c = '{}',
+            cm_Status__c = 'Completed',
+            cm_Account__c = borrower().Id,
+            cm_Product_Package__c = bookedId
+        );
+        insert ledger;
+        Test.setCreatedDate(ledger.Id, booked.CreatedDate.addMinutes(-5));
+
+        Test.startTest();
+        StageDiscardVersion.Response res = stage(key('bookedledger'), bookedId);
+        Test.stopTest();
+
+        System.assertEquals(false, res.ok, 'A booked facility is the bank\'s record of a loan it made.');
+        System.assertEquals(
+            'PACKAGE_BOOKED', res.error.code,
+            'Ledger evidence answers "is this ours"; it never answers "is this still in flight". ' + why(res)
+        );
     }
 
     @IsTest

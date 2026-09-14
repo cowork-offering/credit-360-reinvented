@@ -1155,3 +1155,46 @@ that lives only in a session transcript does not exist.*
     modification's `new_facility_verify_*` lists it beside the commitment and says plainly that a wrong
     value renders the page empty. The stage plans list the field on their loan write steps; the write
     guard and the cockpit allowlist are both deny-lists on fields, so neither needed a change.
+
+81. **A package this cockpit CREATED is recognised by the LEDGER, not by its stage, and the stage is
+    the weaker of the two marks (2026-09-14, B4: backlog 58).** `StageDiscardVersion` ranked a
+    package as the cockpit's own from `LLC_BI__Stage__c` reading `Pending` or `In Review`, which is
+    what nCino's credit action leaves on a version. `ExecuteNewFacility.create_package` wrote Name
+    and Account only, so a package the New-facility room created read stage NULL and was refused
+    `NOT_A_VERSION` for ever: live proof on Piedmont package `a5Fbb000000JIXVEA4` (facility
+    `a4Zbb000002KwhpEAC`, row `STG-0000000163`), which broke the 0.9.23 promise that a package the
+    cockpit created rolls back to nothing. Two halves to the fix and the ORDER of their strength is
+    the lesson. The create now files the package at the org's own opening value, `Pending`, read off
+    the live picklist (`Pending, In Review, Complete`, unrestricted) and pinned in
+    `C360WriteGuard.CREATE_STATES` so it is the ONLY value a create may carry; the field stays on
+    `FORBIDDEN_FIELDS` so an UPDATE still cannot move a package through its lifecycle, and the create
+    branch now skips the forbidden test for a field the create state pins, which is the one place
+    those two tables would otherwise contradict each other. But a stage is a field: the org, a flow
+    or a banker can move it, and every package created before this shipped still reads null. So the
+    classifier's real evidence is the ACTION TRAIL: `execute_new_facility` stamps
+    `cm_Product_Package__c` on its own staging row through `C360ActionStaging.recordOutcome`, and a
+    `new-facility-request` row naming the package is proof the cockpit made it whatever the record
+    says today. Accepted statuses are `Completed`, `Partial` and `Withdrawn`, and each is deliberate:
+    `Partial` is the ORDINARY resting state of a new facility between its two invocations, when the
+    package already exists; `Withdrawn` is there for the reason lesson 73 gives, because this same
+    action marks the creation row Withdrawn when it finishes, and without it a discard that stopped
+    part way would delete the evidence its own gate reads and refuse every retry. `Staged` is absent
+    because nothing has been created yet, and the stamp only lands at execute time anyway.
+    NAMING A PACKAGE IS NOT MAKING ONE, and that is the sharp edge of this design: the same field is
+    stamped on the supplied-package path too, where it means a facility was FILED ON a package
+    somebody else made, which is no licence to delete it. The two are told apart by WHEN, with no
+    new field: a staging row is written at STAGE time, and on the package-first path the package
+    does not exist yet, so the creation row is OLDER than the package it names, while a
+    supplied-package row is always younger. `creationRow` reads that comparison. A test transaction
+    stamps every `CreatedDate` alike, so the fixture reproduces the two-transaction shape with
+    `Test.setCreatedDate` rather than loosening the comparison to `<=`.
+    GENERALISE: when a gate has to answer "did WE make this", prefer the immutable record of what the
+    system did over any mutable field on the thing itself. Nothing else about the discard changed:
+    `PACKAGE_BOOKED`, `VERSION_IN_APPROVAL` and `HAS_FOREIGN_CHILDREN` all still run in the same
+    order and still outrank the evidence (a booked package naming a creation row is still refused
+    `PACKAGE_BOOKED`, and there is a test that says so), and the ordered delete needed no new group:
+    a created package has no chain rows, its facilities carry a null `LLC_BI__lookupKey__c`, and the
+    Loan Detail is master-detail CASCADE on the Loan (re-read off `childRelationships` 2026-09-14,
+    with the fees), so it is reported as cascading rather than deleted. The one thing the banker
+    gains is prose: the plan now says the package was created by this cockpit, names the trail row,
+    and says there are no booked parents to restore.
