@@ -34,7 +34,8 @@
   orphan shells removed on the founder's "start fresh". Gates: tsc 0; vitest 225 files, 5,308 passed, 0 failed; drive
   matrix PASS, 33 workroom rows plus 3 spread files on 3 books, 0 findings (563 s); IRIS grep 0; bundle 2,110,694 B (2.013 MiB, +5.5 KB over 0.9.24 for the sheet
   and its styles). Proofs: `knowledge/proofs/0925-discard-aggregates-*.json`, SPEC-0.9.23-ORG-PROOF.md
-  section E.
+  section E. Commit 2192fe6. Preview (stub lanes, Hartwell's real book, nothing reaches Salesforce):
+  https://bot.connectry.io/s/5c5dbf93ef38/ .
 - **0.9.24 (2026-09-14)** THE RELATIONSHIP-ROOM RELEASE. Founder, 2026-09-13, from the road: "why
   are we driving everything from a PP perspective in the relationship workroom; covenants and
   collateral should be driven from the relationship; a package is an association the row shows,
