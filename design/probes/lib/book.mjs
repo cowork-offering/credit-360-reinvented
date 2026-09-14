@@ -112,6 +112,16 @@ export function resolveBook(live, key) {
   );
 }
 
+/** The words that identify a relationship, so an account sharing none of them is
+ *  a different party rather than a sibling of the one in view. */
+const NAME_NOISE = new Set(["llc", "inc", "incorporated", "ltd", "limited", "lp", "llp", "corp", "corporation", "co", "company", "plc", "the", "and", "group", "holdings"]);
+function partyKeyWords(name) {
+  return String(name || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 2 && !NAME_NOISE.has(w));
+}
+
 /* --------------------------------------------------------------- the parameters */
 
 /** A guarantor's name reads as a PERSON where it is two or three words and
@@ -202,6 +212,51 @@ export function bookParams(live, accountId) {
   const other = (g) => !removeParty || g.name !== removeParty.name;
   const addParty = people.find(other) || guarantors.find(other) || null;
 
+  /* ============ THE BLUE RIDGE RUN'S OWN PARAMETERS (backlog row 57).
+
+     The founder's transcript names three things no scenario needed before: a
+     COVENANT by name (he typed "Fixed Asset Purchases" into a waiver ask), a
+     ROLE in the plural ("remove all limited guarantors"), and a party the
+     relationship does NOT carry ("Add Piedmont Precision as Guarantor"). Blue
+     Ridge is not baked, so each is taken off whichever book is open and the
+     scenario says so in its `path`. */
+
+  /** A covenant this relationship actually tests, by the org's own type name. */
+  const covenantName =
+    (((bundle.covenants || {}).covenants || []).map((c) => String(c.covenantType || "").trim()).find((n) => n.length > 2)) || null;
+
+  /** The involvement rows on the target facility, by role. A row with no loanId
+   *  is relationship-level and rides every member, which is how the page reads
+   *  it too. */
+  const rowsOn = ((bundle.graph || {}).legalEntities || []).filter(
+    (e) => !e.loanId || !target || !target.loanId || e.loanId === target.loanId,
+  );
+  const roleOf = (e) => String(e.relationshipType || e.borrowerType || "").trim();
+  const partiesInRole = (role) => [
+    ...new Set(rowsOn.filter((e) => roleOf(e).toLowerCase() === role.toLowerCase()).map((e) => String(e.accountName || "").trim()).filter(Boolean)),
+  ];
+  /* THE FOUNDER'S OWN WORD FIRST. A book carrying no limited guarantor on the
+     target answers the same sentence about its guarantors instead. */
+  const bulkRole = partiesInRole("Limited Guarantor").length
+    ? "Limited Guarantor"
+    : partiesInRole("Guarantor").length
+      ? "Guarantor"
+      : null;
+
+  /** A REAL account in the org that this relationship does not carry, which is
+   *  what "Piedmont Precision" was on Blue Ridge. Taken off the baked set so the
+   *  org's own search can find it. */
+  const offBookParty =
+    Object.keys(live.borrowers || {})
+      .filter((id) => id !== accountId)
+      .map((id) => String((((live.borrowers || {})[id] || {}).snapshot || {}).name || "").trim())
+      .find((name) => name && !partyKeyWords(relationship).some((w) => name.toLowerCase().includes(w))) || null;
+
+  /** Every baked relationship as an org account row, for the search stub. */
+  const orgAccounts = Object.keys(live.borrowers || {})
+    .map((id) => ({ accountId: id, name: String((((live.borrowers || {})[id] || {}).snapshot || {}).name || "").trim() }))
+    .filter((a) => a.name);
+
   /* THE VERSION FIXTURE. A modification version is a clone of the source
      package's ACTIVE members, so a book with no booked package cannot carry one
      at all: `book/packages.ts` reads a fork as an all-unbooked package that
@@ -251,6 +306,15 @@ export function bookParams(live, accountId) {
     /** The rate the amend room is asked for. Always a real move off the book's
      *  own pricing, and on Hartwell it lands on the 7.10 the org proof used. */
     amendRate: rate === null ? 7.1 : Number((rate + 0.52).toFixed(2)),
+    /** A covenant the book tests, by name: the waiver exchange's own answer. */
+    covenantName,
+    /** The role a bulk removal names, and the parties it would take off. */
+    bulkRole,
+    bulkRoleParties: bulkRole ? partiesInRole(bulkRole) : [],
+    /** An account the org holds and this relationship does not. */
+    offBookParty,
+    /** The org's account table, for the search stub. */
+    orgAccounts,
     removeParty: removeParty ? removeParty.name : null,
     removeFirstName: removeParty && isPerson(removeParty.name) ? removeParty.name.split(/\s+/)[0] : null,
     addParty: addParty ? addParty.name : null,

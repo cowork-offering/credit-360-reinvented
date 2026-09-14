@@ -128,6 +128,77 @@ const SCENARIOS = {
   relativeAndSign: {
     lines: withPick([`add 50bps on the ${P}`, PICK, "-5%", "actually 8%", "what is this covenant doing?"]),
   },
+  /* ============================ ROW 57. THE FOUNDER'S BLUE RIDGE MODIFICATION
+     (feedback bug-1789409908236-mwwh9n, 2026-09-14, plugin 0.9.26).
+
+     Seven defects in one run: a role with no name in it, a typed party name the
+     room asked for again, a steer that dropped a half-gathered create, a fee
+     that lost its percentage while a stale term question surfaced inside it, a
+     judgement question answered with the same read card twice, and a covenant
+     waiver staged as a six-month TERM with the amortisation follow-up offering
+     to match it.
+
+     BLUE RIDGE IS NOT BAKED. `artifact/live-data.json` carries Piedmont,
+     Brightwater, Sterling, Kingsley and Hartwell and no Blue Ridge, so every
+     name in the transcript is taken off whichever book is open: the covenant by
+     its own type name, the role in the plural, and the off-book party from
+     another baked relationship, which is exactly what "Piedmont Precision" was
+     to Blue Ridge. A book whose involvement rows carry none of the org's five
+     borrowing-structure roles cannot be asked to remove all of one, and the
+     scenario says so in `path` rather than skipping the line. */
+  founderBlueRidge: {
+    lines: withPick([
+      // (a): the bare role, the member it lands on, then the one word that stages it.
+      `remove all ${(BOOK.bulkRole ?? "Guarantor").toLowerCase()}s`,
+      BOOK.pickLine,
+      BOOK.bulkRoleParties.length ? "Yes, take them off" : null,
+      // (b) and (c): the name the banker types, then the room's own way out.
+      BOOK.offBookParty ? `Add ${BOOK.offBookParty} as Guarantor` : null,
+      BOOK.offBookParty ? "a different facility" : null,
+      BOOK.offBookParty ? BOOK.pickLine : null,
+      // (d): the percentage, and the term question that must not surface here.
+      "add a fee to this with 5%",
+      `add a 5% origination fee on the ${BOOK.bareMoney} ${P.toLowerCase()}`,
+      // (e): a question, not a read.
+      "do we need to add a new covenant?",
+      // (f) and (g): the waiver, its covenant, and the duration typed for it.
+      "waive this one",
+      BOOK.covenantName,
+      "waive for 6 months",
+    ]),
+    path: [
+      BOOK.bulkRole ? `${BOOK.bulkRole} rows on the target, bulk removal driven` : "no borrowing-structure role on this book's involvement rows, so the bulk removal is driven against an empty set",
+      BOOK.offBookParty ? `off-book party ${BOOK.offBookParty}` : "no second baked relationship to name as an off-book party",
+      BOOK.covenantName ? `waiver named on ${BOOK.covenantName}` : "no covenant on this book to name in the waiver",
+      "Blue Ridge is not baked in artifact/live-data.json; the transcript runs on this book's own names",
+    ].filter(Boolean).join("; "),
+    check: (said, findings) => {
+      /* (f) AND (g). The one thing that must never be true again: a duration
+         typed into a waiver exchange reaching the term or the amortisation. */
+      if (/Term \(months\)/i.test(said)) findings.push("a term change is on the glass in a run whose only duration was typed into a waiver ask");
+      if (/amortisation term/i.test(said) && /waive/i.test(said)) findings.push("the amortisation gate opened inside the waiver exchange");
+      if (!/not this room's to file/i.test(said)) findings.push("the covenant waiver was never refused by name");
+      if (!/covenant review/i.test(said)) findings.push("the waiver refusal names no route out");
+      // (b). The name the banker typed is never answered with the roster.
+      if (/Who goes on the deal\?/i.test(said)) findings.push("the room asked who goes on the deal over a party the banker had just named");
+      if (BOOK.offBookParty && !said.includes(BOOK.offBookParty.split(/\s+/)[0])) {
+        findings.push(`the room never names ${BOOK.offBookParty}, the party the banker typed`);
+      }
+      // (c). The steer must not drop the create it was offered inside.
+      if (/Nothing in that answered what the new one still needs/i.test(said)) {
+        findings.push('"a different facility" dropped the create it was offered inside');
+      }
+      // (e). A question is not a read repeat.
+      if (/same read as a moment ago/i.test(said)) findings.push("a judgement question was answered with a repeated read card");
+      // (a). The role removal is answered with the rows, or with the honest empty.
+      if (BOOK.bulkRoleParties.length && !BOOK.bulkRoleParties.some((n) => said.includes(n))) {
+        findings.push(`the role removal never names ${BOOK.bulkRoleParties.join(", ")}, the rows the book carries in that role`);
+      }
+      if (/I could not map that onto this package|could not match that to anything/i.test(said)) {
+        findings.push("a line of the founder's transcript came back as the capability lecture");
+      }
+    },
+  },
   /* 0.9.23, IMPROVEMENTS row 44. Parties and collateral, in the founder's own words: the plural
      collateral read, the borrowing-structure reads, a party named by her first name, "this loan"
      for a removal, and the line that already worked. A book with ONE guarantor cannot be asked to
@@ -196,7 +267,7 @@ async function openPage(version) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errs = []; page.on("pageerror", (e) => errs.push(String(e).slice(0, 160)));
   await page.addInitScript(STUB); await page.addInitScript(SAMPLE);
-  await page.addInitScript((cfg) => { var i = setInterval(function () { if (window.__LANES) { clearInterval(i); window.__LANES.relayMs = 200; window.__LANES.livePatch = Object.assign({}, window.__LANES.livePatch || {}, cfg.patch); if (cfg.version) window.__LANES.version = cfg.version; } }, 0); }, { patch, version: version || null });
+  await page.addInitScript((cfg) => { var i = setInterval(function () { if (window.__LANES) { clearInterval(i); window.__LANES.relayMs = 200; window.__LANES.livePatch = Object.assign({}, window.__LANES.livePatch || {}, cfg.patch); window.__LANES.accounts = cfg.accounts || []; if (cfg.version) window.__LANES.version = cfg.version; } }, 0); }, { patch, accounts: BOOK.orgAccounts, version: version || null });
   await page.goto(server.url + "b/", { waitUntil: "commit" });
   await page.waitForSelector(`[data-open="${ACCOUNT}"]`, { timeout: 30000 });
   await page.click(`[data-open="${ACCOUNT}"]`); await page.waitForSelector("#view-account .hero", { timeout: 15000 });
@@ -446,9 +517,16 @@ async function runScript(name, lines, version, check) {
   /* AND THE ROOM NAMES THIS BORROWER. A label carrying another book's name is the single
      cheapest sign that a read was answered off the lane's default body rather than off the
      patch, and it is invisible on the book the default happens to be. */
+  /* A NAME THE BANKER TYPED IS NOT A LEAK. Row 57's transcript names another
+     relationship on purpose: "Add Piedmont Precision as Guarantor" is a party
+     off the book, and the whole point of the fix is that the room KEEPS the
+     name rather than dropping it. What this rule is about is a name the room
+     produced by itself, so a name the drive itself put into the composer is
+     taken out of the set before it is looked for. */
+  const typedByTheDrive = lines.join("\n");
   const strangers = Object.values(LIVE.borrowers || {})
     .map((b) => String((b.snapshot || {}).name || "").trim())
-    .filter((n) => n && n !== BOOK.relationship);
+    .filter((n) => n && n !== BOOK.relationship && !typedByTheDrive.includes(n));
   for (const other of strangers) if (said.includes(other)) findings.push(`the room named "${other}" while ${BOOK.relationship} was open`);
   /* AND THE SCENARIO'S OWN READ OVER THE WHOLE TRANSCRIPT, for the properties no
      per-turn rule can see. The per-turn `reply` is capped at 160 characters a

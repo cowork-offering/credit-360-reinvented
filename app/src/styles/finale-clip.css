@@ -1,0 +1,41 @@
+/* =============================================================================
+   THE GLOW STOPS AT THE CARD'S EDGE.
+
+   FOUNDER, 2026-09-14 (backlog row 53): "the rainbow glow bleeds a bit out of
+   the card."
+
+   IT DID, BY CONSTRUCTION. `.aura` is a conic gradient laid over a box 3 to 4px
+   larger than the card it sits behind and then blurred by 10 to 14px, so the
+   light reached about eighteen pixels past the rim, square at the corners where
+   the card is round. Behind opaque glass that reads as a halo; on the finale
+   card, which arrives over a pane the room has just emptied, it reads as a
+   coloured smear escaping a card that has nothing to hide behind.
+
+   SO THE LIGHT IS CLIPPED TO THE BOX IT BELONGS TO. `clip-path` is applied after
+   `filter`, so it cuts the BLURRED paint rather than the gradient: the inset is
+   the aura's own overhang, taken back off, and the radius is the card's own.
+   Nothing else changes. Same conic, same colours, same opacity, same animation,
+   same rim, same glass. The rainbow is still on the card and still turns; it no
+   longer stands outside it.
+
+   ONE RULE PER CARD BECAUSE ONE RADIUS PER CARD. `border-radius` cannot be read
+   back into a `clip-path`, so each of the three surfaces the aura sits on names
+   its own: the plan card (14px), the filed card (16px) and the sheet the card
+   grows into (18px). Any of those figures changing in workroom.css is a figure
+   to change here too.
+
+   IT LIVES BESIDE THE SHEET rather than in workroom.css because workroom.css's
+   finale block is deliberately last in that file, and this needs no cascade of
+   its own: `clip-path` is declared nowhere else, so these rules win wherever
+   they land. FiledSheet.tsx imports it.
+   ============================================================================= */
+
+.wk-flowcard > .aura {
+  clip-path: inset(4px round 14px);
+}
+.wk-rescard > .aura {
+  clip-path: inset(4px round 16px);
+}
+.wk-sheet > .aura {
+  clip-path: inset(3px round 18px);
+}

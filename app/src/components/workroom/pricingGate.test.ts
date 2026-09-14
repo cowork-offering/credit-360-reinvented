@@ -375,3 +375,33 @@ describe("the org's own classes accept both fields", () => {
     expect(stage).toContain("is a date; supply YYYY-MM-DD");
   });
 });
+
+/* =============================================================================
+   THE WAIVER THAT BECAME A TERM (founder's Blue Ridge run, 2026-09-14, defect g).
+
+   "waive for 6 months" was staged as a six-month TERM, and this gate then did
+   exactly what it is meant to do with a term on the plan: it offered "Same as
+   the term (6 months)" for the amortisation. The gate was never wrong; the term
+   was. So the regression is asserted from this side too: with no term on the
+   plan there is no such chip to offer, and a six-month one cannot arrive.
+   ============================================================================= */
+
+describe("the amortisation chip stands on a term the banker actually set", () => {
+  it("offers no 'same as the term' chip where nothing staged a term", () => {
+    const ask = pricingAsk({ memberId: LOC15, slot: "amortisedTerm" }, on, { entries: [amountMove] });
+    expect(ask.options.map((o) => o.label).some((l) => /Same as the term/.test(l))).toBe(false);
+    expect(stagedTermMonths([amountMove], LOC15)).toBeNull();
+  });
+
+  it("never reads a term off another member's entry", () => {
+    const elsewhere = delta({
+      id: "loan.term:eq",
+      member: EQ8,
+      target: "$8.0MM Equipment",
+      wire: { key: "requestedTermMonths", value: 6, facilityId: EQ8 },
+    });
+    expect(stagedTermMonths([amountMove, elsewhere], LOC15)).toBeNull();
+    const ask = pricingAsk({ memberId: LOC15, slot: "amortisedTerm" }, on, { entries: [amountMove, elsewhere] });
+    expect(ask.options.map((o) => o.label)).not.toContain("Same as the term (6 months)");
+  });
+});

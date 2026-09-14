@@ -9,10 +9,12 @@ import {
   CATALOG_TESTS,
   changedLine,
   compose,
+  createSubject,
   handoffEntry,
   mirrorChips,
   namedTest,
   nextAsk,
+  noVersionRefusal,
   openCreate,
   planAmendmentFor,
   readAssetType,
@@ -924,6 +926,37 @@ describe("a complete borrowing-structure line stages directly (E4b)", () => {
     expect(step.ask?.options.map((o) => o.label)).toContain(HOLDINGS);
   });
 
+  /* ================== A NAME THE BANKER TYPED IS NEVER DROPPED (founder's Blue
+     Ridge run, 2026-09-14, defect b). "Add Piedmont Precision as Guarantor" ,
+     an ordinary sentence opening on a capital, matched no verb at all, because
+     the name pattern carried no case for its own verb, so the party slot stayed
+     empty and the room asked "Who goes on the deal?" over a name it had just
+     been given, offering only the relationship's own parties. */
+  it("takes a capitalised verb and keeps the name the banker typed", () => {
+    const draft = openCreate("Add Piedmont Precision as Guarantor", structuredCtx())!;
+    expect(draft.surface).toBe("involvement");
+    expect(draft.slots.party).toBe("Piedmont Precision");
+    expect(draft.slots.partyOnBook).toBe(false);
+    expect(draft.slots.role).toBe("Guarantor");
+    // AND THE NAME QUESTION IS BEHIND IT: what is left is where it lands.
+    const step = advance(draft, structuredCtx());
+    expect(step.ask?.slot).not.toBe("party");
+  });
+
+  it("still refuses to read an article or a bare role as a name", () => {
+    for (const line of ["Add a guarantor", "Add the limited guarantor"]) {
+      const draft = openCreate(line, structuredCtx())!;
+      expect(draft.slots.party).toBeUndefined();
+    }
+  });
+
+  it("takes the chip that files the typed name as a new party", () => {
+    const draft = openCreate("Add Piedmont Precision as Guarantor", structuredCtx())!;
+    const next = readInto(draft, "add the new party Piedmont Precision", structuredCtx());
+    expect(next.slots.partyNew).toBe(true);
+    expect(next.slots.party).toBe("Piedmont Precision");
+  });
+
   it("asks for the role, book first, when the line names only a party", () => {
     const draft = openCreate("add Elena Hartwell to the 8M equipment loan", structuredCtx())!;
     const step = advance(draft, structuredCtx());
@@ -1390,5 +1423,50 @@ describe("a guarantor whose name carries the borrower's", () => {
   it("leaves a book whose loans follow the naming convention exactly as it was", () => {
     const draft = openCreate("add James Hartwell as guarantor on the 15M line of credit", ctxWith())!;
     expect(draft.scope).toEqual([LOC15]);
+  });
+});
+
+/* =============================================================================
+   A PACKAGE WITH NOTHING BOOKED TAKES NO CREATE EITHER (B5, row 57).
+
+   Piedmont's three facilities are all at Final Review, so no credit action can
+   run and the eligible set the room hands the grammar is EMPTY. The grammar
+   still opened the create and asked "no facilities on this package. Which of
+   them should this land on?" with the chip "All 0".
+   ============================================================================= */
+
+describe("nothing to version, so nothing to add", () => {
+  const empty = ctxWith({ members: [] });
+
+  it("names the party the banker typed and both ways forward, in one sentence", () => {
+    const draft = openCreate("Add Brightwater Foods Group as Guarantor", empty)!;
+    const said = noVersionRefusal(createSubject(draft));
+    expect(said).toContain("Brightwater Foods Group as Guarantor");
+    expect(said).toContain("nothing on this package is booked for me to version");
+    expect(said).toContain("New facility on a new package");
+    // One sentence, and no em dash in it.
+    expect(said.match(/\./g)).toHaveLength(1);
+    expect(said).not.toMatch(/—/);
+  });
+
+  it("says the covenant and the pledge back in their own words too", () => {
+    const covenant = openCreate("add a minimum current ratio covenant of 2x tested quarterly", empty)!;
+    expect(createSubject(covenant)).toBe("A Minimum Current Ratio covenant");
+    const pledge = openCreate("pledge the accounts receivable", empty)!;
+    expect(createSubject(pledge)).toBe("A pledge");
+  });
+
+  it("never offers an All chip over an empty set", () => {
+    // The party create is the one that reaches the scope question with
+    // everything else settled, which is exactly how "All 0" rendered.
+    const draft = openCreate("Add Brightwater Foods Group as Guarantor", empty)!;
+    const ask = nextAsk(draft, empty)!;
+    expect(ask.text).toContain("Which of them should this land on?");
+    expect(ask.options).toHaveLength(0);
+  });
+
+  it("still counts the All chip where there is something to count", () => {
+    const draft = openCreate("add another covenant to all of the loans", ctxWith())!;
+    expect(nextAsk(draft, ctxWith())!.options.map((o) => o.label)).toContain("All 6");
   });
 });

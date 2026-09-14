@@ -139,9 +139,14 @@ function open(route: RelRoute, plan: StagedOutput = PLAN): Opened {
 }
 
 const buttons = () => [...document.body.querySelectorAll("button")];
+/* A RECEIPT IS NOT AN ANSWER EITHER (backlog row 54, founder 2026-09-14). The
+   recap lines were already skipped; now that a spent turn's chips leave the
+   glass with it, the settled ROW carrying the same word is the next thing a
+   by-text hunt lands on. It is a way back into what was recorded, never
+   something to press, and this harness reaches for answers. */
 const byText = (re: RegExp) =>
   buttons()
-    .filter((b) => !b.hasAttribute("data-recap"))
+    .filter((b) => !b.hasAttribute("data-recap") && !b.classList.contains("wk-settled"))
     .find((b) => re.test(b.textContent ?? ""));
 const click = (el: Element | undefined) => act(() => el!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 const settle = async () => {

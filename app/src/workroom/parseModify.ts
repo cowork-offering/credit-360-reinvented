@@ -12,7 +12,7 @@ const FILEABLE_RATE = catalogField("loan.interestRate")!;
 /* =============================================================================
    THE DETERMINISTIC PARSE.
 
-   Natural language in, AMENDMENTS out — or a question, or nothing. There is no
+   Natural language in, AMENDMENTS out, or a question, or nothing. There is no
    fourth outcome and, in particular, there is no "best guess": a line this
    cannot read comes back as a question naming what is missing, because a chip
    the banker did not mean is worse than a chip that never arrived.
@@ -42,7 +42,7 @@ export type ParsedValue =
   | { kind: "covenant"; typeName: string; threshold: number; operator: "<" | "<=" | "=" | ">=" | ">"; text: string }
   /** A NET-NEW FEE, fully resolved: a legal `LLC_BI__Fee_Type__c` value, the
    *  human label the autonumber Name cannot carry, and EITHER a percentage or a
-   *  flat amount — never both, because the org computes the money for a
+   *  flat amount, never both, because the org computes the money for a
    *  percentage fee and a hand-set figure would contradict it. */
   | {
       kind: "fee";
@@ -59,8 +59,8 @@ export type ParsedValue =
       text: string;
     }
   /** A COLLATERAL PLEDGE, in one of its two shapes. Either the asset already
-   *  exists and the deal carries it — in which case the ORG'S OWN RECORD ID is
-   *  what travels, never a name — or it is net-new and the whole chain has to be
+   *  exists and the deal carries it, in which case the ORG'S OWN RECORD ID is
+   *  what travels, never a name, or it is net-new and the whole chain has to be
    *  authored: the asset, the ownership junction that is its only link to the
    *  borrower, then the pledge. There is no third shape, and in particular there
    *  is no pledging an asset named but not resolved. */
@@ -77,15 +77,15 @@ export type ParsedValue =
       text: string;
     }
   /** A POLICY EXCEPTION, fully resolved. The three things a banker says about
-   *  one — what is out of policy, whether it is waived, mitigated or standing,
-   *  and what mitigates it — are ONE record rather than three amendments, so
+   *  one, what is out of policy, whether it is waived, mitigated or standing,
+   *  and what mitigates it, are ONE record rather than three amendments, so
    *  they travel on one value. `title` is the row's only readable identity: the
    *  org backfills an omitted `Name` with the record's own Id. */
   | {
       kind: "policyException";
       title: string;
       status: ExceptionStatus;
-      /** One per mitigant, at most three, each at most 100 characters — the
+      /** One per mitigant, at most three, each at most 100 characters, the
        *  org's three `LLC_BI__Mitigation_Reason_N__c` fields. */
       reasons: string[];
       /** Free text on this org ("Major" is a convention, not a picklist), so it
@@ -99,7 +99,7 @@ export type ExceptionStatus = "Waived" | "Mitigated" | "Unmitigated";
 
 /** One amendment the banker asked for, resolved against the catalog and the
  *  package. `value` is null where the field takes no scalar (a party add, a
- *  pledge) — the amendment is still real, it just has nothing to compare. */
+ *  pledge), the amendment is still real, it just has nothing to compare. */
 export interface Amendment {
   field: CatalogField;
   /** The member it lands on. Null for package-level and party-level asks. */
@@ -116,8 +116,8 @@ export interface Amendment {
   /**
    * WHAT THIS DOES TO THE ROLL-OVER BASELINE.
    *
-   * A modification carries the parent's whole record graph onto the clone —
-   * covenants, pledges, borrowing structure, fees, pricing — so every amendment
+   * A modification carries the parent's whole record graph onto the clone ,
+   * covenants, pledges, borrowing structure, fees, pricing, so every amendment
    * is a DELTA against what is already there. Keeping is the default and is
    * never staged; the three that are staged are change, add and remove, and
    * REMOVE is the one that has to be unmistakable in the manifest.
@@ -128,7 +128,7 @@ export interface Amendment {
 export type AmendmentOp = "change" | "add" | "remove";
 
 /** WHAT A QUESTION IS ABOUT, so the next line can answer it with the missing
- *  fact alone — "$20,000,000" is an answer, and a room that made the banker
+ *  fact alone, "$20,000,000" is an answer, and a room that made the banker
  *  restate the whole instruction would not be a conversation. */
 export interface Awaiting {
   field: CatalogField;
@@ -154,8 +154,8 @@ export interface Awaiting {
   /**
    * A PLEDGE QUESTION IS ANSWERED WITH THE PIECE THAT WAS MISSING.
    *
-   * A create-then-pledge needs three facts the banker rarely says in one line —
-   * what kind of asset, what it is worth, what it lends at — so each answer has
+   * A create-then-pledge needs three facts the banker rarely says in one line ,
+   * what kind of asset, what it is worth, what it lends at, so each answer has
    * to land on the read the previous question already held. `isNew` is the one
    * that MUST persist: without it, "equipment" answered to "what kind of asset?"
    * would go back through the existing-collateral resolver and try to find an
@@ -165,8 +165,8 @@ export interface Awaiting {
   /**
    * AN EXCEPTION QUESTION IS ANSWERED WITH THE PIECE THAT WAS MISSING.
    *
-   * An exception arrives in up to three beats — what is out of policy, what the
-   * bank decided about it, what stands behind that decision — and each answer
+   * An exception arrives in up to three beats, what is out of policy, what the
+   * bank decided about it, what stands behind that decision, and each answer
    * has to land on the read the previous question held. `status` is the one that
    * changes what the NEXT line means: once it reads Mitigated and the title is
    * settled, a bare line is the mitigant rather than a new instruction.
@@ -182,6 +182,22 @@ export interface Awaiting {
    * The line that asked is held here and re-read against the member they pick.
    */
   member?: { said: string; choices: Facility[] };
+  /**
+   * A ROLE-SCOPED REMOVAL, LISTED AND WAITING ON ONE YES.
+   *
+   * "remove all limited guarantors" names no party and is nonetheless exact: the
+   * org holds involvement as rows, so the role plus the member resolves a closed
+   * set of them off the book. Three carry exclusions is three decisions a banker
+   * signs, so the rows are named first and staged only on the confirmation.
+   */
+  roleRemoval?: RoleRemovalRead;
+}
+
+/** The involvement rows one role names on one member, in the book's own order. */
+export interface RoleRemovalRead {
+  /** The org's own role word. */
+  role: string;
+  rows: Array<{ party: string; facility: Facility }>;
 }
 
 /** What a fee line has settled so far. Every field is optional because a fee
@@ -238,7 +254,15 @@ export type ParseOutcome =
    *  "no change" / "leave as is": the field does not move. Not a clarify (that
    *  re-asks and loops) and not an amendment (nothing files); the engine says so
    *  and stops waiting on the field. */
-  | { kind: "hold"; field: CatalogField; facility: Facility | null }
+  | {
+      kind: "hold";
+      field: CatalogField;
+      facility: Facility | null;
+      /** THE ROOM'S OWN SENTENCE, where "holding <field> at <figure>" is not the
+       *  one. A declined role removal holds nothing at a value: it leaves a set
+       *  of involvement rows alone, and that is what it has to say. */
+      said?: string;
+    }
   | { kind: "none" };
 
 export interface ParseContext {
@@ -296,7 +320,7 @@ export interface Scalar {
 }
 
 /** Money tokens, with position. A magnitude suffix or a `$` is REQUIRED, or the
- *  number has to be written out in full — see the module note on bare numbers. */
+ *  number has to be written out in full, see the module note on bare numbers. */
 export function moneyTokens(lower: string): Scalar[] {
   const out: Scalar[] = [];
   const re = /(\$\s*)?(\d[\d,]*(?:\.\d+)?)\s*(mm|million|millions|bn|billion|k|m|b)?\b/g;
@@ -399,10 +423,10 @@ function shiftMaturity(from: string | undefined, months: number): string | null 
 /* ---------------------------------------------------------------- members */
 
 /** HOW a member was named, because it changes what an ambiguity means.
- *  `identity` — the banker named THIS member (its label, its name, its id).
- *  `product`  — the banker named a product, which legitimately spreads across
+ *  `identity`, the banker named THIS member (its label, its name, its id).
+ *  `product` , the banker named a product, which legitimately spreads across
  *               every member carrying it ("the equipment facilities").
- *  `alias`    — the banker used a nickname. It resolves to a product, so more
+ *  `alias`   , the banker used a nickname. It resolves to a product, so more
  *               than one match is a question rather than a selection: "the
  *               revolver" on a deal with two lines of credit names neither. */
 type NameMatch = { facilities: Facility[]; how: "identity" | "product" | "alias" };
@@ -424,7 +448,7 @@ function namedFacilities(lower: string, ctx: ParseContext): NameMatch {
 
   // A product word on its own ("the equipment facility") names every member of
   // that product, which is a real selection and not an ambiguity to refuse.
-  // THE PRODUCT COMES OUT OF THE NAME, not out of `productType` — that field is
+  // THE PRODUCT COMES OUT OF THE NAME, not out of `productType`, that field is
   // the regulatory classification ("Non-Real Estate"), and matching a banker's
   // "equipment facility" against it would never hit.
   const words = lower.split(/[^a-z0-9]+/).filter((w) => w.length > 3);
@@ -529,8 +553,8 @@ function operationFor(field: CatalogField, lower: string): AmendmentOp {
 
 /* ---------------------------------------------------------------- parties */
 
-/* A BORROWING-STRUCTURE LINE NAMES THREE THINGS — a verb, a role and an entity
-   — and it may name a member as well. Bankers say them in that order ("remove
+/* A BORROWING-STRUCTURE LINE NAMES THREE THINGS, a verb, a role and an entity
+  , and it may name a member as well. Bankers say them in that order ("remove
    the guarantor James Hartwell from the line of credit"), so the reader below
    walks the same order rather than assuming the name follows the verb. */
 
@@ -551,7 +575,7 @@ const PARTY_NOT_A_NAME = new RegExp(`^(?:an?|the|entity|${PARTY_ROLE})$`, "i");
  * WHERE THE NAME ENDS.
  *
  * "remove the guarantor James Hartwell from the Line of Credit" names a party
- * AND a member, and the org capitalises its own product names — so a capture
+ * AND a member, and the org capitalises its own product names, so a capture
  * left to run swallows the member and files an entity called "James Hartwell
  * From The Line Of Credit". The member is resolved separately by
  * `namedFacilities`; here it is only in the way.
@@ -862,7 +886,7 @@ function memberClarify(ask: TargetAsk, said: string, field: CatalogField): Parse
  * nCino names a loan "<Borrower> - <Product> - <$Amount>", so a line that names
  * the member by its label carries that member's CURRENT figure inside the name.
  * Read naively, "increase the Line of Credit - $15,000,000.00" becomes a change
- * to fifteen million — the number the facility already reads at. So the
+ * to fifteen million, the number the facility already reads at. So the
  * identity the line matched on is removed before any value is read out of it.
  */
 function scrubIdentity(text: string, facilities: Array<Facility | null>, relationship: string): string {
@@ -885,7 +909,7 @@ function scrubIdentity(text: string, facilities: Array<Facility | null>, relatio
    "Minimum Times Interest Earned" twice, two distinct DSCR-with-distributions
    rows); the server refuses an ambiguous name and demands an id. So the room
    maps only banker vocabulary that lands on a UNIQUELY-NAMED catalog type, and
-   everything else stays a manifest handoff — named, never guessed. */
+   everything else stays a manifest handoff, named, never guessed. */
 
 const COVENANT_TYPE_MAP: Array<{ match: RegExp; typeName: string; defaultOp: "<=" | ">=" }> = [
   { match: /\bleverage\b/, typeName: "Leverage", defaultOp: "<=" },
@@ -903,7 +927,7 @@ const COVENANT_TYPE_MAP: Array<{ match: RegExp; typeName: string; defaultOp: "<=
  * Reads a net-new covenant out of the line: catalog type, threshold, operator.
  * Returns null when the type is not one the map can settle (the caller keeps
  * the honest handoff), and a QUESTION when the type is known but the threshold
- * is not — the threshold IS the covenant, and the room never picks one.
+ * is not, the threshold IS the covenant, and the room never picks one.
  */
 function readCovenant(lower: string): { value: ParsedValue } | { question: string } | null {
   const mapped = COVENANT_TYPE_MAP.find((m) => m.match.test(lower));
@@ -919,7 +943,7 @@ function readCovenant(lower: string): { value: ParsedValue } | { question: strin
 
   // A ratio covenant reads "3.5x" or "1.25x"; a dollar covenant (liquidity, net
   // worth, EBITDA) reads money. A bare number is accepted only when an operator
-  // word anchors it — "max 3.5" is a threshold, a lone "3.5" is not.
+  // word anchors it, "max 3.5" is a threshold, a lone "3.5" is not.
   const ratio = /(\d+(?:\.\d+)?)\s*x\b/.exec(lower);
   const money = moneyTokens(lower).at(-1);
   const anchored = /(?:max(?:imum)?|min(?:imum)?|at least|at most|under|below|above|over|of|to)\s+(\d+(?:\.\d+)?)(?:\s|$|[.,;])/.exec(lower);
@@ -927,7 +951,7 @@ function readCovenant(lower: string): { value: ParsedValue } | { question: strin
   if (threshold === null) {
     return {
       question:
-        `What threshold should the ${mapped.typeName} covenant test? The threshold IS the covenant — say it like "maximum 3.5x" or "at least $5,000,000".`,
+        `What threshold should the ${mapped.typeName} covenant test? The threshold IS the covenant, say it like "maximum 3.5x" or "at least $5,000,000".`,
     };
   }
 
@@ -946,7 +970,7 @@ function readCovenant(lower: string): { value: ParsedValue } | { question: strin
 
    THE ORG'S FEE-TYPE PICKLIST IS RESIDENTIAL. Live describe, 2026-08-31: it
    carries Appraisal, Attorney, Credit Report, Loan Origination, Survey, Title
-   Insurance and a long tail of closing costs — and NO commitment, unused,
+   Insurance and a long tail of closing costs, and NO commitment, unused,
    facility, amendment, agency or waiver value. That is a real finding about
    this org's fee model rather than a lookup failure, so the map below does two
    different things with one shape: banker vocabulary that lands on a legal
@@ -1012,7 +1036,7 @@ function readFee(lower: string, held?: FeeRead): { value: ParsedValue } | { ques
   if (!fee.typeName || !fee.said || !fee.recordType) {
     return {
       question:
-        "What kind of fee? The org's own fee list is a closing-cost set, so a commercial fee files as Other with your words as the label — but I will not pick the kind for you.",
+        "What kind of fee? The org's own fee list is a closing-cost set, so a commercial fee files as Other with your words as the label, but I will not pick the kind for you.",
       options: FEE_TYPE_OPTIONS,
       fee,
     };
@@ -1055,7 +1079,7 @@ function readFee(lower: string, held?: FeeRead): { value: ParsedValue } | { ques
    answer to one question: does the bank already hold this asset?
 
    PLEDGE EXISTING resolves the banker's words against THE COLLATERAL THE DEAL
-   ITSELF CARRIES — the pledges on the package's own facilities, deduped by
+   ITSELF CARRIES, the pledges on the package's own facilities, deduped by
    collateral id, because a cross-pledged asset appears on every facility it
    secures and counting it twice is the double-count the coverage math exists to
    avoid. What travels is the org's record id. A phrase matching two assets, or
@@ -1071,7 +1095,7 @@ function readFee(lower: string, held?: FeeRead): { value: ParsedValue } | { ques
 
    THE ADVANCE RATE IS REQUIRED and it is never defaulted. It is a credit
    decision on an asset nobody has lent against before, and it lands on the
-   PLEDGE as `LLC_BI__Advance_Rate_Override__c` — `LLC_BI__Advance_Rate__c` is a
+   PLEDGE as `LLC_BI__Advance_Rate_Override__c`, `LLC_BI__Advance_Rate__c` is a
    formula, and the org's own `Advance_Rate_Override` rule then demands a written
    reason beside it, which the stage arm composes as provenance rather than as a
    credit justification nobody gave. */
@@ -1208,7 +1232,7 @@ function readPledge(
       question: names.length
         ? `I could not find that asset among the ${names.length} this deal carries: ${names.join(
             ", ",
-          )}. Which of those is it — or say it is a NEW asset and I will create it, take the ownership down and pledge it.`
+          )}. Which of those is it, or say it is a NEW asset and I will create it, take the ownership down and pledge it.`
         : "This read carries no collateral on the deal, so there is nothing here to pledge by name. Say it is a NEW asset and what it is, and I will create it, record the borrower's ownership and pledge it to the modification.",
       options: [...names, "A new asset"],
       pledge: {},
@@ -1229,18 +1253,18 @@ function readPledge(
   if (!pledge.assetType) {
     return {
       question:
-        "What kind of asset is it? The org keeps its own collateral-type catalog and resolves the word against it — I will not invent a type, and a type it does not hold comes back with the list it does.",
+        "What kind of asset is it? The org keeps its own collateral-type catalog and resolves the word against it, I will not invent a type, and a type it does not hold comes back with the list it does.",
       options: ASSET_TYPE_OPTIONS,
       pledge,
     };
   }
   const noun = pledge.said ?? `New ${mapped?.said ?? pledge.assetType.toLowerCase()} collateral`;
   if (pledge.value === undefined) {
-    return { question: `What is it worth? Say it in full — $2,000,000 or 2 million; I will not read a bare number as money.`, pledge };
+    return { question: `What is it worth? Say it in full, $2,000,000 or 2 million; I will not read a bare number as money.`, pledge };
   }
   if (pledge.advanceRate === undefined) {
     return {
-      question: `What advance rate does the bank lend against it at? The rate is a credit decision on an asset nobody has lent against yet, so there is no default here — the org records it as an override on the pledge and keeps the reason with it.`,
+      question: `What advance rate does the bank lend against it at? The rate is a credit decision on an asset nobody has lent against yet, so there is no default here, the org records it as an override on the pledge and keeps the reason with it.`,
       pledge,
     };
   }
@@ -1265,7 +1289,7 @@ function readPledge(
    AN EXCEPTION IS A NARRATIVE, and that is what makes it different from every
    other entry in this file. A commitment change names a field and a figure; an
    exception names WHAT IS OUT OF POLICY, in the vocabulary of the thing that is
-   out of policy — "advance rate above guideline", "leverage through the covenant
+   out of policy, "advance rate above guideline", "leverage through the covenant
    ceiling", "commitment over the hold limit". Those words are the exception's
    own title and not a second amendment, which is why `parseModify` gives this
    entry the rest of its line and why the reader below is handed that clause
@@ -1281,8 +1305,8 @@ function readPledge(
 
      THE STATUS is a credit judgement between Waived, Mitigated and Unmitigated.
      The org defaults a new row to Unmitigated, which READS AS A DECISION rather
-     than as an absent value — a bank looking at the file cannot tell "nobody
-     said" from "nobody mitigated it" — so the room asks rather than taking it.
+     than as an absent value, a bank looking at the file cannot tell "nobody
+     said" from "nobody mitigated it", so the room asks rather than taking it.
 
      THE MITIGANT is what stands behind a Mitigated status, and a Mitigated
      exception without one is a claim with nothing under it. Each rides its own
@@ -1332,7 +1356,7 @@ const EXCEPTION_REASON_SLOTS = 3;
 const EXCEPTION_STATUS_OPTIONS: ExceptionStatus[] = ["Waived", "Mitigated", "Unmitigated"];
 
 /** The status the line states, if it states one. "Unmitigated" is tested first
- *  for readability only — the word boundary already keeps `\bmitigated\b` from
+ *  for readability only, the word boundary already keeps `\bmitigated\b` from
  *  firing inside it. */
 function readExceptionStatus(lower: string): ExceptionStatus | undefined {
   if (/\bunmitigated\b/.test(lower)) return "Unmitigated";
@@ -1360,7 +1384,7 @@ function readExceptionTitle(clause: string): string | undefined {
     .replace(/^\s*(?:for|on|about|regarding|covering|to|because\s+of)\b\s*/i, "")
     .replace(/^\s*(?:an?|the)\s+/i, "")
     // Taking a clause out mid-sentence leaves the comma that introduced the NEXT
-    // one behind it, and sometimes the conjunction that joined them — "advance
+    // one behind it, and sometimes the conjunction that joined them, "advance
     // rate above guideline, though" once the mitigant clause after "though" was
     // claimed. Both are tidied once at the end rather than by every strip above
     // guessing at its own neighbours. No conjunction below can legitimately end
@@ -1410,8 +1434,8 @@ function readException(
   const severity = said ? said[0].toUpperCase() + said.slice(1) : held?.severity;
 
   // A BARE LINE ANSWERS THE MITIGANT QUESTION. It can only be one when the
-  // question was actually asked — the title settled, the status already reading
-  // Mitigated before this line, and no mitigant held yet — and a line that
+  // question was actually asked, the title settled, the status already reading
+  // Mitigated before this line, and no mitigant held yet, and a line that
   // states a status of its own is the banker changing their mind rather than
   // naming a mitigant.
   const stated = readMitigants(clause);
@@ -1428,25 +1452,25 @@ function readException(
   if (!title) {
     return {
       question:
-        "What should the exception be called? It is the only readable identity the record carries — the org backfills an omitted name with the record's own Id — so say what is out of policy in your own words.",
+        "What should the exception be called? It is the only readable identity the record carries, the org backfills an omitted name with the record's own Id, so say what is out of policy in your own words.",
       exception: carried,
     };
   }
   if (title.length > EXCEPTION_TITLE_MAX) {
     return {
-      question: `"${title}" is ${title.length} characters and the exception's name holds ${EXCEPTION_TITLE_MAX}. Give me a shorter one — I will not cut it off mid-sentence on a credit record.`,
+      question: `"${title}" is ${title.length} characters and the exception's name holds ${EXCEPTION_TITLE_MAX}. Give me a shorter one, I will not cut it off mid-sentence on a credit record.`,
       exception: { ...carried, title: undefined },
     };
   }
   if (!status) {
     return {
-      question: `Is "${title}" waived, mitigated, or standing unmitigated? The org defaults a new exception to Unmitigated, which reads as a decision rather than as nobody having said — so I will not take that default for you.`,
+      question: `Is "${title}" waived, mitigated, or standing unmitigated? The org defaults a new exception to Unmitigated, which reads as a decision rather than as nobody having said, so I will not take that default for you.`,
       options: EXCEPTION_STATUS_OPTIONS,
       exception: carried,
     };
   }
   // "NOTHING MITIGATES THIS" AND "HERE IS WHAT MITIGATES IT" cannot both be on
-  // one record, and the org refuses the pair at stage time — so the room asks
+  // one record, and the org refuses the pair at stage time, so the room asks
   // rather than composing a chip that would come back refused. Both readings are
   // dropped: keeping the mitigants would make an answer of "Unmitigated" loop
   // straight back into this same question.
@@ -1465,14 +1489,14 @@ function readException(
   }
   if (reasons.length > EXCEPTION_REASON_SLOTS) {
     return {
-      question: `The org holds ${EXCEPTION_REASON_SLOTS} mitigation reasons on an exception and this line carries ${reasons.length}. Give me the ${EXCEPTION_REASON_SLOTS} that matter — I will not drop the rest quietly.`,
+      question: `The org holds ${EXCEPTION_REASON_SLOTS} mitigation reasons on an exception and this line carries ${reasons.length}. Give me the ${EXCEPTION_REASON_SLOTS} that matter, I will not drop the rest quietly.`,
       exception: { ...carried, reasons: [] },
     };
   }
   const tooLong = reasons.find((r) => r.length > MITIGATION_REASON_MAX);
   if (tooLong) {
     return {
-      question: `"${tooLong}" is ${tooLong.length} characters and a mitigation reason holds ${MITIGATION_REASON_MAX}. Shorten it, or split it into separate mitigants with a semicolon — I will not truncate a mitigant on a credit record.`,
+      question: `"${tooLong}" is ${tooLong.length} characters and a mitigation reason holds ${MITIGATION_REASON_MAX}. Shorten it, or split it into separate mitigants with a semicolon, I will not truncate a mitigant on a credit record.`,
       exception: { ...carried, reasons: [] },
     };
   }
@@ -1548,10 +1572,10 @@ function readValue(
       // A bare number is a question, never money. This is the "increase the
       // line to 20" case, and twenty of what is the banker's to say.
       return /\bto\s+\d/.test(lower)
-        ? { question: "Say the amount in full — $20,000,000 or 20 million. I will not read a bare number as money." }
+        ? { question: "Say the amount in full, $20,000,000 or 20 million. I will not read a bare number as money." }
         : { question: `What should ${field.label.toLowerCase()} become?` };
     }
-    // "from 15 to 20 million" — the target is the one after the last "to".
+    // "from 15 to 20 million", the target is the one after the last "to".
     const to = lower.lastIndexOf(" to ");
     const target = (to >= 0 ? tokens.filter((t) => t.index > to) : []).at(0) ?? tokens.at(-1)!;
     if (negated(lower, target.index)) {
@@ -1633,7 +1657,7 @@ function readValue(
       // "Amortized Term (Months)" and "Loan Term (Months)", so a banker who
       // quotes the org's own label and then states a figure HAS said the unit,
       // and asking "months or years?" back is the room failing to read its own
-      // field name. The anchor word is still required — a length is a move to a
+      // field name. The anchor word is still required, a length is a move to a
       // figure, and a figure sitting loose in a sentence is not one.
       const unit = /\((month|year)s?\)/i.exec(field.label);
       const stated = unit ? /\b(?:to|at|of)\s+(\d+(?:\.\d+)?)\b/.exec(lower) : null;
@@ -1656,7 +1680,7 @@ function readValue(
       if (read?.dayMissing) {
         return { question: `${read.text} names a month. A ${field.label.toLowerCase()} is a day, and I will not pick one for you.` };
       }
-      // "extend by 18 months" is a real, derivable maturity move — and ONLY a
+      // "extend by 18 months" is a real, derivable maturity move, and ONLY a
       // maturity move. The baseline it shifts from is the member's own maturity,
       // so no other date field may borrow it (the field wave brought a second
       // one: a first payment date derived off maturity would be fiction).
@@ -1681,7 +1705,7 @@ function readValue(
   // A net-new covenant files (2026-08-30), so its read is exact or it is a
   // question: the type must map to the org's own catalog and the threshold must
   // be stated. A covenant the map does not know falls through to the manifest
-  // handoff below — named, never guessed.
+  // handoff below, named, never guessed.
   if (field.id === "covenant.add") {
     const cov = readCovenant(lower);
     if (cov) return cov;
@@ -1752,7 +1776,7 @@ function readValue(
  * line that ESTABLISHES a member and moves a figure "to" something has only one
  * field it can mean, and reading it as the commitment is a deduction rather than
  * a guess. Both halves are required: without a member the line names nothing,
- * and without the "to" there is no move — a figure on its own is a fact about
+ * and without the "to" there is no move, a figure on its own is a fact about
  * the deal, not an instruction.
  *
  * A member is established by being NAMED, or by having been picked off the
@@ -1846,7 +1870,7 @@ function inferAmount(lower: string, ctx: ParseContext): ParseOutcome | null {
 /**
  * ANSWER A QUESTION THE ROOM ASKED. The field and the member are already
  * settled; all that was missing is the value, and this reads it out of a line
- * that carries nothing else. Returns null when the answer is not one either —
+ * that carries nothing else. Returns null when the answer is not one either ,
  * an unreadable answer is still unreadable.
  */
 /**
@@ -1854,7 +1878,7 @@ function inferAmount(lower: string, ctx: ParseContext): ParseOutcome | null {
  * "keep", "keep it", "keep current", "keep the same", "no change", "don't change
  * it", "leave it", "leave as is", "leave unchanged", "unchanged", "same", "as
  * is", "stet". Anchored at the start, and only ever consulted when the field's
- * own reader found no value — a line that names a figure ("keep it at 7%") reads
+ * own reader found no value, a line that names a figure ("keep it at 7%") reads
  * the figure and never reaches this.
  */
 const KEEP_CURRENT =
@@ -1969,10 +1993,65 @@ function readOutOfOrder(awaiting: Awaiting, text: string, lower: string, ctx: Pa
   return null;
 }
 
+/**
+ * A LINE THAT NAMES ITS OWN RECORD IS AN INSTRUCTION, NOT AN ANSWER (founder's
+ * Blue Ridge run, 2026-09-14, defect d).
+ *
+ * The amortisation question was still open when the banker opened a fee, so
+ * "on the Term Loan add a 5% origination fee" arrived here as an answer to it:
+ * the percentage went through the out-of-order reader as a RATE, the fee was
+ * lost, and the term question then surfaced again inside the fee exchange with
+ * a "Keep as booked" chip under it. A term question waits for a length; a line
+ * carrying a covenant, a fee, a pledge, a party or an exception is the next
+ * piece of work, and the arm that owns it takes the whole line.
+ *
+ * SCOPED TO RECORD FIELDS on purpose. "240 months" and "7.25%" carry no record
+ * and still answer the question on the table, exactly as they always have.
+ */
+function opensItsOwnAsk(awaiting: Awaiting, text: string): boolean {
+  if (awaiting.member || awaiting.party || awaiting.fee || awaiting.pledge || awaiting.exception) return false;
+  // PER_MEMBER_SCALAR is the same four: the terms a banker moves to a figure,
+  // which are exactly the questions that wait for one.
+  if (awaiting.roleRemoval || !PER_MEMBER_SCALAR.has(awaiting.field.type)) return false;
+  return matchCatalog(text).some((m) => m.field.type === "record" && m.field.id !== awaiting.field.id);
+}
+
 export function parseAnswer(awaiting: Awaiting, text: string, ctx: ParseContext): ParseOutcome | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
   const lower = trimmed.toLowerCase();
+
+  if (opensItsOwnAsk(awaiting, trimmed)) return null;
+
+  /* THE LISTED REMOVAL WAITS ON ONE WORD. Yes stages every row that was named;
+     no leaves them all on and stops asking. Anything else is not an answer to
+     this question at all and goes back through the ordinary lanes. */
+  if (awaiting.roleRemoval) {
+    const { role, rows } = awaiting.roleRemoval;
+    if (DECLINE_WORDS.test(lower)) {
+      return {
+        kind: "hold",
+        field: awaiting.field,
+        facility: awaiting.facility,
+        said: `Nothing comes off then. ${rows.length === 1 ? "That" : `All ${rows.length} of those`} ${role.toLowerCase()} ${
+          rows.length === 1 ? "row rides" : "rows ride"
+        } onto the new version exactly as the booked facility carries ${rows.length === 1 ? "it" : "them"}.`,
+      };
+    }
+    if (!CONFIRM_WORDS.test(lower)) return null;
+    return {
+      kind: "amendments",
+      amendments: rows.map((r) => ({
+        field: awaiting.field,
+        facility: r.facility,
+        value: null,
+        party: r.party,
+        role,
+        matched: `remove ${r.party}`,
+        op: "remove" as AmendmentOp,
+      })),
+    };
+  }
 
   // THE ANSWER TO "WHICH ONE?" IS A MEMBER, and the instruction is the line that
   // raised the question. It is read again against the member they picked rather
@@ -2095,7 +2174,7 @@ export function parseAnswer(awaiting: Awaiting, text: string, ctx: ParseContext)
     };
   }
 
-  // THE ANSWER TO A PLEDGE QUESTION IS THE PIECE THAT WAS MISSING — the asset
+  // THE ANSWER TO A PLEDGE QUESTION IS THE PIECE THAT WAS MISSING, the asset
   // off the list the question named, or the kind, or the value, or the rate.
   // Routed here for the same reason the fee is: only this path holds what the
   // asking line already settled, and `isNew` in particular must survive, or an
@@ -2124,7 +2203,7 @@ export function parseAnswer(awaiting: Awaiting, text: string, ctx: ParseContext)
     };
   }
 
-  // THE ANSWER TO AN EXCEPTION QUESTION IS THE PIECE THAT WAS MISSING — the
+  // THE ANSWER TO AN EXCEPTION QUESTION IS THE PIECE THAT WAS MISSING, the
   // name, the status off the org's own three, or the mitigant. Routed here for
   // the same reason the fee and the pledge are: only this path holds what the
   // asking line settled, and a title once settled must survive, or "Mitigated"
@@ -2238,7 +2317,7 @@ const INDEX_STOP = new Set(["the", "and", "loan", "date", "amount", "total", "ty
  * The index tier: EVERY significant token of a field's label must appear in the
  * line, and at least one of them must be a word that could not match half the
  * catalog. Longest label wins. A miss returns null and the caller keeps its
- * "none" — the tier proposes, it never guesses.
+ * "none", the tier proposes, it never guesses.
  */
 function indexFallback(trimmed: string, lower: string, ctx: ParseContext): ParseOutcome | null {
   let best: { row: IndexedField; strength: number } | null = null;
@@ -2309,8 +2388,8 @@ function indexFallback(trimmed: string, lower: string, ctx: ParseContext): Parse
  *
  * "log a policy exception: advance rate above guideline on the equipment loan,
  * mitigated by the personal guaranty" carries three catalog synonyms and is ONE
- * ask. "advance rate" is the thing that is out of policy — the exception's own
- * title — and not a second amendment moving an advance rate; "mitigated" is this
+ * ask. "advance rate" is the thing that is out of policy, the exception's own
+ * title, and not a second amendment moving an advance rate; "mitigated" is this
  * exception's status and not a request to change somebody else's. An exception
  * is a NARRATIVE about a term, so it is written in that term's vocabulary, and
  * reading that vocabulary twice would stage two chips for one sentence.
@@ -2537,6 +2616,190 @@ function partyAmendment({ field, matched, trimmed, lower, ctx, target }: PartyLi
   return { kind: "amendments", amendments };
 }
 
+/* ==================================== A ROLE IS NOT A NAME (founder's Blue
+   Ridge run, 2026-09-14, feedback bug-1789409908236-mwwh9n).
+
+   "remove all limited guarantors" named no party, so every party reader in this
+   file came back with nothing and the line fell through to the index tier and
+   out the other side. The ask is perfectly clear and it is over a CLOSED SET:
+   the org holds involvement as rows, so a role plus a member resolves exactly
+   the rows that carry that role, off the book, with nothing invented.
+
+   IT IS LISTED BEFORE IT IS STAGED. Taking three guarantors off a facility in
+   one sentence is three carry exclusions, and a banker signs what they can see:
+   the rows are named, the confirmation is one word, and only then does each row
+   go up through the ordinary single-party removal arm.                        */
+
+/** The five roles, written the way a line about SEVERAL of them writes them.
+ *  `readRole` is word-bounded on the singular and therefore blind to every one
+ *  of these, which is the whole of the defect: "remove all limited guarantors"
+ *  matched no role at all. Longest first, so a plural "limited guarantors" is
+ *  never read as "guarantors" with a stray word in front. */
+const ROLE_PLURALS: Array<{ match: RegExp; role: string }> = [
+  { match: /\blimited\s+guarantors?\b/, role: "Limited Guarantor" },
+  { match: /\bco[-\s]?borrowers?\b/, role: "Co-Borrower" },
+  { match: /\brelated\s+entit(?:y|ies)\b/, role: "Related Entity" },
+  { match: /\bguarantors?\b/, role: "Guarantor" },
+  { match: /\bborrowers?\b/, role: "Borrower" },
+];
+
+/** A role the line wrote PLURAL, or counted. "remove all limited guarantors" and
+ *  "take the guarantors off" are role-scoped; "remove the guarantor Elena" is a
+ *  named removal and belongs to `partyAmendment`. */
+function roleScoped(lower: string): string | undefined {
+  const hit = ROLE_PLURALS.find((r) => r.match.test(lower));
+  if (!hit) return undefined;
+  const word = hit.role.toLowerCase().replace(/[-\s]/g, "[-\\s]?");
+  const plural = new RegExp(`${word}s\\b`).test(lower) || /\bentities\b/.test(lower);
+  return plural || /\b(all|every|each|both)\b/.test(lower) ? hit.role : undefined;
+}
+
+/** The involvement rows one role carries on one member. A row the org hung off
+ *  the relationship rather than off a loan is on every member, which is the
+ *  same reading `partyOn` and the structure card both make. */
+function rowsInRole(role: string, facility: Facility, ctx: ParseContext): Array<{ party: string; facility: Facility }> {
+  const out: Array<{ party: string; facility: Facility }> = [];
+  const seen = new Set<string>();
+  for (const e of ctx.entities) {
+    const name = (e.accountName ?? "").trim();
+    const held = ((e.relationshipType ?? "").trim() || (e.borrowerType ?? "").trim()).trim();
+    if (!name || seen.has(name) || held.toLowerCase() !== role.toLowerCase()) continue;
+    if (e.loanId && facility.loanId && e.loanId !== facility.loanId) continue;
+    seen.add(name);
+    out.push({ party: name, facility });
+  }
+  return out;
+}
+
+/** "take the guarantors off" puts the object between the verb and its particle,
+ *  which `REMOVE_VERBS` reads only where the two sit together. */
+const TAKE_OFF = /\btakes?\b[^.]{0,40}\boff\b/;
+
+/** The yes and the no a listed removal waits on. Anchored at the start: a line
+ *  that says anything else is the next instruction, not an answer to this. */
+const CONFIRM_WORDS = /^(?:yes|yep|yeah|ok(?:ay)?|do it|go ahead|confirm(?:ed)?|please\s+do|stage\s+(?:it|them)|take\s+(?:it|them)\s+off)\b/i;
+const DECLINE_WORDS = /^(?:no\b|nope|leave\s+(?:it|them)|keep\s+(?:it|them)|don'?t|cancel|stop|not\s+now)/i;
+
+/**
+ * A ROLE-SCOPED REMOVAL, READ OFF THE BOOK. Null where the line names a party
+ * (that is `partyAmendment`'s), where no role is written plural or counted, or
+ * where the deal carries no involvement rows to read.
+ */
+function inferRoleRemoval(trimmed: string, lower: string, ctx: ParseContext): ParseOutcome | null {
+  if (!ctx.entities.length) return null;
+  if (!REMOVE_VERBS.test(lower) && !TAKE_OFF.test(lower)) return null;
+  const role = roleScoped(lower);
+  if (!role) return null;
+  // A LINE THAT NAMES A PARTY IS ABOUT THAT PARTY, whatever role it also writes.
+  const named = partyNamed(trimmed, ctx);
+  if (named.kind !== "none" || named.said) return null;
+  const barren = nothingToModify(ctx);
+  if (barren) return barren;
+  const field = catalogField("party.remove");
+  if (!field) return null;
+  const target = resolveTarget(lower, ctx, [field]);
+  if ("question" in target) return memberClarify(target, trimmed, field);
+  const facility = target.facilities[0];
+  if (!facility) return null;
+
+  const rows = rowsInRole(role, facility, ctx);
+  const on = memberChipLabel(facility, ctx.relationship);
+  if (!rows.length) {
+    const who = roster(ctx);
+    return {
+      kind: "clarify",
+      question:
+        `The ${on} carries no ${role.toLowerCase()} row today, so there is nothing there to take off.` +
+        (who.length ? ` This package carries ${who.join(", ")}. Which of them did you mean?` : ""),
+      options: who.length ? rosterNames(ctx) : undefined,
+      awaiting: { field, facility, party: { op: "remove" } },
+    };
+  }
+  const one = rows.length === 1;
+  return {
+    kind: "clarify",
+    question:
+      `${role}${one ? "" : "s"} on the ${on}: ${rows.map((r) => r.party).join(", ")}. ` +
+      `Taking the role off is ${one ? "one involvement row" : `${rows.length} involvement rows, one for each party`}, ` +
+      `each staged as a carry exclusion so the row never travels to the new version. ` +
+      `Say yes and I will put ${one ? "it" : "them"} up.`,
+    options: ["Yes, take them off", "Leave them on"],
+    awaiting: { field, facility, roleRemoval: { role, rows } },
+  };
+}
+
+/* ========================== A COVENANT WAIVER IS NOT THIS ROOM'S (founder's
+   Blue Ridge run, 2026-09-14, defect f).
+
+   "waive this one", then the covenant's own name, then "waive for 6 months" ,
+   and the last line was staged as a SIX MONTH TERM on the facility, because the
+   duration fell through to the term reader while the waiver itself was never
+   recognised at all. A waiver is a decision not to enforce a covenant and it
+   moves a compliance status, which is `covenant.complianceStatus`: its own
+   credit action, founder-gated, and never a side effect of a modification.
+
+   SO THE ASK IS REFUSED BY NAME AND THE EXCHANGE IS HELD. While it is open,
+   naming the covenant or typing a duration is still the waiver, and no reader
+   in this file may take either as a value.                                   */
+
+/** The words a banker uses to ask the bank not to enforce a test. */
+const WAIVER_VERB =
+  /\b(waive[sd]?|waiving|waivers?|forbear(?:s|ed|ing|ance)?|grant\s+(?:an?\s+)?exception|extend\s+the\s+test|defer\s+the\s+test|suspend\s+the\s+(?:test|covenant)|reset\s+the\s+(?:test|covenant))\b/;
+/** The nouns that make a waiver ask a COVENANT waiver. */
+const WAIVER_NOUN = /\b(covenants?|tests?|ratios?|compliance|breach(?:e[sd])?|default)\b/;
+/** A waiver aimed at something this room does file, which is not a covenant. */
+const NOT_A_COVENANT_WAIVER = /\b(fees?|charges?|costs?|penalt(?:y|ies)|pledges?|collateral|securit(?:y|ies))\b/;
+/** A POLICY EXCEPTION RECORD, which this room files and which carries "Waived"
+ *  as one of the org's own three statuses. It is not a waiver ask. */
+const AN_EXCEPTION_RECORD = /\b(policy\s+exception|log\s+(?:an?\s+)?exception|record\s+(?:an?\s+)?exception|mitigat)/;
+/** A line pointing at the covenant on screen with no noun of its own. */
+const POINTS_AT_ONE = /\b(this|that|it)\b/;
+
+/** A waiver ask, with the covenant where the banker named one. */
+export interface CovenantWaiverRead {
+  covenant?: string;
+}
+
+/**
+ * THE WAIVER THIS LINE ASKS FOR, or null.
+ *
+ * `covenants` is what the package tests, so a line naming one of them inside an
+ * open exchange is still that exchange. `exchangeOpen` is the engine's, because
+ * the engine is what holds the conversation; this reader holds nothing.
+ */
+export function readCovenantWaiver(
+  text: string,
+  covenants: string[],
+  exchangeOpen: boolean,
+): CovenantWaiverRead | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  if (AN_EXCEPTION_RECORD.test(lower)) return null;
+  /* THE CATALOG ALREADY ANSWERS THE FULLY-WRITTEN ASK. "waive the covenant on
+     the Line of Credit" is a `covenant.complianceStatus` synonym and comes back
+     as the org's own structured refusal, with the reason and the route out on
+     it. This reader is for the halves that carry no synonym at all: the
+     demonstrative, the covenant's bare name, and the duration typed after. */
+  if (matchCatalog(trimmed).some((m) => m.field.id === "covenant.complianceStatus")) return null;
+  const named = covenants.find((c) => c.trim().length > 2 && lower.includes(c.trim().toLowerCase()));
+  const verb = WAIVER_VERB.test(lower);
+  // A FEE WAIVER IS A DIFFERENT ASK, and a fee is something this room does file.
+  if (verb && NOT_A_COVENANT_WAIVER.test(lower) && !WAIVER_NOUN.test(lower) && !named) return null;
+  if (verb && (WAIVER_NOUN.test(lower) || named || (POINTS_AT_ONE.test(lower) && covenants.length > 0))) {
+    return named ? { covenant: named } : {};
+  }
+  if (!exchangeOpen) return null;
+  // INSIDE THE EXCHANGE the covenant's own name is an answer to it, and so is a
+  // duration: "waive for 6 months" is six months of forbearance, never a term.
+  if (named) return { covenant: named };
+  if (verb) return {};
+  /* A BARE DURATION IS THE WAIVER'S, and only where the line names no field of
+     its own: "extend the maturity by 6 months" inside the exchange is a real
+     maturity move and leaves it. A months match is the duration itself. */
+  return monthTokens(lower).length && matchCatalog(trimmed).every((m) => m.field.type === "months") ? {} : null;
+}
+
 /**
  * A REMOVAL THE CATALOG CANNOT SEE, because the banker named the party and not
  * the role. "remove Elena from this loan" carries no synonym any party field
@@ -2586,6 +2849,11 @@ export function parseModify(text: string, ctx: ParseContext): ParseOutcome {
     if (priced) return priced;
     const inferred = inferAmount(lower, ctx);
     if (inferred) return inferred;
+    // A ROLE BEFORE A NAME: "remove all limited guarantors" names nobody, and
+    // the reader that looks for a name would come back empty over a line whose
+    // closed set the book already holds.
+    const byRole = inferRoleRemoval(trimmed, lower, ctx);
+    if (byRole) return byRole;
     const party = inferPartyRemoval(trimmed, lower, ctx);
     if (party) return party;
     return indexFallback(trimmed, lower, ctx) ?? { kind: "none" };

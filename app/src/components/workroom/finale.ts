@@ -61,22 +61,6 @@ export const FINALE_STAGGER_CAP = 8;
 /** One slow pass of the rainbow behind the card, then still. Never a loop. */
 export const FINALE_SWEEP_MS = 2600;
 
-/**
- * HOW FAR THE CARD'S ASCENT OVERLAPS THE END OF THE DRAIN.
- *
- * THE TWO BEATS HAND OVER, THEY DO NOT QUEUE. A card that waited for the LAST
- * item to finish sinking left the pane empty for the length of its own fade -
- * about four hundred milliseconds of nothing, which reads as a glitch and not as
- * a breath (measured on the drive, 2026-09-03: the frame at 200ms into the drain
- * was a blank room). The ascent starts while the last few items are still on
- * their way out, so the room never goes empty and the whole thing reads as one
- * continuous motion.
- *
- * It is the stagger cap's own width, which is exactly the span the last items
- * occupy: the card comes in over precisely the tail of the wave.
- */
-export const FINALE_HANDOVER_MS = FINALE_STAGGER_CAP * FINALE_STAGGER_MS;
-
 /** Where an item's exit starts, by its place in the thread. */
 export function finaleHoldMs(index: number): number {
   return Math.min(Math.max(index, 0), FINALE_STAGGER_CAP) * FINALE_STAGGER_MS;
@@ -87,9 +71,26 @@ export function finaleDrainMs(count: number): number {
   return FINALE_EXHALE_MS + finaleHoldMs(count - 1);
 }
 
-/** When the card starts arriving: the tail of the drain, never after it. */
+/**
+ * WHEN THE CARD STARTS ARRIVING: THE END OF THE DRAIN, NEVER BEFORE IT.
+ *
+ * FOUNDER, 2026-09-14 (backlog row 53): "when i click on approve and execute at
+ * the end, the rainbow card is like its pulling down from itself and moves back
+ * up."
+ *
+ * IT WAS, AND THE HANDOVER IS WHY. The card is the last thing in the thread, so
+ * while the room is draining its box is still being decided by everything above
+ * it: measured on the drive, the card faded in at the bottom edge of the pane,
+ * crept up as the wave closed, and then moved 443px in one frame when the drain
+ * ended and the pane centred what was left. An overlap that starts the ascent
+ * before the room is still is an ascent into a box that is still moving.
+ *
+ * SO THE CARD TAKES ITS RESTING BOX AND THEN ARRIVES IN IT. The wait is now the
+ * whole drain, which is the same instant the room goes `still`, so the ascent
+ * runs against a pane that holds nothing else and the card never travels.
+ */
 export function finaleCardHoldMs(count: number): number {
-  return Math.max(0, finaleDrainMs(count) - FINALE_HANDOVER_MS);
+  return finaleDrainMs(count);
 }
 
 /**
@@ -106,13 +107,12 @@ export interface Finale {
   /**
    * HOW LONG THE CARD WAITS BEFORE IT ASCENDS.
    *
-   * The tail of the drain, and zero where there is no drain. The card is
-   * MOUNTED throughout - it is the filing's own output and a test must be able
-   * to read it whatever the clock is doing - so the wait is a delay on its
-   * entrance and on every paced row inside it, never a mount gate. The room
-   * exhales first and the card arrives into the space that made room for it,
-   * overlapping the tail of the wave by {@link FINALE_HANDOVER_MS} so the pane
-   * never goes empty between the two beats.
+   * The whole drain, and zero where there is no drain. The card is MOUNTED
+   * throughout - it is the filing's own output and a test must be able to read
+   * it whatever the clock is doing - so the wait is a delay on its entrance and
+   * on every paced row inside it, never a mount gate. The room exhales first and
+   * the card arrives into the space that made room for it, into the box it will
+   * keep rather than into one the drain is still moving (backlog row 53).
    */
   hold: number;
   /**

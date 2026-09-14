@@ -137,7 +137,7 @@ import { EMPTY_BOOK } from "../workroom/elicit";
 import { NOT_AMENDABLE_REFUSAL, amendablePackage, packagePick, type PackageEntry } from "../../book/packages";
 import { versionRows } from "./versionFlows";
 import { awaitFiling, FILED_FAILED, FILING_IN_FLIGHT, LIVE_SETTLE, STILL_WRITING } from "../workroom/settleExecution";
-import { condenseThread } from "../workroom/threadCondense";
+import { condenseThread, withoutChips } from "../workroom/threadCondense";
 import { ThreadRecap } from "../workroom/ThreadCondensed";
 import "../../styles/workroom.css";
 import "../../styles/package-anchor.css";
@@ -2957,7 +2957,12 @@ export function RelationshipRoom({
                       ) : (
                         <RoomBoundary what={`this ${item.kind}`}>
                           <RelBlock
-                            item={item}
+                            /* THE SPENT TURN KEEPS ITS WORDS AND LOSES ITS CHIPS
+                               (backlog row 54). The rule is threadCondense's; a
+                               step behind the live one is spent whole, so the
+                               history opens on what happened rather than on the
+                               offers it carried while it was open. */
+                            item={view.spent || !shows(group) ? withoutChips(item) : item}
                             opening={openingItem}
                             spec={flowSpec}
                             packages={ctx.packages}

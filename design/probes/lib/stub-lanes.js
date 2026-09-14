@@ -94,7 +94,7 @@
 
   var BACKUP_SERVER = "Salesforce Read Backup";
 
-  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, relayMs: 0, attempts: {}, calls: [], settled: [], livePatch: {}, boom: { mode: "ok", processingMs: 4000, files: {} }, version: null, failNext: {}, staging: { seq: 148, byKey: {}, rows: [], calls: [] } };
+  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, relayMs: 0, attempts: {}, calls: [], settled: [], livePatch: {}, accounts: [], boom: { mode: "ok", processingMs: 4000, files: {} }, version: null, failNext: {}, staging: { seq: 148, byKey: {}, rows: [], calls: [] } };
   window.__DRIVE_OUT = { errors: [] };
   window.addEventListener("error", function (e) {
     window.__DRIVE_OUT.errors.push(String((e && e.message) || e));
@@ -344,6 +344,19 @@
           facilityCount: (one.facilities || []).length,
         },
       }));
+    }
+
+    /* THE ORG'S OWN ACCOUNT SEARCH, answered from the drive's own table (backlog
+       row 57, the founder's Blue Ridge run). The page asks it whenever a banker
+       names a party the relationship does not carry, so a stub returning a flat
+       empty set could only ever drive the "nothing matched" half. `accounts` is
+       set by the drive off the baked relationships, and the match is the org's:
+       a partial, case-insensitive name. */
+    if (unprefixed(tool) === "Customer360SearchAccounts") {
+      var want = String((firstInput(input) || {}).name || "").trim().toLowerCase();
+      var pool = L.accounts || [];
+      var hits = want.length >= 3 ? pool.filter(function (a) { return String(a.name || "").toLowerCase().indexOf(want) !== -1; }) : [];
+      return sleep(0).then(function () { return give(envelope({ count: hits.length, results: hits })); });
     }
 
     var body = LIVE[unprefixed(tool)];

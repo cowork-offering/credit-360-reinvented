@@ -66,6 +66,10 @@ function open(
      *  account unless one is named (founder, 2026-09-06), so a create test that
      *  is ABOUT an existing facility has to say which package it joined. */
     join?: string;
+    /** THE MEMBERS A CREDIT ACTION CAN RUN AGAINST, as the host resolves them.
+     *  An EMPTY set is Piedmont: every facility on the package is at Final
+     *  Review, so nothing can be versioned and nothing can be added. */
+    eligible?: ReadonlySet<string>;
   } = {},
 ): Opened {
   const bundle = data.borrowers![accountId];
@@ -103,6 +107,7 @@ function open(
               : createModifyEngine({ context, data, bundle })
         }
         router={router}
+        eligibleMemberIds={args.eligible}
         reads={{ bundle, accountName: bundle.snapshot!.name!, productPackageId: context.productPackageId }}
         brain={args.brain}
         onClose={() => {}}
@@ -940,5 +945,161 @@ describe("channel-none parity: the grammar is the same room either way", () => {
     await settle();
     await typeInto(dry.room, "add a maximum debt to worth covenant of 3x on the purchase facility");
     expect(said(dry.room)).toBe(withDesk);
+  });
+});
+
+/* =============================================================================
+   THE FOUNDER'S BLUE RIDGE RUN (2026-09-14, feedback bug-1789409908236-mwwh9n).
+
+   Three of the seven defects are the room's rather than the parser's: the
+   steer that dropped a half-gathered create, the typed party name the room
+   answered with "Who goes on the deal?", and the judgement question answered
+   with the same read card twice.
+   ============================================================================= */
+
+vi.mock("./book/search", () => ({
+  MIN_QUERY: 3,
+  MAX_RESULTS: 25,
+  // NO CONNECTOR is the default, which is what this harness actually has: the
+  // room must carry the banker's own name through it untouched.
+  searchAccounts: vi.fn(async () => {
+    throw { code: "server_not_connected", message: "no connector" };
+  }),
+}));
+
+describe("\"a different facility\" answers the create, it does not end it (defect c)", () => {
+  it("re-asks where the party lands and keeps the party and the role", async () => {
+    const { room } = open();
+    await settle();
+    // Elena is already Limited Guarantor on the 12M Construction, so putting her
+    // on as Guarantor is a ROLE CHANGE and the room offers the way out.
+    await typeInto(room, "add Elena Hartwell as guarantor on the 12M construction loan");
+    expect(said(room)).toContain("ROLE CHANGE");
+    expect(opts(room)).toContain("A different facility");
+
+    await click(option(room, "A different facility"));
+    // NOT the old answer, and not the package-wide steer either.
+    expect(said(room)).not.toContain("Nothing in that answered");
+    expect(said(room)).toMatch(/Which of them should this land on\?/);
+
+    // The create is still standing, so naming a facility completes it.
+    await typeInto(room, "the 8M equipment loan");
+    expect(chips(room).length).toBeGreaterThan(0);
+    expect(room.textContent).toContain("Elena Hartwell");
+  });
+});
+
+describe("a typed party name is never dropped (defect b)", () => {
+  it("keeps the name through a search it could not run, and asks only where it lands", async () => {
+    const { room } = open();
+    await settle();
+    await typeInto(room, "Add Piedmont Precision as Guarantor");
+    expect(said(room)).not.toContain("Who goes on the deal?");
+    expect(said(room)).toMatch(/Which of them should this land on\?|Which one\?/);
+
+    await typeInto(room, "the $15M line of credit");
+    expect(room.textContent).toContain("Piedmont Precision");
+  });
+
+  it("offers the org's own accounts as chips, with the typed name still standing", async () => {
+    const { searchAccounts } = await import("./book/search");
+    vi.mocked(searchAccounts).mockResolvedValueOnce({
+      count: 2,
+      results: [
+        { accountId: "001SEARCH0001", name: "Piedmont Precision Components, Inc." },
+        { accountId: "001SEARCH0002", name: "Piedmont Precision Holdings LLC" },
+      ],
+    });
+    const { room } = open();
+    await settle();
+    await typeInto(room, "Add Piedmont Precision as Guarantor");
+    expect(said(room)).toContain("The org holds 2 accounts under that name");
+    expect(opts(room)).toContain("Piedmont Precision Components, Inc.");
+    // AND THE NAME THE BANKER TYPED IS STILL AN ANSWER.
+    expect(opts(room)).toContain("Neither, file Piedmont Precision");
+
+    await click(option(room, "Piedmont Precision Components, Inc."));
+    expect(said(room)).toMatch(/Which of them should this land on\?|Which one\?/);
+    await typeInto(room, "the $15M line of credit");
+    expect(room.textContent).toContain("Piedmont Precision Components");
+  });
+});
+
+describe("a question is not a read repeat (defect e)", () => {
+  it("answers 'do we need to add a new covenant?' with what the room can do", async () => {
+    const { room } = open();
+    await settle();
+    await typeInto(room, "what covenants are on this package");
+    /* WHAT IS NEW, COUNTED RATHER THAN MEASURED (backlog row 54). Slicing by the
+       length of the earlier text assumed the earlier text never changes, and a
+       spent turn now gives up its chips, so the prefix shrinks under the slice. */
+    const before = room.querySelectorAll(".wk-msg").length;
+    await typeInto(room, "do we need to add a new covenant?");
+    const now = [...room.querySelectorAll(".wk-msg")]
+      .slice(before)
+      .map((m) => m.textContent ?? "")
+      .join(" · ");
+    expect(now).not.toContain("That is the same read as a moment ago");
+    expect(now).toContain("Adding a covenant on this version is in scope here");
+    expect(now).toContain("covenant review");
+  });
+
+  it("leaves the ordinary read exactly as it was", async () => {
+    const { room } = open();
+    await settle();
+    await typeInto(room, "what covenants are on this package");
+    expect(room.querySelectorAll("[data-read]").length + room.querySelectorAll(".wk-read").length).toBeGreaterThan(0);
+  });
+});
+
+/* =============================================================================
+   A PACKAGE WITH NOTHING BOOKED TAKES NO CREATE EITHER (B5, row 57, the
+   Piedmont drive 2026-09-14).
+
+   The room refused the modification correctly and then answered the party add
+   with "no facilities on this package. Which of them should this land on?" and
+   the chip "All 0": a facility question over an empty eligible set, and the
+   copy wrong twice. It refuses in one sentence instead.
+   ============================================================================= */
+
+describe("a create on a package with nothing to version is refused, not gathered", () => {
+  const NOTHING_ELIGIBLE = new Set<string>();
+
+  it("refuses the party add in one sentence, keeps the name, and opens no question", async () => {
+    const { room } = open({ eligible: NOTHING_ELIGIBLE });
+    await settle();
+    await typeInto(room, "Add Brightwater Foods Group as Guarantor");
+
+    expect(said(room)).toContain(
+      "Brightwater Foods Group as Guarantor would ride on a modification version of the facility it lands on",
+    );
+    expect(said(room)).toContain("New facility on a new package");
+    // NO FACILITY QUESTION, NO CHIPS, and above all no count-zero "All".
+    expect(said(room)).not.toContain("Which of them should this land on?");
+    expect(opts(room)).toHaveLength(0);
+    expect(chips(room)).toHaveLength(0);
+    expect(byText(/^All 0$/)).toBeFalsy();
+  });
+
+  it("refuses a fee the same way", async () => {
+    const { room } = open({ eligible: NOTHING_ELIGIBLE });
+    await settle();
+    await typeInto(room, "add a 5% origination fee");
+    expect(said(room)).toContain("An origination fee would ride on a modification version");
+    expect(said(room)).not.toContain("Which facility does the origination fee go on?");
+    expect(opts(room)).toHaveLength(0);
+  });
+
+  it("does not re-ask the facility question when the banker then says 'a different facility'", async () => {
+    const { room } = open({ eligible: NOTHING_ELIGIBLE });
+    await settle();
+    await typeInto(room, "Add Brightwater Foods Group as Guarantor");
+    await typeInto(room, "a different facility");
+
+    // The create was never left standing, so there is nothing to drop, and the
+    // create grammar's own facility question never comes back.
+    expect(said(room)).not.toContain("Nothing in that answered what the new one still needs");
+    expect(said(room)).not.toContain("Which of them should this land on?");
+    expect(byText(/^All 0$/)).toBeFalsy();
   });
 });

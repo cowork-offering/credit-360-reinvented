@@ -66,11 +66,53 @@ export interface Recap {
 
 export type ThreadShow<T> =
   /** Render the item as the room always has. */
-  | { show: "full"; id: string; item: T }
+  | { show: "full"; id: string; item: T; spent: boolean }
   /** Render ONE recap line in place of this item, for the whole turn. */
-  | { show: "recap"; id: string; item: T; recap: Recap }
+  | { show: "recap"; id: string; item: T; recap: Recap; spent: boolean }
   /** Render nothing. The node stays mounted; it has nothing left to say. */
-  | { show: "none"; id: string; item: T };
+  | { show: "none"; id: string; item: T; spent: boolean };
+
+/* =============================================================================
+   AND THE CHIPS GO WITH THE TURN (founder, 2026-09-14, backlog row 54).
+
+   "i dont want all the chips for any action rather the show earlier which shows
+   the history but not the full history of those chips of the actions in the
+   chat."
+
+   A ROOM OFFERS ITS ANSWERS AS CHIPS AND NEVER TAKES THEM BACK. The chip row is
+   a property of the bubble that asked, so a question answered three turns ago
+   still carried four pressable options, and opening the earlier steps brought
+   every one of them back at once. The recap line already says what was chosen;
+   the chips under it are that decision a second time, offered as though it were
+   still open.
+
+   SO A SPENT TURN KEEPS ITS WORDS AND LOSES ITS CHIPS. `spent` is true of every
+   item outside the live turn, and a room passes its item through
+   {@link withoutChips} before rendering it. The live turn is untouched: its
+   chips are the question on the table. A STEP BEHIND THE LIVE ONE IS SPENT
+   WHOLE, which each room adds at its own call site: nothing in a step nobody
+   stands in is the present, so the Earlier control opens what happened rather
+   than what was once on offer.
+   ============================================================================= */
+
+/** THE FIELDS A ROOM'S CHIPS RIDE ON. Each renders as a `.wk-opt` row under the
+ *  bubble: the answers offered, the filing's own re-read, the door to the record
+ *  a refusal named, and the way back to the start of a route. */
+const CHIP_FIELDS = ["options", "statusChip", "link", "restart"] as const;
+
+/**
+ * THE SAME ITEM WITH ITS SPENT CHIPS TAKEN OFF.
+ *
+ * Returns the item itself where it carries none, so an item that never had a
+ * chip keeps its identity and the rooms' word speech is never restarted.
+ */
+export function withoutChips<T extends object>(item: T): T {
+  const held = item as Record<string, unknown>;
+  if (!CHIP_FIELDS.some((field) => held[field] != null)) return item;
+  const off: Record<string, unknown> = { ...held };
+  for (const field of CHIP_FIELDS) if (off[field] != null) off[field] = undefined;
+  return off as T;
+}
 
 /** THE LONGEST A RECAP CLAUSE MAY RUN before it is a paragraph again. A recap is
  *  a line a banker's eye crosses, not a sentence they read. */
@@ -286,6 +328,10 @@ export function condenseThread<T extends CondensableItem>(
   const out: Array<ThreadShow<T>> = [];
   turns.forEach((turn, at) => {
     const live = present > 0 && at >= turns.length - present;
+    /* SPENT IS A PROPERTY OF THE TURN, not of the item. The banker is in one
+       turn; every chip outside it was answered by the line that opened the next
+       one, whatever the item itself still carries. */
+    const spent = !live;
     const kept = turn.filter((i) => !isSpentChips(i) && !pinned(i));
     const carrier = kept.find((i) => i.kind === "settled" && i.row) ?? kept[0];
     const open = !!carrier && opened.has(carrier.id);
@@ -293,12 +339,12 @@ export function condenseThread<T extends CondensableItem>(
        one block for another and lose the room's own rendering of it. */
     const recap = !live && kept.length > 1 && carrier ? recapFor(kept, byId, superseded, open) : null;
     for (const item of turn) {
-      if (isSpentChips(item)) out.push({ show: "none", id: item.id, item });
-      else if (!recap || pinned(item)) out.push({ show: "full", id: item.id, item });
-      else if (item.id === carrier!.id) out.push({ show: "recap", id: item.id, item, recap });
+      if (isSpentChips(item)) out.push({ show: "none", id: item.id, item, spent });
+      else if (!recap || pinned(item)) out.push({ show: "full", id: item.id, item, spent });
+      else if (item.id === carrier!.id) out.push({ show: "recap", id: item.id, item, recap, spent });
       /* OPENED, THE TURN IS BACK UNDER ITS OWN LINE. The line stays, so the
          gesture that opened it is the gesture that closes it again. */
-      else out.push({ show: open ? "full" : "none", id: item.id, item });
+      else out.push({ show: open ? "full" : "none", id: item.id, item, spent });
     }
   });
   return out;

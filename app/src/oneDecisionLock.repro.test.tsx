@@ -386,10 +386,16 @@ describe("an answer out of order, and an answer it cannot read (D3)", () => {
     const room = open();
     await settle();
     await toTheTermQuestion(room);
-    const before = said(room);
+    /* WHAT IS NEW, COUNTED RATHER THAN MEASURED (backlog row 54). Slicing by the
+       length of the earlier text assumed the earlier text never changes, and a
+       spent turn now gives up its chips, so the prefix shrinks under the slice. */
+    const before = room.querySelectorAll(".wk-msg").length;
     await typeInto(room, "asdf");
 
-    const now = said(room).slice(before.length);
+    const now = [...room.querySelectorAll(".wk-msg")]
+      .slice(before)
+      .map((m) => m.textContent ?? "")
+      .join(" · ");
     expect(now).toContain('I heard "asdf", and I cannot read it as a length in months or years.');
     expect(now).toContain("What is the amortisation term");
   });

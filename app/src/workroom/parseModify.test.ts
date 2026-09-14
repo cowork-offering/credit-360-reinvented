@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Facility, LegalEntity } from "../data/contract";
 import { catalogField } from "./fieldCatalog";
-import { parseAnswer, parseModify, type ParseContext } from "./parseModify";
+import { parseAnswer, parseModify, readCovenantWaiver, type ParseContext } from "./parseModify";
 
 /* =============================================================================
    THE DETERMINISTIC PARSE, AND ITS REFUSALS.
@@ -976,5 +976,121 @@ describe("a party line on a book whose loan names carry the borrower's name", ()
     if (out.kind !== "amendments") throw new Error(out.kind);
     expect(out.amendments).toHaveLength(1);
     expect(out.amendments[0].facility?.loanId).toBe(revolver.loanId);
+  });
+});
+
+/* =============================================================================
+   THE FOUNDER'S BLUE RIDGE RUN (2026-09-14, feedback bug-1789409908236-mwwh9n).
+
+   Seven defects in one modification. Three of them are this file's: a role with
+   no name in it, a term question that swallowed the next instruction, and a
+   covenant waiver that reached the term parser as a six-month term.
+   ============================================================================= */
+
+describe("a role is not a name (defect a)", () => {
+  it("lists the rows a role names on the member and waits on one yes", () => {
+    const out = parseModify("remove all limited guarantors", single);
+    if (out.kind !== "clarify") throw new Error(out.kind);
+    expect(out.question).toContain("Elena Hartwell");
+    expect(out.question).toContain("Limited Guarantor");
+    expect(out.awaiting?.roleRemoval?.role).toBe("Limited Guarantor");
+    expect(out.awaiting?.roleRemoval?.rows.map((r) => r.party)).toEqual(["Elena Hartwell"]);
+    // NOTHING IS STAGED BY THE LISTING. The confirmation is the decision.
+    expect(out.options).toContain("Yes, take them off");
+  });
+
+  it("stages one involvement removal per row on the confirmation", () => {
+    const listed = parseModify("remove all guarantors", single);
+    if (listed.kind !== "clarify" || !listed.awaiting) throw new Error(listed.kind);
+    const out = parseAnswer(listed.awaiting, "Yes, take them off", single);
+    if (!out || out.kind !== "amendments") throw new Error(String(out?.kind));
+    expect(out.amendments).toHaveLength(1);
+    expect(out.amendments[0].party).toBe("Hartwell Industrial Holdings LLC");
+    expect(out.amendments[0].role).toBe("Guarantor");
+    expect(out.amendments[0].op).toBe("remove");
+    expect(out.amendments[0].field.id).toBe("party.remove");
+    expect(out.amendments[0].facility?.loanId).toBe(line15.loanId);
+  });
+
+  it("reads the plural, the article and the trailing verb the same way", () => {
+    for (const line of ["remove the limited guarantors", "take the guarantors off", "remove all of the guarantors"]) {
+      const out = parseModify(line, single);
+      if (out.kind !== "clarify") throw new Error(`${line}: ${out.kind}`);
+      expect(out.awaiting?.roleRemoval?.rows.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("stages nothing on a decline, and says the rows ride onto the version", () => {
+    const listed = parseModify("remove all limited guarantors", single);
+    if (listed.kind !== "clarify" || !listed.awaiting) throw new Error(listed.kind);
+    const out = parseAnswer(listed.awaiting, "Leave them on", single);
+    if (!out || out.kind !== "hold") throw new Error(String(out?.kind));
+    expect(out.said).toMatch(/Nothing comes off/);
+  });
+
+  it("leaves a NAMED removal exactly where it was", () => {
+    const out = parseModify("remove Elena Hartwell from this loan", single);
+    if (out.kind !== "amendments") throw new Error(out.kind);
+    expect(out.amendments[0].party).toBe("Elena Hartwell");
+  });
+});
+
+describe("a term question does not swallow the next instruction (defect d)", () => {
+  const term = catalogField("loan.termMonths")!;
+
+  it("hands a fee line back to the fee arm rather than reading it as a length", () => {
+    const answered = parseAnswer({ field: term, facility: line15 }, "on the Line of Credit add a 5% origination fee", single);
+    expect(answered).toBeNull();
+    // And the line, read as the instruction it is, carries the percentage.
+    const out = parseModify("on the Line of Credit add a 5% origination fee", single);
+    if (out.kind !== "amendments") throw new Error(out.kind);
+    expect(out.amendments[0].field.id).toBe("fee.row");
+    expect(out.amendments[0].value).toMatchObject({ kind: "fee", calculationType: "Percentage", percentage: 5 });
+  });
+
+  it("carries a percentage typed with the fee through to the kind the banker picks", () => {
+    const asked = parseModify("add a fee to this with 5%", single);
+    if (asked.kind !== "clarify" || !asked.awaiting) throw new Error(asked.kind);
+    expect(asked.awaiting.fee?.percentage).toBe(5);
+    const out = parseAnswer(asked.awaiting, "Origination fee", single);
+    if (!out || out.kind !== "amendments") throw new Error(String(out?.kind));
+    expect(out.amendments[0].value).toMatchObject({ kind: "fee", percentage: 5, amount: undefined });
+  });
+
+  it("still takes a bare length as the answer to the length question", () => {
+    const out = parseAnswer({ field: term, facility: line15 }, "240 months", single);
+    if (!out || out.kind !== "amendments") throw new Error(String(out?.kind));
+    expect(out.amendments[0].value).toMatchObject({ kind: "months", months: 240 });
+  });
+});
+
+describe("a covenant waiver is out of scope (defect f)", () => {
+  const tests = ["Fixed Charge Coverage", "Debt Service Coverage"];
+
+  it("reads a waiver off a demonstrative, because the room is standing on a covenant", () => {
+    expect(readCovenantWaiver("waive this one", tests, false)).toEqual({});
+  });
+
+  it("takes the covenant's own name as the answer inside the exchange", () => {
+    expect(readCovenantWaiver("Fixed Charge Coverage", tests, true)).toEqual({ covenant: "Fixed Charge Coverage" });
+    expect(readCovenantWaiver("Fixed Charge Coverage", tests, false)).toBeNull();
+  });
+
+  it("NEVER lets a duration typed inside the exchange out of it", () => {
+    expect(readCovenantWaiver("waive for 6 months", tests, true)).toEqual({});
+    expect(readCovenantWaiver("6 months", tests, true)).toEqual({});
+  });
+
+  it("reads forbearance and an exception on the test as the same ask", () => {
+    for (const line of ["can we forbear on the covenant", "grant an exception on the leverage covenant", "extend the test by a quarter"]) {
+      expect(readCovenantWaiver(line, tests, false)).not.toBeNull();
+    }
+  });
+
+  it("leaves a FEE waiver and a policy-exception record alone", () => {
+    expect(readCovenantWaiver("waive the arrangement fee", tests, false)).toBeNull();
+    expect(readCovenantWaiver("log a waived policy exception on the equipment loan", tests, false)).toBeNull();
+    // The catalog's own refusal owns the fully-written ask and keeps its route out.
+    expect(readCovenantWaiver("waive the covenant on the line of credit", tests, false)).toBeNull();
   });
 });

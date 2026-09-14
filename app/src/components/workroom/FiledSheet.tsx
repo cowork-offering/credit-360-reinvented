@@ -2,6 +2,10 @@ import { forwardRef } from "react";
 import { FiledList } from "./FiledList";
 import { SHEET_UNCONFIRMED, type FiledSheetModel } from "./filedSheet";
 
+import "../../styles/finale-clip.css";
+
+
+
 /* =============================================================================
    THE FILED SHEET, DRAWN.
 

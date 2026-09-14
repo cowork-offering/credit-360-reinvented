@@ -2,6 +2,20 @@
 
 ## Changelog
 
+- **0.9.27 (2026-09-15)** THE LIVE-TEST RELEASE. Everything in it came out of the founder's real filings on
+  0.9.26 the evening before Dreamforce, and every fix is proven on the org or on the built bundle.
+  Org side (bankinggpt-at): (55) every facility the cockpit inserts sets `LLC_BI__Default_App__c =
+  loans.dashboard-loan` (`C360NewFacilities.LOAN_DEFAULT_APP`, both insert sites, read back by
+  `verify_loan`; 0Afbb00000DwEUYCA3), because the field's own default in this org is the misspelt
+  `loan.dashboard-loan` and nCino's Loan page renders empty on it (the reason Sunbelt's loans had no
+  Loan UI; 61 seeded loans across eight example relationships were corrected by hand the same evening);
+  (58) a package the New-facility room creates can be rolled back: `create_package` opens it at Pending
+  and stamps it on the ledger row, the discard classifier accepts the ledger as evidence, and a
+  parentless package deletes clean (0Afbb00000DwHaTCAV; proven: Piedmont proof package created,
+  rendered, discarded to zero rows, STG-0000000163/164). Cockpit: (57) the founder's Blue Ridge transcript, seven defects in the facility room: a covenant waiver / forbearance / exception ask is refused by name with the in-scope alternatives, and while that exchange is open no duration typed for it reaches the term or amortisation parser ("waive for 6 months" had been staged as a 6-month term); role-based removals ("remove all limited guarantors") list the rows and stage one removal each; a party name the book does not carry is searched in the org (Customer360SearchAccounts) and kept as typed; "a different facility" re-asks on the new facility with the party carried; a fee percentage lands on the fee and the fee arm owns its exchange (no leaked term question); a question ("do we need to add a new covenant?") goes to the desk, not to a repeated card. Drive `founderBlueRidge` on Hartwell and Kingsley (Blue Ridge is not baked; the lines run on each book's own names). (53) the rainbow card no longer jumps on approve + execute: it held its ascent 320 ms before the room was still, so it moved 443 px in one frame; it now ascends into the box it keeps (4 px of travel measured against 450), and the conic glow is clipped to the card radius (`finale-clip.css`, `clip-path` after `filter`), same colours, same animation. (54) spent turns keep only their settled recap line; option chips ride only on the live turn (`withoutChips` in threadCondense, one rule for all rooms; on the bundle after four moves: 5 recap lines, 0 chips).
+  Gates: tsc 0; vitest 227 files, 5,350 passed, 0 failed; drive matrix PASS, 33 workroom rows plus 3 spread files on 3 books, 0 findings (603 s, run alone); bundle 2,120,298 B (2.022 MiB, +8.8 KB over 0.9.26).
+  Proofs: SPEC-0.9.23-ORG-PROOF.md section F, `knowledge/proofs/0927-*.json`, stress ledger
+  `knowledge/STRESS-TEST-2026-09-14.md`. Next: the Boom lane (new Boom MCP server in, IDB Gateway out).
 - **0.9.26 (2026-09-14)** HOTFIX: THE AGGREGATE SHELL ON THE TRANSITION ALLOWLIST. The founder's first
   live modification on 0.9.25 was refused at the confirm gate: "step sweep_aggregates:
   LLC_BI__Loan_Collateral_Aggregate__c is not on the transition allowlist". The morning's Apex (A5)

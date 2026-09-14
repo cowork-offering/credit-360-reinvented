@@ -4,7 +4,6 @@ import { act, type CSSProperties } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
   FINALE_EXHALE_MS,
-  FINALE_HANDOVER_MS,
   FINALE_STAGGER_CAP,
   FINALE_STAGGER_MS,
   finaleAttrs,
@@ -68,12 +67,12 @@ describe("the drain's clocks", () => {
     expect(finaleDrainMs(50)).toBe(FINALE_EXHALE_MS + FINALE_STAGGER_CAP * FINALE_STAGGER_MS);
   });
 
-  it("hands the card in over the tail of the wave, never after it", () => {
-    // The room must never go empty between the two beats.
-    expect(finaleCardHoldMs(16)).toBe(finaleDrainMs(16) - FINALE_HANDOVER_MS);
-    expect(finaleCardHoldMs(16)).toBeLessThan(finaleDrainMs(16));
-    // And a one-item room still gets a real wait rather than a negative one.
-    expect(finaleCardHoldMs(1)).toBe(Math.max(0, FINALE_EXHALE_MS - FINALE_HANDOVER_MS));
+  it("holds the card until the room is still, so it ascends into its resting box", () => {
+    /* Backlog row 53, founder 2026-09-14: the card used to start arriving while
+       the drain was still closing space above it, so it faded in at the bottom
+       edge of the pane and then jumped when the room centred what was left. */
+    expect(finaleCardHoldMs(16)).toBe(finaleDrainMs(16));
+    expect(finaleCardHoldMs(1)).toBe(FINALE_EXHALE_MS);
     expect(finaleCardHoldMs(1)).toBeGreaterThanOrEqual(0);
   });
 });

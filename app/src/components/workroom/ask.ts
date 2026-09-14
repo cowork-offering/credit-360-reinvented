@@ -132,6 +132,53 @@ export function readTopic(text: string): ReadTopic | null {
   return null;
 }
 
+/* ============================ A QUESTION IS NOT A READ REPEAT (founder's Blue
+   Ridge run, 2026-09-14, defect e).
+
+   "do we need to add a new covenant?" was answered with the covenant card the
+   room had just printed, and, because it was the same card, with "that is the
+   same read as a moment ago" above it. The banker did not ask to SEE the
+   covenants. They asked whether the package needs another one, which is a
+   judgement: it is answered from the relationship and the doctrine, the way the
+   cockpit chat answers one, or it is answered with what this room can actually
+   do about it. Either way it is not a card.
+
+   THE SHAPE IS NARROW ON PURPOSE. A modal over a person and an ACTION VERB, or
+   an explicit ask for a view. "do we have any guarantors?" carries no action
+   verb and stays the read it has always been. */
+
+/** A question about whether to DO something, rather than about what is on file. */
+const JUDGEMENT =
+  /\b(?:do|does|did|should|shall|would|could|can|must)\s+(?:we|i|you)\s+(?:really\s+|also\s+|still\s+|now\s+)?(?:need\s+to\s+|want\s+to\s+|have\s+to\s+|ought\s+to\s+)?(?:add|put|set|change|move|increase|decrease|reduce|raise|lower|extend|shorten|take|remove|drop|file|stage|write|create|waive|pledge|price|reprice|renew)\b|\bany\s+(?:need|reason|point)\s+to\b|\bwhat\s+do\s+you\s+(?:think|recommend|suggest|advise)\b|\bdo\s+you\s+(?:recommend|suggest|advise)\b|\bis\s+it\s+worth\b/i;
+
+/** What this room can do about each topic, said in the banker's own vocabulary.
+ *  It is the answer where no desk is reachable, and the degrade where one is. */
+const JUDGEMENT_ROUTES: Record<ReadTopic, string> = {
+  covenants:
+    "Adding a covenant on this version is in scope here, and the covenant review is the credit action that assesses one. I will not call it for you off the read alone.",
+  collateral:
+    "Pledging an asset on this version is in scope here, and the collateral valuation is the credit action that values one. I will not call it for you off the read alone.",
+  structure:
+    "Putting a party on this version, or taking one off it, is in scope here. Whether the credit needs it is the committee's call and not one I will make off the read alone.",
+  fees: "Adding a fee on this version is in scope here. No read on this cockpit carries the fees already on the deal, so I cannot tell you what it already charges.",
+  facilities:
+    "Changing a commitment, a rate, a maturity or a term on one of the facilities above is in scope here. I will not call whether it is needed off the read alone.",
+};
+
+/**
+ * THE JUDGEMENT THIS LINE ASKS FOR, and what the room can do about it, or null.
+ *
+ * Null is the common case and it is not a failure: the line is a read, an
+ * instruction, or a question of some other shape, and every lane the room
+ * already has takes it exactly as it always did.
+ */
+export function judgementAsk(text: string): { topic: ReadTopic; routes: string } | null {
+  const line = text.trim();
+  if (!line || !JUDGEMENT.test(line)) return null;
+  for (const [topic, re] of TOPICS) if (re.test(line)) return { topic, routes: JUDGEMENT_ROUTES[topic] };
+  return null;
+}
+
 /** The GUARANTOR words, which name a role rather than a topic. */
 const GUARANTOR_ASK = /\bguarantor|guarant(?:y|ies|ees?)\b/i;
 

@@ -51,6 +51,7 @@ import {
   membersNamedIn,
   parseAnswer,
   parseModify,
+  readCovenantWaiver,
   type Amendment,
   type AmendmentOp,
   type Awaiting,
@@ -856,6 +857,23 @@ function wireTarget(d: WorkroomDelta): string | undefined {
 
 /* ------------------------------------------------------------- the refusals */
 
+/**
+ * A COVENANT WAIVER, REFUSED BY NAME (founder's Blue Ridge run, 2026-09-14).
+ *
+ * A waiver is a decision not to enforce, and enforcing is a compliance status:
+ * `covenant.complianceStatus`, which is its own founder-gated credit action and
+ * never a side effect of a modification. The refusal names the ask, says what
+ * this room does not do, and names the two things it does.
+ */
+function waiverRefused(covenant: string | undefined): string {
+  return (
+    `${covenant ? `A waiver on ${covenant}` : "A covenant waiver"} is not this room's to file: ` +
+    "nothing here waives, forbears or resets a covenant test, and a modification never moves a compliance status as a side effect. " +
+    "What is in scope is a policy exception on this version, which puts the ask on the plan for the credit file and for committee, " +
+    "or the covenant review, which is the credit action that files a status."
+  );
+}
+
 /** Asks that are real, understood, and NOT this room's to file — each with the
  *  org's own reason. A refusal is an answer; a fabricated chip is not. */
 function refusalFor(field: CatalogField): WorkroomRefusal | null {
@@ -1650,6 +1668,10 @@ export function createModifyEngine(args: {
     // says the current figure back, stages nothing, and stops asking. Clearing
     // `awaiting` is the caller's job (an outcome that is not a clarify does it).
     if (outcome.kind === "hold") {
+      // A HOLD THAT IS NOT A FIGURE SAYS ITS OWN SENTENCE. "Holding remove a
+      // legal entity unchanged" is what the line below would have made of a
+      // declined role removal, which is not English about a credit action.
+      if (outcome.said) return { kind: "unparsed", reply: outcome.said };
       const cur = currentValue(outcome.field, outcome.facility);
       const at = cur.startsWith("not ") || cur.includes("not staged") ? "unchanged" : `at ${cur}`;
       return { kind: "unparsed", reply: `Holding ${outcome.field.label.toLowerCase()} ${at}. Nothing changes on it.` };
@@ -1745,6 +1767,12 @@ export function createModifyEngine(args: {
   }
 
   let deltaSeq = 0;
+  /** WHAT THIS PACKAGE TESTS, by name, so a waiver ask can be recognised by the
+   *  covenant the banker names in it rather than only by the word "covenant". */
+  const covenantNames = [...new Set(covenants.map((c) => (c.covenantType ?? "").trim()).filter((n) => n.length > 2))];
+  /** A WAIVER ASK IS OPEN. While it is, the covenant's own name and any duration
+   *  typed for it belong to the refusal and to no reader that takes values. */
+  let waiverOpen = false;
   /** The question the room last asked, so the next line can answer it. */
   let awaiting: Awaiting | null = null;
   /** THE QUESTION ITSELF, with the sentence and the chips it went out with, so
@@ -1802,6 +1830,21 @@ export function createModifyEngine(args: {
         reply: `This relationship carries ${choices.length} packages and a modification is anchored on one of them. Pick the package above and I will work inside it.`,
       };
     }
+
+    /* A WAIVER IS REFUSED BEFORE ANY READER SEES THE LINE (founder's Blue Ridge
+       run, 2026-09-14). It runs in front of the answer lane on purpose: the
+       defect was "waive for 6 months" landing on an open term question as six
+       months, so the duration must never reach a reader that takes figures. The
+       exchange lives exactly as long as the banker stays inside it. */
+    const waiver = readCovenantWaiver(text, covenantNames, waiverOpen);
+    if (waiver) {
+      waiverOpen = true;
+      awaiting = null;
+      pending = null;
+      asked = true;
+      return { kind: "unparsed", reply: waiverRefused(waiver.covenant) };
+    }
+    waiverOpen = false;
 
     // AN ANSWER TO THE LAST QUESTION comes first: "$20,000,000" is a complete
     // reply to "what should the commitment become", and reading it as a new

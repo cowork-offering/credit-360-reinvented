@@ -681,8 +681,11 @@ describe("the compile card resolves in place, never into a second card", () => {
   async function driveToPlan(room: HTMLElement) {
     // The annual review's four answers, on the chips the room offers.
     const pick = async (re: RegExp) => {
+      /* A RECEIPT IS NOT AN ANSWER EITHER (backlog row 54). With the spent
+         turn's chips off the glass, the settled row carrying the same word is
+         what a by-text hunt lands on next. */
       const b = [...document.body.querySelectorAll("button")]
-        .filter((x) => !x.hasAttribute("data-recap"))
+        .filter((x) => !x.hasAttribute("data-recap") && !x.classList.contains("wk-settled"))
         .find((x) => re.test(x.textContent ?? ""));
       relClick(b!);
       await settle();

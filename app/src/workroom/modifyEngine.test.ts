@@ -23,7 +23,7 @@ import type { WorkroomContext, WorkroomDelta } from "./types";
        staged plan, a drift recompute, the org's approver id, one use of one
        token.
 
-   The channel is mocked exactly as `writeTools.test.ts` mocks it — the tool
+   The channel is mocked exactly as `writeTools.test.ts` mocks it, the tool
    wrappers are the real ones, and what is faked is the connector.
    ============================================================================= */
 
@@ -307,7 +307,7 @@ describe("the modify engine reads the real package", () => {
     expect(after.kind).not.toBe("deltas");
   });
 
-  it("does not read 'keep it at 7%' as hold — the figure is the answer", async () => {
+  it("does not read 'keep it at 7%' as hold, the figure is the answer", async () => {
     const { engine } = engineOn();
     await engine.parseIntent("change the rate on the Line of Credit", context);
     const answered = await engine.parseIntent("keep it at 7%", context);
@@ -323,7 +323,7 @@ describe("the modify engine reads the real package", () => {
     const pill = engine.suggest()!;
     // A CURRENT FIGURE NEVER SITS WHERE A DELTA BELONGS. The org names a loan
     // "<Borrower> - <Product> - <$Amount>", so a pill built on that name read
-    // "Increase the Line of Credit - $15,000,000.00" — which a banker parses as
+    // "Increase the Line of Credit - $15,000,000.00", which a banker parses as
     // "increase BY fifteen million", and which then made the room's own
     // question look like a second ask for a number it had already offered.
     expect(pill.label).toBe("Line of Credit · $15M committed");
@@ -368,11 +368,11 @@ describe("the modify engine reads the real package", () => {
 });
 
 /* =============================================================================
-   WAVE 2 — THE OPENER LEADS ON THE DEAL'S NEXT MOVE.
+   WAVE 2, THE OPENER LEADS ON THE DEAL'S NEXT MOVE.
 
    `nextMove.ts` carries its own exhaustive date-math coverage in isolation
    (nextMove.test.ts): edge days, ties, missing fields, priority order. What is
-   proved HERE is the WIRING — that `position()` reaches for it, in the right
+   proved HERE is the WIRING, that `position()` reaches for it, in the right
    place relative to the two things that already outrank it (an unanchored
    room, a client's own ask), and falls back to the original inventory
    sentence exactly as before where no move applies. `data.meta.generatedAt`
@@ -407,7 +407,7 @@ describe("the opener leads on the deal's next move (wave 2)", () => {
 
   it("still leads on the client's own ask even where a facility also matures within the quarter", () => {
     // request?.ask?.to already outranks the fallback inventory sentence
-    // (proven above); this proves it outranks the DERIVED move too — a human
+    // (proven above); this proves it outranks the DERIVED move too, a human
     // waiting on an answer beats a signal the room noticed on its own.
     const both = bundleWith([{ ...line, maturityDate: "2026-09-10" }, equipment, proposal]);
     const brief = createModifyEngine({ context, data, bundle: both, deps: deps() }).brief(context);
@@ -421,7 +421,7 @@ describe("the opener leads on the deal's next move (wave 2)", () => {
     const brief = createModifyEngine({ context, data, bundle: quiet, deps: deps() }).brief(context);
     // Neither facility matures soon (2027-03-15, and Equipment carries no
     // maturityDate), neither covenant has a nextEvaluationDate, and utilization
-    // sits at 15.1/26 ≈ 58% — nothing in any tier, so this is the room's
+    // sits at 15.1/26 ≈ 58%, nothing in any tier, so this is the room's
     // ORIGINAL sentence, unchanged by wave 2.
     expect(brief.position).toBe("$23M of $26M is open: 2 of 3 members are booked. Pick one.");
   });
@@ -442,7 +442,7 @@ describe("parseIntent maps a sentence onto the catalog", () => {
     const { engine } = engineOn();
     const [delta] = await confirm(engine, "increase the line of credit - $15,000,000.00 to $20,000,000");
     // The chip renders `target` directly above `before → after`. Carrying the
-    // org's loan name there put "$15,000,000.00" one line above "$15M → $20M" —
+    // org's loan name there put "$15,000,000.00" one line above "$15M → $20M" ,
     // the same figure twice, in two different roles, one of them wrong.
     expect(delta.target).toBe("Line of Credit");
     expect(delta.target).not.toMatch(/\$/);
@@ -451,7 +451,7 @@ describe("parseIntent maps a sentence onto the catalog", () => {
 
   it("tells two members of the same product apart by the figure that separates them", async () => {
     // Two lines of credit: the product alone names neither, so the commitment
-    // comes back — as an identifier this time, which is what it actually is.
+    // comes back, as an identifier this time, which is what it actually is.
     const second: Facility = { ...line, loanId: "a4Zbb0000027SECOND", name: "Hartwell Precision Manufacturing LLC - Line of Credit - $2,500,000.00", committed: 2_500_000 };
     const engine = createModifyEngine({ context, data, bundle: bundleWith([line, equipment, second]), deps: deps() });
     const [delta] = await confirm(engine, "increase the line of credit - $15,000,000.00 to $20,000,000");
@@ -812,7 +812,7 @@ describe("parseIntent maps a sentence onto the catalog", () => {
   it("stages a structure change WITHOUT a member as a handoff, and WITH one as a filing delta (W1)", async () => {
     const { engine } = engineOn();
     // No member named: the org anchors every involvement row on one loan, so
-    // this cannot file — it travels as an honest handoff.
+    // this cannot file, it travels as an honest handoff.
     const [add] = await confirm(engine, "add Hartwell Logistics LLC as a guarantor");
     expect(add.fileable).toBe(false);
     expect(add.target).toBe("Hartwell Logistics LLC");
@@ -838,7 +838,7 @@ describe("parseIntent maps a sentence onto the catalog", () => {
     const { engine } = engineOn();
     // "as guarantor" is a synonym of the ADD entry and the verb is a REMOVE, so
     // the chip used to read "Add a legal entity" directly above "off the
-    // modification" — the one misread in a change set that actually matters.
+    // modification", the one misread in a change set that actually matters.
     const [delta] = await confirm(engine, "remove James Hartwell as guarantor from the line of credit - $15,000,000.00");
     expect(delta.op).toBe("remove");
     expect(delta.title).toBe("Remove a legal entity");
@@ -1397,7 +1397,7 @@ describe("stagePlan composes the ORDERED plan (W1)", () => {
 
   /* THE LEAK, AS AN INVARIANT. The membership guard survives in wirePayload as
      the backstop on the broadcast channel, and by construction a plan routed
-     there has nothing to spread onto — so the guard cannot fire from this
+     there has nothing to spread onto, so the guard cannot fire from this
      client. What is worth pinning is the property it exists for, over every
      mix the room can actually build: a scalar NEVER reaches a member that did
      not stage it, whichever channel carries the plan. */
@@ -1483,7 +1483,7 @@ describe("stagePlan composes the ORDERED plan (W1)", () => {
   it("refuses to stage with no connector, rather than simulating a plan", async () => {
     const { engine } = engineOn({ available: () => false });
     const deltas = await confirm(engine, "increase the line of credit - $15,000,000.00 to $20,000,000");
-    // The refusal STANDS — a plan is the org's or there is no plan — and it now
+    // The refusal STANDS, a plan is the org's or there is no plan, and it now
     // says so in the banker's own terms rather than reporting a missing part.
     await expect(engine.stagePlan(deltas, context)).rejects.toThrow(/not connected to the bank's systems/);
     await expect(engine.stagePlan(deltas, context)).rejects.toThrow(/nothing here is ever simulated/);
@@ -1626,7 +1626,7 @@ describe("execute redeems the token and reports what the org read back", () => {
    THE EXPLANATION LAYER, IN THE FLOW.
 
    Founder verdict 2026-08-29: the room "feels almost more like guided template
-   still, no explanation" — "it can explain also concise in the flow what and why
+   still, no explanation", "it can explain also concise in the flow what and why
    it is needed."
 
    The copy itself is proved in `explain.test.ts`. What is proved HERE is that
@@ -1643,7 +1643,7 @@ describe("every beat says WHY, on this package's own figures", () => {
     const asked = await engine.parseIntent(engine.suggest()!.say, context);
     expect(asked.kind).toBe("unparsed");
     if (asked.kind !== "unparsed") return;
-    // Today's figure, then what the answer is FOR — the package total and the
+    // Today's figure, then what the answer is FOR, the package total and the
     // pool it is covered by, both read off this bundle.
     expect(asked.reply).toContain("Today it reads $15M");
     expect(asked.reply).toContain("the $26M package total");
@@ -1666,11 +1666,11 @@ describe("every beat says WHY, on this package's own figures", () => {
     if (result.kind !== "deltas") return;
     expect(result.reply).toContain("2 connected writes");
     expect(result.reply).toContain("nothing is silently dropped");
-    // The org's own sentence is still carried, verbatim — on the entry, where a
+    // The org's own sentence is still carried, verbatim, on the entry, where a
     // banker who wants it goes looking. It is not the answer in the room.
     expect(result.reply).not.toMatch(/LLC_BI__|allowlist|C360WriteGuard/);
     // The truthful mechanism since the covenant arm shipped: an unmapped type is
-    // a catalog-resolution gap, not a guard refusal — and the entry still names it.
+    // a catalog-resolution gap, not a guard refusal, and the entry still names it.
     expect(result.deltas[0].handoff?.reason).toMatch(/org catalog/);
   });
 
@@ -1725,8 +1725,8 @@ describe("every beat says WHY, on this package's own figures", () => {
    TIER-1 ADVISORIES.
 
    Deterministic sense-checks that speak up BEFORE staging, off the figures the
-   engine already holds. They NEVER block — the chips still arrive open and the
-   org's guards still do the blocking — so every rule below is proved twice: on
+   engine already holds. They NEVER block, the chips still arrive open and the
+   org's guards still do the blocking, so every rule below is proved twice: on
    the read that trips it, and on the read that must leave it silent.
    ============================================================================= */
 
@@ -1738,7 +1738,7 @@ async function propose(engine: ReturnType<typeof createModifyEngine>, said: stri
 
 const ruleIds = (result: { advisories?: Array<{ rule: string }> }) => (result.advisories ?? []).map((a) => a.rule);
 
-describe("advisory 1 — a limit under what is already drawn", () => {
+describe("advisory 1, a limit under what is already drawn", () => {
   it("speaks up, and offers the client's own ask as the figure that works", async () => {
     const { engine } = engineOn();
     const result = await propose(engine, "take the line of credit - $15,000,000.00 to $8,000,000");
@@ -1767,7 +1767,7 @@ describe("advisory 1 — a limit under what is already drawn", () => {
   });
 });
 
-describe("advisory 2 — something of this kind is already on the facility", () => {
+describe("advisory 2, something of this kind is already on the facility", () => {
   it("names what the clone already carries, and offers the amend", async () => {
     const { engine } = engineOn();
     const result = await propose(engine, "add a collateral insurance covenant for the line of credit - $15,000,000.00");
@@ -1784,7 +1784,7 @@ describe("advisory 2 — something of this kind is already on the facility", () 
   });
 });
 
-describe("advisory 3 — a maturity that cannot stand", () => {
+describe("advisory 3, a maturity that cannot stand", () => {
   const AUG29 = () => "2026-08-29";
 
   it("catches a date behind today", async () => {
@@ -1818,7 +1818,7 @@ describe("advisory 3 — a maturity that cannot stand", () => {
   });
 });
 
-describe("advisory 4 — a covenant threshold that would never bind", () => {
+describe("advisory 4, a covenant threshold that would never bind", () => {
   it("measures the proposed level against the actual the read carries", async () => {
     const { engine } = engineOn();
     const result = await propose(engine, "set the fixed charge coverage threshold on the line of credit - $15,000,000.00 to 1.00");
@@ -1841,7 +1841,7 @@ describe("advisory 4 — a covenant threshold that would never bind", () => {
   });
 });
 
-describe("advisory 5 — a release that takes the cover under the org's own ratio", () => {
+describe("advisory 5, a release that takes the cover under the org's own ratio", () => {
   it("names the pledge, the pool and both ratios, and says which is the org's", async () => {
     const { engine } = engineOn();
     const result = await propose(engine, "release the pledge COL-000762 on the line of credit - $15,000,000.00");
@@ -1866,7 +1866,7 @@ describe("advisory 5 — a release that takes the cover under the org's own rati
   });
 });
 
-describe("advisory 6 — an entity already involved on the package", () => {
+describe("advisory 6, an entity already involved on the package", () => {
   it("offers the role change where the line asks for a role they do not hold", async () => {
     const { engine } = engineOn();
     const result = await propose(engine, "add Elena Hartwell as a guarantor");
@@ -2112,5 +2112,62 @@ describe("the party lanes on a book whose graph names another package", () => {
     if (out.kind !== "unparsed") throw new Error(out.kind);
     expect(out.reply).toMatch(/Elena Hartwell/);
     expect(out.reply).not.toMatch(/Someone On Another Package/);
+  });
+});
+
+/* =============================================================================
+   THE FOUNDER'S BLUE RIDGE RUN (2026-09-14, feedback bug-1789409908236-mwwh9n).
+
+   "waive this one" → the covenant's name → "waive for 6 months" came back as
+   `Term (months) on Term: 6 months`: a covenant waiver staged as a facility term
+   change on the clone, and the amortisation follow-up then offered "Same as the
+   term (6 months)" on top of it. The waiver is out of scope by doctrine, and no
+   duration typed inside that exchange may reach a reader that takes figures.
+   ============================================================================= */
+
+describe("a covenant waiver never becomes a term (Blue Ridge, defects f and g)", () => {
+  it("refuses the ask by name and stages nothing across the whole exchange", async () => {
+    const { engine } = engineOn();
+    const said: string[] = [];
+    for (const line of ["waive this one", "Fixed Charge Coverage", "waive for 6 months"]) {
+      const result = await engine.parseIntent(line, context);
+      // THE HARD TEST: no amendment on any field, on any line of the exchange.
+      expect(result.kind).not.toBe("deltas");
+      said.push(result.reply);
+    }
+    expect(said[0]).toMatch(/not this room's to file/);
+    expect(said[1]).toContain("Fixed Charge Coverage");
+    expect(said[2]).toMatch(/nothing here waives, forbears or resets a covenant test/);
+    // The route out, so the refusal is an answer rather than a wall.
+    expect(said[2]).toMatch(/covenant review/);
+    for (const line of said) expect(line).not.toMatch(/[—–]/);
+  });
+
+  it("leaves the exchange the moment the banker says something else", async () => {
+    const { engine } = engineOn();
+    await engine.parseIntent("waive this one", context);
+    const out = await engine.parseIntent("take the Line of Credit to $20,000,000", context);
+    expect(out.kind).toBe("deltas");
+  });
+
+  it("keeps the org's own structured refusal for the fully written ask", async () => {
+    const { engine } = engineOn();
+    const result = await engine.parseIntent("waive the covenant on the Line of Credit", context);
+    expect(result.kind).toBe("refusal");
+  });
+});
+
+describe("a role removal is listed, then staged (Blue Ridge, defect a)", () => {
+  it("names the rows on the focused member and stages one exclusion each on the yes", async () => {
+    const { engine } = engineOn();
+    engine.pick(LINE_ID);
+    const listed = await engine.parseIntent("remove all guarantors", context);
+    expect(listed.kind).toBe("unparsed");
+    expect(listed.reply).toContain("Hartwell Industrial Holdings LLC");
+    expect(listed.reply).toContain("James Hartwell");
+    const out = await engine.parseIntent("yes", context);
+    if (out.kind !== "deltas") throw new Error(`${out.kind}: ${out.reply}`);
+    expect(out.deltas).toHaveLength(2);
+    for (const d of out.deltas) expect(d.op).toBe("remove");
   });
 });

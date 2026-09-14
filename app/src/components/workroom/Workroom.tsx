@@ -69,7 +69,7 @@ import {
   readRouteSwitch,
   type SmartOpening,
 } from "./route";
-import { bankerly, isQuestion, readRole, readTopic, unsoundFieldChange, whatICanDo, type ReadTopic } from "./ask";
+import { bankerly, isQuestion, judgementAsk, readRole, readTopic, unsoundFieldChange, whatICanDo, type ReadTopic } from "./ask";
 import { EntryFold, EntrySheet, entryStateLine, type EntryDoor } from "./EntrySheet";
 import { buildEnvelope, clarifyOffWire, facilityLabel, politeCommand, toReadCardModel } from "./brainRoute";
 import type { BrainEnvelope, BrainReply, BrainTurn } from "../../channel/brainLane";
@@ -150,7 +150,9 @@ import {
   buildBook,
   changedLine,
   compose,
+  createSubject,
   handoffEntry,
+  noVersionRefusal,
   openCreate,
   planAmendmentFor,
   pledgeAlreadySettled,
@@ -158,6 +160,7 @@ import {
   readScope,
   restateEntry,
   routeGap,
+  samePartyName,
   verify,
   type Draft,
   type ElicitContext,
@@ -166,6 +169,7 @@ import {
   type PlanEntry,
   type Slots,
 } from "./elicit";
+import { searchAccounts, type AccountMatch } from "../../book/search";
 import {
   armConfirmSentence,
   armOf,
@@ -239,7 +243,7 @@ import {
   type SettledRow,
 } from "./settle";
 import { useStageGate } from "./stage";
-import { condenseThread } from "./threadCondense";
+import { condenseThread, withoutChips } from "./threadCondense";
 import { ThreadRecap } from "./ThreadCondensed";
 import { FINALE_SWEEP_MS, finaleAttrs, finaleCardHoldMs, useFinale, withFinale } from "./finale";
 import { FILED_SECTION_MS, FiledList, filedLinesFor, type FiledLine } from "./FiledList";
@@ -3184,6 +3188,19 @@ export function Workroom({
    */
   const answerAsked = useCallback(
     async (instruction: string, mine: number): Promise<void> => {
+      /* A JUDGEMENT IS NOT A READ, so it never becomes a card and never becomes
+         the same card twice. The desk answers it from the relationship and the
+         doctrine; where there is no desk the room says what it can do about the
+         thing that was asked about. */
+      const judgement = judgementAsk(instruction);
+      if (judgement) {
+        if (brain) {
+          await runBrain(instruction, mine, false, judgement.routes);
+          return;
+        }
+        setItems((prev) => [...prev, { kind: "agent", id: nextId("agent"), step: mine, text: judgement.routes }]);
+        return;
+      }
       const topic = readTopic(instruction);
       const narrowing = topic !== null ? readNarrowing(topic, instruction) : {};
       const card = topic !== null && reads ? buildReadCard(topic, reads, narrowing) : null;
@@ -3523,6 +3540,16 @@ export function Workroom({
             got.push(handoffEntry(scoped, elicitCtx, line.memberId, routeSaid, seq));
             continue;
           }
+          /* A COMPOSED SENTENCE STANDS ALONE (founder's Blue Ridge run,
+             2026-09-14). The create was gathered by this room and the sentence
+             it composes is complete, so it must not arrive at the engine as an
+             ANSWER to whatever question the engine still had open: a member
+             question standing from three turns back read the composed line as
+             the member being picked and re-ran the old instruction instead. The
+             engine's own documented way back to a settled state is `pick`, and
+             it lands on the member the create is about, which is where the
+             sentence belongs anyway. */
+          engine.pick(line.memberId);
           let result: IntentResult | null = null;
           try {
             result = await engine.parseIntent(line.say, context);
@@ -3725,11 +3752,90 @@ export function Workroom({
    * always wins: the chips are an offer and a banker who types the whole answer
    * skips every one of them.
    */
+  /**
+   * A NAME THE BANKER TYPED IS NEVER DROPPED (founder's Blue Ridge run,
+   * 2026-09-14, defect b).
+   *
+   * "Add Piedmont Precision as Guarantor" was answered with "Who goes on the
+   * deal?" and a list of the relationship's own parties, which is the room
+   * asking for a fact it had just been given and offering everything except it.
+   * The relationship graph is the first place the name is looked for and it is
+   * not the last: the org holds the rest of its accounts and this cockpit
+   * already reads them (`Customer360SearchAccounts`). So a name the book does
+   * not carry goes to that search, the matches come back as chips WITH the
+   * typed name still standing, and only a search that finds nothing says so,
+   * and then the name goes on the deal as a new party.
+   *
+   * Returns the draft to carry on with, or null where a question went up.
+   */
+  const resolveNewParty = useCallback(
+    async (d: Draft, mine: number): Promise<Draft | null> => {
+      const said = d.slots.party?.trim();
+      if (d.surface !== "involvement" || !said || d.slots.partyOnBook !== false) return d;
+      if (d.slots.partySearched || d.slots.partyNew) return d;
+
+      let found: AccountMatch[] | null = null;
+      try {
+        found = (await searchAccounts(said, { maxResults: 6 })).results;
+      } catch {
+        // NO CONNECTOR IS NOT AN EMPTY ORG. A search that could not run says
+        // nothing about who the bank holds, so the room claims nothing and the
+        // create carries the banker's own name exactly as it was typed.
+        found = null;
+      }
+      const searched: Draft = { ...d, slots: { ...d.slots, partySearched: true } };
+      if (found === null) return searched;
+
+      /* THE ORG SPELLS IT THE SAME WAY, so there is nothing to ask: the account
+         is the answer and the create moves on with the org's own record. */
+      const exact = found.find((a) => samePartyName(a.name, said));
+      if (exact) {
+        return { ...searched, slots: { ...searched.slots, party: exact.name, partyAccountId: exact.accountId } };
+      }
+      if (!found.length) {
+        setItems((prev) => [
+          ...prev,
+          {
+            kind: "agent",
+            id: nextId("agent"),
+            step: mine,
+            text:
+              `${said} is not on this relationship and the org's own account search returns nothing under that name. ` +
+              `I am keeping it: ${said} goes on as a new party, and the bank resolves the account when the plan is staged.`,
+          } as ThreadItem,
+        ]);
+        return searched;
+      }
+      setCreating(searched);
+      setItems((prev) => [
+        ...prev,
+        {
+          kind: "agent",
+          id: nextId("agent"),
+          step: mine,
+          text:
+            `${said} is not on this relationship. The org holds ${found.length === 1 ? "one account" : `${found.length} accounts`} under that name: ` +
+            `${found.map((a) => a.name).join(", ")}. Which of them goes on the deal?`,
+          options: [
+            ...found.map((a) => ({ label: a.name, say: `add ${a.name}` })),
+            { label: `Neither, file ${said}`, say: `add the new party ${said}` },
+          ],
+        } as ThreadItem,
+      ]);
+      return null;
+    },
+    [],
+  );
+
   const askCreate = useCallback(
     async (d: Draft, mine: number) => {
       const answer = (item: NewItem) => setItems((prev) => [...prev, { ...item, step: mine } as ThreadItem]);
 
-      const step = advance(d, elicitCtx);
+      const resolved = await resolveNewParty(d, mine);
+      // An ask went up for the name; the create waits on it.
+      if (!resolved) return;
+
+      const step = advance(resolved, elicitCtx);
       if (step.ask) {
         setCreating(step.draft);
         answer({ kind: "agent", id: nextId("agent"), text: step.ask.text, options: step.ask.options });
@@ -3738,7 +3844,7 @@ export function Workroom({
       setCreating(null);
       await landCreate(step.draft, mine);
     },
-    [elicitCtx, landCreate],
+    [elicitCtx, landCreate, resolveNewParty],
   );
 
   /**
@@ -4260,7 +4366,35 @@ export function Workroom({
            it, because a room that swallowed every following sentence would be a
            form wearing a conversation's clothes. */
         if (creating && !reading) {
+          /* ================= "A DIFFERENT FACILITY" IS AN ANSWER TO THIS CREATE
+             (founder's Blue Ridge run, 2026-09-14, defect c).
+
+             It is the room's OWN chip: the awareness that refuses a role change
+             on a facility the party already sits on offers it. Typed back, it
+             settled no slot, so the create was dropped with "nothing in that
+             answered what the new one still needs" and the line fell through to
+             the steer, which re-asked the facility question package-wide with
+             the party and the role thrown away. The pick is the answer to WHERE,
+             and nothing else about the create has changed: the scope is cleared,
+             the scope word is set so the facility question is the one that comes
+             back, and the party and the role ride through it. */
+          const elsewhere = readSteer(line, elicitMembers);
+          /* AND THE RE-ASK NEVER FIRES OVER AN EMPTY SET (B5, row 57). The
+             facility question it puts back is `scopeAsk` over the same members,
+             which on a package with nothing bookable is a question with no
+             answers on it. */
+          if (elsewhere?.kind === "pick-facility" && turnCtx.members.length) {
+            await askCreate({ ...creating, scope: [], scopeWord: true }, mine);
+            return;
+          }
           const next = readInto(creating, line, elicitCtx);
+          /* AND THE ROOM STANDS WHERE THE CREATE LANDED. A scope that settled on
+             one member is the facility the banker is now working, so the strip
+             and every later line that names none follow it. */
+          if (next.scope.length === 1 && next.scope.join("|") !== creating.scope.join("|")) {
+            const stood = brief.members.find((m) => m.id === next.scope[0]);
+            if (stood) setFocused(stood);
+          }
           const moved =
             JSON.stringify(next.slots) !== JSON.stringify(creating.slots) ||
             next.scope.join("|") !== creating.scope.join("|") ||
@@ -4413,6 +4547,15 @@ export function Workroom({
         const opened = reading ? null : openCreate(line, turnCtx);
         if (opened) {
           setSteerPending(false);
+          /* NOTHING TO VERSION, SO NOTHING TO ADD (B5, row 57, the Piedmont
+             drive 2026-09-14). Every create this grammar gathers lands on a
+             facility's modification version, and a package with nothing booked
+             carries none: the create is refused in the room's own words rather
+             than gathered for a facility question over an empty set. */
+          if (!turnCtx.members.length) {
+            answer({ kind: "agent", id: nextId("agent"), text: noVersionRefusal(createSubject(opened)) });
+            return;
+          }
           await askCreate(opened, mine);
           return;
         }
@@ -4457,6 +4600,18 @@ export function Workroom({
            wire's own questions instead: which facility, what kind, how much. */
         const feeOpen = reading ? null : readFeeOpen(line, scopeMembers, turnCtx.focused);
         if (feeOpen) {
+          // A FEE IS A CREATE TOO, and it takes the same refusal: `feeAsk` on an
+          // empty package asks which facility it goes on and offers none.
+          if (!scopeMembers.length) {
+            setSteerPending(false);
+            const feeKind = (feeOpen.kind ?? "fee").toLowerCase();
+            answer({
+              kind: "agent",
+              id: nextId("agent"),
+              text: noVersionRefusal(`${/^[aeiou]/i.test(feeKind) ? "An" : "A"} ${feeKind}`),
+            });
+            return;
+          }
           const feeNeeds = feeAsk(feeOpen, scopeMembers);
           if (feeNeeds) {
             setSteerPending(false);
@@ -4975,7 +5130,7 @@ export function Workroom({
          the room was holding the whole time.
 
          A polite COMMAND is never a read: it asked for a change. */
-      const topic = commanded ? null : readTopic(instruction);
+      const topic = commanded || judgementAsk(instruction) ? null : readTopic(instruction);
       const localCard = topic !== null && reads ? buildReadCard(topic, reads, readNarrowing(topic, instruction)) : null;
       if (localCard) {
         landRead(localCard, mine);
@@ -6813,7 +6968,13 @@ export function Workroom({
                       ) : (
                         <RoomBoundary what={`this ${item.kind}`}>
                           <ThreadBlock
-                            item={spoken}
+                            /* THE SPENT TURN KEEPS ITS WORDS AND LOSES ITS CHIPS
+                               (backlog row 54). The rule is threadCondense's;
+                               this is the one call site that obeys it. A STEP
+                               BEHIND THE LIVE ONE IS SPENT WHOLE: opening the
+                               earlier steps shows what happened in them, never
+                               the offers they carried while they were open. */
+                            item={view.spent || !shows(group) ? withoutChips(spoken) : spoken}
                             entries={entries}
                             filedWord={vocabulary.filedWord}
                             opening={openingItem}

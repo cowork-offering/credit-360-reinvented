@@ -138,6 +138,20 @@ export interface Slots {
   /** The party is already on this book somewhere. A net-new name is a legitimate
    *  add and is kept verbatim; this is what tells the two apart. */
   partyOnBook?: boolean;
+  /**
+   * THE ORG'S OWN ACCOUNT SEARCH HAS ALREADY RUN ON THIS NAME.
+   *
+   * A name the relationship does not carry is not therefore a name nobody
+   * holds: the org has the rest of its accounts, and `Customer360SearchAccounts`
+   * is a read this cockpit already makes. It runs once per name, and this is
+   * what keeps it from running again on every following line of the create.
+   */
+  partySearched?: boolean;
+  /** The org account the name resolved to, where the search settled one. */
+  partyAccountId?: string;
+  /** The banker chose to file the name they typed rather than one of the org's
+   *  own accounts. A real answer, and the one that ends the name question. */
+  partyNew?: boolean;
   /** One of the five legal borrowing-structure roles, in the org's own words. */
   role?: string;
 }
@@ -833,6 +847,39 @@ function hasLines(members: ElicitMember[]): boolean {
   return lines.length > 0 && lines.length < members.length;
 }
 
+/**
+ * NOTHING TO VERSION, SO NOTHING TO ADD (B5, row 57, the Piedmont drive
+ * 2026-09-14).
+ *
+ * A party, a fee, a pledge and a covenant attach all ride the MODIFICATION
+ * VERSION of the facility they land on, so a package with nothing booked has
+ * nowhere to put one. The room already refuses a commitment, a rate and a term
+ * on such a package (`parseModify.ts`); a create went the other way and asked
+ * "no facilities on this package. Which of them should this land on?" over the
+ * empty set, offering "All 0". One sentence instead, with the banker's own
+ * words in it and both ways forward named, and no question and no chip behind
+ * it: an ask the room cannot honour is worse than a refusal.
+ */
+export function noVersionRefusal(subject: string): string {
+  return (
+    `${subject} would ride on a modification version of the facility it lands on, and nothing on this package is booked for me to version, ` +
+    "so it waits until one of these facilities books or starts as a New facility on a new package."
+  );
+}
+
+/** What a create is, in the words the refusal says it back in. The banker's
+ *  own name for it wherever they typed one. */
+export function createSubject(draft: Draft): string {
+  const s = draft.slots;
+  if (draft.surface === "involvement") {
+    const party = String(s.party ?? "").trim();
+    if (!party) return "A party on this deal";
+    return s.role ? `${party} as ${s.role}` : party;
+  }
+  if (draft.surface === "covenant") return s.test ? `A ${s.test} covenant` : "A covenant";
+  return "A pledge";
+}
+
 /** The scope question, with the package's own groups as the answers. */
 function scopeAsk(ctx: ElicitContext): Ask {
   const groups = new Map<string, string[]>();
@@ -841,9 +888,15 @@ function scopeAsk(ctx: ElicitContext): Ask {
     held.push(m.id);
     groups.set(m.key, held);
   }
-  const options: Array<{ label: string; say: string }> = [
-    { label: `All ${ctx.members.length}`, say: `all ${ctx.members.length} facilities` },
-  ];
+  const options: Array<{ label: string; say: string }> = [];
+  /* A COUNT-ZERO "ALL" IS A BUG, NOT A CHOICE (B5, row 57, the Piedmont drive
+     2026-09-14). The room rendered the chip "All 0" under "no facilities on
+     this package", which is an unanswerable question over an empty set. The
+     create is refused before it ever reaches this ask now; the guard stays
+     because the chip is wrong in every reading of it. */
+  if (ctx.members.length) {
+    options.push({ label: `All ${ctx.members.length}`, say: `all ${ctx.members.length} facilities` });
+  }
   for (const [key, ids] of groups) {
     if (ids.length < 2) continue;
     options.push({
@@ -1515,11 +1568,25 @@ const refusedRole = (line: string) => REFUSED_ROLES.find((r) => r.match.test(lin
 const INVOLVEMENT_OPENS =
   /\b(?:add|bring\s+in|put)\b[^.]{0,60}?\b(?:as\s+(?:an?\s+|the\s+)?)?(?:limited\s+guarantor|co[-\s]?borrower|related\s+entity|guarantor|borrower|grantor|contractor)\b|\badd\b[^.]{0,20}\b(?:legal\s+entity|entity|party|obligor)\b/i;
 
-/** Verb, optional article, optional role, then the capitalised name. The shell's
- *  own reading of the shape the parser also walks: a banker writes the role in
- *  lower case and the entity name capitalised. */
-const NEW_PARTY_NAMED =
-  /\b(?:add|bring\s+in|put|remove|release|drop|take)\s+(?:(?:the|an?)\s+)?(?:(?:limited\s+guarantor|co[-\s]?borrower|related\s+entity|guarantor|borrower)\s+)?([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*)*)/;
+/* Verb, optional article, optional role, then the capitalised name. The shell's
+   own reading of the shape the parser also walks: a banker writes the role in
+   lower case and the entity name capitalised.
+
+   THE VERB AND THE ROLE CARRY BOTH CASES AND THE NAME DOES NOT (founder's Blue
+   Ridge run, 2026-09-14, defect b). This pattern had no `i` flag, so "Add
+   Piedmont Precision as Guarantor", a sentence opening on a capital, which is
+   how anyone types the first line of a message, matched nothing at all, the
+   slot stayed empty and the room asked "Who goes on the deal?" over a name the
+   banker had just given it. The flag cannot simply go on: `i` would make
+   `[A-Z]` match anything and "add a guarantor" would file a party called "a".
+   So the two lower-case-only halves are written with both cases, exactly as
+   `parseModify.ts:PARTY_VERB` has always written them, and the capital that
+   identifies a name stays a capital. */
+const NEW_PARTY_VERB = "(?:[Aa]dd|[Bb]ring\\s+in|[Pp]ut|[Rr]emove|[Rr]elease|[Dd]rop|[Tt]ake)";
+const NEW_PARTY_ROLE = "(?:[Ll]imited\\s+[Gg]uarantor|[Cc]o[-\\s]?[Bb]orrower|[Rr]elated\\s+[Ee]ntity|[Gg]uarantor|[Bb]orrower)";
+const NEW_PARTY_NAMED = new RegExp(
+  `\\b${NEW_PARTY_VERB}\\s+(?:(?:[Tt]he|[Aa]n?)\\s+)?(?:${NEW_PARTY_ROLE}\\s+)?([A-Z][\\w&.'-]*(?:\\s+[A-Z][\\w&.'-]*)*)`,
+);
 
 /** Not a name, whatever the capitalisation. */
 const NOT_A_PARTY_NAME =
@@ -1657,8 +1724,21 @@ export function readInto(draft: Draft, line: string, ctx: ElicitContext, opts: {
        new on the deal is exactly what an add is. */
     const party = readPartyName(text, ctx.book);
     if (party) {
+      /* A DIFFERENT NAME IS A DIFFERENT SEARCH. The org lookup is keyed on the
+         name, so naming somebody else puts the question back rather than
+         carrying the last name's answer onto this one. */
+      if (next.slots.party && !samePartyName(next.slots.party, party.name)) {
+        delete next.slots.partySearched;
+        delete next.slots.partyAccountId;
+      }
       next.slots.party = party.name;
       next.slots.partyOnBook = party.onBook;
+    }
+    /* "FILE THE NAME I TYPED" is an answer to the org's account search and it
+       settles the name outright: no further search, and the create moves on. */
+    if (/\bnew party\b/i.test(text)) {
+      next.slots.partyNew = true;
+      next.slots.partySearched = true;
     }
     const refused = refusedRole(text);
     const role = readRoleWord(text);
