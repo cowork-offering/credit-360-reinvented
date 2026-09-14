@@ -68,6 +68,19 @@ public with sharing class C360NewFacilities {
     public static final String RT_CREATE_STAGE = 'Qualification';
     public static final String RT_CREATE_STATUS = 'Open';
 
+    /**
+     * The route the nCino Loan record page resolves itself from (LESSONS 8o, 2026-09-14).
+     *
+     * nFORCE reads LLC_BI__Default_App__c to decide which app renders inside the Loan page. In this
+     * org only 'loans.dashboard-loan' resolves; the field's OWN default formula is
+     * 'loan.dashboard-loan', which renders the path bar and an EMPTY body with no Aura or Apex error
+     * anywhere. A clone inherits the parent's value, so nCino's credit action is safe once the
+     * parents are right, but a net-new facility inherits nothing and takes the broken default unless
+     * the insert sets this explicitly. Every facility this package writes therefore carries it, and
+     * it is one constant here because three tools author a facility and a second copy would drift.
+     */
+    public static final String LOAN_DEFAULT_APP = 'loans.dashboard-loan';
+
     /** At most this many net-new facilities on one plan. The banker confirms one manifest. */
     public static final Integer NEW_FACILITY_MAX = 5;
 
@@ -325,7 +338,8 @@ public with sharing class C360NewFacilities {
             'LLC_BI__isRenewal__c' => false,
             'LLC_BI__Is_Modification__c' => false,
             'LLC_BI__Product__c' => product,
-            'LLC_BI__Amount__c' => amount
+            'LLC_BI__Amount__c' => amount,
+            'LLC_BI__Default_App__c' => LOAN_DEFAULT_APP
         };
     }
 
@@ -353,7 +367,8 @@ public with sharing class C360NewFacilities {
             LLC_BI__isRenewal__c = false,
             LLC_BI__Is_Modification__c = false,
             LLC_BI__Product__c = nf.product,
-            LLC_BI__Amount__c = nf.amount
+            LLC_BI__Amount__c = nf.amount,
+            LLC_BI__Default_App__c = LOAN_DEFAULT_APP
         );
         if (nf.termMonths != null) {
             record.LLC_BI__Term_Months__c = nf.termMonths;
@@ -453,7 +468,7 @@ public with sharing class C360NewFacilities {
                 .onObject(C360WriteGuard.OBJ_LOAN, new List<String>{
                     'LLC_BI__Account__c', 'LLC_BI__Product_Package__c', 'LLC_BI__Stage__c', 'LLC_BI__Status__c',
                     'LLC_BI__isRenewal__c', 'LLC_BI__Is_Modification__c', 'LLC_BI__Product__c', 'LLC_BI__Amount__c',
-                    'LLC_BI__Term_Months__c'
+                    'LLC_BI__Term_Months__c', 'LLC_BI__Default_App__c'
                 })
                 .wakes(new List<String>{
                     'Five managed namespaces (LLC_BI, nFORCE, nCino, NDOC, nCRED) and 21 validation rules',
@@ -474,7 +489,9 @@ public with sharing class C360NewFacilities {
         out.add(
             new C360Plan.Step('new_facility_verify_' + s, C360Plan.TYPE_VERIFICATION,
                 'Read the new facility back and report the name the org assigned it')
-                .onObject(C360WriteGuard.OBJ_LOAN, new List<String>{ 'Name', 'LLC_BI__Stage__c', 'LLC_BI__Product__c', 'LLC_BI__Amount__c' })
+                .onObject(C360WriteGuard.OBJ_LOAN, new List<String>{
+                    'Name', 'LLC_BI__Stage__c', 'LLC_BI__Product__c', 'LLC_BI__Amount__c', 'LLC_BI__Default_App__c'
+                })
                 .provenBy('SELECT Id, Name, LLC_BI__Stage__c, LLC_BI__Amount__c FROM LLC_BI__Loan__c WHERE Id = :newFacilityId')
         );
         out.add(

@@ -355,7 +355,10 @@ global with sharing class ExecuteNewFacility {
             filed == null ? C360Plan.STATE_FILED_UNVERIFIED : C360Plan.STATE_VERIFIED,
             filed == null
                 ? 'The insert returned success but the facility could not be read back.'
-                : 'The org named this facility ' + orgName + ' and set product ' + filed.LLC_BI__Product__c + '.'
+                // The Default App is reported because it decides whether the nCino Loan page renders
+                // at all (LESSONS 8o). A regression shows here rather than on the banker's screen.
+                : 'The org named this facility ' + orgName + ' and set product ' + filed.LLC_BI__Product__c +
+                  '. Default App ' + filed.LLC_BI__Default_App__c + '.'
         );
 
         // THE ARMS, IN THIS TRANSACTION (backlog row 49, founder 2026-09-13). The facility exists
@@ -522,7 +525,8 @@ global with sharing class ExecuteNewFacility {
 
     private static LLC_BI__Loan__c readLoan(Id loanId) {
         List<LLC_BI__Loan__c> rows = [
-            SELECT Id, Name, LLC_BI__Stage__c, LLC_BI__Product__c, LLC_BI__Loan_Detail__c, LLC_BI__Product_Package__c
+            SELECT Id, Name, LLC_BI__Stage__c, LLC_BI__Product__c, LLC_BI__Loan_Detail__c,
+                   LLC_BI__Product_Package__c, LLC_BI__Default_App__c
             FROM LLC_BI__Loan__c
             WHERE Id = :loanId
             WITH USER_MODE

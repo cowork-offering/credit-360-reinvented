@@ -365,7 +365,8 @@ global with sharing class StageNewFacility {
             new C360Plan.Step('write_loan', C360Plan.TYPE_WRITE, 'Create the facility at Qualification on ' + packageLabel)
                 .onObject(C360WriteGuard.OBJ_LOAN, new List<String>{
                     'LLC_BI__Account__c', 'LLC_BI__Product_Package__c', 'LLC_BI__Stage__c', 'LLC_BI__Status__c',
-                    'LLC_BI__isRenewal__c', 'LLC_BI__Is_Modification__c', 'LLC_BI__Product__c', 'LLC_BI__Amount__c'
+                    'LLC_BI__isRenewal__c', 'LLC_BI__Is_Modification__c', 'LLC_BI__Product__c', 'LLC_BI__Amount__c',
+                    'LLC_BI__Default_App__c'
                 })
                 .wakes(new List<String>{
                     'Five managed namespaces (LLC_BI, nFORCE, nCino, NDOC, nCRED) and 21 validation rules',

@@ -1,0 +1,22 @@
+[
+  {
+    "actionName": "CompleteNewFacilityDetail",
+    "errors": null,
+    "expectedError": false,
+    "invocationId": null,
+    "isSuccess": true,
+    "outcome": null,
+    "outputValues": {
+      "error": {
+        "resumable": false,
+        "orgError": null,
+        "message": "Staging record a8abb00001OfoxEAAR holds a new-facility-request plan, not a loan modification. This tool finishes what execute_loan_modification filed, or nothing.",
+        "code": "VALIDATION_FAILED"
+      },
+      "ok": false,
+      "result": null
+    },
+    "sortOrder": 0,
+    "version": 1
+  }
+]

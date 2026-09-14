@@ -2933,7 +2933,8 @@ private class StageExecuteLoanModificationTest {
         LLC_BI__Loan__c filed = [
             SELECT Id, Name, LLC_BI__Stage__c, LLC_BI__Status__c, LLC_BI__Product__c, LLC_BI__Amount__c,
                    LLC_BI__Term_Months__c, LLC_BI__Amortized_Term_Months__c, LLC_BI__First_Payment_Date__c,
-                   LLC_BI__Product_Package__c, LLC_BI__Is_Modification__c, LLC_BI__isRenewal__c
+                   LLC_BI__Product_Package__c, LLC_BI__Is_Modification__c, LLC_BI__isRenewal__c,
+                   LLC_BI__Default_App__c
             FROM LLC_BI__Loan__c WHERE Id = :newLoanId
         ];
         System.assertEquals(newPkgId, filed.LLC_BI__Product_Package__c,
@@ -2949,6 +2950,11 @@ private class StageExecuteLoanModificationTest {
         System.assertEquals(false, filed.LLC_BI__Is_Modification__c,
             'A new loan is not a version of anything, and flagging it would misreport it as somebody\'s clone');
         System.assertEquals(false, filed.LLC_BI__isRenewal__c);
+        System.assertEquals(
+            C360NewFacilities.LOAN_DEFAULT_APP,
+            filed.LLC_BI__Default_App__c,
+            'LESSONS 8o: a net-new facility inherits nothing, so the arm sets the route the Loan page renders from'
+        );
         System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__LoanRenewal__c WHERE LLC_BI__RenewalLoanId__c = :newLoanId],
             'And it carries no chain row, because there is no parent it came from');
 

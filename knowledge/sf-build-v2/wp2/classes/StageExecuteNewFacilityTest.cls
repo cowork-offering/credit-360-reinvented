@@ -131,10 +131,16 @@ private class StageExecuteNewFacilityTest {
         System.assertEquals(true, done.ok, 'execute should succeed: ' + (done.error == null ? '' : done.error.code + ' ' + done.error.message));
 
         LLC_BI__Loan__c filed = [
-            SELECT Id, Name, LLC_BI__Stage__c, LLC_BI__Status__c, LLC_BI__isRenewal__c, LLC_BI__Is_Modification__c, LLC_BI__Product__c
+            SELECT Id, Name, LLC_BI__Stage__c, LLC_BI__Status__c, LLC_BI__isRenewal__c, LLC_BI__Is_Modification__c,
+                   LLC_BI__Product__c, LLC_BI__Default_App__c
             FROM LLC_BI__Loan__c WHERE Id = :done.result.loanId
         ];
         System.assertEquals('Open', filed.LLC_BI__Status__c);
+        System.assertEquals(
+            C360NewFacilities.LOAN_DEFAULT_APP,
+            filed.LLC_BI__Default_App__c,
+            'LESSONS 8o: the field default renders an EMPTY nCino Loan page, so the insert sets the route itself'
+        );
         System.assertEquals(false, filed.LLC_BI__isRenewal__c, 'Cannot_Check_More_Than_One_Loan_Type: a new facility is neither');
         System.assertEquals(false, filed.LLC_BI__Is_Modification__c);
         System.assertEquals(

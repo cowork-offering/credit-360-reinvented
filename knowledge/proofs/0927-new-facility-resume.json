@@ -1,0 +1,108 @@
+[
+  {
+    "actionName": "ExecuteNewFacility",
+    "errors": null,
+    "expectedError": false,
+    "invocationId": null,
+    "isSuccess": true,
+    "outcome": null,
+    "outputValues": {
+      "error": null,
+      "ok": true,
+      "result": {
+        "terminalState": "success",
+        "steps": [
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Create the credit package Piedmont Precision Components, Inc. - 9/14/2026 - PP",
+            "id": "create_package",
+            "detail": "Credit package Piedmont Precision Components, Inc. - 9/14/2026 - PP created. PPCacheCreation and ProductPackageBaselineCaptureTrigger ran org-side and report nothing back."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Create the facility at Qualification on Piedmont Precision Components, Inc. - 9/14/2026 - PP",
+            "id": "write_loan",
+            "detail": "Facility a4Zbb000002KwhpEAC created at Qualification."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Add the borrower to the facility's borrowing structure",
+            "id": "write_involvement",
+            "detail": "Borrower added to the borrowing structure at 100.00 percent ownership."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Read back the facility and report the name the org assigned",
+            "id": "verify_loan",
+            "detail": "The org named this facility Piedmont Precision Components, Inc. - Equipment - $750,000.00 and set product Equipment. Default App loans.dashboard-loan."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove any collateral aggregate shell this run mints and leaves unlinked, and only those",
+            "id": "sweep_aggregates",
+            "detail": "No collateral aggregate shell was minted in this transaction, so there was nothing to sweep."
+          },
+          {
+            "type": "wait",
+            "state": "verified",
+            "label": "nCino creates the Loan Detail, then this action continues",
+            "id": "wait_loan_detail",
+            "detail": "nCino created Loan Detail a4Wbb000001N6IfEAK."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Set the primary loan purpose on the Loan Detail",
+            "id": "write_loan_purpose",
+            "detail": "Primary loan purpose set to business_expansion."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Move the facility from Qualification to Proposal",
+            "id": "hop_to_proposal",
+            "detail": "Stage moved from Qualification to Proposal."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm the facility now reads Proposal",
+            "id": "verify_hop",
+            "detail": "Facility reads back at stage Proposal."
+          },
+          {
+            "type": "observed_side_effect",
+            "state": "filed_unverified",
+            "label": "The org assigns the loan officer",
+            "id": "observe_loan_officer",
+            "detail": "The loan officer was assigned by org automation from the account owner. This tool did not set it."
+          }
+        ],
+        "stagingId": "a8abb00001OfoxEAAR",
+        "stage": "Proposal",
+        "resumeDescriptor": null,
+        "resumable": false,
+        "replayed": false,
+        "recordName": "Piedmont Precision Components, Inc. - Equipment - $750,000.00",
+        "productPackageId": "a5Fbb000000JIXVEA4",
+        "pledgesCreated": null,
+        "packageCreated": null,
+        "outcome": "Facility Piedmont Precision Components, Inc. - Equipment - $750,000.00 completed and moved to Proposal. The org assigned the name and the loan officer. Nothing has been approved: reaching Booked requires nCino's Submit for Approval.",
+        "loanId": "a4Zbb000002KwhpEAC",
+        "loanDetailId": "a4Wbb000001N6IfEAK",
+        "involvementId": null,
+        "covenantsCreated": null,
+        "covenantsAssociated": null,
+        "assetsCreated": null,
+        "anchorName": null
+      }
+    },
+    "sortOrder": 0,
+    "version": 1
+  }
+]

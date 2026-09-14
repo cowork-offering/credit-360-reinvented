@@ -1803,7 +1803,7 @@ global with sharing class ExecuteLoanModification {
             Map<Id, LLC_BI__Loan__c> filedBack = new Map<Id, LLC_BI__Loan__c>([
                 SELECT Id, Name, LLC_BI__Stage__c, LLC_BI__Status__c, LLC_BI__Product__c, LLC_BI__Amount__c,
                        LLC_BI__Term_Months__c, LLC_BI__Amortized_Term_Months__c, LLC_BI__First_Payment_Date__c,
-                       LLC_BI__Product_Package__c, LLC_BI__Loan_Detail__c
+                       LLC_BI__Product_Package__c, LLC_BI__Loan_Detail__c, LLC_BI__Default_App__c
                 FROM LLC_BI__Loan__c WHERE Id IN :filedIds WITH USER_MODE
             ]);
 
@@ -1886,6 +1886,14 @@ global with sharing class ExecuteLoanModification {
                     } else {
                         unproven.add('the first payment date reads ' + String.valueOf(back.LLC_BI__First_Payment_Date__c));
                     }
+                }
+                // The route the Loan page renders from (LESSONS 8o). Reported on the same footing as
+                // the commitment: a wrong value is invisible until a banker opens an empty page.
+                if (back.LLC_BI__Default_App__c == C360NewFacilities.LOAN_DEFAULT_APP) {
+                    proven.add('Default App ' + back.LLC_BI__Default_App__c);
+                } else {
+                    unproven.add('Default App reads ' + back.LLC_BI__Default_App__c + ' rather than ' +
+                        C360NewFacilities.LOAN_DEFAULT_APP + ', so the nCino Loan page will render empty');
                 }
                 nr.verification = 'The org named this facility ' + back.Name + '. ' + String.join(proven, '; ') +
                     (unproven.isEmpty() ? '.' : '. Not proven: ' + String.join(unproven, '; ') + '.');

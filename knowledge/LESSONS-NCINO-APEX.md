@@ -1144,3 +1144,14 @@ that lives only in a session transcript does not exist.*
 79. A record-triggered nCino flow ("Loan After Save") can refuse every update on a seed whose email
     alert has no recipient (EverPetal); the API error is CANNOT_EXECUTE_FLOW_TRIGGER, not a validation
     rule. Check the owner and loan team before blaming the field.
+80. The fix (2026-09-14, backlog 55): every facility this package writes now carries
+    `LLC_BI__Default_App__c = 'loans.dashboard-loan'` explicitly. The literal is ONE constant,
+    `C360NewFacilities.LOAN_DEFAULT_APP`, and it lives there because `C360NewFacilities.newLoan` and
+    `loanFields` are already the single shape three tools author a facility through
+    (`execute_new_facility`, the modification's net-new arm, the narrated renewal): a second copy of a
+    value this subtle drifts, and drift here is invisible until a banker opens an empty page. Both
+    read-backs report it, so a regression shows in the tracker rather than on the screen:
+    `execute_new_facility`'s `verify_loan` detail ends "Default App loans.dashboard-loan", and the
+    modification's `new_facility_verify_*` lists it beside the commitment and says plainly that a wrong
+    value renders the page empty. The stage plans list the field on their loan write steps; the write
+    guard and the cockpit allowlist are both deny-lists on fields, so neither needed a change.
