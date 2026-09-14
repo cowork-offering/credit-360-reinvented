@@ -260,11 +260,68 @@ async function standInPackage(page, want) {
   return took;
 }
 
-/** Take the route chip with this exact label. */
+/* ============================ THE ROUTES ARE DOORS ON THE ENTRY SHEET (0.9.25)
+
+   Founder design-intent gate, 2026-09-14 (knowledge/DESIGN-0.9.24-ENTRY.md): both rooms open on
+   one centred sheet carrying the relationship, one line of state and the routes as large glass
+   doors, instead of a greeting bubble with option pills under it. A route the book has shut stays
+   on the sheet, disabled, carrying the book's own reason (A27.3).
+
+   So every drive reads `[data-door="<route>"]` rather than a chip. The route ids are the room's
+   own: modify, renew, create, amend, memo in the facility room; annual, covenant, valuation,
+   rating, service, intake, versionCovenant, versionPledge in the relationship room.           */
+
+/** Every door on the sheet: its route, its label, its one line, and whether it is shut. */
+async function doorRows(page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll(".wk-entry-door[data-door]")].map((d) => {
+      const label = d.querySelector(".wk-entry-dl");
+      const line = d.querySelector(".wk-entry-dw");
+      return {
+        route: d.getAttribute("data-door"),
+        label: ((label && label.textContent) || "").replace(/\s+/g, " ").trim(),
+        line: ((line && line.textContent) || "").replace(/\s+/g, " ").trim(),
+        shut: !!d.disabled,
+      };
+    }),
+  );
+}
+
+/** The labels the sheet is offering, in order. */
+async function doorLabels(page) {
+  return (await doorRows(page)).map((d) => d.label);
+}
+
+/** Click the door whose route id matches, or whose label does. `exact` is off for a drive that
+ *  knows the start of a label but not the whole of it. Returns false where the door is shut. */
+async function takeDoor(page, want, { exact = true } = {}) {
+  await page
+    .waitForFunction(
+      ([w, e]) =>
+        [...document.querySelectorAll(".wk-entry-door[data-door]")].some((d) => {
+          const n = d.querySelector(".wk-entry-dl");
+          const label = ((n && n.textContent) || "").trim();
+          return d.getAttribute("data-door") === w || (e ? label === w : label.startsWith(w));
+        }),
+      [want, exact],
+      { timeout: 25000 },
+    )
+    .catch(() => {});
+  return page.evaluate(([w, e]) => {
+    const door = [...document.querySelectorAll(".wk-entry-door[data-door]")].find((d) => {
+      const n = d.querySelector(".wk-entry-dl");
+      const label = ((n && n.textContent) || "").trim();
+      return d.getAttribute("data-door") === w || (e ? label === w : label.startsWith(w));
+    });
+    if (!door || door.disabled) return false;
+    door.click();
+    return true;
+  }, [want, exact]);
+}
+
+/** Take the route door with this exact label. */
 async function takeRoute(page, label) {
-  const ROUTE = '.wk-opts button, .wk-opt, .wk-routes button';
-  await page.waitForFunction(([sel, l]) => [...document.querySelectorAll(sel)].some((b) => (b.textContent || "").trim() === l), [ROUTE, label], { timeout: 25000 });
-  await page.evaluate(([sel, l]) => { const b = [...document.querySelectorAll(sel)].find((x) => (x.textContent || "").trim() === l); if (b) b.click(); }, [ROUTE, label]);
+  await takeDoor(page, label);
 }
 
 async function runScript(name, lines, version, check) {
@@ -529,7 +586,7 @@ async function driveNoVersion(page, which) {
     if (switched && !/^\[blocked\]/.test(String(switched))) {
       findings.push(`the header's switch walked the room into a "Modification in flight" package on a relationship that can carry no version: ${switched}`);
     }
-    const routes = await page.evaluate(() => [...document.querySelectorAll(".wk-opts button, .wk-opt, .wk-routes button")].map((b) => (b.textContent || "").trim()));
+    const routes = await doorLabels(page);
     note("[read] the routes on the book's own package", routes.join(" || "));
     if (!routes.length) findings.push("the room offers no route at all");
     /* AND NO ROUTE MAY PROMISE A CREDIT ACTION HERE. Modify and Renew are still on the row (the
@@ -649,7 +706,7 @@ async function driveAmend(page) {
   await openFacilityRoom(page);
   const picked = await standInPackage(page, "Modification in flight");
   note("[stand in] the in-flight version", picked);
-  const routes = await page.evaluate(() => [...document.querySelectorAll('.wk-opts button, .wk-opt, .wk-routes button')].map((b) => (b.textContent || "").trim()));
+  const routes = await doorLabels(page);
   note("[read] the routes inside a version", routes.join(" || "));
   // C1's own label for the amend route is "Shape this version"; the drive accepts the two
   // phrasings the spec used as well, so a rename does not read as a missing route.
@@ -928,6 +985,61 @@ async function driveRelayDrop(page) {
    and that the package line under the title says the truth about this book, which is a different
    sentence on a one-package relationship than on Hartwell's two. */
 
+/** The routes each room offers, as the rooms' own door ids. A door may be SHUT on a given book
+ *  (A27.3) but it is never missing: that is the whole of what the sheet promises. */
+const FACILITY_ROUTES = ["modify", "renew", "create", "memo"];
+const REL_ROUTES = [
+  "annual",
+  "covenant",
+  "valuation",
+  "rating",
+  "service",
+  "intake",
+  "versionCovenant",
+  "versionPledge",
+];
+
+/** THE ENTRY SHEET, ASSERTED (0.9.25). It is the first thing in the thread, it names the
+ *  relationship, it says one line of state, and its doors are the routes the room offers today. */
+async function entrySheetFindings(page, where, expected) {
+  const found = [];
+  const sheet = await page.evaluate(() => {
+    const thread = document.querySelector(".wk-root .wk-thread");
+    if (!thread) return null;
+    const entry = thread.querySelector(".wk-entry");
+    if (!entry) return { present: false };
+    /* FIRST ON THE GLASS: nothing the room said may stand above the sheet. */
+    const blocks = [...thread.querySelectorAll(".wk-entry, .wk-msg, [data-recap]")];
+    const title = entry.querySelector(".wk-sheet-t");
+    const state = entry.querySelector(".wk-entry-state");
+    return {
+      present: true,
+      first: blocks[0] === entry,
+      title: ((title && title.textContent) || "").trim(),
+      state: ((state && state.textContent) || "").replace(/\s+/g, " ").trim(),
+      reads: !!entry.querySelector(".wk-entry-reads"),
+    };
+  });
+  if (!sheet || !sheet.present) {
+    found.push(`${where} does not open on the entry sheet`);
+    return found;
+  }
+  if (!sheet.first) found.push(`${where} puts something above the entry sheet in the thread`);
+  if (sheet.title !== BOOK.relationship) found.push(`the entry sheet in ${where} is titled "${sheet.title}", not ${BOOK.relationship}`);
+  if (!sheet.state) found.push(`the entry sheet in ${where} says no line of state`);
+  if (/\u2014/.test(sheet.state)) found.push(`em dash on the entry sheet's state line in ${where}`);
+  if (!sheet.reads) found.push(`the entry sheet in ${where} carries no read chips under its doors`);
+  const rows = await doorRows(page);
+  const missing = expected.filter((r) => !rows.some((d) => d.route === r));
+  if (missing.length) found.push(`${where} offers no door for ${missing.join(", ")}`);
+  for (const d of rows) {
+    if (!d.label) found.push(`a door in ${where} carries no label`);
+    if (!d.line) found.push(`the ${d.route} door in ${where} says nothing about what it does`);
+    if (/\u2014/.test(d.line)) found.push(`em dash on the ${d.route} door in ${where}`);
+  }
+  return found;
+}
+
 async function driveDoors(page) {
   const findings = [];
   const turns = [];
@@ -961,9 +1073,45 @@ async function driveDoors(page) {
     }
     for (const other of strangers) if (body.includes(other)) findings.push(`the relationship room named "${other}" while ${BOOK.relationship} was open`);
     if (!body.includes(BOOK.relationship)) findings.push(`the relationship room never names ${BOOK.relationship}`);
+    findings.push(...(await entrySheetFindings(page, "the relationship room", REL_ROUTES)));
     await page.evaluate(() => { const b = document.querySelector('[aria-label="Close the relationship room"]'); if (b) b.click(); });
     await page.waitForTimeout(1200);
   }
+
+  /* ---- THE FACILITY ROOM'S OWN SHEET, and the fold. Picking a door leaves ONE recap line where
+          the sheet was, and under it the room's own flow: the package question where the route
+          needs one, or the first step where it does not. */
+  await openFacilityRoom(page);
+  findings.push(...(await entrySheetFindings(page, "the facility room", FACILITY_ROUTES)));
+  const shut = (await doorRows(page)).filter((d) => d.shut);
+  note("[sheet] the facility room's doors", (await doorRows(page)).map((d) => `${d.route}${d.shut ? " [shut]" : ""}`).join(" || "));
+  for (const d of shut) if (!d.line) findings.push(`the ${d.route} door is shut with no reason on it`);
+  await takeRoute(page, "Modify");
+  await page.waitForTimeout(3500);
+  const folded = await page.evaluate(() => {
+    const thread = document.querySelector(".wk-root .wk-thread");
+    const recap = thread ? thread.querySelector('[data-recap="entry"]') : null;
+    return {
+      sheet: !!(thread && thread.querySelector(".wk-entry")),
+      recap: recap ? (recap.textContent || "").replace(/\s+/g, " ").trim() : null,
+      asked: !!document.querySelector(".wk-pkgask"),
+      composer: !!document.querySelector(".wk-txt:not([disabled])"),
+    };
+  });
+  note("[fold] Modify, chosen", JSON.stringify(folded));
+  if (folded.sheet) findings.push("the entry sheet is still on the glass after a door was taken");
+  if (folded.recap !== "Modify, chosen") findings.push(`the fold left no recap line: ${JSON.stringify(folded.recap)}`);
+  /* ONE OR THE OTHER, NEVER NEITHER. A multi-package book asks which package the route runs in; a
+     one-package book binds it silently and the composer wakes on the first step. */
+  if (BOOK.multiPackage ? !folded.asked : !folded.composer) {
+    findings.push(
+      BOOK.multiPackage
+        ? "the fold landed no package question on a relationship staging more than one"
+        : "the fold woke no step on a one-package relationship",
+    );
+  }
+  await page.evaluate(() => { const b = document.querySelector('[aria-label="Close the workroom"]'); if (b) b.click(); });
+  await page.waitForTimeout(1500);
 
   /* ---- THE MEMO DOOR, off the facility room's route question. On a book staging more than one
           package the door ASKS which the memo is for; on a one-package book it opens straight
@@ -1044,24 +1192,14 @@ async function openRelationshipRoom(page) {
   await page.waitForTimeout(3500);
 }
 
-/** Bind a review by name. The room may open on a governance signal offering ONE route plus
- *  "Something else"; taking that gets back to the six-way list the chip lives in. */
+/** Bind a review by name, off the entry sheet's doors.
+ *
+ *  THE TWO-STEP IS GONE (0.9.25). The room used to open on a governance signal offering ONE route
+ *  plus "Something else", so binding anything else meant taking the way out first. The sheet shows
+ *  every route every time, with the signal on its state line, so one gesture binds. */
 async function takeReview(page, label) {
-  const took = await page.evaluate((want) => {
-    const hit = [...document.querySelectorAll(".wk-opt, .wk-opts button")].find((b) => (b.textContent || "").trim().startsWith(want));
-    if (hit) { hit.click(); return true; }
-    const out = [...document.querySelectorAll(".wk-opt, .wk-opts button")].find((b) => /^Something else/.test((b.textContent || "").trim()));
-    if (out) out.click();
-    return false;
-  }, label);
-  await page.waitForTimeout(took ? 3000 : 1500);
-  if (!took) {
-    await page.evaluate((want) => {
-      const hit = [...document.querySelectorAll(".wk-opt, .wk-opts button")].find((b) => (b.textContent || "").trim().startsWith(want));
-      if (hit) hit.click();
-    }, label);
-    await page.waitForTimeout(3000);
-  }
+  await takeDoor(page, label, { exact: false });
+  await page.waitForTimeout(3000);
 }
 
 /** The option rows of the live step, label and detail together, as the banker reads them. */
@@ -1224,20 +1362,13 @@ async function driveOneReview(page, opts) {
 async function driveRefusedReview(page, route, expectRe) {
   const findings = []; const turns = [];
   await openRelationshipRoom(page);
-  const findChip = (label) => page.evaluate((want) => {
-    const b = [...document.querySelectorAll(".wk-opts button, .wk-opt")].find((x) => (x.textContent || "").trim().startsWith(want));
-    return b ? { disabled: b.disabled, text: (b.textContent || "").replace(/\s+/g, " ").trim(), title: b.getAttribute("title") || "" } : null;
-  }, label);
-  /* THE CHIP SITS BEHIND "SOMETHING ELSE" when the room opened on a nudge (the same two-step
-     `takeReview` walks). */
-  let chip = await findChip(route);
-  if (!chip) {
-    await page.evaluate(() => { const out = [...document.querySelectorAll(".wk-opt, .wk-opts button")].find((b) => /^Something else/.test((b.textContent || "").trim())); if (out) out.click(); });
-    await page.waitForTimeout(1500);
-    chip = await findChip(route);
-  }
-  let said = chip ? `${chip.text}${chip.title ? " || " + chip.title : ""}` : "";
-  if (chip && !chip.disabled) {
+  /* THE DOOR SAYS IT BEFORE IT IS PRESSED (0.9.25). A route the book cannot run is a SHUT door on
+     the entry sheet carrying the reason on its own face, and the sheet shows every route every
+     time, so there is no "Something else" step to walk any more. */
+  const rows = await doorRows(page);
+  const chip = rows.find((r) => r.label.startsWith(route) || r.route === route) || null;
+  let said = chip ? `${chip.label} || ${chip.line}` : "";
+  if (chip && !chip.shut) {
     await takeReview(page, route); await page.waitForTimeout(3000);
     /* THE ROOM'S OWN WORDS, not the stub door's canned remark that lands after them. */
     const CANNED_HERE = /leverage stands inside policy|coverage cushion is intact/i;

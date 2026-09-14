@@ -645,6 +645,18 @@ global with sharing class StageLoanModification {
                 .onObject('LLC_BI__Loan_Covenant__c', new List<String>{ 'replicas retargeted at the clones, verified by count' })
                 .provenBy('SELECT COUNT() FROM LLC_BI__Loan_Covenant__c WHERE LLC_BI__Loan__c IN :cloneIds')
         );
+        // The shells the pledge insert causes and nobody uses (backlog row 46, org proof
+        // 2026-09-14). nCino answers every pledge insert with a collateral aggregate of its own,
+        // and the clone already carries the one the carry made, so nCino's is an orphan from birth
+        // that no later discard can name. The version-creation transaction is the only place that
+        // still can, so it removes them and says how many it found. Zero is the healthy answer.
+        steps.add(
+            new C360Plan.Step(C360AggregateSweep.STEP_ID, C360Plan.TYPE_WRITE,
+                'Remove any collateral aggregate shell this version creation mints and leaves unlinked, and only those')
+                .onObject('LLC_BI__Loan_Collateral_Aggregate__c', new List<String>{ 'Id' })
+                .wakes(new List<String>{ 'nCino managed delete handling on LLC_BI__Loan_Collateral_Aggregate__c' })
+                .provenBy('SELECT COUNT() FROM LLC_BI__Loan_Collateral_Aggregate__c WHERE Id IN :swept')
+        );
 
         // NET-NEW FACILITIES ON THE NEW VERSION (founder, 2026-09-03). A modification versions the
         // whole package, and the bank puts new money on the version being approved rather than on a

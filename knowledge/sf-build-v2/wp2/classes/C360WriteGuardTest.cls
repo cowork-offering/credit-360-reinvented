@@ -728,7 +728,7 @@ private class C360WriteGuardTest {
             'LLC_BI__LoanRenewal__c', C360WriteGuard.OBJ_PLEDGE, C360WriteGuard.OBJ_LOAN_COVENANT,
             'LLC_BI__Pricing_Rate_Component__c', 'LLC_BI__Pricing_Payment_Component__c',
             C360WriteGuard.OBJ_PRICING_STREAM, C360WriteGuard.OBJ_FEE, C360WriteGuard.OBJ_INVOLVEMENT,
-            C360WriteGuard.OBJ_LOAN, C360WriteGuard.OBJ_PRODUCT_PACKAGE
+            C360WriteGuard.OBJ_LOAN, C360WriteGuard.OBJ_PLEDGE_AGGREGATE, C360WriteGuard.OBJ_PRODUCT_PACKAGE
         }) {
             C360WriteGuard.assertAllowedForTool(
                 'discard-version', obj, C360WriteGuard.OP_DELETE, new Map<String, Object>()
@@ -740,11 +740,16 @@ private class C360WriteGuardTest {
     static void theDiscardMayNotDeleteWhatTheVersionMerelyPointedAt() {
         C360TestFixture.armCalloutMock();
         // The asset, the ownership junction, the covenant record, the relationship covenant
-        // junction, the aggregate shell and the audit trail. Each one is a thing a banker would
-        // still expect to find tomorrow, and each refusal is proved by asking for it.
+        // junction and the audit trail. Each one is a thing a banker would still expect to find
+        // tomorrow, and each refusal is proved by asking for it.
+        //
+        // The collateral aggregate SHELL is deliberately not on this list any more (2026-09-14,
+        // backlog row 46): it is a per-facility rollup anchor with no lookup back, so a discard
+        // that kept it left an empty row behind for good. It is now on the discard's delete set and
+        // is proved above.
         for (String obj : new List<String>{
             C360WriteGuard.OBJ_COLLATERAL, C360WriteGuard.OBJ_ACCOUNT_COLLATERAL, C360WriteGuard.OBJ_COVENANT,
-            C360WriteGuard.OBJ_ACCOUNT_COVENANT, C360WriteGuard.OBJ_PLEDGE_AGGREGATE, 'cm_Action_Staging__c',
+            C360WriteGuard.OBJ_ACCOUNT_COVENANT, 'cm_Action_Staging__c',
             C360WriteGuard.OBJ_LOAN_DETAIL, C360WriteGuard.OBJ_REVIEW, C360WriteGuard.OBJ_CASE,
             C360WriteGuard.OBJ_POLICY_EXCEPTION, C360WriteGuard.OBJ_RISK_RATING
         }) {
@@ -767,7 +772,9 @@ private class C360WriteGuardTest {
     @IsTest
     static void aToolWithNoDeclaredDeleteSetDeletesNothing() {
         C360TestFixture.armCalloutMock();
-        for (String toolId : new String[]{ 'relationship-intake', 'loan-modification', 'not-a-tool' }) {
+        // 'loan-modification' left this list on 2026-09-14: it now deletes exactly one object, the
+        // collateral aggregate shell its own pledge write orphans, and that is proved below.
+        for (String toolId : new String[]{ 'relationship-intake', 'covenant-review', 'not-a-tool' }) {
             Boolean refused = false;
             try {
                 C360WriteGuard.assertAllowedForTool(
@@ -785,6 +792,40 @@ private class C360WriteGuardTest {
     }
 
     @IsTest
+    static void thePledgeWritingToolsMayDeleteTheShellTheyOrphanAndNothingElse() {
+        C360TestFixture.armCalloutMock();
+        // Each of these inserts LLC_BI__Loan_Collateral2__c, and nCino answers that insert with a
+        // collateral aggregate of its own that nothing ever points at. The fence is exactly one
+        // object wide for each of them: they clean up after themselves and reach nothing else.
+        for (String toolId : new String[]{ 'loan-modification', 'amend-version', 'new-facility-request' }) {
+            C360WriteGuard.assertAllowedForTool(
+                toolId, C360WriteGuard.OBJ_PLEDGE_AGGREGATE, C360WriteGuard.OP_DELETE, new Map<String, Object>()
+            );
+            for (String obj : new List<String>{
+                C360WriteGuard.OBJ_PLEDGE, C360WriteGuard.OBJ_LOAN, C360WriteGuard.OBJ_PRODUCT_PACKAGE,
+                C360WriteGuard.OBJ_COLLATERAL, C360WriteGuard.OBJ_FEE, C360WriteGuard.OBJ_INVOLVEMENT
+            }) {
+                Boolean refused = false;
+                try {
+                    C360WriteGuard.assertAllowedForTool(
+                        toolId, obj, C360WriteGuard.OP_DELETE, new Map<String, Object>()
+                    );
+                } catch (C360WriteGuard.GuardException e) {
+                    refused = true;
+                    System.assert(
+                        e.getMessage().contains('may not delete'),
+                        'The refusal should name the object this tool may not delete: ' + e.getMessage()
+                    );
+                }
+                System.assertEquals(
+                    true, refused,
+                    'A sweep is not a licence to delete. Tried ' + obj + ' as ' + toolId
+                );
+            }
+        }
+    }
+
+    @IsTest
     static void theObjectGateStillRefusesEveryDeleteInTheDiscardSet() {
         C360TestFixture.armCalloutMock();
         // The whole point of putting the delete on a per-tool door is that the object door did not
@@ -793,7 +834,7 @@ private class C360WriteGuardTest {
         for (String obj : new List<String>{
             'LLC_BI__LoanRenewal__c', C360WriteGuard.OBJ_PLEDGE, C360WriteGuard.OBJ_LOAN_COVENANT,
             C360WriteGuard.OBJ_PRICING_STREAM, C360WriteGuard.OBJ_FEE, C360WriteGuard.OBJ_INVOLVEMENT,
-            C360WriteGuard.OBJ_LOAN, C360WriteGuard.OBJ_PRODUCT_PACKAGE
+            C360WriteGuard.OBJ_LOAN, C360WriteGuard.OBJ_PLEDGE_AGGREGATE, C360WriteGuard.OBJ_PRODUCT_PACKAGE
         }) {
             Boolean refused = false;
             try {

@@ -21,7 +21,7 @@ THE ONE OPTION (build only on the founder's yes):
 - Picking a door slides the sheet up into the thread as the first recap line ("Modify, chosen") and
   the package question (only where the route needs one) lands as the first bubble, scoped by the
   route. From there the room is exactly the condensed thread of 0.9.22.
-- In the relationship room the same sheet carries the BRIEFING (row 50) above the doors: what is
+- In the relationship room the same sheet carries the BRIEFING (row 50) UNDER the doors (gate 2026-09-14: built above the doors first, and on Hartwell the full briefing pushed every door below the fold; the state line already carries the signal, so the doors sit under it and the briefing is the why beneath): what is
   due and what it means, then the doors (the six reviews and the version routes).
 - No bubble with pills at the opening; no second greeting; the identity chip appears with the first
   bubble, not on the sheet.

@@ -68,6 +68,9 @@ global with sharing class ExecuteNewFacility {
     /** Raised for a domain-level failure. Surfaces as ok:false, never as a fault. */
     public class ToolException extends Exception {}
 
+    /** The registry action id this tool runs, and the key its delete fence is declared under. */
+    private static final String ACTION_ID = 'new-facility-request';
+
     private static final String RESUME_DESCRIPTOR =
         'Continue this action to verify the Loan Detail and complete the move to Proposal. ' +
         'No new confirmation is needed: the same plan is still running.';
@@ -239,6 +242,11 @@ global with sharing class ExecuteNewFacility {
      * Invocation 1: create the facility, commit, and return. No wait of any kind.
      */
     private static ExecuteResult invocationOne(Request req, cm_Action_Staging__c staged) {
+        // The moment this run began, taken before its first write so every row it causes reads back
+        // inside the window the aggregate sweep uses. EXACT, with no slack: a back-margin reaches
+        // into the transaction that ran before this one.
+        Datetime txStart = Datetime.now();
+
         cm_Action_Staging__c stg = C360ActionStaging.claimForExecute(
             req.stagingId, req.planHash, req.decisionToken, C360Plan.asId(req.approverUserId)
         );
@@ -360,6 +368,15 @@ global with sharing class ExecuteNewFacility {
         C360FacilityArms.Authored armed = C360FacilityArms.author(
             steps, v, accountId, clean.Id, orgName == null ? String.valueOf(clean.Id) : orgName
         );
+
+        // The shells the arm's pledge insert causes and nobody uses (backlog row 46, org proof
+        // 2026-09-14). nCino answers a pledge insert with a collateral aggregate of its own; the
+        // facility already carries the one the arm minted, so nCino's is an orphan from birth that
+        // no later discard can name. It is removed here, where it can still be identified. The
+        // sweep also catches the arm's own shell on a plan whose pledges all failed to resolve an
+        // asset, which is the one way this tool can strand one of its own.
+        C360AggregateSweep.Result swept = C360AggregateSweep.sweep(ACTION_ID, txStart);
+        C360Plan.setState(steps, C360AggregateSweep.STEP_ID, swept.state(), swept.detail);
 
         // The Loan Detail is created AFTER this transaction commits, so it is not observable from
         // here at all. Returning is the only correct move (LESSONS 15p).

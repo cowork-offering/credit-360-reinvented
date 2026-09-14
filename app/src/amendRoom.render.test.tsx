@@ -194,8 +194,19 @@ const click = async (el: Element | undefined | null) => {
 };
 
 const said = (room: HTMLElement) => [...room.querySelectorAll(".wk-msg")].map((m) => m.textContent ?? "").join(" · ");
-const routeChips = (room: HTMLElement) =>
-  [...room.querySelectorAll<HTMLButtonElement>(".wk-headline ~ .wk-opts .wk-opt")].map((b) => (b.textContent ?? "").trim());
+/* THE ROUTES ARE DOORS ON THE ENTRY SHEET (0.9.25, founder design-intent gate
+   2026-09-14). The amend route is still conditional by construction and still
+   sits beside the other three; what moved is the node it lives on, and where a
+   refusal is said. A route the version has closed is a SHUT DOOR carrying the
+   book's sentence on its face rather than a live chip that answers with it. */
+const doorLabels = (room: HTMLElement) =>
+  [...room.querySelectorAll<HTMLElement>(".wk-entry-door .wk-entry-dl")].map((b) => (b.textContent ?? "").trim());
+const routeDoor = (room: HTMLElement, label: string) =>
+  [...room.querySelectorAll<HTMLButtonElement>(".wk-entry-door")].find(
+    (d) => (d.querySelector(".wk-entry-dl")?.textContent ?? "").trim() === label,
+  )!;
+const doorLine = (room: HTMLElement, label: string) =>
+  (routeDoor(room, label).querySelector(".wk-entry-dw")?.textContent ?? "").trim();
 
 /* -------------------------------------------------------------- the route */
 
@@ -203,16 +214,17 @@ describe("the route question, in a room standing on a version", () => {
   it("offers Amend beside the three, labelled in the banker's words", async () => {
     const room = mount({ mode: "modify", packageId: VERSION, routed: true });
     await settle();
-    expect(routeChips(room)).toEqual(["Modify", "Renew", "New facility", "Shape this version"]);
+    // The memo door is absent here: this mount hands the room no memo lane.
+    expect(doorLabels(room)).toEqual(["Modify", "Renew", "New facility", "Shape this version"]);
   });
 
-  it("offers no Amend chip on an ordinary booked package", async () => {
+  it("offers no Amend door on an ordinary booked package", async () => {
     const room = mount({ mode: "modify", packageId: "a5Fbb000000IHFJEA4", routed: true });
     await settle();
-    expect(routeChips(room)).toEqual(["Modify", "Renew", "New facility"]);
+    expect(doorLabels(room)).toEqual(["Modify", "Renew", "New facility"]);
   });
 
-  it("offers no Amend chip once the org has taken the version", async () => {
+  it("offers no Amend door once the org has taken the version", async () => {
     const room = mount({
       mode: "modify",
       packageId: VERSION,
@@ -220,25 +232,27 @@ describe("the route question, in a room standing on a version", () => {
       routed: true,
     });
     await settle();
-    expect(routeChips(room)).toEqual(["Modify", "Renew", "New facility"]);
+    expect(doorLabels(room)).toEqual(["Modify", "Renew", "New facility"]);
   });
 
-  it("refuses Modify on the version and points at Amend, not at Salesforce", async () => {
+  it("shuts Modify on the version and points at Amend, not at Salesforce", async () => {
     const room = mount({ mode: "modify", packageId: VERSION, routed: true });
     await settle();
-    await click([...room.querySelectorAll<HTMLButtonElement>(".wk-opt")].find((b) => b.textContent === "Modify"));
-    const thread = said(room);
-    expect(thread).toContain("Change the figures in this version: say what should move, and I put it on the plan.");
-    expect(thread).not.toContain("book it in Salesforce first");
-    // The question stays: the routes a lock does not close are still open.
-    expect(routeChips(room)).toContain("Shape this version");
+    expect(routeDoor(room, "Modify").disabled).toBe(true);
+    expect(doorLine(room, "Modify")).toContain(
+      "Change the figures in this version: say what should move, and I put it on the plan.",
+    );
+    expect(doorLine(room, "Modify")).not.toContain("book it in Salesforce first");
+    // The sheet stays: the routes a lock does not close are still open.
+    expect(doorLabels(room)).toContain("Shape this version");
+    expect(routeDoor(room, "Shape this version").disabled).toBe(false);
   });
 
-  it("refuses Renew the same way", async () => {
+  it("shuts Renew the same way", async () => {
     const room = mount({ mode: "modify", packageId: VERSION, routed: true });
     await settle();
-    await click([...room.querySelectorAll<HTMLButtonElement>(".wk-opt")].find((b) => b.textContent === "Renew"));
-    expect(said(room)).toContain("say what should move, and I put it on the plan");
+    expect(routeDoor(room, "Renew").disabled).toBe(true);
+    expect(doorLine(room, "Renew")).toContain("say what should move, and I put it on the plan");
   });
 
   it("still sends a version the org has taken to Salesforce, because there it is true", async () => {
@@ -249,8 +263,19 @@ describe("the route question, in a room standing on a version", () => {
       routed: true,
     });
     await settle();
-    await click([...room.querySelectorAll<HTMLButtonElement>(".wk-opt")].find((b) => b.textContent === "Modify"));
-    expect(said(room)).toContain("Work it through approval in Salesforce");
+    // Every route is shut on a version at approval, and each door says why.
+    expect(routeDoor(room, "Modify").disabled).toBe(true);
+    expect(doorLine(room, "Modify")).toContain("Work it through approval in Salesforce");
+  });
+
+  /* AND THE REFUSAL IS STILL SPOKEN WHERE A DOOR CANNOT BE SHUT IN ADVANCE. A
+     typed line names its route after the fact, so the sentence lands in the
+     thread exactly as it always did. */
+  it("says the same refusal to a TYPED modification line on the version", async () => {
+    const room = mount({ mode: "modify", packageId: VERSION, routed: true });
+    await settle();
+    await typeInto(room, "increase the line of credit to $25M");
+    expect(said(room)).toContain("say what should move, and I put it on the plan");
   });
 });
 

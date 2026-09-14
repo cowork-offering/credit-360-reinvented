@@ -2,6 +2,39 @@
 
 ## Changelog
 
+- **0.9.25 (2026-09-14)** THE ENTRY-SHEET RELEASE. Founder, 2026-09-13 from the road, on the 0.9.22
+  preview: "we need to think about that entry and make it more cinematic, elegant maybe; less a bubble,
+  more centric; and it does not make sense to even offer booked PPs on the new facility flow"; then, on
+  the 0.9.24 design (knowledge/DESIGN-0.9.24-ENTRY.md, design-intent gate, one option): "explain me
+  here what it is and lets build it; ideally the same for the relationship workroom but tailored to the
+  actions in there so its unified for those two." Both rooms now open on ONE centred sheet, the finale's
+  mirror (`EntrySheet.tsx`, `entry.css`, `.wk-sheet` glass reused by class, not one colour declared):
+  the relationship's name, one line of state off figures the room already holds (grade, committed, the
+  signal that opened it), the doors, the read chips. A door is `.wk-sheet-go` with a second line; a door
+  the book has shut stays on the glass carrying the book's own refusal verbatim (IN_FLIGHT, VERSION_AMEND,
+  NOT_AMENDABLE, NO_COMPLIANCE_ROW), quiet rather than red. Facility room doors: Modify, Renew, New
+  facility, Credit memo, Shape this version where the room stands in one; New facility never offers a
+  booked package. Relationship room doors: the six reviews plus the two version doors, which, with no
+  package chosen, say of the relationship what the registry says of a package ("Nothing on this
+  relationship is in flight to amend"). The 0.9.24 briefing sits UNDER the doors: built above them
+  first, and on Hartwell it pushed all eight doors below the fold, so the state line carries the signal
+  and the briefing is the why beneath (orchestrator gate call, logged in intent-gate.jsonl; founder to
+  confirm on the preview). While the sheet is open the thread stays at its head instead of following
+  the briefing down. Picking a door folds the sheet into one recap line ("Modify, chosen") and the room
+  runs as it always has: the scoped package question where the route needs one, the first step where
+  it does not. `lockReason` is one judgement for two surfaces (the door and the typed route), so a
+  modification typed at a room standing in a version no longer binds an engine its door refuses. The
+  relationship header reads "2 on this relationship" rather than "no product package". Org side
+  (bankinggpt-at, 0Afbb00000Dvcp3CAR then 0Afbb00000DvdBdCAJ), backlog 46 closed at its root: the
+  collateral aggregate shells are minted at version CREATION by nCino's managed triggers while pledges
+  are copied onto the clones (orphans from birth), not by the discard; `C360AggregateSweep` now sweeps
+  them in the same transaction (`sweep_aggregates`, verified) in the modification, amend and new-facility
+  executes, and the discard freezes the clones' aggregates plus the build-window orphans and reads
+  nCino's cascade (ENTITY_IS_DELETED) as `already_gone`. The staging trail was cleared to zero and 18
+  orphan shells removed on the founder's "start fresh". Gates: tsc 0; vitest 225 files, 5,308 passed, 0 failed; drive
+  matrix PASS, 33 workroom rows plus 3 spread files on 3 books, 0 findings (563 s); IRIS grep 0; bundle 2,110,694 B (2.013 MiB, +5.5 KB over 0.9.24 for the sheet
+  and its styles). Proofs: `knowledge/proofs/0925-discard-aggregates-*.json`, SPEC-0.9.23-ORG-PROOF.md
+  section E.
 - **0.9.24 (2026-09-14)** THE RELATIONSHIP-ROOM RELEASE. Founder, 2026-09-13, from the road: "why
   are we driving everything from a PP perspective in the relationship workroom; covenants and
   collateral should be driven from the relationship; a package is an association the row shows,

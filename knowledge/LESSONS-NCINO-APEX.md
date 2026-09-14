@@ -971,6 +971,160 @@ Nothing in this section was settled from the spec's wording.
     delete chain needs after the delete is read before it.
 
 
+### 8m. The collateral aggregate shell, and why a delete chain must read it before it deletes (2026-09-14, A4: row 46, 0.9.24).
+
+> **Read 71a FIRST.** 68 and 69 were written before the org proof of the very run they describe.
+> Both are partly wrong: nCino DOES cascade the shell with its clone, and the shells backlog row 46
+> complains about are minted at version CREATION rather than left behind by the discard.
+
+68. **PARTLY WRONG, corrected by 71a. The lookup runs ONE way and the two legs cascade differently.**
+    `LLC_BI__Loan__c.LLC_BI__Loan_Collateral_Aggregate__c` is a PLAIN lookup (cascadeDelete false),
+    so deleting a facility leaves its shell standing and empty; the shell carries no lookup back, so
+    after the facility is gone nothing in the org can say which shell belonged to it. But
+    `LLC_BI__Loan_Collateral2__c.LLC_BI__Loan_Collateral_Aggregate__c` is CASCADE, so deleting a
+    shell silently takes any pledge still hanging off it. Both facts are read off the aggregate's
+    own `childRelationships` (lesson 37's method). Consequence for the discard: shells go AFTER the
+    facilities and are refused whenever a facility OR a pledge outside the version still points at
+    one. A shell is otherwise a nine-field row with six read-only rollups, `Name` and
+    `LLC_BI__lookupKey__c`.
+
+69. **Right about the frozen list, wrong about what it covers (see 71a). A set the chain needs
+    after a delete is read before it, and this is the case where the rule bites.** Lesson 67 made that argument for the trail rows.
+    The shells are stronger: the trail can at least be re-found by anchor, while a shell whose
+    facility is gone is unreachable by any query. So `StageDiscardVersion` freezes the shell ids into
+    the plan as their own `aggregates` bucket and `ExecuteDiscardVersion` retargets the group onto
+    that list, filtering by two re-reads (still resolves, nothing outside still points at it) rather
+    than by a fresh discovery. A run that stopped between `delete_members` and `delete_package`
+    would otherwise resume, find no facilities, mark the group empty and strand the shells for good.
+    Proven by injecting the refusal ON that group and resuming.
+
+70. **The gate's own fork evidence disappears with the facilities, which makes ANY stop after
+    `delete_members` fragile.** `assertIsDiscardableVersion` ranks a package as a version from its
+    chain rows or its members' `Is_Modification`, and both are gone by then, so the resumed run falls
+    back to the PACKAGE stage reading `Pending` or `In Review`. A version package that reads neither
+    cannot be resumed past that point and is refused NOT_A_VERSION. This predates the shells and is
+    not fixed here: the resume test sets the package stage deliberately and says so.
+
+71a. **CORRECTION to 68 and 69, from the org proof of the run those two lessons describe
+    (2026-09-14, A5). BOTH halves of the shell story were wrong in a way the design depended on.**
+
+    **The lookup is plain, but the delete is NOT left to us.** 68 read `cascadeDelete: false` off the
+    describe and concluded that deleting a facility leaves its shell standing. The org does not
+    behave that way: nCino's managed `LLC_BI.LoanTrigger` (and/or `nCRED`'s `loan_AfterDelete`)
+    removes the clone's aggregate WITH the clone, inside `delete_members`. On the live discard of
+    Hartwell's version `a5Fbb000000JHI5EAO` all five frozen shells
+    (`a4Sbb00000GYcBmEAL`, `GYcBnEAL`, `GYcBoEAL`, `GYcBpEAL`, `GYcBqEAL`) were gone by the time
+    `delete_aggregates` ran, and the all-or-nothing `delete as user` failed the whole group with
+    `ENTITY_IS_DELETED, entity is deleted: [] on row 0 id a4Sbb00000GYcBmEAL`. The chain stopped
+    there and reported `partial`, "63 gone and 6 remain", leaving the version package standing with
+    zero loans and the staging row `STG-0000000157` (`a8abb00001Od7GxAAJ`) at `Executing`. The
+    `retargetAggregates` re-read that was supposed to catch this could not: it runs BEFORE
+    `delete_members`, so it sees the shells alive. **RULE: a describe's `cascadeDelete` flag
+    describes the PLATFORM's cascade, not a managed package's triggers. A delete group whose rows a
+    managed trigger may also remove has to tolerate `ENTITY_IS_DELETED` per row.**
+    `delete_aggregates` now uses `Database.delete(list, false, AccessLevel.USER_MODE)` and reads
+    that one status code as `already_gone`; every other error, and every other group, still stops
+    the chain.
+
+    **And the shells backlog row 46 complained about are not the ones a facility points at.** Five
+    NEW shells (`a4Sbb00000GYfvaEAD`, `GYfvbEAD`, `GYfvcEAD`, `GYfvdEAD`, `GYfveEAD`) appeared at
+    `2026-09-14T02:31:23Z`, CreatedBy the integration user, lookup key null, pledged count 0, value
+    0, referenced by no loan and by no pledge. 02:31:23 is inside `ExecuteLoanModification`, during
+    the version CREATION, a full minute BEFORE the discard was even staged. The version had 6 clone
+    loans and 5 copied pledges: the carry mints one shell per clone and sets it on each pledge, and
+    nCino's own pledge/loan automation mints a second one that nothing is ever pointed at. **They
+    are orphans FROM BIRTH, so a discard that reads shells off the version's facilities can never
+    see them** - which is why 18 of them had to be swept by hand that morning (three earlier
+    versions' worth). 69's argument was right about the frozen list and wrong about what the list
+    covers.
+
+    **Two fixes, and the first one is where it belongs.** `C360AggregateSweep` runs in the SAME
+    transaction that mints them, from `ExecuteLoanModification`, `ExecuteAmendVersion` and
+    `ExecuteNewFacility`, as a reported `sweep_aggregates` step: every shell born since the run
+    started, under the running user, with no lookup key, with zero rollups and with no facility and
+    no pledge pointing at it. Zero rows is a `verified` outcome. `StageDiscardVersion` then freezes
+    a SECOND bucket for versions created before that shipped, found by the version's own BUILD
+    WINDOW: same creator as the version package, `CreatedDate` between the package's own and the
+    last row the build wrote plus two minutes, empty rollups, no lookup key, referenced by nothing.
+    Capped at 25, and a seed row or a referenced row is never in it.
+
+    **`txStart` takes NO back-margin.** The first cut used `Datetime.now().addSeconds(-1)` to
+    absorb clock granularity, and a validate run caught it reaching into the transaction that ran
+    before: the sweep removed a row the test's own `@TestSetup` had written, in a different
+    transaction, one second earlier. `CreatedDate` is stamped at DML time and is therefore always
+    after a reading taken before the first write, so the exact `Datetime.now()` is both correct and
+    the only safe choice. **RULE: an in-transaction time window must never be widened backwards.**
+
+71b. **What the fixture does NOT reproduce, stated rather than assumed.** A test transaction that
+    inserts a pledge does NOT get a second shell from nCino: two validate runs settle it
+    (`aShellAPledgePointsAtIsNeverSwept` sweeps zero). The first of those runs appeared to show the
+    managed mint, and that reading was the `-1` second margin picking up the fixture's own orphan.
+    So the tolerant delete path is put under test by `ExecuteDiscardVersion.vanishBeforeGroup`, a
+    seam that deletes a group's targets immediately before the group runs, which is the live cascade
+    reproduced rather than asserted. Same discipline as lesson 16c: a branch a unit fixture cannot
+    reach is named, not faked into a false green.
+
+72. **`LLC_BI__Loan_Collateral_Aggregate__c` is plainly createable and deletable from Apex, and
+    `LLC_BI__lookupKey__c` is writeable.** No managed trigger blocks a fixture, so the id-list
+    workaround a test would otherwise need is unnecessary: the discard suite builds one shell per
+    facility directly, which is also the shape nCino leaves behind. The live org carried 65 shells on
+    2026-09-14, 62 of them referenced by a loan and 3 seeded with lookup keys
+    (`Piedmont-WC-Aggregate`, `Piedmont-Equipment-Aggregate`, `HWTEST-AGG-1`), which is what makes a
+    non-null `lookupKey` the right refusal: it is the only field that says a human keyed this row.
+
+### 8n. A resume must never re-derive from evidence the plan itself deletes (2026-09-14, A6: the `NOT_A_VERSION` wall on `STG-0000000157`).
+
+73. **`ExecuteDiscardVersion` re-ran the version CLASSIFICATION on every resume, and the discard
+    deletes the very rows that classification reads.** `assertIsDiscardableVersion` ranks a package
+    as a version from its `LLC_BI__LoanRenewal__c` chain rows or its members'
+    `LLC_BI__Is_Modification__c`, falling back to a package stage of `Pending` or `In Review`. The
+    chain rows are delete group 1 and the members are group 5. So the moment a run gets past
+    `delete_chain`, the org can no longer answer the question the gate asks, and a version package
+    whose stage is neither Pending nor In Review is refused `NOT_A_VERSION` under its own
+    idempotency key for ever. Live proof: the Hartwell discard of `a5Fbb000000JHI5EAO` stopped
+    `partial` at `delete_aggregates` with 63 of 69 records gone (row `STG-0000000157`,
+    `a8abb00001Od7GxAAJ`, key `zz-orgproof-20260914-agg-discard`, still `Executing`), and every
+    re-run with the same key, stagingId, planHash and decisionToken came back
+    `ok:false / NOT_A_VERSION`, quoting a package that "carries no modification or renewal chain,
+    and its stage is null". EVERY partial discard stopping after `delete_chain` was un-resumable.
+    This is the general rule, and it outranks the instinct that re-reading is always safer: **a
+    resume must never re-derive a fact from evidence the plan itself deletes. Where the plan is the
+    only surviving witness, the plan is the authority.** Lesson 67 said it for a SET the chain needs
+    after the delete (read it before), and lesson 70 NAMED this exact hole and left it open; 73 is
+    the same rule applied to a GATE rather than to a set, and closing it is what makes a stopped
+    discard finishable.
+
+74. **The exemption is one check wide, and drawing the line matters more than making it.**
+    `StageDiscardVersion.discoverForResume` skips `assertIsDiscardableVersion` and nothing else.
+    Still re-read on a resume, because none of it depends on rows the chain removes:
+    `assertNoForeignChildren` (a live approval or a filed document that arrived during the stop
+    still stops the resume), the `assertNothingNew` ceiling measurement, the per-group verification
+    re-queries, and the whole token gate. And the resume re-derives exactly ONE thing about
+    identity: the staging row's `cm_Result_Record_Id__c`, which `recordProgress` stamped with the
+    version it stopped on, must equal the `versionPackageId` on the frozen plan. A resume continues
+    the run that stopped; it does not retarget it. A FIRST execute (row still `Staged`) re-runs the
+    full gate exactly as before, which is the property the new test
+    `aFirstExecuteOnAPackageThatIsNotAVersionIsStillRefused` exists to hold.
+
+75. **A resume that arrives to find the package already gone has to FINISH the run, not report it.**
+    The old code left `inv` null, ran no groups, left every delete step at `pending`, and wrote
+    `recordProgress` again, so the row stayed `Executing` for ever: the same dead end as the gate
+    refusal, reached a different way. `settleAlreadyGone` now settles every still-pending step from
+    the frozen plan, lands the package as `already_gone`, and then lets the verifications run for
+    real. The run closes, the booked parents are proved back to `hasRenewal false`, and the filing
+    modification row is marked `Withdrawn` as the first run would have done. RULE: a step whose
+    desired outcome is already the org's state is `already_gone` and the run carries on. The only
+    honest reasons to leave a staging row open are work still to do and a refusal that says why.
+
+76. **A workaround in a test is a bug report nobody filed.**
+    `aShellSurvivesAStopBecauseItComesOffTheFrozenPlanRatherThanAFreshRead` began by lifting the
+    version package to `Pending` before staging, with a comment saying the fork evidence goes with
+    the facilities and "that is a property of the gate rather than of this change". That line was
+    the defect, written down, a day before the org proved it. The `update` is now deleted rather
+    than kept (lesson 58: rewrite the method whose claim changed), and the workaround's comment is
+    replaced by a pointer to the method that owns the claim. When a test has to arrange the org into
+    a shape the production caller cannot guarantee, the finding is about the production code.
+
 ---
 
 *Maintained by the orchestrator. Add to this file in the same build wave a lesson is learned; a lesson

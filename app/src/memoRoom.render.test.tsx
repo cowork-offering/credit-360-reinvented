@@ -299,7 +299,7 @@ describe("the door from the facility room", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it("sits under the three routes and is not a fourth chip", async () => {
+  it("sits beside the three routes and is not a fourth route", async () => {
     const opened: string[] = [];
     const context = workroomContextFor({
       mode: "modify",
@@ -336,14 +336,18 @@ describe("the door from the facility room", () => {
     });
 
     const room = document.querySelector<HTMLElement>(".wk-room")!;
-    // THE THREE ROUTES ARE STILL THREE. A memo binds no engine and stages
-    // nothing, so it never took a seat in the row that picks one.
-    expect(room.querySelectorAll(".wk-routes .wk-opt").length).toBe(3);
+    /* RESTATED 2026-09-14 (the entry sheet). The memo is a door on the sheet
+       now, beside the routes rather than in a dashed pill under them. What this
+       case still holds is the thing it was written for: the THREE routes are
+       still three, because a memo binds no engine and stages nothing, and the
+       memo door still says so on its own line. */
+    const doors = [...room.querySelectorAll<HTMLElement>(".wk-entry-door")];
+    expect(doors.map((d) => d.dataset.door)).toEqual(["modify", "renew", "create", "memo"]);
 
-    const door = room.querySelector<HTMLElement>('.wk-memobtn[data-door="memo"]')!;
+    const door = room.querySelector<HTMLElement>('.wk-entry-door[data-door="memo"]')!;
     expect(door).toBeTruthy();
-    expect(text(door)).toBe("Credit memo");
-    expect(text(room.querySelector(".wk-memonote"))).toContain("Nothing is staged");
+    expect(text(door.querySelector(".wk-entry-dl"))).toBe("Credit memo");
+    expect(text(door.querySelector(".wk-entry-dw"))).toContain("Nothing is staged");
 
     await click(door);
     expect(opened).toEqual(["memo"]);

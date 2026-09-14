@@ -1,0 +1,24 @@
+[
+  {
+    "actionName": "ExecuteDiscardVersion",
+    "errors": null,
+    "expectedError": false,
+    "invocationId": null,
+    "isSuccess": true,
+    "outcome": null,
+    "outputValues": {
+      "error": {
+        "step": null,
+        "resumable": false,
+        "orgError": null,
+        "message": "This decision token has already been used. Tokens are single use (A33.5.4).",
+        "idempotencyKey": "zz-orgproof-20260914-agg-discard",
+        "code": "TOKEN_REFUSED"
+      },
+      "ok": false,
+      "result": null
+    },
+    "sortOrder": 0,
+    "version": 1
+  }
+]

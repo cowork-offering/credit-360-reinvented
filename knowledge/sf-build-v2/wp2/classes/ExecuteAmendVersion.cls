@@ -314,6 +314,11 @@ global with sharing class ExecuteAmendVersion {
     }
 
     private static ExecuteResult execute(Request req) {
+        // The moment this run began, taken before its first write so every row it causes reads back
+        // inside the window the aggregate sweep uses. EXACT, with no slack: a back-margin reaches
+        // into the transaction that ran before this one.
+        Datetime txStart = Datetime.now();
+
         if (String.isBlank(req.idempotencyKey)) {
             throw new ToolException('idempotencyKey is required and must match the key used at stage time.');
         }
@@ -776,6 +781,15 @@ global with sharing class ExecuteAmendVersion {
             }
             verifyPledges(steps, pledgeResults, pledgeRows, pledgeIndexOfRow);
         }
+
+        // The shells this run caused and nobody uses (backlog row 46, org proof 2026-09-14). nCino
+        // answers a pledge insert with a collateral aggregate of its own; the facility already
+        // carries the one this run reused or minted, so nCino's is an orphan from birth and no
+        // discard can ever name it. It is removed here, where it can still be identified. The step
+        // is settled whether or not this plan carried a pledge, because a run that authored none
+        // still proves it orphaned none.
+        C360AggregateSweep.Result swept = C360AggregateSweep.sweep(ACTION_ID, txStart);
+        C360Plan.setState(steps, C360AggregateSweep.STEP_ID, swept.state(), swept.detail);
 
         // ---- THE READ-BACK. One query over the facilities this run touched, covering the scalars
         // and every field the wave moved, and the proof of both.

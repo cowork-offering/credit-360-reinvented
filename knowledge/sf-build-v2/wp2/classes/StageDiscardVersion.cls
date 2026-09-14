@@ -80,7 +80,34 @@
  *      (`LLC_BI__Product_Package_Credit_Actions_Delete`) exists in the org and is assigned to the
  *      running user, and the profile carries delete on every object in the inventory.
  *
- *   8. `cm_Action_Staging__c.cm_Status__c` HAS NO `Withdrawn` VALUE AND IS A RESTRICTED PICKLIST
+ *   8. THE COLLATERAL AGGREGATE SHELL BELONGS TO THE FACILITY, AND THE FACILITY HOLDS THE LOOKUP.
+ *      nCino mints one `LLC_BI__Loan_Collateral_Aggregate__c` per loan and the LOAN points at it;
+ *      the shell carries no lookup back, and `LLC_BI__Loan__c.LLC_BI__Loan_Collateral_Aggregate__c`
+ *      is a plain lookup, so deleting the facility strands the shell empty rather than taking it
+ *      along. Every discard before 2026-09-14 left one orphan per clone behind (backlog row 46;
+ *      eighteen of them were swept by hand). The shells are frozen HERE, read off the version's own
+ *      facilities at stage time, so the execute may only remove a shell that was on a version
+ *      facility when the banker confirmed. Two kinds are refused rather than frozen: one carrying
+ *      `LLC_BI__lookupKey__c` was keyed by something other than this cockpit (bankinggpt holds
+ *      three seeded that way), and one a facility or a pledge OUTSIDE the version also points at is
+ *      not the version's to remove. Refused shells are reported as `observe_aggregates`, exactly as
+ *      every shell was before. That second refusal carries more weight than it looks:
+ *      `LLC_BI__Loan_Collateral2__c.LLC_BI__Loan_Collateral_Aggregate__c` is a CASCADE lookup, so a
+ *      shell delete takes any pledge still hanging off it with it, silently.
+ *
+ *   8b. AND A SECOND KIND OF SHELL THE FACILITIES CANNOT NAME (org proof 2026-09-14). nCino answers
+ *      every pledge insert with a collateral aggregate of its own, and the clone already carries the
+ *      one the carry made, so nCino's is an orphan FROM BIRTH: five were minted at 02:31:23Z inside
+ *      the version CREATION of Hartwell's a5Fbb000000JHI5EAO, referenced by no loan and no pledge, a
+ *      minute before any discard existed. Reading shells off the facilities can never see them. They
+ *      are frozen here as a second bucket, found by the version's own BUILD WINDOW: same creator as
+ *      the version package, created between the package and the last row its build wrote plus two
+ *      minutes, no lookup key, no pledged count and no value, and referenced by nothing at all. New
+ *      versions no longer produce them (`C360AggregateSweep` removes them in the transaction that
+ *      mints them), so this bucket is the clean-up for versions created before that and the backstop
+ *      for anything it misses.
+ *
+ *   9. `cm_Action_Staging__c.cm_Status__c` HAS NO `Withdrawn` VALUE AND IS A RESTRICTED PICKLIST
  *      (Staged, Executing, Completed, Partial, Failed). The contract's step 7 cannot be honoured
  *      until the value is added, and this package does not add picklist values to its own object
  *      without a founder saying so. The value is read from the org at stage time; when it is
@@ -120,6 +147,13 @@ global with sharing class StageDiscardVersion {
     public static final String WITHDRAWN = 'Withdrawn';
 
     /**
+     * The aggregate group's step id. It is named once and shared because `ExecuteDiscardVersion`
+     * points this ONE group back at the frozen list: the facility holds the lookup to its shell, so
+     * once the facilities are gone the shells cannot be rediscovered.
+     */
+    public static final String AGGREGATE_STEP_ID = 'delete_aggregates';
+
+    /**
      * The org's own Loan stage ladder, in order, read off the live `LLC_BI__Stage__c` picklist
      * (eleven values, all active). The ORDER is the fact: "past approval" is a position on this
      * list, not a word anyone can guess at.
@@ -137,6 +171,17 @@ global with sharing class StageDiscardVersion {
 
     /** The platform's own DML ceiling. A version this large is a data problem, not a discard. */
     private static final Integer MAX_ITEMS = 5000;
+
+    /**
+     * How far past the last row a version's build wrote the orphan window still reaches. The
+     * Hartwell proof of 2026-09-14 has the package at 02:30 and every clone, pledge and orphan
+     * shell at 02:31:23, so two minutes covers a build comfortably without opening the window on
+     * an unrelated later run.
+     */
+    private static final Integer BUILD_WINDOW_TAIL_SECONDS = 120;
+
+    /** More empty shells in one build window than any version creation produces. */
+    private static final Integer ORPHAN_SHELL_CAP = 25;
 
     // ---------------------------------------------------------------------------------------
     // Wire types. Lesson 16: every wire-visible type is a global inner class of the invocable
@@ -283,6 +328,12 @@ global with sharing class StageDiscardVersion {
         public List<DeleteGroup> groups = new List<DeleteGroup>();
         public List<Item> items = new List<Item>();
         public List<Id> stagingRowIds = new List<Id>();
+        public List<Id> aggregateIds = new List<Id>();
+        public List<String> refusedAggregates = new List<String>();
+        /** Of aggregateIds, the ones frozen as orphans the version's own creation minted. */
+        public Integer orphanShellCount = 0;
+        /** The last row the version's build is known to have written, used to bound that window. */
+        public Datetime latestBuildRow;
         public List<String> warnings = new List<String>();
         public Boolean withdrawnAvailable = false;
         public Integer openHistoryRows = 0;
@@ -403,10 +454,54 @@ global with sharing class StageDiscardVersion {
      * @throws ToolException when the package cannot be read.
      */
     public static Inventory discover(String rawVersionPackageId) {
+        return discover(rawVersionPackageId, true);
+    }
+
+    /**
+     * Re-discovers what is LEFT of a version whose discard already started, WITHOUT asking the org
+     * again whether it is a version.
+     *
+     * A DELETE CHAIN DESTROYS THE EVIDENCE ITS OWN GATE READS, and that is not an edge case, it is
+     * the ordinary shape of a stop. `assertIsDiscardableVersion` ranks a package as a version from
+     * its `LLC_BI__LoanRenewal__c` chain rows or its members' `Is_Modification`, and the chain rows
+     * are group 1 while the members are group 5. Every run that stops after `delete_chain` therefore
+     * meets a package that no longer looks like a version, and a package whose stage is neither
+     * Pending nor In Review is refused NOT_A_VERSION from then on. Proved on the org on 2026-09-14:
+     * the Hartwell discard on staging row STG-0000000157 stopped `partial` at `delete_aggregates`
+     * with 63 of its 69 records gone, and every resume under the same key was then refused by its
+     * own progress.
+     *
+     * THE FROZEN PLAN IS THE AUTHORITY ON A RESUME. The package was a version when the banker
+     * confirmed the plan, the staging row records that it was, and the plan hash and decision token
+     * the caller presented prove they hold that plan. Re-deriving the classification from a
+     * half-deleted org asks a question the org can no longer answer.
+     *
+     * WHAT IS STILL RE-READ, because none of it depends on evidence this chain deletes:
+     * `assertNoForeignChildren`, so a live approval or a filed document that arrived during the
+     * stop still stops the resume; and in `ExecuteDiscardVersion`, the measurement of the fresh
+     * inventory against the confirmed list, so the ceiling is unchanged and nothing outside the
+     * set the banker confirmed is ever deleted.
+     *
+     * @param versionPackageId The version id off the FROZEN PLAN, never off the request.
+     * @return What is left of the delete set, in the same group order.
+     * @throws GateException when the version carries records this cockpit did not create.
+     * @throws ToolException when the package cannot be read.
+     */
+    public static Inventory discoverForResume(Id versionPackageId) {
+        return discover(String.valueOf(versionPackageId), false);
+    }
+
+    /**
+     * @param rawVersionPackageId The version package id.
+     * @param classify True on a first execute, where the org decides whether this is a version.
+     *        False on a resume, where the frozen plan decided it before the deletes began.
+     */
+    private static Inventory discover(String rawVersionPackageId, Boolean classify) {
         Id pkgId = C360Facilities.packageId(rawVersionPackageId);
 
         List<LLC_BI__Product_Package__c> pkgs = [
-            SELECT Id, Name, LLC_BI__Account__c, LLC_BI__Account__r.Name, LLC_BI__Stage__c, LLC_BI__Status__c, CreatedDate
+            SELECT Id, Name, LLC_BI__Account__c, LLC_BI__Account__r.Name, LLC_BI__Stage__c, LLC_BI__Status__c,
+                   CreatedDate, CreatedById
             FROM LLC_BI__Product_Package__c
             WHERE Id = :pkgId
             WITH USER_MODE
@@ -425,14 +520,16 @@ global with sharing class StageDiscardVersion {
 
         List<LLC_BI__Loan__c> members = [
             SELECT Id, Name, LLC_BI__Stage__c, LLC_BI__Status__c, LLC_BI__Is_Modification__c,
-                   LLC_BI__isRenewal__c, LLC_BI__lookupKey__c
+                   LLC_BI__isRenewal__c, LLC_BI__lookupKey__c, LLC_BI__Loan_Collateral_Aggregate__c, CreatedDate
             FROM LLC_BI__Loan__c
             WHERE LLC_BI__Product_Package__c = :pkgId
             WITH USER_MODE
             ORDER BY Name
         ];
+        inv.latestBuildRow = pkg.CreatedDate;
         for (LLC_BI__Loan__c m : members) {
             inv.memberIds.add(m.Id);
+            inv.latestBuildRow = later(inv.latestBuildRow, m.CreatedDate);
         }
 
         List<LLC_BI__LoanRenewal__c> chain = inv.memberIds.isEmpty()
@@ -448,12 +545,16 @@ global with sharing class StageDiscardVersion {
                 WITH USER_MODE
             ];
 
-        assertIsDiscardableVersion(pkg, members, chain);
+        if (classify) {
+            assertIsDiscardableVersion(pkg, members, chain);
+        }
         assertNoForeignChildren(inv);
 
         buildChainGroup(inv, pkg, chain);
         buildGraphGroups(inv);
-        buildMemberAndPackageGroups(inv, members, pkg);
+        buildMemberGroup(inv, members);
+        buildAggregateGroup(inv, pkg, members);
+        buildPackageGroup(inv, pkg);
         buildTrail(inv);
 
         if (inv.itemCount() > MAX_ITEMS) {
@@ -491,6 +592,10 @@ global with sharing class StageDiscardVersion {
     /**
      * The three state refusals, in severity order: booked beats in-approval, and a package that is
      * neither a version nor a cockpit-created package is refused before either is considered.
+     *
+     * This runs on a STAGE and on a FIRST execute. It does NOT run on a resume, because the chain
+     * rows and the members it reads are the first and fifth things the chain deletes: see
+     * `discoverForResume`.
      */
     private static void assertIsDiscardableVersion(
         LLC_BI__Product_Package__c pkg,
@@ -766,9 +871,10 @@ global with sharing class StageDiscardVersion {
         DeleteGroup pledges = new DeleteGroup('delete_pledges', 'LLC_BI__Loan_Collateral2__c', 'Remove the collateral pledges copied onto the version facilities');
         if (!members.isEmpty()) {
             for (LLC_BI__Loan_Collateral2__c p : [
-                SELECT Id, Name, LLC_BI__Collateral__r.Name FROM LLC_BI__Loan_Collateral2__c
+                SELECT Id, Name, CreatedDate, LLC_BI__Collateral__r.Name FROM LLC_BI__Loan_Collateral2__c
                 WHERE LLC_BI__Loan__c IN :members WITH USER_MODE
             ]) {
+                inv.latestBuildRow = later(inv.latestBuildRow, p.CreatedDate);
                 add(inv, pledges, 'LLC_BI__Loan_Collateral2__c', p.Id, p.Name,
                     'a pledge of ' + String.valueOf(p.LLC_BI__Collateral__r == null ? null : p.LLC_BI__Collateral__r.Name) +
                     ' copied onto this version. The asset itself and its ownership junction stay. This row must go before ' +
@@ -844,8 +950,8 @@ global with sharing class StageDiscardVersion {
         ];
     }
 
-    /** Groups 5 and 6: the version's own facilities, then the version package. */
-    private static void buildMemberAndPackageGroups(Inventory inv, List<LLC_BI__Loan__c> members, LLC_BI__Product_Package__c pkg) {
+    /** Group 5: the version's own facilities. */
+    private static void buildMemberGroup(Inventory inv, List<LLC_BI__Loan__c> members) {
         DeleteGroup loans = new DeleteGroup('delete_members', 'LLC_BI__Loan__c', 'Remove the version facilities');
         for (LLC_BI__Loan__c m : members) {
             add(inv, loans, 'LLC_BI__Loan__c', m.Id, m.Name,
@@ -853,14 +959,225 @@ global with sharing class StageDiscardVersion {
                 '. Its Loan Detail and loan documents are master-detail children and go with it.');
         }
         inv.groups.add(loans);
+    }
 
+    /**
+     * Group 6: the collateral aggregate shells this version owns, which are TWO different sets.
+     *
+     * This group runs AFTER the facilities because the facility is the parent that holds the
+     * lookup, and before the package because the package knows nothing about either.
+     *
+     * SET ONE, the shells the version's own facilities point at. Read off the CLONE FACILITIES and
+     * nowhere else. A shell has no lookup back, so there is no other honest way to say which one
+     * belonged to this version, and deriving them from the pledges would name whatever the pledges
+     * happened to point at rather than what the version owned.
+     *
+     * SET TWO, the shells the version's CREATION minted and nothing ever used (org proof
+     * 2026-09-14, backlog row 46). nCino answers every pledge insert with a collateral aggregate of
+     * its own, and the clone already carries the one the carry made, so nCino's is an orphan from
+     * birth: no facility points at it, no pledge points at it, and set one can therefore never see
+     * it. Five were left by a single Hartwell version creation (`CreatedDate` 02:31:23Z, inside
+     * ExecuteLoanModification, a minute before the discard was even staged). They are found by the
+     * only handle that exists after the fact: the version's own BUILD WINDOW. Same creator as the
+     * version package, `CreatedDate` between the package's own and the last row the build wrote
+     * plus two minutes, no lookup key, no pledges and no value on the rollups, and referenced by
+     * nothing at all. Deterministic, bounded, and never a seed row or a row anything points at.
+     *
+     * The sweep in `C360AggregateSweep` now stops NEW versions producing these, so set two is the
+     * clean-up for versions created before it existed and the backstop for anything it misses.
+     *
+     * TWO REFUSALS ON SET ONE, both about ownership rather than about tidiness. A shell carrying
+     * `LLC_BI__lookupKey__c` was keyed outside this cockpit (bankinggpt holds three seed rows keyed
+     * that way). A shell that a facility or a pledge outside the version also points at is shared,
+     * and deleting it would cascade through
+     * `LLC_BI__Loan_Collateral2__c.LLC_BI__Loan_Collateral_Aggregate__c` into a stranger's pledge.
+     * Both are reported as `observe_aggregates` and left standing.
+     *
+     * @param inv The inventory being built.
+     * @param pkg The version package, which dates and signs the build window.
+     * @param members The version's facilities, carrying their aggregate lookup.
+     */
+    private static void buildAggregateGroup(Inventory inv, LLC_BI__Product_Package__c pkg, List<LLC_BI__Loan__c> members) {
+        DeleteGroup shells = new DeleteGroup(
+            AGGREGATE_STEP_ID,
+            'LLC_BI__Loan_Collateral_Aggregate__c',
+            'Remove the collateral aggregate shells this version owns'
+        );
+
+        List<Id> candidates = new List<Id>();
+        Set<Id> seen = new Set<Id>();
+        for (LLC_BI__Loan__c m : members) {
+            if (m.LLC_BI__Loan_Collateral_Aggregate__c != null && seen.add(m.LLC_BI__Loan_Collateral_Aggregate__c)) {
+                candidates.add(m.LLC_BI__Loan_Collateral_Aggregate__c);
+            }
+        }
+        Map<Id, LLC_BI__Loan_Collateral_Aggregate__c> owned = candidates.isEmpty()
+            ? new Map<Id, LLC_BI__Loan_Collateral_Aggregate__c>()
+            : new Map<Id, LLC_BI__Loan_Collateral_Aggregate__c>([
+                SELECT Id, Name, LLC_BI__lookupKey__c
+                FROM LLC_BI__Loan_Collateral_Aggregate__c
+                WHERE Id IN :candidates
+                WITH USER_MODE
+            ]);
+        List<LLC_BI__Loan_Collateral_Aggregate__c> orphans = orphanShells(pkg, inv, seen);
+
+        // ONE reference pass over both sets. Set one asks "does anything OUTSIDE the version point
+        // at this", because the version's own members are about to go in this same run. Set two
+        // asks "does anything at all", because an orphan that is referenced is not an orphan.
+        Set<Id> everything = new Set<Id>(seen);
+        for (LLC_BI__Loan_Collateral_Aggregate__c o : orphans) {
+            everything.add(o.Id);
+        }
+        Set<Id> referencedAtAll = new Set<Id>();
+        Set<Id> shared = new Set<Id>();
+        if (!everything.isEmpty()) {
+            readReferences(everything, new Set<Id>(inv.memberIds), referencedAtAll, shared);
+        }
+
+        for (Id c : candidates) {
+            LLC_BI__Loan_Collateral_Aggregate__c row = owned.get(c);
+            if (row == null) {
+                continue;
+            }
+            if (String.isNotBlank(row.LLC_BI__lookupKey__c)) {
+                inv.refusedAggregates.add(
+                    row.Name + ' carries lookup key ' + row.LLC_BI__lookupKey__c + ', so it was keyed outside this cockpit'
+                );
+                continue;
+            }
+            if (shared.contains(c)) {
+                inv.refusedAggregates.add(
+                    row.Name + ' is also pointed at from outside this version, so removing it is not this action\'s to do'
+                );
+                continue;
+            }
+            inv.aggregateIds.add(c);
+            add(inv, shells, 'LLC_BI__Loan_Collateral_Aggregate__c', c, row.Name,
+                'the collateral aggregate shell nCino minted for a version facility. It carries no lookup back to the ' +
+                'facility, so deleting the facility alone would strand it empty.');
+        }
+
+        for (LLC_BI__Loan_Collateral_Aggregate__c o : orphans) {
+            // The re-read is the proof, not the query that found it: a shell anything points at is
+            // never an orphan, whatever the window says.
+            if (referencedAtAll.contains(o.Id)) {
+                continue;
+            }
+            inv.aggregateIds.add(o.Id);
+            inv.orphanShellCount++;
+            add(inv, shells, 'LLC_BI__Loan_Collateral_Aggregate__c', o.Id, o.Name,
+                'an empty collateral aggregate shell minted while this version was being built, by the same user and ' +
+                'inside the same few minutes. No facility and no pledge anywhere points at it, it carries no lookup ' +
+                'key and no pledged value, so nothing but this version can account for it.');
+        }
+
+        inv.groups.add(shells);
+    }
+
+    /**
+     * The empty shells born inside the version's build window, under the same identity that
+     * created the version package.
+     *
+     * The window is the package's own `CreatedDate` to the last row the build is known to have
+     * written plus two minutes, which on a resumed run collapses to the package alone because the
+     * facilities and their pledges are already gone. The rollup test is the second half of the
+     * definition and not decoration: a shell holding pledges or value is doing a job.
+     *
+     * Past `ORPHAN_SHELL_CAP` matches nothing is returned at all. A window that wide is a data
+     * problem, and a delete is the wrong answer to one.
+     *
+     * @param pkg The version package, which dates and signs the window.
+     * @param inv The inventory, carrying the window's far end and collecting the warning.
+     * @param alreadyNamed Shells set one already claims, so neither set names one twice.
+     * @return The candidate orphans, still to be filtered by the reference re-read.
+     */
+    private static List<LLC_BI__Loan_Collateral_Aggregate__c> orphanShells(
+        LLC_BI__Product_Package__c pkg,
+        Inventory inv,
+        Set<Id> alreadyNamed
+    ) {
+        Datetime windowStart = pkg.CreatedDate;
+        Datetime windowEnd = later(inv.latestBuildRow, pkg.CreatedDate).addSeconds(BUILD_WINDOW_TAIL_SECONDS);
+        Id builtBy = pkg.CreatedById;
+
+        List<LLC_BI__Loan_Collateral_Aggregate__c> found = new List<LLC_BI__Loan_Collateral_Aggregate__c>();
+        for (LLC_BI__Loan_Collateral_Aggregate__c a : [
+            SELECT Id, Name, LLC_BI__Collateral_Pledged_Count__c, LLC_BI__Total_Collateral_Value__c,
+                   LLC_BI__Total_Collateral_Pledged__c
+            FROM LLC_BI__Loan_Collateral_Aggregate__c
+            WHERE CreatedDate >= :windowStart AND CreatedDate <= :windowEnd
+              AND CreatedById = :builtBy AND LLC_BI__lookupKey__c = NULL
+            WITH USER_MODE
+        ]) {
+            if (alreadyNamed.contains(a.Id) || !C360AggregateSweep.isEmptyShell(a)) {
+                continue;
+            }
+            found.add(a);
+        }
+        if (found.size() > ORPHAN_SHELL_CAP) {
+            inv.refusedAggregates.add(
+                found.size() + ' empty shells sit inside this version\'s build window, past the ' + ORPHAN_SHELL_CAP +
+                ' this action will clear. None of them was frozen: a window that crowded is a data question rather ' +
+                'than a discard'
+            );
+            return new List<LLC_BI__Loan_Collateral_Aggregate__c>();
+        }
+        return found;
+    }
+
+    /**
+     * One pass over both things that can point at a shell.
+     *
+     * @param ids The shells being judged.
+     * @param members The version's own facilities, which are about to be deleted in this same run.
+     * @param referencedAtAll Filled with every shell anything points at.
+     * @param shared Filled with every shell something OUTSIDE the version points at.
+     */
+    private static void readReferences(Set<Id> ids, Set<Id> members, Set<Id> referencedAtAll, Set<Id> shared) {
+        for (LLC_BI__Loan__c l : [
+            SELECT Id, LLC_BI__Loan_Collateral_Aggregate__c
+            FROM LLC_BI__Loan__c
+            WHERE LLC_BI__Loan_Collateral_Aggregate__c IN :ids
+            WITH USER_MODE
+        ]) {
+            referencedAtAll.add(l.LLC_BI__Loan_Collateral_Aggregate__c);
+            if (!members.contains(l.Id)) {
+                shared.add(l.LLC_BI__Loan_Collateral_Aggregate__c);
+            }
+        }
+        for (LLC_BI__Loan_Collateral2__c p : [
+            SELECT LLC_BI__Loan__c, LLC_BI__Loan_Collateral_Aggregate__c
+            FROM LLC_BI__Loan_Collateral2__c
+            WHERE LLC_BI__Loan_Collateral_Aggregate__c IN :ids
+            WITH USER_MODE
+        ]) {
+            referencedAtAll.add(p.LLC_BI__Loan_Collateral_Aggregate__c);
+            if (!members.contains(p.LLC_BI__Loan__c)) {
+                shared.add(p.LLC_BI__Loan_Collateral_Aggregate__c);
+            }
+        }
+    }
+
+    /** The later of two moments, with null reading as "no answer yet". */
+    private static Datetime later(Datetime a, Datetime b) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        return a > b ? a : b;
+    }
+
+    /** Group 7: the version package itself. */
+    private static void buildPackageGroup(Inventory inv, LLC_BI__Product_Package__c pkg) {
         DeleteGroup packages = new DeleteGroup('delete_package', 'LLC_BI__Product_Package__c', 'Remove the version package');
         add(inv, packages, 'LLC_BI__Product_Package__c', pkg.Id, pkg.Name, 'the version package itself.');
         inv.groups.add(packages);
     }
 
     /**
-     * Group 7: the trail. These rows are NOT deleted. They are the audit of what the banker asked
+     * Group 8: the trail. These rows are NOT deleted. They are the audit of what the banker asked
      * for, and an audit that disappears with the thing it audited is not an audit.
      *
      * TWO WAYS A TRAIL ROW BELONGS TO A VERSION, and until 2026-09-13 this read only the first
@@ -940,6 +1257,22 @@ global with sharing class StageDiscardVersion {
                 'pledges before the facilities for that reason, but the run is worth watching.'
             );
         }
+        if (!inv.aggregateIds.isEmpty()) {
+            Integer owned = inv.aggregateIds.size() - inv.orphanShellCount;
+            inv.warnings.add(
+                inv.aggregateIds.size() + ' collateral aggregate shell' + (inv.aggregateIds.size() == 1 ? '' : 's') +
+                ' go with this version: ' + owned + ' that its facilities point at, and ' + inv.orphanShellCount +
+                ' that its creation minted and nothing ever used. A shell is a per-facility rollup anchor with no ' +
+                'lookup back, so leaving one behind leaves an empty row for good.'
+            );
+        }
+        if (!inv.refusedAggregates.isEmpty()) {
+            inv.warnings.add(
+                inv.refusedAggregates.size() + ' collateral aggregate shell' + (inv.refusedAggregates.size() == 1 ? '' : 's') +
+                ' on these facilities ' + (inv.refusedAggregates.size() == 1 ? 'is' : 'are') + ' LEFT STANDING: ' +
+                String.join(inv.refusedAggregates, '; ') + '.'
+            );
+        }
         if (!inv.stagingRowIds.isEmpty()) {
             inv.warnings.add(
                 inv.stagingRowIds.size() + ' action trail row' + (inv.stagingRowIds.size() == 1 ? '' : 's') +
@@ -1006,8 +1339,11 @@ global with sharing class StageDiscardVersion {
                 .provenBy('SELECT Id, cm_Status__c FROM cm_Action_Staging__c WHERE Id IN :trail')
         );
         steps.add(
-            new C360Plan.Step('observe_aggregates', C360Plan.TYPE_OBSERVED, 'Collateral aggregate shells left behind by the pledge deletes')
-                .wakes(new List<String>{ 'LLC_BI__ColPledgesAutoUpdater' })
+            new C360Plan.Step(
+                'observe_aggregates',
+                C360Plan.TYPE_OBSERVED,
+                'Collateral aggregate shells left standing (' + inv.refusedAggregates.size() + ')'
+            ).wakes(new List<String>{ 'LLC_BI__ColPledgesAutoUpdater' })
         );
         return steps;
     }
@@ -1035,6 +1371,13 @@ global with sharing class StageDiscardVersion {
             parents.add(String.valueOf(p));
         }
         parents.sort();
+        // The shells are hashed as their own bucket AND ride in `inventory` as items, because the
+        // execute needs them by themselves: once the facilities are gone nothing points at a shell.
+        List<String> aggregates = new List<String>();
+        for (Id a : inv.aggregateIds) {
+            aggregates.add(String.valueOf(a));
+        }
+        aggregates.sort();
         return new Map<String, Object>{
             'versionPackageId' => String.valueOf(inv.versionPackageId),
             'sourcePackageId' => inv.sourcePackageId == null ? '' : String.valueOf(inv.sourcePackageId),
@@ -1042,7 +1385,8 @@ global with sharing class StageDiscardVersion {
             'itemCount' => String.valueOf(inv.items.size()),
             'inventory' => String.join(ids, ','),
             'trail' => String.join(trail, ','),
-            'parents' => String.join(parents, ',')
+            'parents' => String.join(parents, ','),
+            'aggregates' => String.join(aggregates, ',')
         };
     }
 

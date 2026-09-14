@@ -306,8 +306,17 @@ async function typeInto(room: HTMLElement, line: string) {
   await settle();
 }
 
-const routeChip = (room: HTMLElement, label: string) =>
-  [...room.querySelectorAll<HTMLElement>(".wk-routes .wk-opt")].find((b) => text(b) === label)!;
+/* THE ROUTES ARE DOORS ON THE ENTRY SHEET (0.9.25, founder design-intent gate
+   2026-09-14). The lock did not move: what moved is where it is SAID. A route
+   the version has closed used to be a live chip that answered with a refusal
+   when it was pressed; it is now a door that is shut, carrying the same sentence
+   on its face (A27.3). The refusal bubble and its Salesforce link are still the
+   answer to a TYPED line, which is asserted below where it now lives. */
+const routeDoor = (room: HTMLElement, label: string) =>
+  [...room.querySelectorAll<HTMLButtonElement>(".wk-entry-door")].find(
+    (d) => text(d.querySelector(".wk-entry-dl")) === label,
+  )!;
+const doorLine = (room: HTMLElement, label: string) => text(routeDoor(room, label).querySelector(".wk-entry-dw"));
 
 describe("the room refuses a second modification", () => {
   const forked = withInFlightVersion(shipped);
@@ -327,7 +336,7 @@ describe("the room refuses a second modification", () => {
 
     // The door asks the route, not the package.
     expect(room.querySelector(".wk-pkgask")).toBeNull();
-    expect(room.querySelector(".wk-routes")).toBeTruthy();
+    expect(room.querySelector(".wk-entry")).toBeTruthy();
 
     act(() => room.querySelector<HTMLElement>(".wk-pkgline")!.click());
     await settle();
@@ -390,51 +399,58 @@ describe("the room refuses a second modification", () => {
     expect(version.querySelector(".wk-go")).toBeNull();
   });
 
-  it("refuses Modify on the locked source, in one sentence, with the version's Salesforce link", async () => {
+  /* RESTATED 2026-09-14 (the entry sheet). A shut route is stated BEFORE it is
+     pressed rather than after: the door is disabled and carries the book's own
+     sentence on its face, which is A27.3 read properly ("visible but not
+     selectable, with the reason"). Nothing is weakened - the same sentence, the
+     same two routes, the same binding refused - and the banker now learns it
+     without spending a gesture to find out. */
+  it("shuts the Modify door on the locked source, with the reason on its face", async () => {
     const { room, bound } = openRoom({ data: forked, productPackageId: SOURCE, history: [modRow()] });
     await settle();
 
-    act(() => routeChip(room, "Modify").click());
+    const modify = routeDoor(room, "Modify");
+    expect(modify.disabled).toBe(true);
+    expect(modify.dataset.locked).toBe("1");
+    expect(doorLine(room, "Modify")).toBe(IN_FLIGHT_REFUSAL);
+
+    act(() => modify.click());
     await settle();
-
     expect(bound).toEqual([]);
-    const said = [...room.querySelectorAll(".wk-agent")].map(text);
-    expect(said.some((s) => s.includes(IN_FLIGHT_REFUSAL))).toBe(true);
 
-    const door = room.querySelector<HTMLAnchorElement>("a.wk-opt")!;
-    expect(door.getAttribute("href")).toBe(
-      `https://bankinggpt-at.my.salesforce.com/lightning/r/LLC_BI__Product_Package__c/${VERSION}/view`,
-    );
-    expect(text(door)).toBe("Open the version in Salesforce");
-
-    // The question stays: a lock closes two routes, not the room.
-    expect(room.querySelector(".wk-routes")).toBeTruthy();
+    // The sheet stays: a lock closes two routes, not the room.
+    expect(room.querySelector(".wk-entry")).toBeTruthy();
   });
 
-  it("refuses Renew the same way", async () => {
+  it("shuts Renew the same way", async () => {
     const { room, bound } = openRoom({ data: forked, productPackageId: SOURCE });
     await settle();
 
-    act(() => routeChip(room, "Renew").click());
+    expect(routeDoor(room, "Renew").disabled).toBe(true);
+    expect(doorLine(room, "Renew")).toBe(IN_FLIGHT_REFUSAL);
+    act(() => routeDoor(room, "Renew").click());
     await settle();
-
     expect(bound).toEqual([]);
-    expect([...room.querySelectorAll(".wk-agent")].map(text).join(" ")).toContain(IN_FLIGHT_REFUSAL);
   });
 
   it("allows a new facility of its own: it joins a package, it does not fork one", async () => {
     const { room, bound } = openRoom({ data: forked, productPackageId: SOURCE });
     await settle();
 
-    act(() => routeChip(room, "New facility").click());
+    const create = routeDoor(room, "New facility");
+    expect(create.disabled).toBe(false);
+    act(() => create.click());
     await settle();
 
     expect(bound).toEqual(["create"]);
     expect([...room.querySelectorAll(".wk-agent")].map(text).join(" ")).not.toContain(IN_FLIGHT_REFUSAL);
   });
 
-  it("refuses a TYPED modification line too, after the banker's own bubble", async () => {
-    const { room, bound } = openRoom({ data: forked, productPackageId: SOURCE });
+  /* AND THE REFUSAL BUBBLE IS WHERE IT IS STILL NEEDED. A door can be shut in
+     advance; a typed line cannot, so the sentence and the version's own
+     Salesforce link are answered into the thread exactly as they always were. */
+  it("refuses a TYPED modification line, after the banker's own bubble, with the version's link", async () => {
+    const { room, bound } = openRoom({ data: forked, productPackageId: SOURCE, history: [modRow()] });
     await settle();
 
     await typeInto(room, "increase the line of credit to $25M");
@@ -442,6 +458,12 @@ describe("the room refuses a second modification", () => {
     expect(bound).toEqual([]);
     expect(text(room.querySelector(".wk-banker"))).toContain("increase the line of credit");
     expect([...room.querySelectorAll(".wk-agent")].map(text).join(" ")).toContain(IN_FLIGHT_REFUSAL);
+
+    const link = room.querySelector<HTMLAnchorElement>("a.wk-opt")!;
+    expect(link.getAttribute("href")).toBe(
+      `https://bankinggpt-at.my.salesforce.com/lightning/r/LLC_BI__Product_Package__c/${VERSION}/view`,
+    );
+    expect(text(link)).toBe("Open the version in Salesforce");
   });
 
   it("drops Facility Terms from the composer's menu on a locked package", async () => {

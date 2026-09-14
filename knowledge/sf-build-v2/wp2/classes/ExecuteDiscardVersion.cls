@@ -5,12 +5,22 @@
  * only class in this package that deletes, and every property that makes that safe is enforced
  * here rather than assumed.
  *
- * THE GATE IS RE-RUN, NOT REPLAYED. `StageDiscardVersion.discover()` is called again at execute
- * time, so a version that climbed to Approval / Loan Committee between the confirm gate and the
+ * THE GATE IS RE-RUN, NOT REPLAYED, ON A FIRST EXECUTE. `StageDiscardVersion.discover()` is called
+ * again, so a version that climbed to Approval / Loan Committee between the confirm gate and the
  * click is refused with nothing written, and a version that grew a new child in the same window is
  * refused too. The staged inventory is the CEILING: a record that was not on the list the banker
  * confirmed is never deleted, whatever the fresh query returns. A record that WAS on the list and
  * is already gone is not an error, it is a resumed run.
+ *
+ * A RESUME DOES NOT RE-CLASSIFY THE PACKAGE, and that exception is the price of deleting in the
+ * org's order. The version classification reads the `LLC_BI__LoanRenewal__c` chain rows and the
+ * members' `Is_Modification`, which are the first and fifth things this chain deletes, so a run
+ * that stopped anywhere after `delete_chain` meets a package that no longer looks like a version
+ * and is refused NOT_A_VERSION under its own key for ever (org proof 2026-09-14, staging row
+ * STG-0000000157: stopped at `delete_aggregates` with 63 of 69 records gone). On a resume the
+ * frozen plan is the authority on WHAT the package is, `discoverForResume` skips that one check,
+ * and everything else still runs: the foreign-children refusal, the ceiling measurement, the
+ * per-group verification and the token gate are all unchanged.
  *
  * THE ORDER IS THE SAFETY, AND IT IS THE ORG'S ORDER RATHER THAN A PREFERENCE.
  *   1. `LLC_BI__LoanRenewal__c` chain rows. First, because they are what keeps the booked parents
@@ -23,8 +33,15 @@
  *   4. The version facilities. Their `LLC_BI__Loan_Detail__c` and `LLC_BI__LLC_LoanDocument__c`
  *      children are master-detail and cascade; they are reported as cascading rather than claimed
  *      as deletes of ours.
- *   5. The version package.
- *   6. The trail, which is MARKED and never removed.
+ *   5. The `LLC_BI__Loan_Collateral_Aggregate__c` shells the version owns: the ones its facilities
+ *      pointed at, AFTER the facilities because the facility is the parent that holds the lookup,
+ *      plus the empty ones its own creation minted and nothing ever used. nCino's managed delete
+ *      handling takes a shell WITH its clone, so this group tolerates `ENTITY_IS_DELETED` per row
+ *      as `already_gone` rather than stopping the chain on a row that reached the outcome it wanted
+ *      (org proof 2026-09-14: all five frozen shells went with `delete_members`, and the
+ *      all-or-nothing delete then stranded the version package).
+ *   6. The version package.
+ *   7. The trail, which is MARKED and never removed.
  *
  * A FAILURE STOPS THE CHAIN AND SAYS WHERE. Each group is one DML in USER_MODE inside its own try,
  * verified by a count re-query before the next group starts. The first group that does not come
@@ -36,9 +53,15 @@
  * another one: the booked source package, any booked parent facility, `LLC_BI__Collateral__c`
  * assets, `LLC_BI__Account_Collateral__c` ownership junctions, `LLC_BI__Covenant2__c` covenant
  * records, `LLC_BI__Account_Covenant__c` relationship junctions, and the `cm_Action_Staging__c`
- * trail. It also never deletes a `LLC_BI__Loan_Collateral_Aggregate__c` shell: those are per-loan
- * rollup anchors, a booked parent's loan can point at one, and the frozen inventory does not name
- * them. The shells the pledge deletes orphan are reported as an observed side effect instead.
+ * trail. Nor any `LLC_BI__Loan_Collateral_Aggregate__c` shell the version did not own: a shell goes
+ * only when a VERSION facility pointed at it at stage time, or when the version's own creation
+ * minted it and nothing anywhere points at it; either way it carries no `LLC_BI__lookupKey__c`. The rest are reported as an observed side
+ * effect, which is what every shell was before 2026-09-14 (backlog row 46).
+ *
+ * THE SHELLS COME OFF THE STAGED PLAN RATHER THAN OFF THE FRESH DISCOVERY, and that is the same
+ * rule the parents and the trail already follow: the facility holds the lookup, so the moment the
+ * facilities are deleted nothing can name their shells again, and a run that stopped between the
+ * facilities and the package would strand them for good on the resume.
  *
  * THE DELETE FENCE. Every delete passes `C360WriteGuard.assertAllowedForTool('discard-version', ...)`
  * with `OP_DELETE`. The bare `assertAllowed` entry point still refuses a delete on every object it
@@ -83,6 +106,16 @@ global with sharing class ExecuteDiscardVersion {
      */
     @TestVisible
     private static String refuseGroupOnce;
+
+    /**
+     * Deletes a group's targets immediately BEFORE the group's own delete runs, which is the
+     * managed cascade reproduced: on 2026-09-14 nCino's own `LLC_BI.LoanTrigger` took every clone's
+     * collateral aggregate with the clone inside `delete_members`, and `delete_aggregates` then met
+     * `ENTITY_IS_DELETED` on all five rows. A unit fixture has no managed trigger, so this seam is
+     * the only honest way to put the tolerant path under test.
+     */
+    @TestVisible
+    private static String vanishBeforeGroup;
 
     // ---------------------------------------------------------------------------------------
     // Wire types. Lesson 16: wire types are never shared across classes, duplication accepted.
@@ -272,6 +305,20 @@ global with sharing class ExecuteDiscardVersion {
         Set<String> confirmed = confirmedKeys(stagedInventory);
         Set<Id> confirmedTrail = idsFrom(C360Plan.asString(v.get('trail')));
 
+        // THE ONE THING A RESUME RE-DERIVES, and it is about identity rather than about state. The
+        // row records the version it stopped on in `cm_Result_Record_Id__c`, written by
+        // recordProgress; the plan on that same row names the version it was staged for. A resume
+        // continues the run that stopped, so those two must be the same package, and a row pointing
+        // somewhere else is a mix-up rather than a run to carry on with. Everything else about what
+        // this package IS comes off the frozen plan: see StageDiscardVersion.discoverForResume.
+        if (resuming && String.valueOf(versionPackageId) != stg.cm_Result_Record_Id__c) {
+            throw new ToolException(
+                'Staging record ' + stg.Id + ' stopped part way through discarding ' +
+                String.valueOf(stg.cm_Result_Record_Id__c) + ', and the plan on it names version ' +
+                versionPackageId + '. A resume continues the run that stopped; it does not retarget it.'
+            );
+        }
+
         // A version that is already gone is a completed run whose outcome was never written: the
         // package delete landed and the transaction died before recordOutcome. Report it as such
         // rather than refusing on a package that cannot be read.
@@ -286,7 +333,13 @@ global with sharing class ExecuteDiscardVersion {
             // refusal with no trail behind it, and the next attempt is refused by the token gate for
             // a reason that has nothing to do with why this one stopped.
             try {
-                inv = StageDiscardVersion.discover(String.valueOf(versionPackageId));
+                // A FIRST execute re-runs the whole gate. A RESUME does not re-classify the package
+                // as a version, because the chain rows and the members that classification reads are
+                // the first and fifth things this chain deletes: every stop after `delete_chain`
+                // would otherwise be un-resumable. discoverForResume carries the reasoning.
+                inv = resuming
+                    ? StageDiscardVersion.discoverForResume(versionPackageId)
+                    : StageDiscardVersion.discover(String.valueOf(versionPackageId));
                 assertNothingNew(inv, confirmed);
             } catch (Exception e) {
                 C360Plan.markRefused(steps, e.getMessage());
@@ -316,7 +369,14 @@ global with sharing class ExecuteDiscardVersion {
         // run the chain rows are already gone, so a fresh discovery would find no parents at all and
         // the verification that matters most would quietly report nothing to check.
         List<Id> parentIds = new List<Id>(idsFrom(C360Plan.asString(v.get('parents'))));
-        String stoppedAt = runGroups(inv, steps, out);
+        String stoppedAt;
+        if (inv == null) {
+            settleAlreadyGone(steps, out, versionPackageId);
+            stoppedAt = null;
+        } else {
+            retargetAggregates(inv, idsFrom(C360Plan.asString(v.get('aggregates'))), out);
+            stoppedAt = runGroups(inv, steps, out);
+        }
 
         if (stoppedAt == null) {
             verifyParents(parentIds, steps, out);
@@ -339,9 +399,12 @@ global with sharing class ExecuteDiscardVersion {
 
         C360Plan.setState(
             steps, 'observe_aggregates', C360Plan.STATE_FILED_UNVERIFIED,
-            'Deleting a pledge leaves its LLC_BI__Loan_Collateral_Aggregate__c shell behind. Those shells are not on the ' +
-            'frozen inventory and are not deleted here: a booked parent can point at one, and this action never deletes ' +
-            'what it did not put there. They are inert rollup anchors.'
+            inv == null || inv.refusedAggregates.isEmpty()
+                ? 'Every collateral aggregate shell this version owned was on the frozen inventory and went with its ' +
+                  'facility. None was left standing.'
+                : 'Left standing: ' + String.join(inv.refusedAggregates, '; ') +
+                  '. A shell keyed outside this cockpit, or one something outside the version still points at, is not ' +
+                  'this action\'s to remove.'
         );
 
         String terminal = C360Plan.terminalState(steps);
@@ -372,9 +435,8 @@ global with sharing class ExecuteDiscardVersion {
     /**
      * Deletes each group in order, verifying between them.
      *
-     * @param inv The freshly discovered inventory, or null when the version no longer resolves.
-     *        assertNothingNew has already measured it against the confirmed list, so every id in it
-     *        is one the banker saw.
+     * @param inv The freshly discovered inventory. assertNothingNew has already measured it against
+     *        the confirmed list, so every id in it is one the banker saw.
      * @param steps The plan steps, mutated in place.
      * @param out The result, accumulating counts and item outcomes.
      * @return The step id the chain stopped at, or null when every group settled.
@@ -384,18 +446,10 @@ global with sharing class ExecuteDiscardVersion {
         List<C360Plan.Step> steps,
         ExecuteResult out
     ) {
-        List<StageDiscardVersion.DeleteGroup> groups = inv == null
-            ? new List<StageDiscardVersion.DeleteGroup>()
-            : inv.groups;
-        Map<String, StageDiscardVersion.Item> byKey = new Map<String, StageDiscardVersion.Item>();
-        if (inv != null) {
-            for (StageDiscardVersion.Item i : inv.items) {
-                byKey.put(i.objectName + ':' + i.recordId, i);
-            }
-        }
+        Map<String, StageDiscardVersion.Item> byKey = itemsByKey(inv);
 
         String stoppedAt = null;
-        for (StageDiscardVersion.DeleteGroup g : groups) {
+        for (StageDiscardVersion.DeleteGroup g : inv.groups) {
             if (stoppedAt != null) {
                 C360Plan.setState(steps, g.stepId, C360Plan.STATE_SKIPPED, 'The chain stopped at ' + stoppedAt + '.');
                 C360Plan.setState(steps, g.stepId + '_verify', C360Plan.STATE_SKIPPED, 'The chain stopped at ' + stoppedAt + '.');
@@ -419,16 +473,61 @@ global with sharing class ExecuteDiscardVersion {
 
             C360WriteGuard.assertAllowedForTool(ACTION_ID, g.objectName, C360WriteGuard.OP_DELETE, new Map<String, Object>());
 
+            // THE SHELLS TOLERATE A ROW THAT HAS ALREADY GONE, AND ONLY THEY DO (org proof
+            // 2026-09-14). nCino's managed delete handling takes a clone's collateral aggregate
+            // WITH the clone, inside `delete_members`, so by the time `delete_aggregates` runs the
+            // frozen list can be entirely deleted already and an all-or-nothing delete stops the
+            // chain on `ENTITY_IS_DELETED` with the version package still standing. A row that is
+            // already gone is the outcome this group wanted, so it is `already_gone` rather than a
+            // stop. Every OTHER error on the group, and every other group, still stops the chain:
+            // the tolerance is for one status code on one object, not for failure in general.
+            Boolean tolerant = g.stepId == StageDiscardVersion.AGGREGATE_STEP_ID;
             String orgRefusal = null;
+            String partialRefusal = null;
+            Set<Id> alreadyGone = new Set<Id>();
+            List<SObject> rows = new List<SObject>();
+            for (Id rid : targets) {
+                rows.add(rid.getSObjectType().newSObject(rid));
+            }
+
+            if (g.stepId == vanishBeforeGroup) {
+                vanishBeforeGroup = null;
+                List<SObject> cascade = new List<SObject>();
+                for (Id rid : targets) {
+                    cascade.add(rid.getSObjectType().newSObject(rid));
+                }
+                delete as user cascade;
+            }
+
             if (g.stepId == refuseGroupOnce) {
                 refuseGroupOnce = null;
                 orgRefusal = 'DELETE_FAILED: the org is holding a record on this group (injected refusal).';
+            } else if (tolerant) {
+                List<String> refusals = new List<String>();
+                List<Database.DeleteResult> results = Database.delete(rows, false, AccessLevel.USER_MODE);
+                for (Integer i = 0; i < results.size(); i++) {
+                    if (results[i].isSuccess()) {
+                        continue;
+                    }
+                    Boolean gone = true;
+                    for (Database.Error e : results[i].getErrors()) {
+                        if (e.getStatusCode() != StatusCode.ENTITY_IS_DELETED) {
+                            gone = false;
+                            refusals.add(e.getMessage());
+                        }
+                    }
+                    if (gone) {
+                        alreadyGone.add(targets[i]);
+                    }
+                }
+                // A partial delete is NOT reported as a refused delete: some rows went, and saying
+                // otherwise would mark a deleted record not_attempted. The survivors are counted by
+                // the re-read below, which is what stops the chain and what carries the org's words.
+                if (!refusals.isEmpty()) {
+                    partialRefusal = String.join(refusals, '; ');
+                }
             } else {
                 try {
-                    List<SObject> rows = new List<SObject>();
-                    for (Id rid : targets) {
-                        rows.add(rid.getSObjectType().newSObject(rid));
-                    }
                     delete as user rows;
                 } catch (DmlException e) {
                     orgRefusal = e.getMessage();
@@ -452,26 +551,39 @@ global with sharing class ExecuteDiscardVersion {
                 continue;
             }
 
-            C360Plan.setState(
-                steps, g.stepId, C360Plan.STATE_VERIFIED,
-                'Deleted ' + targets.size() + ' ' + g.objectName + ' record' + (targets.size() == 1 ? '' : 's') + '.'
-            );
-
             Set<Id> left = survivingIds(g.objectName, targets);
+            Integer wasGone = 0;
+            Integer removed = 0;
             for (Id rid : targets) {
                 if (left.contains(rid)) {
                     item(out, g.objectName, rid, byKey, 'not_attempted');
                     out.remainingCount++;
+                } else if (alreadyGone.contains(rid)) {
+                    // Counted in neither total: this run did not delete it, and it is not remaining.
+                    item(out, g.objectName, rid, byKey, 'already_gone');
+                    wasGone++;
                 } else {
                     item(out, g.objectName, rid, byKey, 'deleted');
                     out.deletedCount++;
+                    removed++;
                 }
             }
+
+            C360Plan.setState(
+                steps, g.stepId, C360Plan.STATE_VERIFIED,
+                'Deleted ' + removed + ' ' + g.objectName + ' record' + (removed == 1 ? '' : 's') +
+                (wasGone == 0
+                    ? '.'
+                    : ', and ' + wasGone + ' of the ' + targets.size() + ' on the plan had already gone with the ' +
+                      'facility that pointed at it. nCino\'s own delete handling takes a shell with its clone, so a ' +
+                      'shell that is already gone is this group\'s outcome rather than its failure.')
+            );
             if (!left.isEmpty()) {
                 C360Plan.setState(
                     steps, g.stepId + '_verify', C360Plan.STATE_FAILED,
                     left.size() + ' of ' + targets.size() + ' ' + g.objectName +
-                    ' records read back after the delete. The chain stops here.'
+                    ' records read back after the delete. The chain stops here.' +
+                    (partialRefusal == null ? '' : ' The org said: ' + partialRefusal)
                 );
                 stoppedAt = g.stepId;
                 continue;
@@ -486,15 +598,144 @@ global with sharing class ExecuteDiscardVersion {
     }
 
     /**
+     * Points the aggregate group at the FROZEN shells rather than at the fresh discovery, and
+     * filters that list down to what may still go.
+     *
+     * WHY THE FROZEN LIST. `LLC_BI__Loan__c` holds the lookup to its shell and the shell carries no
+     * lookup back, so a fresh discovery can only see a shell while its facility is alive. A run
+     * that stopped between `delete_members` and `delete_package` would resume with no facilities,
+     * find no shells, mark the group empty and strand them for good. Same rule the parents and the
+     * trail already follow: a set the chain needs after the delete is read before it.
+     *
+     * TWO FILTERS, both re-reads rather than assumptions. A shell that no longer resolves is
+     * `already_gone`, which is a resumed run rather than an error. A shell a SURVIVING facility or
+     * pledge still points at is `kept`: the version's own members are excluded from those reads
+     * because they are about to be deleted in this same run, so whatever is left pointing at a
+     * shell is outside the version. That second filter is not decoration:
+     * `LLC_BI__Loan_Collateral2__c.LLC_BI__Loan_Collateral_Aggregate__c` is a CASCADE lookup, so
+     * deleting a shared shell would take a stranger's pledge with it without saying so.
+     *
+     * @param inv The freshly discovered inventory, carrying the group to retarget.
+     * @param frozen The shell ids the banker confirmed at stage time.
+     * @param out The result, which records the shells that are already gone or deliberately kept.
+     */
+    private static void retargetAggregates(
+        StageDiscardVersion.Inventory inv,
+        Set<Id> frozen,
+        ExecuteResult out
+    ) {
+        StageDiscardVersion.DeleteGroup shells = null;
+        for (StageDiscardVersion.DeleteGroup g : inv.groups) {
+            if (g.stepId == StageDiscardVersion.AGGREGATE_STEP_ID) {
+                shells = g;
+            }
+        }
+        if (shells == null) {
+            return;
+        }
+        shells.ids.clear();
+        if (frozen.isEmpty()) {
+            return;
+        }
+
+        List<Id> frozenIds = new List<Id>(frozen);
+        frozenIds.sort();
+        Set<Id> alive = new Set<Id>();
+        for (LLC_BI__Loan_Collateral_Aggregate__c a : [
+            SELECT Id FROM LLC_BI__Loan_Collateral_Aggregate__c WHERE Id IN :frozenIds WITH USER_MODE
+        ]) {
+            alive.add(a.Id);
+        }
+        Set<Id> heldOutside = new Set<Id>();
+        for (LLC_BI__Loan__c l : [
+            SELECT LLC_BI__Loan_Collateral_Aggregate__c FROM LLC_BI__Loan__c
+            WHERE LLC_BI__Loan_Collateral_Aggregate__c IN :frozenIds AND Id NOT IN :inv.memberIds
+            WITH USER_MODE
+        ]) {
+            heldOutside.add(l.LLC_BI__Loan_Collateral_Aggregate__c);
+        }
+        for (LLC_BI__Loan_Collateral2__c p : [
+            SELECT LLC_BI__Loan_Collateral_Aggregate__c FROM LLC_BI__Loan_Collateral2__c
+            WHERE LLC_BI__Loan_Collateral_Aggregate__c IN :frozenIds AND LLC_BI__Loan__c NOT IN :inv.memberIds
+            WITH USER_MODE
+        ]) {
+            heldOutside.add(p.LLC_BI__Loan_Collateral_Aggregate__c);
+        }
+
+        Map<String, StageDiscardVersion.Item> byKey = itemsByKey(inv);
+        for (Id a : frozenIds) {
+            if (!alive.contains(a)) {
+                item(out, shells.objectName, a, byKey, 'already_gone');
+            } else if (heldOutside.contains(a)) {
+                item(out, shells.objectName, a, byKey, 'kept');
+                inv.refusedAggregates.add(
+                    'shell ' + a + ' is still pointed at from outside this version, so it was left where it stands'
+                );
+            } else {
+                shells.ids.add(a);
+            }
+        }
+    }
+
+    /**
+     * Settles a RESUME whose version package no longer resolves.
+     *
+     * The chain reached `delete_package` and landed it, and the transaction died before the outcome
+     * was written; or the org took the package with something else while the run was stopped. Either
+     * way the state the org is in is the state this plan wanted, so every group still reading
+     * pending is settled from the FROZEN PLAN rather than from a discovery that has nothing left to
+     * find. Leaving them pending is what would keep the staging row reading Executing for good,
+     * which is the same failure the resume gate had: a run that cannot finish and cannot be retried.
+     *
+     * The verifications are NOT settled here. They run straight after this and prove the package is
+     * gone, the booked parents read hasRenewal false, and the trail is marked, which is the whole
+     * point of finishing the run rather than abandoning it.
+     *
+     * @param steps The plan steps, mutated in place.
+     * @param out The result, which records the package as already gone.
+     * @param versionPackageId The version off the frozen plan.
+     */
+    private static void settleAlreadyGone(List<C360Plan.Step> steps, ExecuteResult out, Id versionPackageId) {
+        for (C360Plan.Step s : steps) {
+            if (s.state == C360Plan.STATE_PENDING) {
+                s.state = C360Plan.STATE_VERIFIED;
+                s.detail = 'Version package ' + versionPackageId + ' and everything on it were already gone when ' +
+                    'this run resumed, so this group had nothing left to remove.';
+            }
+        }
+        item(out, 'LLC_BI__Product_Package__c', versionPackageId, new Map<String, StageDiscardVersion.Item>(), 'already_gone');
+    }
+
+    /** The inventory's items, keyed the way the plan hash keys them. */
+    private static Map<String, StageDiscardVersion.Item> itemsByKey(StageDiscardVersion.Inventory inv) {
+        Map<String, StageDiscardVersion.Item> byKey = new Map<String, StageDiscardVersion.Item>();
+        for (StageDiscardVersion.Item i : inv.items) {
+            byKey.put(i.objectName + ':' + i.recordId, i);
+        }
+        return byKey;
+    }
+
+    /**
      * Refuses when the fresh inventory carries a record the banker never saw.
      *
      * The staged list is the ceiling. A pledge or a covenant junction that arrived between the
      * confirm gate and the click is a change of facts, and a delete that swept it up would be
      * deleting something nobody confirmed.
+     *
+     * THE SHELLS ARE THE ONE OBJECT THIS CANNOT MEASURE, and leaving them in would refuse runs it
+     * has no reason to refuse. `retargetAggregates` CLEARS the shell group and refills it from the
+     * frozen plan, so a shell the fresh discovery found and the banker never confirmed can never be
+     * deleted by any path: the ceiling is already absolute for that group, enforced by construction
+     * rather than by this check. Counting them here would instead refuse a legitimate RESUME of a
+     * plan staged before the orphan bucket existed, because the fresh discovery now names shells
+     * that plan's inventory could not carry.
      */
     private static void assertNothingNew(StageDiscardVersion.Inventory inv, Set<String> confirmed) {
         List<String> arrivals = new List<String>();
         for (StageDiscardVersion.Item i : inv.items) {
+            if (i.objectName == C360WriteGuard.OBJ_PLEDGE_AGGREGATE) {
+                continue;
+            }
             if (!confirmed.contains(i.objectName + ':' + i.recordId)) {
                 arrivals.add(i.objectName + ' ' + i.name);
             }

@@ -102,7 +102,10 @@ export interface InventoryRow {
 
 export const INVENTORY_GROUPS: readonly InventoryGroup[] = [
   { title: "Version chain rows", objects: ["LLC_BI__LoanRenewal__c"] },
-  { title: "Pledges and junctions", objects: ["LLC_BI__Loan_Collateral2__c", "LLC_BI__Loan_Covenant__c"] },
+  {
+    title: "Pledges and junctions",
+    objects: ["LLC_BI__Loan_Collateral2__c", "LLC_BI__Loan_Covenant__c", "LLC_BI__Loan_Collateral_Aggregate__c"],
+  },
   {
     title: "Pricing and fees",
     objects: [

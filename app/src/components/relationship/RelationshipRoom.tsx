@@ -18,6 +18,7 @@ import { BrandGlyph } from "../brand";
 import { Peek, usePeek } from "../workroom/Peek";
 import { GooFilter, LiquidMark, Orbit } from "../workroom/Liquid";
 import { REACHES_THE_ORG } from "../workroom/Words";
+import { EntryFold, EntrySheet, entryStateLine, type EntryDoor } from "../workroom/EntrySheet";
 import { TypeIcon, type IconKind } from "../workroom/TypeIcon";
 import { ReadCard } from "../workroom/ReadCardView";
 import { isQuestion, readRole, readTopic } from "../workroom/ask";
@@ -345,6 +346,35 @@ const relBankerLine = (step: number, text: string, from?: string): RelItem =>
 /** The chip a banker taps to leave an optional step unanswered. */
 const SKIP_LABEL = "Not assessed";
 
+/* WHAT EACH DOOR DOES, ONE LINE, IN THE ROOM'S OWN VOICE (0.9.25 entry sheet).
+   A chip carried a label and nothing else; the sheet is the first thing on the
+   glass, so each door says what taking it would DO before it is taken. */
+const REL_DOOR_WHAT: Record<RelRoute, string> = {
+  annual: "Runs the periodic review of the whole relationship.",
+  covenant: "Assesses every covenant carrying an open test period.",
+  valuation: "Values the collateral this relationship has pledged.",
+  rating: "Re-rates the borrower on the org's own scale.",
+  service: "Files a servicing case against the relationship.",
+  intake: "Puts a new covenant or an owned asset on the relationship.",
+  versionCovenant: "Adds a covenant to the version the org already holds.",
+  versionPledge: "Pledges collateral to the version the org already holds.",
+};
+
+/** A door the registry shut without saying why. The registry almost always has
+ *  a sentence; this is what stands in its place rather than a bare grey door. */
+const DOOR_UNAVAILABLE = "This review is not available on this relationship today.";
+
+/** THE TWO VERSION DOORS, SHUT AT RELATIONSHIP LEVEL. The registry's refusal
+ *  speaks of "this package" because it is written for a room standing in one;
+ *  here no package is chosen, so the same fact is said of the relationship. */
+const NOTHING_TO_AMEND =
+  "Nothing on this relationship is in flight to amend: every package is booked. Open Modify on a facility and the plan versions it.";
+const VERSION_DOORS: ReadonlySet<string> = new Set(["versionCovenant", "versionPledge"]);
+function doorReason(route: string, reason: string | null | undefined): string {
+  if (!reason) return DOOR_UNAVAILABLE;
+  return VERSION_DOORS.has(route) && reason === NOT_AMENDABLE_REFUSAL ? NOTHING_TO_AMEND : reason;
+}
+
 export interface RelRouteChoice {
   label: string;
   route: RelRoute | null;
@@ -363,6 +393,17 @@ export interface RelRouteChoice {
 export interface RelRouterQuestion {
   line: string;
   chips: RelRouteChoice[];
+  /**
+   * A NARROWING OFFER, NOT THE ROOM'S OPENING QUESTION (0.9.25).
+   *
+   * The entry sheet is the map: every route the room has, every time. An OFFER
+   * is something else entirely - the room answering a line the banker typed with
+   * the one or two routes that actually apply, carrying their own `say` - so it
+   * lands in the thread as a question with its own chips, exactly as it did
+   * before the sheet existed. Absent on the opening question, which is what the
+   * sheet renders.
+   */
+  offer?: boolean;
 }
 
 /**
@@ -519,6 +560,30 @@ function briefFor(ctx: RelContext): RelBrief {
         detail: ctx.asOf ? `${ctx.asOf}, the snapshot's own clock. Nothing here reaches a live clock.` : "The read stages no clock.",
       },
     ],
+  };
+}
+
+/** WHAT THE ROOM READ, as the peek renders it. One composition, because the
+ *  control now appears on the entry sheet and again on the bound review's own
+ *  bubble, and two copies of a scope read are how two of them drift. */
+function whatTheRoomRead(brief: RelBrief) {
+  return {
+    kicker: "What the room read",
+    width: 520,
+    content: (
+      <>
+        {brief.why.map((row) => (
+          <div className="wk-have-row" key={row.label}>
+            <div className="wk-l">{row.label}</div>
+            <div className="wk-d">{row.detail}</div>
+          </div>
+        ))}
+        <div className="wk-cav">
+          Everything above is the cockpit's own staged read. Nothing here reaches a live clock, and no signal is raised
+          that the data did not make.
+        </div>
+      </>
+    ),
   };
 }
 
@@ -1011,7 +1076,11 @@ export function RelationshipRoom({
 
   useEffect(() => {
     const el = threadRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    /* WHILE THE ENTRY SHEET IS OPEN THE COLUMN STAYS AT ITS HEAD: the name, the
+       state line and the doors are the first screen, and following the sheet
+       down would open the room on the tail of the briefing (gate 2026-09-14). */
+    el.scrollTop = el.querySelector('[data-entry="open"]') ? 0 : el.scrollHeight;
   }, [items, thinking, flow]);
 
   /* THE MARK GOES BACK TO READING BETWEEN TURNS (B2). `writing` is latched by
@@ -1842,6 +1911,7 @@ export function RelationshipRoom({
            this relationship carries no compliance row to assess. */
         if (!preCard && !preRelTopic && asksForFieldExam(text)) {
           setAsk({
+            offer: true,
             line: FIELD_EXAM_OFFER,
             chips: [
               { label: STAGE_A_FIELD_EXAM, route: "service", say: text },
@@ -1862,6 +1932,7 @@ export function RelationshipRoom({
            first step takes as the case subject. */
         if (!preCard && !preRelTopic && readsAsClientRequest(text)) {
           setAsk({
+            offer: true,
             line: CLIENT_REQUEST_OFFER,
             chips: [
               { label: RAISE_A_SERVICE_REQUEST, route: "service", say: text },
@@ -2245,9 +2316,14 @@ export function RelationshipRoom({
     if (answered) retireTiers();
   }, [answered, retireTiers]);
 
-  /* ---- THE SIGNAL'S COVENANT IS PRESELECTED. Where the opening named one, the
-          covenant review opens with it already on the list rather than making
-          the banker find it again. */
+  /* ---- A CALLER MAY NAME THE COVENANT, and then the review opens with it
+          already on the list rather than making the banker find it again.
+
+          THE ENTRY SHEET DOES NOT (0.9.25). Its covenant door binds the route
+          and nothing else: a review that opened with one test already answered
+          would be a pre-filled answer rather than a recommendation, and 0.9.24
+          is explicit that the covenant review is driven from the relationship
+          with EVERY covenant and its associations in front of the banker. */
   const preselectedRef = useRef(false);
   useEffect(() => {
     const id = router?.preselectCovenantId;
@@ -2495,11 +2571,13 @@ export function RelationshipRoom({
   const anchoredEntry = ctx.packages.find((p) => p.id === ctx.productPackageId) ?? null;
   const packageLineLabel = packagePending
     ? `choose one of ${ctx.packages.length}`
-    : (anchoredEntry?.name ?? REL_PACKAGE_NONE);
+    : (anchoredEntry?.name ?? (ctx.packages.length ? `${ctx.packages.length} on this relationship` : REL_PACKAGE_NONE));
   const packageStance = packagePending
     ? `${ctx.packages.length} packages on this relationship. None is chosen yet.`
     : !ctx.productPackageId
-      ? REL_PACKAGE_NONE
+      ? (ctx.packages.length
+          ? `${ctx.packages.length} packages on this relationship. The reviews here run on the whole relationship; a package shows on each row as an association, never as a filter.`
+          : REL_PACKAGE_NONE)
       : ctx.packages.length === 1
         ? "The relationship stages one product package, so the room anchored on it. You were not asked."
         : `Chosen from ${ctx.packages.length} on this relationship.`;
@@ -2551,14 +2629,6 @@ export function RelationshipRoom({
       ),
     });
 
-  /* THE GREETING'S OWN REMARK RIDES THE OPENING BUBBLE. Every other item's
-     remark is rendered by the thread loop under `Narration`; the opening is a
-     tier and is rendered through `opening`, so its view is drawn here. */
-  /* THE REMARK STANDS BESIDE THE GREETING, NOT INSIDE IT (founder, 2026-09-13:
-     "unaligned bubbles, too close"). Rendered inside the greeting's `.wk-msg`
-     the remark took 78% of the greeting's 78% and sat flush under it; as a
-     sibling in the step column it takes the step gap and the full bubble width,
-     like every other exchange. */
   /* THE BRIEFING (backlog 50, founder 2026-09-13). Composed from the book the
      room already holds, the trail it was handed and the anchored package; the
      inbox is not loaded in this room today and the builder names that gap
@@ -2575,20 +2645,112 @@ export function RelationshipRoom({
     [route, ctx.bundle, ctx.asOf, ctx.history, ctx.productPackageId],
   );
 
-  const openingItem = (
+  /* ================================================== THE ENTRY SHEET (0.9.25)
+
+     FOUNDER, design-intent gate 2026-09-14: the room opens on what there is to
+     act on and the doors, not on a greeting bubble with pills under it. In this
+     room the briefing (row 50) rides the SAME sheet, above the doors: the banker
+     reads what is due and what it means, and only then meets the reviews.
+
+     EVERY ROUTE THE ROOM HAS, ALWAYS. The chips used to shrink to two where a
+     governance signal opened the room, and the way back to the rest was a chip
+     called "Something else". A sheet is a map: it shows the six reviews and the
+     two version routes every time, with the signal's own sentence on the state
+     line above them, and a route the book has shut stays on the sheet disabled
+     carrying the registry's own reason (A27.3).
+
+     AND A DOOR PRE-FILLS NOTHING. The signal used to ride a YES chip that both
+     bound the route AND answered the review's first question with the covenant
+     it named. A door is the route and only the route: taking the covenant review
+     opens it on EVERY covenant the relationship carries with its associations,
+     which is the whole of what the founder asked for in 0.9.24, and the signal's
+     own sentence is above the doors where the banker can read it. The
+     recommendation rule says a grounded suggestion is a chip, never a pre-filled
+     answer; `preselectCovenantId` stays the seam a CALLER can use. */
+  const entryDoors = useMemo<EntryDoor[]>(() => {
+    if (!router) return [];
+    return router.neutral().chips.flatMap<EntryDoor>((chip) =>
+      chip.route
+        ? [
+            {
+              id: chip.route,
+              label: chip.label,
+              what: REL_DOOR_WHAT[chip.route],
+              locked: chip.disabled ? doorReason(chip.route, chip.reason) : null,
+              onPick: () => chooseRoute(chip),
+            },
+          ]
+        : [],
+    );
+  }, [chooseRoute, router]);
+
+  /** The review the banker took at the sheet, once they have taken one. */
+  const foldedRoute =
+    router && !router.question && route
+      ? REL_ROUTE_CHIPS.find((c) => c.route === route)?.label ?? REL_ROUTE_WORD[route]
+      : null;
+
+  /** The sheet stands while the room is asking which review this is. A narrowing
+   *  OFFER is not that question: it is the room's answer to a line the banker
+   *  typed, and it lands in the thread with its own chips. */
+  const offering = ask?.offer ? ask : null;
+
+  /* THE GREETING'S OWN REMARK RIDES THE OPENING SLOT. Every other item's remark
+     is rendered by the thread loop under `Narration`; the opening is a tier and
+     is rendered through `opening`, so its view is drawn here - on the sheet and
+     on the bubble alike, because the one consent moment is about the room
+     OPENING and not about which shape the opening took.
+
+     IT STANDS BESIDE THE OPENING, NOT INSIDE IT (founder, 2026-09-13:
+     "unaligned bubbles, too close"). Rendered inside the greeting's `.wk-msg`
+     the remark took 78% of the greeting's 78% and sat flush under it; as a
+     sibling in the step column it takes the step gap and the full width. */
+  const openingNarration = (
+    <>
+      <Narration view={narration.viewFor(openingIdRef.current)} />
+      <Narration view={narration.viewFor(`${openingIdRef.current}::mail`)} />
+    </>
+  );
+
+  const openingItem = ask && !offering ? (
+    <React.Fragment key="entry">
+    <EntrySheet
+      name={ctx.accountName}
+      /* ONE LINE OF STATE, off the figures the room already holds: the grade on
+         the snapshot, the relationship's committed total on the exposure, and
+         the version the roster carries. */
+      state={entryStateLine({
+        grade: ctx.bundle?.snapshot?.primaryRiskRating,
+        committed: ctx.bundle?.exposure?.totalCommitted,
+        packages: ctx.packages,
+        signal: router?.question && router.question.line !== NEUTRAL_QUESTION ? router.question.line : null,
+      })}
+      doors={entryDoors}
+      briefing={<RelationshipBriefing briefing={briefing} />}
+      reads={
+        <button
+          type="button"
+          className="wk-dt"
+          onClick={(e) => openPeek(e.currentTarget, whatTheRoomRead(brief))}
+        >
+          Why
+        </button>
+      }
+    />
+    {openingNarration}
+    </React.Fragment>
+  ) : (
     <React.Fragment key="opening">
+    {/* THE SHEET FOLDS INTO ONE RECAP LINE, and the review under it runs exactly
+        as it always has. */}
+    {foldedRoute && <EntryFold label={foldedRoute} />}
     <RelationshipBriefing briefing={briefing} />
-    {/* ============ BRIEFING MOUNT POINT: R2 OWNS WHAT GOES HERE (0.9.24)
+    {/* ============ THE BRIEFING LEADS (0.9.24, backlog row 50)
 
-        Backlog row 50, founder 2026-09-13: "yes ok it is a covenant review, but
-        for what". The opening briefing composed by `channel/relationshipBriefing.ts`
-        renders HERE, as a sibling of the greeting bubble and ABOVE the route
-        question below it, so the banker reads what is due and what it means
-        before the room offers a single chip. Nothing in this file composes it
-        and nothing in this file reads it; R2 mounts its component at this line.
-
-        The route question, its chips and the "Why" peek below are unchanged and
-        stay where they are: the briefing leads, the ask stays last. */}
+        Founder 2026-09-13: "yes ok it is a covenant review, but for what". The
+        briefing composed by `channel/relationshipBriefing.ts` renders HERE, above
+        the bound review's own opening line. Nothing in this file composes it and
+        nothing in this file reads it. */}
     <div className="wk-msg wk-agent" data-who="Agent">
       <div className="wk-bub">
         <div className="wk-headline">
@@ -2596,13 +2758,16 @@ export function RelationshipRoom({
             <Words text={brief.greeting} />{" "}
           </span>
           <Words
-            text={ask ? ask.line : brief.position}
+            text={offering ? offering.line : brief.position}
             offset={brief.greeting.trim().split(/\s+/).length}
           />
         </div>
-        {ask && (
+        {/* THE NARROWING OFFER'S OWN CHIPS. Two routes at most, each carrying the
+            banker's own line through as the review's first answer. Never the
+            eight the sheet shows: the banker has already narrowed it. */}
+        {offering && (
           <div className="wk-opts">
-            {ask.chips.map((chip) => (
+            {offering.chips.map((chip) => (
               <button
                 type="button"
                 className="wk-opt"
@@ -2618,37 +2783,13 @@ export function RelationshipRoom({
           </div>
         )}
         <div className="wk-posfoot">
-          <button
-            type="button"
-            className="wk-dt"
-            onClick={(e) =>
-              openPeek(e.currentTarget, {
-                kicker: "What the room read",
-                width: 520,
-                content: (
-                  <>
-                    {brief.why.map((row) => (
-                      <div className="wk-have-row" key={row.label}>
-                        <div className="wk-l">{row.label}</div>
-                        <div className="wk-d">{row.detail}</div>
-                      </div>
-                    ))}
-                    <div className="wk-cav">
-                      Everything above is the cockpit's own staged read. Nothing here reaches a live clock, and no
-                      signal is raised that the data did not make.
-                    </div>
-                  </>
-                ),
-              })
-            }
-          >
+          <button type="button" className="wk-dt" onClick={(e) => openPeek(e.currentTarget, whatTheRoomRead(brief))}>
             Why
           </button>
         </div>
       </div>
     </div>
-      <Narration view={narration.viewFor(openingIdRef.current)} />
-      <Narration view={narration.viewFor(`${openingIdRef.current}::mail`)} />
+      {openingNarration}
     </React.Fragment>
   );
 

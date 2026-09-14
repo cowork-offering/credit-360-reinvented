@@ -1674,18 +1674,11 @@ body.wk-open #root {
   border-color: rgba(0, 0, 0, 0.16);
   color: var(--ink);
 }
-/* THE ROUTES ARE ONE ROW (founder, 2026-09-01). Three one-word chips answering
-   one question read as a line, not as a wrapping field of pills; tighter, and
-   they never break. Only the routing row takes this — the org's own picklist
-   values legitimately wrap. */
-.wk-opts.wk-routes {
-  flex-wrap: nowrap;
-  gap: 5px;
-}
-.wk-opts.wk-routes .wk-opt {
-  white-space: nowrap;
-  padding: 5px 12px;
-}
+/* THE ROUTES LEFT THE CHIP ROW (0.9.25). `.wk-opts.wk-routes` held the three
+   route pills to one line; the routes are doors on the entry sheet now
+   (entry.css) and nothing renders that modifier, so its recipe is gone rather
+   than kept as a rule nobody can reach. `.wk-opt` itself is untouched: every
+   other option row in both rooms is still one. */
 
 /* ---------------------------------------------------------------- composer
    The PILL takes the focus (rule 47) via `.eg-pill`, so the input never draws a

@@ -285,6 +285,13 @@ describe("the roster", () => {
   });
 });
 
+/* THE ROUTES ARE DOORS ON THE ENTRY SHEET (0.9.25, founder design-intent gate
+   2026-09-14). Same three routes, same bindings, same package question under
+   them; what moved is the node, from `.wk-opts .wk-opt` to a door on the sheet. */
+const doors = (room: HTMLElement) => [...room.querySelectorAll<HTMLElement>(".wk-entry-door")];
+const door = (room: HTMLElement, label: string) =>
+  doors(room).find((d) => text(d.querySelector(".wk-entry-dl")) === label)!;
+
 describe("the room opens", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
@@ -294,8 +301,8 @@ describe("the room opens", () => {
     await settle();
 
     expect(room.querySelector(".wk-pkgask")).toBeNull();
-    // The route question is on the glass, exactly as it is today.
-    expect(room.querySelectorAll(".wk-routes .wk-opt").length).toBe(3);
+    // The route question is on the glass, as three doors on the entry sheet.
+    expect(doors(room)).toHaveLength(3);
     const line = room.querySelector<HTMLElement>(".wk-pkgline")!;
     expect(line.dataset.pkgline).toBe("a5Fbb000000IHFJEA4");
     expect(text(line)).toContain("Hartwell");
@@ -319,14 +326,13 @@ describe("the room opens", () => {
 
     // THE ROUTE LEADS, and nothing at package altitude is on the stage with it.
     expect(room.querySelector(".wk-pkgask")).toBeNull();
-    expect(room.querySelectorAll(".wk-routes .wk-opt").length).toBe(3);
+    expect(doors(room)).toHaveLength(3);
     expect(room.querySelector(".wk-mchip")).toBeNull();
     expect(room.querySelector(".wk-askpin")).toBeNull();
     expect(room.querySelector<HTMLElement>(".wk-pkgline")!.dataset.pkgline).toBe("pending");
 
     // THE PACKAGE QUESTION IS SECOND, as line items, scoped by the route taken.
-    const modify = [...room.querySelectorAll<HTMLElement>(".wk-routes .wk-opt")].find((b) => text(b) === "Modify")!;
-    act(() => modify.click());
+    act(() => door(room, "Modify").click());
     await settle();
 
     const ask = room.querySelector<HTMLElement>(".wk-pkgask")!;
@@ -341,7 +347,7 @@ describe("the room opens", () => {
     // against either of them and neither row is closed.
     expect(cards.every((c) => !(c as HTMLButtonElement).disabled)).toBe(true);
 
-    expect(room.querySelector(".wk-routes")).toBeNull();
+    expect(room.querySelector(".wk-entry")).toBeNull();
     expect(room.querySelector(".wk-mchip")).toBeNull();
     expect(text(room.querySelector(".wk-headline"))).toContain("Which package does this run in?");
 
@@ -382,7 +388,7 @@ describe("the room opens", () => {
     const { room, bound } = open();
     await settle();
 
-    act(() => [...room.querySelectorAll<HTMLElement>(".wk-routes .wk-opt")].find((b) => text(b) === "New facility")!.click());
+    act(() => door(room, "New facility").click());
     await settle();
     expect(bound).toEqual(["create"]);
 
@@ -405,7 +411,7 @@ describe("the room opens", () => {
     await settle();
 
     // The route first (spec 2c.3): the package question only exists under one.
-    act(() => [...room.querySelectorAll<HTMLElement>(".wk-routes .wk-opt")].find((b) => text(b) === "Modify")!.click());
+    act(() => door(room, "Modify").click());
     await settle();
     act(() => room.querySelectorAll<HTMLElement>(".wk-pkgask .wk-pkg")[1].click());
     expect(anchored).toHaveLength(1);

@@ -421,46 +421,14 @@
   }
 }
 
-/* ============================================= THE DOOR INTO THIS ROOM
+/* THE DOOR INTO THIS ROOM MOVED ONTO THE ENTRY SHEET (0.9.25). `.wk-memodoor`
+   was a quiet dashed pill under the facility room's route chips; the chips are
+   doors on a sheet now and the memo is one of them, styled with the rest in
+   entry.css. Nothing is left here to state.
 
-   A CONTROL THAT LIVES IN THE FACILITY ROOM AND BELONGS TO THIS ONE, so it is
-   styled here beside what it opens rather than buried in the other room's
-   sheet. It is QUIET: it does not compete with the decision it sits beside.
-
-     .wk-memodoor  under the three route chips, while the room is still asking
-                   which route this is. A memo is not a fourth route (it binds
-                   no engine and stages nothing), so it is not a fourth chip.
-
-   THE FINALE'S OWN MEMO DOOR MOVED (founder, 2026-09-06). It used to sit in the
-   afterglow as `.wk-ag-memo`; the afterglow is gone and the door is on the filed
-   sheet now, styled with the sheet in workroom.css. */
-.wk-memodoor {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  margin-top: 8px;
-  flex-wrap: wrap;
-}
-.wk-memobtn {
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 5px 11px;
-  border-radius: 9px;
-  border: 1px dashed var(--border);
-  background: transparent;
-  color: var(--ink-muted);
-  transition:
-    border-color 200ms var(--ease-settle),
-    color 200ms var(--ease-settle);
-}
-.wk-memobtn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.wk-memonote {
-  font-size: 10.6px;
-  color: var(--ink-faint);
-}
+   THE FINALE'S OWN MEMO DOOR MOVED EARLIER (founder, 2026-09-06). It used to sit
+   in the afterglow as `.wk-ag-memo`; the afterglow is gone and the door is on
+   the filed sheet, styled with the sheet in workroom.css. */
 
 /* DENSER GLASS FOR THE MEMO ROOM (founder, 2026-09-04: "for this workroom in
    particular it is too transparent, 15% more dense"). One flat veil on the

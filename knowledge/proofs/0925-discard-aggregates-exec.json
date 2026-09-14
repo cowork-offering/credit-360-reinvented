@@ -1,0 +1,627 @@
+[
+  {
+    "actionName": "ExecuteDiscardVersion",
+    "errors": null,
+    "expectedError": false,
+    "invocationId": null,
+    "isSuccess": true,
+    "outcome": null,
+    "outputValues": {
+      "error": null,
+      "ok": true,
+      "result": {
+        "versionPackageId": "a5Fbb000000JHI5EAO",
+        "terminalState": "partial",
+        "steps": [
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the renewal chain rows that keep the booked parents flagged (12)",
+            "id": "delete_chain",
+            "detail": "Deleted 12 LLC_BI__LoanRenewal__c records."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__LoanRenewal__c in this group is gone",
+            "id": "delete_chain_verify",
+            "detail": "Re-query confirms all 12 gone."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the collateral pledges copied onto the version facilities (6)",
+            "id": "delete_pledges",
+            "detail": "Deleted 6 LLC_BI__Loan_Collateral2__c records."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Loan_Collateral2__c in this group is gone",
+            "id": "delete_pledges_verify",
+            "detail": "Re-query confirms all 6 gone."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Detach the covenants from the version facilities (2)",
+            "id": "delete_covenant_junctions",
+            "detail": "Deleted 2 LLC_BI__Loan_Covenant__c records."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Loan_Covenant__c in this group is gone",
+            "id": "delete_covenant_junctions_verify",
+            "detail": "Re-query confirms all 2 gone."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the pricing rate components on the version facilities (0)",
+            "id": "delete_rate_components",
+            "detail": "Nothing to delete on this group."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Pricing_Rate_Component__c in this group is gone",
+            "id": "delete_rate_components_verify",
+            "detail": "Confirmed empty."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the pricing payment components on the version facilities (6)",
+            "id": "delete_payment_components",
+            "detail": "Deleted 6 LLC_BI__Pricing_Payment_Component__c records."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Pricing_Payment_Component__c in this group is gone",
+            "id": "delete_payment_components_verify",
+            "detail": "Re-query confirms all 6 gone."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the pricing streams nCino cloned onto the version facilities (6)",
+            "id": "delete_pricing_streams",
+            "detail": "Deleted 6 LLC_BI__Pricing_Stream__c records."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Pricing_Stream__c in this group is gone",
+            "id": "delete_pricing_streams_verify",
+            "detail": "Re-query confirms all 6 gone."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the fees on the version facilities (4)",
+            "id": "delete_fees",
+            "detail": "Deleted 4 LLC_BI__Fee__c records."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Fee__c in this group is gone",
+            "id": "delete_fees_verify",
+            "detail": "Re-query confirms all 4 gone."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the borrowing structure rows on the version (21)",
+            "id": "delete_involvements",
+            "detail": "Deleted 21 LLC_BI__Legal_Entities__c records."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Legal_Entities__c in this group is gone",
+            "id": "delete_involvements_verify",
+            "detail": "Re-query confirms all 21 gone."
+          },
+          {
+            "type": "write",
+            "state": "verified",
+            "label": "Remove the version facilities (6)",
+            "id": "delete_members",
+            "detail": "Deleted 6 LLC_BI__Loan__c records."
+          },
+          {
+            "type": "verification",
+            "state": "verified",
+            "label": "Confirm every LLC_BI__Loan__c in this group is gone",
+            "id": "delete_members_verify",
+            "detail": "Re-query confirms all 6 gone."
+          },
+          {
+            "type": "write",
+            "state": "failed",
+            "label": "Remove the collateral aggregate shells the version facilities point at (5)",
+            "id": "delete_aggregates",
+            "detail": "The org refused this delete: Delete failed. First exception on row 0 with id a4Sbb00000GYcBmEAL; first error: ENTITY_IS_DELETED, entity is deleted: []"
+          },
+          {
+            "type": "verification",
+            "state": "skipped_not_attempted",
+            "label": "Confirm every LLC_BI__Loan_Collateral_Aggregate__c in this group is gone",
+            "id": "delete_aggregates_verify",
+            "detail": "Not attempted: the delete itself was refused."
+          },
+          {
+            "type": "write",
+            "state": "skipped_not_attempted",
+            "label": "Remove the version package (1)",
+            "id": "delete_package",
+            "detail": "The chain stopped at delete_aggregates."
+          },
+          {
+            "type": "verification",
+            "state": "skipped_not_attempted",
+            "label": "Confirm every LLC_BI__Product_Package__c in this group is gone",
+            "id": "delete_package_verify",
+            "detail": "The chain stopped at delete_aggregates."
+          },
+          {
+            "type": "verification",
+            "state": "skipped_not_attempted",
+            "label": "Confirm every booked parent reads hasRenewal false",
+            "id": "verify_parents",
+            "detail": "The chain stopped at delete_aggregates, so the parents were not re-read."
+          },
+          {
+            "type": "verification",
+            "state": "skipped_not_attempted",
+            "label": "Confirm the version package id no longer resolves",
+            "id": "verify_version_gone",
+            "detail": "The chain stopped at delete_aggregates, so the version was never expected to be gone."
+          },
+          {
+            "type": "write",
+            "state": "skipped_not_attempted",
+            "label": "Mark the version's action trail rows Withdrawn (1)",
+            "id": "withdraw_trail",
+            "detail": "The chain stopped at delete_aggregates. The trail is left untouched until the discard completes."
+          },
+          {
+            "type": "observed_side_effect",
+            "state": "filed_unverified",
+            "label": "Collateral aggregate shells left standing (0)",
+            "id": "observe_aggregates",
+            "detail": "Every collateral aggregate shell this version owned was on the frozen inventory and went with its facility. None was left standing."
+          }
+        ],
+        "stagingId": "a8abb00001Od7GxAAJ",
+        "sourcePackageId": "a5Fbb000000IHFJEA4",
+        "replayed": false,
+        "remainingCount": 6,
+        "parentsCleared": [],
+        "outcome": "The discard stopped at delete_aggregates. 63 records are gone and 6 remain. Re-run execute_discard_version with the same idempotency key to resume from where it stopped.",
+        "items": [
+          {
+            "recordId": "a4Obb000000GAzdEAG",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000855"
+          },
+          {
+            "recordId": "a4Obb000000GAzfEAG",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000857"
+          },
+          {
+            "recordId": "a4Obb000000GAzcEAG",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000854"
+          },
+          {
+            "recordId": "a4Obb000000GAzbEAG",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000853"
+          },
+          {
+            "recordId": "a4Obb000000GAzgEAG",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000858"
+          },
+          {
+            "recordId": "a4Obb000000GAzeEAG",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000856"
+          },
+          {
+            "recordId": "a4Obb000000GAzVEAW",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000847"
+          },
+          {
+            "recordId": "a4Obb000000GAzWEAW",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000848"
+          },
+          {
+            "recordId": "a4Obb000000GAzXEAW",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000849"
+          },
+          {
+            "recordId": "a4Obb000000GAzYEAW",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000850"
+          },
+          {
+            "recordId": "a4Obb000000GAzZEAW",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000851"
+          },
+          {
+            "recordId": "a4Obb000000GAzaEAG",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000852"
+          },
+          {
+            "recordId": "a4Rbb0000027haCEAQ",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00439"
+          },
+          {
+            "recordId": "a4Rbb0000027haEEAQ",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00441"
+          },
+          {
+            "recordId": "a4Rbb0000027haBEAQ",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00438"
+          },
+          {
+            "recordId": "a4Rbb0000027ha9EAA",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00436"
+          },
+          {
+            "recordId": "a4Rbb0000027haAEAQ",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00437"
+          },
+          {
+            "recordId": "a4Rbb0000027haDEAQ",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00440"
+          },
+          {
+            "recordId": "a4Vbb000000rDQYEA2",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "name": "COV-0306"
+          },
+          {
+            "recordId": "a4Vbb000000rDQXEA2",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "name": "COV-0305"
+          },
+          {
+            "recordId": "a4ybb000002kQBIAA2",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kQBI"
+          },
+          {
+            "recordId": "a4ybb000002kQBKAA2",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kQBK"
+          },
+          {
+            "recordId": "a4ybb000002kQBHAA2",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kQBH"
+          },
+          {
+            "recordId": "a4ybb000002kQBFAA2",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kQBF"
+          },
+          {
+            "recordId": "a4ybb000002kQBGAA2",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kQBG"
+          },
+          {
+            "recordId": "a4ybb000002kQBJAA2",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "a4ybb000002kQBJ"
+          },
+          {
+            "recordId": "a50bb00000vOTUlAAO",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vOTUl"
+          },
+          {
+            "recordId": "a50bb00000vOTUnAAO",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vOTUn"
+          },
+          {
+            "recordId": "a50bb00000vOTUkAAO",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vOTUk"
+          },
+          {
+            "recordId": "a50bb00000vOTUiAAO",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vOTUi"
+          },
+          {
+            "recordId": "a50bb00000vOTUjAAO",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vOTUj"
+          },
+          {
+            "recordId": "a50bb00000vOTUmAAO",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "a50bb00000vOTUm"
+          },
+          {
+            "recordId": "a45bb000001mXFgAAM",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000301"
+          },
+          {
+            "recordId": "a45bb000001mXFfAAM",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000300"
+          },
+          {
+            "recordId": "a45bb000001mXFdAAM",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000298"
+          },
+          {
+            "recordId": "a45bb000001mXFeAAM",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000299"
+          },
+          {
+            "recordId": "a4Lbb000000PoG9EAK",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoG9"
+          },
+          {
+            "recordId": "a4Lbb000000PoGAEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGA"
+          },
+          {
+            "recordId": "a4Lbb000000PoGBEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGB"
+          },
+          {
+            "recordId": "a4Lbb000000PoGCEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGC"
+          },
+          {
+            "recordId": "a4Lbb000000PoGDEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGD"
+          },
+          {
+            "recordId": "a4Lbb000000PoGEEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGE"
+          },
+          {
+            "recordId": "a4Lbb000000PoGFEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGF"
+          },
+          {
+            "recordId": "a4Lbb000000PoGGEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGG"
+          },
+          {
+            "recordId": "a4Lbb000000PoGHEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGH"
+          },
+          {
+            "recordId": "a4Lbb000000PoGIEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGI"
+          },
+          {
+            "recordId": "a4Lbb000000PoGJEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGJ"
+          },
+          {
+            "recordId": "a4Lbb000000PoGKEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGK"
+          },
+          {
+            "recordId": "a4Lbb000000PoGLEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGL"
+          },
+          {
+            "recordId": "a4Lbb000000PoGMEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGM"
+          },
+          {
+            "recordId": "a4Lbb000000PoGNEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGN"
+          },
+          {
+            "recordId": "a4Lbb000000PoGOEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGO"
+          },
+          {
+            "recordId": "a4Lbb000000PoGPEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGP"
+          },
+          {
+            "recordId": "a4Lbb000000PoGQEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGQ"
+          },
+          {
+            "recordId": "a4Lbb000000PoGREA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGR"
+          },
+          {
+            "recordId": "a4Lbb000000PoGSEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGS"
+          },
+          {
+            "recordId": "a4Lbb000000PoGTEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "a4Lbb000000PoGT"
+          },
+          {
+            "recordId": "a4Zbb000002KoU9EAK",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Construction - $12,000,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KoUAEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Equipment - $3,500,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KoUBEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Equipment - $8,000,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KoUCEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Line of Credit - $16,000,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KoUDEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Line of Credit - $2,500,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KoUEEA0",
+            "outcome": "deleted",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Hartwell Precision Manufacturing LLC - Purchase - $5,000,000.00"
+          },
+          {
+            "recordId": "a4Sbb00000GYcBmEAL",
+            "outcome": "not_attempted",
+            "objectName": "LLC_BI__Loan_Collateral_Aggregate__c",
+            "name": "a4Sbb00000GYcBm"
+          },
+          {
+            "recordId": "a4Sbb00000GYcBnEAL",
+            "outcome": "not_attempted",
+            "objectName": "LLC_BI__Loan_Collateral_Aggregate__c",
+            "name": "a4Sbb00000GYcBn"
+          },
+          {
+            "recordId": "a4Sbb00000GYcBoEAL",
+            "outcome": "not_attempted",
+            "objectName": "LLC_BI__Loan_Collateral_Aggregate__c",
+            "name": "a4Sbb00000GYcBo"
+          },
+          {
+            "recordId": "a4Sbb00000GYcBpEAL",
+            "outcome": "not_attempted",
+            "objectName": "LLC_BI__Loan_Collateral_Aggregate__c",
+            "name": "a4Sbb00000GYcBp"
+          },
+          {
+            "recordId": "a4Sbb00000GYcBqEAL",
+            "outcome": "not_attempted",
+            "objectName": "LLC_BI__Loan_Collateral_Aggregate__c",
+            "name": "a4Sbb00000GYcBq"
+          },
+          {
+            "recordId": "a5Fbb000000JHI5EAO",
+            "outcome": "not_attempted",
+            "objectName": "LLC_BI__Product_Package__c",
+            "name": "Hartwell Precision Manufacturing LLC - 9/13/2026 - PP"
+          }
+        ],
+        "deletedCount": 63
+      }
+    },
+    "sortOrder": 0,
+    "version": 1
+  }
+]

@@ -138,8 +138,14 @@ const tierState = (room: HTMLElement, name: string) => tier(room, name)?.getAttr
 const buttons = () => [...document.body.querySelectorAll("button")];
 const click = (el: Element | undefined | null) =>
   act(() => el!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+/* THE ROUTE IS A DOOR ON THE ENTRY SHEET (0.9.25, founder design-intent gate
+   2026-09-14), and the sheet IS the question tier: same `data-tier="question"`
+   slot, same arrival, same leaving. The choreography below is untouched; what
+   moved is the node the route is taken on. */
 const chip = (room: HTMLElement, label: string) =>
-  [...room.querySelectorAll<HTMLButtonElement>(".wk-opt")].find((b) => b.textContent === label);
+  [...room.querySelectorAll<HTMLButtonElement>(".wk-entry-door")].find(
+    (d) => d.querySelector(".wk-entry-dl")?.textContent === label,
+  );
 const summon = (room: HTMLElement) => room.querySelector<HTMLButtonElement>('[data-summon="tiers"]');
 const settle = async () => {
   await act(async () => {
@@ -171,7 +177,12 @@ describe("the entry choreography - the tiers arrive one at a time", () => {
     expect(room.querySelector(".wk-pkgs")).toBeNull();
     expect(room.querySelector(".wk-mchips")).toBeNull();
     // And the question is readable, which is the whole point of the calm stage.
-    expect(room.querySelector(".wk-headline")!.textContent).toContain("What are we doing with this relationship");
+    // RESTATED 2026-09-14: the doors ask it, so what is read is the doors.
+    expect([...room.querySelectorAll(".wk-entry-door .wk-entry-dl")].map((n) => n.textContent)).toEqual([
+      "Modify",
+      "Renew",
+      "New facility",
+    ]);
   });
 
   it("blends the package identity in when the route is picked, and the question leaves", () => {
@@ -342,7 +353,9 @@ describe("the entry choreography - a read answers on the question-only stage", (
     expect(summon(room)).toBeNull();
     // The question is still standing, still on the stage, still answerable.
     expect(tierState(room, "question")).toBe("on");
-    expect(room.querySelector(".wk-headline")!.textContent).toContain("What are we doing with this relationship");
+    // RESTATED 2026-09-14: the sheet asks the question, so the doors are what
+    // the banker reads while the tier is on the stage.
+    expect(room.querySelector(".wk-entry-door[data-door='modify']")).toBeTruthy();
   });
 });
 

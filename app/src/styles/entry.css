@@ -1,0 +1,141 @@
+/* =============================================================================
+   THE ENTRY SHEET: the finale's mirror, at the opening.
+
+   FOUNDER, design-intent gate 2026-09-14 (knowledge/DESIGN-0.9.24-ENTRY.md):
+   one centred sheet at the start, one at the end.
+
+   NOTHING IS RESTATED HERE. The glass, the radius, the shadow, the rim and the
+   type are `.wk-sheet`'s, and a door is `.wk-sheet-go` (workroom.css) with the
+   two things a DOOR needs and a pill does not: a second line under its label,
+   and a shut state that reads as shut. Not one colour is declared in this file;
+   every value below is a token or a reuse.
+
+   THE THREAD IS NOT TOUCHED. This file addresses `.wk-entry*` and nothing else,
+   so the one-scroller law and the thread's own rhythm stay exactly where they
+   are stated (workroom.css).
+   ============================================================================= */
+
+/* THE SHEET ARRIVES ON THE ROOM'S OWN ENTRY CHOREOGRAPHY. `wk-msgin` is the
+   450ms settle every bubble in the thread already lands on, so the first thing
+   on the glass arrives the way the room has always arrived; it dies under
+   reduced motion through the global rule in tokens.css. The finale's growth
+   belongs to the finale: this sheet does not move, it appears. */
+.wk-entry {
+  animation: wk-msgin 450ms var(--ease-settle) both;
+}
+/* The explainer sits in the sheet's own top-right corner, exactly as it does in
+   the opening bubble, so the sheet keeps its right edge clear for it. */
+.wk-entry:has(> .wk-whybtn) {
+  padding-right: 34px;
+}
+
+/* ---- ONE LINE OF STATE. `.wk-sheet-s` already sets the size, the colour and
+   the 60ch measure; what the entry adds is the air under it, because the doors
+   below are a decision and the state above them is not. */
+.wk-entry-state {
+  margin-bottom: 2px;
+}
+
+/* ---- THE DOORS.
+
+   A ROW, AND IT WRAPS RATHER THAN SHRINKS. Three to five doors fit a 720px
+   sheet on one or two rows; a door narrowed to fit a sixth would put its own
+   line on three. The minimum is the width at which a two-word label and a
+   one-line description still read, and `1fr` shares whatever is left over. */
+.wk-entry-doors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* A DOOR IS `.wk-sheet-go` WITH A SECOND LINE. The glass, the hairline, the rim
+   and the hover are inherited by class; what is overridden is the pill shape,
+   which cannot hold two lines, and the centring, which would leave a label and
+   its description on two different axes.
+
+   BOTH CLASSES IN THE SELECTOR, DELIBERATELY. `.wk-sheet-go` and `.wk-entry-door`
+   are one class each, so which of them wins the radius and the padding would be
+   decided by the order the bundler happens to concatenate two stylesheets in.
+   Measured once, on the built bundle: workroom.css lands last and the doors came
+   out as tall ovals. The compound selector settles it in the file rather than in
+   the build. */
+.wk-sheet-go.wk-entry-door {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 3px;
+  text-align: left;
+  border-radius: 14px;
+  padding: 13px 15px 14px;
+  min-height: 74px;
+}
+.wk-entry-dl {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--ink-strong);
+}
+.wk-entry-dw {
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  color: var(--ink-muted);
+}
+.wk-sheet-go.wk-entry-door:hover .wk-entry-dl {
+  color: var(--brand);
+}
+
+/* ---- A DOOR THE BOOK HAS SHUT (A27.3). It stays on the glass carrying the
+   reason in the room's own words: the map of what exists is what the banker
+   came for, and a door that quietly disappeared would take it away. Quiet
+   rather than red, because nothing here has gone wrong. */
+.wk-sheet-go.wk-entry-door[data-locked] {
+  cursor: default;
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow: none;
+}
+.wk-sheet-go.wk-entry-door[data-locked] .wk-entry-dl {
+  color: var(--ink-muted);
+}
+.wk-sheet-go.wk-entry-door[data-locked] .wk-entry-dw {
+  color: var(--ink-faint);
+}
+.wk-sheet-go.wk-entry-door[data-locked]:hover {
+  background: rgba(255, 255, 255, 0.42);
+  border-color: var(--glass-hairline);
+  color: var(--ink-muted);
+  transform: none;
+  box-shadow: none;
+}
+.wk-sheet-go.wk-entry-door[data-locked]:hover .wk-entry-dl {
+  color: var(--ink-muted);
+}
+
+/* ---- THE READ CHIPS, UNDER THE DOORS. `.wk-posfoot` is the row itself; the
+   entry adds the rule above it, so the reads read as a footer to the sheet
+   rather than as a sixth door. */
+.wk-posfoot.wk-entry-reads {
+  padding-top: 13px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: 0;
+}
+
+/* ---- THE BRIEFING, UNDER THE DOORS (relationship room; the doors stay on the
+   first screen, the briefing is the why beneath them). It is already a solid
+   block with its own material (briefing.css); on the sheet it gives up its own
+   arrival, because the sheet it sits on is the thing that is arriving. */
+.wk-entry .bf {
+  animation: none;
+  margin-top: 14px;
+}
+
+/* ---- THE FOLD. Picking a door leaves one recap line where the sheet was, in
+   the rooms' own settled register (recap.css, workroom.css). It carries the
+   thread's own top padding and nothing else: the line is the first thing in the
+   thread and the flow that follows it is the room as it always was. */
+[data-entry="chosen"] {
+  align-self: flex-start;
+}

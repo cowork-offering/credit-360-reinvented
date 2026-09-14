@@ -881,3 +881,32 @@ discard marks the filing modification row Withdrawn.
   to the $1.5M Equipment on the Real Estate package, staging row anchored on the account. Stage only; row removed.
 - Residue removed: the proof covenant COV-000727 (created by the amend proof in section C; the discard keeps
   covenant records by design) deleted by hand; Hartwell back to six covenants.
+
+## E. 0.9.25 aggregate sweep proof (2026-09-14, orchestrator)
+
+Version a5Fbb000000JHI5EAO created from `$BOOKED_PKG` (StageLoanModification / ExecuteLoanModification, key
+`zz-orgproof-20260914-agg-mod`, 6 clones, 5 aggregates on the clones). Discard staged (STG-0000000157,
+69 items, 5 aggregates frozen by A4's build) and executed: `partial`, stopped at `delete_aggregates` with
+`ENTITY_IS_DELETED` on a4Sbb00000GYcBmEAL. Findings:
+
+1. nCino's managed `LLC_BI.LoanTrigger` cascades a clone loan's aggregate when the loan is deleted, so the
+   frozen list is already gone by the time our step runs. The step must read that as `already_gone`.
+2. Five NEW orphan shells (a4Sbb00000GYfva..GYfve) carry CreatedDate 02:31:23Z, inside the modification
+   EXECUTE, a minute before the discard was staged. The shells backlog 46 complains about are minted at
+   version CREATION (pledge copy onto the clones), orphaned from birth; a discard that freezes only the
+   clones' own aggregates never sees them. The 18 shells hand-deleted this morning were three versions' worth.
+   Fix goes to the source (in-transaction sweep after the pledge copy) plus a bounded stage-time bucket in the
+   discard. Partial result saved at `proofs/0925-discard-aggregates-exec.json`. Resume of STG-0000000157 is
+   the proof of the fix.
+
+Result after A5 (0Afbb00000DvdBdCAJ) and A6 (0Afbb00000DvdLJCAZ), cycle 2 (keys `zz-orgproof-20260914-agg2-*`):
+`ExecuteLoanModification` step `sweep_aggregates` verified: "This transaction minted 5 collateral aggregate
+shells: 0 carry a facility or a pledge and stay, 5 were orphaned on creation and were removed, proven gone
+by re-query." Org count 70 → 75 (the 5 clone aggregates only). `StageDiscardVersion` froze 5 aggregates
+(69 items); `ExecuteDiscardVersion` landed `success` in one pass: `delete_aggregates` 5 `already_gone`
+(nCino's cascade), `delete_package` verified, 6 parents back to hasRenewal false, org count back to 70.
+Saved: `proofs/0925-discard-aggregates-clean.json`. The A6 resume path is unit-proven (36 tests) but not
+live-proven: the cycle-1 row STG-0000000157 had already been marked Failed and its token consumed by the
+NOT_A_VERSION refusal, so it could not be resumed. Residue removed by hand: the stranded package
+a5Fbb000000JHI5EAO, the 5 cycle-1 shells, the 4 proof staging rows. Org after: 65 aggregates (62 referenced,
+3 seed), 0 staging rows, Hartwell booked package untouched.

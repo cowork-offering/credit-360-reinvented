@@ -463,20 +463,40 @@ public with sharing class C360WriteGuard {
      *     version package. The caller owns the scoping that keeps this to an UNBOOKED version, and
      *     it owns it with a gate that refuses a booked member by name.
      *
+     * `LLC_BI__Loan_Collateral_Aggregate__c` JOINED THE SET ON 2026-09-14 (backlog row 46). It was
+     * absent while the frozen inventory did not name the shells, and the discard left one empty row
+     * per clone facility behind. The inventory names them now, read off the version's own
+     * facilities at stage time and refused where anything outside the version points at them, so
+     * the fence widens to exactly what the plan can promise. The object gate still refuses a delete
+     * on it, and no other tool may delete it at all.
+     *
+     * THE THREE PLEDGE-WRITING TOOLS DELETE EXACTLY ONE OBJECT, AND ONLY THE ROWS THEY MINTED
+     * (2026-09-14, backlog row 46, second half). `loan-modification`, `amend-version` and
+     * `new-facility-request` all insert `LLC_BI__Loan_Collateral2__c`, and nCino's managed
+     * collateral automation answers each of those inserts with a `LLC_BI__Loan_Collateral_Aggregate__c`
+     * shell of its own that nothing ever points at, because the tool already gave the pledge one.
+     * Five such rows were left behind by a single Hartwell version creation on 2026-09-14. They are
+     * orphans from birth and no discard can ever name them, so the transaction that caused them
+     * sweeps them: `C360AggregateSweep` deletes ONLY shells born in that transaction, under the
+     * running user, with no lookup key, with no facility and no pledge pointing at them. The fence
+     * is one object wide for each of the three, which is why they are separate keys rather than a
+     * share of the discard's set.
+     *
      * DELIBERATELY ABSENT, and each absence is a decision rather than an oversight:
-     * `LLC_BI__Loan_Collateral_Aggregate__c` (a booked parent's facility can point at one, and the
-     * frozen inventory does not name them), `LLC_BI__Loan_Detail__c` and
-     * `LLC_BI__LLC_LoanDocument__c` (master-detail children that cascade with the facility, so a
-     * delete permission would be a second way to do what the platform already does), every
-     * relationship-level object, and `cm_Action_Staging__c`, which is the audit trail and is
-     * marked rather than removed.
+     * `LLC_BI__Loan_Detail__c` and `LLC_BI__LLC_LoanDocument__c` (master-detail children that
+     * cascade with the facility, so a delete permission would be a second way to do what the
+     * platform already does), every relationship-level object, and `cm_Action_Staging__c`, which is
+     * the audit trail and is marked rather than removed.
      */
     private static final Map<String, Set<String>> TOOL_DELETE_OBJECTS = new Map<String, Set<String>>{
         'discard-version' => new Set<String>{
             OBJ_LOAN_RENEWAL, OBJ_PLEDGE, OBJ_LOAN_COVENANT, OBJ_PRICING_RATE_COMPONENT,
             OBJ_PRICING_PAYMENT_COMPONENT, OBJ_PRICING_STREAM, OBJ_FEE, OBJ_INVOLVEMENT,
-            OBJ_LOAN, OBJ_PRODUCT_PACKAGE
-        }
+            OBJ_LOAN, OBJ_PLEDGE_AGGREGATE, OBJ_PRODUCT_PACKAGE
+        },
+        'loan-modification' => new Set<String>{ OBJ_PLEDGE_AGGREGATE },
+        'amend-version' => new Set<String>{ OBJ_PLEDGE_AGGREGATE },
+        'new-facility-request' => new Set<String>{ OBJ_PLEDGE_AGGREGATE }
     };
 
     /**

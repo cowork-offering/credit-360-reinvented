@@ -352,11 +352,16 @@ describe("Open in workroom", () => {
     await settle(0);
     await settle(60);
     const room = document.querySelector(".wk-room")!;
-    // The room asks. The chip the message points at is the one on offer, with
-    // the way out of it beside it: nothing is bound and nothing is staged.
-    const chips = [...room.querySelectorAll(".wk-opt")].map((c) => c.textContent);
-    expect(chips).toContain("Open the modification");
-    expect(chips).toContain("Something else");
+    /* RESTATED 2026-09-14 (the entry sheet). The room still ASKS rather than
+       choosing: nothing is bound and nothing is staged. What the message's own
+       signal does is lead the sheet's state line; the routes are the doors, so
+       the banker can take the one the message points at or any other, which is
+       strictly more than the yes-plus-a-way-out it replaced. */
+    const doors = [...room.querySelectorAll(".wk-entry-door")].map((d) => (d as HTMLElement).dataset.door);
+    expect(doors).toEqual(["modify", "renew", "create", "memo"]);
+    expect(room.querySelector(".wk-entry-state")!.textContent).toContain(
+      "james@hartwellprecision.com asks to increase the Line of Credit from $15M to $20M",
+    );
   });
 
   it("lets the message go when the room closes", async () => {

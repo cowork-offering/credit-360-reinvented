@@ -506,8 +506,8 @@ describe("the greeting is the one consent moment", () => {
     const { room } = open({ routeOpen: true, brain: async () => ({ type: "clarify", text: "?" }) as BrainReply });
     await settle();
     expect(room.querySelector(".wk-narr")).toBeNull();
-    expect(room.querySelector(".wk-headline")?.textContent).toContain(
-      "Relationship Actions on Hartwell Precision Manufacturing LLC.",
-    );
+    // RESTATED 2026-09-14 (the entry sheet): the room opens on the sheet while
+    // the route is open, and the sheet names the relationship in its title.
+    expect(room.querySelector(".wk-entry .wk-sheet-t")?.textContent).toBe("Hartwell Precision Manufacturing LLC");
   });
 });

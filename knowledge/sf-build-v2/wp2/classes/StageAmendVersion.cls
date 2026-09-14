@@ -874,6 +874,20 @@ global with sharing class StageAmendVersion {
         }
         resolved.put('pledgeAddCount', pledgeAdds.size());
 
+        // The shells a pledge insert causes and nobody uses (backlog row 46, org proof 2026-09-14).
+        // nCino answers every pledge insert with a collateral aggregate of its own, and the
+        // facility already carries the one this run reused or minted, so nCino's is an orphan from
+        // birth that no later discard can name: a discard reads shells off the facilities, and no
+        // facility ever pointed at these. The transaction that caused them is the only place that
+        // still can, so it removes them and says how many it found. Zero is the healthy answer.
+        steps.add(
+            new C360Plan.Step(C360AggregateSweep.STEP_ID, C360Plan.TYPE_WRITE,
+                'Remove any collateral aggregate shell this run mints and leaves unlinked, and only those')
+                .onObject('LLC_BI__Loan_Collateral_Aggregate__c', new List<String>{ 'Id' })
+                .wakes(new List<String>{ 'nCino managed delete handling on LLC_BI__Loan_Collateral_Aggregate__c' })
+                .provenBy('SELECT COUNT() FROM LLC_BI__Loan_Collateral_Aggregate__c WHERE Id IN :swept')
+        );
+
         steps.add(
             new C360Plan.Step('observe_side_effects', C360Plan.TYPE_OBSERVED,
                 'Stage-driven email alerts and memo status changes the org may run')

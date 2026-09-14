@@ -7,7 +7,8 @@
  * lookup key (LV06 keys on PRIORVALUE, which is blank on an insert, so this is legal and is the
  * shape proved live on 2026-08-20), a version package, a clone at Qualification carrying
  * `Is_Modification` with the `_M1` key, BOTH `LLC_BI__LoanRenewal__c` rows (revision 0 self anchor,
- * revision 1 pointing at the clone), a pledge on the clone with its own aggregate shell, a covenant
+ * revision 1 pointing at the clone), ONE `LLC_BI__Loan_Collateral_Aggregate__c` shell per facility
+ * with the FACILITY holding the lookup (the shell has none back), a pledge on the clone, a covenant
  * junction on the clone, a pricing stream, a fee, an involvement, and a `cm_Action_Staging__c` row
  * anchored on the version. A Loan insert wakes five managed namespaces and 21 validation rules, so
  * the whole fixture is built ONCE (lesson 7) and the methods read it back through relationships
@@ -50,6 +51,29 @@ private class StageExecuteDiscardVersionTest {
         );
         insert new List<LLC_BI__Product_Package__c>{ booked, version };
 
+        // The collateral chain, built before the facilities because the FACILITY holds the lookup to
+        // its own aggregate shell. The type needs an advance rate before a collateral may exist
+        // (Advance_Rate_should_not_be_null), and a pledge needs three parents including that shell
+        // (lesson 15ac). BOTH facilities carry one, which is the shape nCino leaves behind: one
+        // shell per loan, and the shell carries no lookup back.
+        LLC_BI__Collateral_Type__c colType = new LLC_BI__Collateral_Type__c(
+            Name = 'ZZ-DISCARD-TEST Equipment',
+            LLC_BI__Advance_Rate__c = 80
+        );
+        insert colType;
+        LLC_BI__Collateral__c asset = new LLC_BI__Collateral__c(
+            LLC_BI__Collateral_Type__c = colType.Id,
+            LLC_BI__Description__c = 'ZZ-DISCARD-TEST equipment'
+        );
+        insert asset;
+        LLC_BI__Loan_Collateral_Aggregate__c parentAgg = new LLC_BI__Loan_Collateral_Aggregate__c(
+            Name = 'ZZ-DISCARD-TEST Parent Aggregate'
+        );
+        LLC_BI__Loan_Collateral_Aggregate__c cloneAgg = new LLC_BI__Loan_Collateral_Aggregate__c(
+            Name = 'ZZ-DISCARD-TEST Clone Aggregate'
+        );
+        insert new List<LLC_BI__Loan_Collateral_Aggregate__c>{ parentAgg, cloneAgg };
+
         LLC_BI__Loan__c parent = new LLC_BI__Loan__c(
             LLC_BI__Account__c = a.Id,
             LLC_BI__Product_Package__c = booked.Id,
@@ -62,7 +86,8 @@ private class StageExecuteDiscardVersionTest {
             LLC_BI__Product_Type__c = 'Term Loan',
             LLC_BI__Product__c = 'Equipment',
             LLC_BI__isRenewal__c = false,
-            LLC_BI__Is_Modification__c = false
+            LLC_BI__Is_Modification__c = false,
+            LLC_BI__Loan_Collateral_Aggregate__c = parentAgg.Id
         );
         LLC_BI__Loan__c clone = new LLC_BI__Loan__c(
             LLC_BI__Account__c = a.Id,
@@ -75,7 +100,8 @@ private class StageExecuteDiscardVersionTest {
             LLC_BI__Product_Type__c = 'Term Loan',
             LLC_BI__Product__c = 'Equipment',
             LLC_BI__isRenewal__c = false,
-            LLC_BI__Is_Modification__c = true
+            LLC_BI__Is_Modification__c = true,
+            LLC_BI__Loan_Collateral_Aggregate__c = cloneAgg.Id
         );
         insert new List<LLC_BI__Loan__c>{ parent, clone };
 
@@ -107,27 +133,10 @@ private class StageExecuteDiscardVersionTest {
             )
         };
 
-        // The collateral chain. The type needs an advance rate before a collateral may exist
-        // (Advance_Rate_should_not_be_null), and a pledge needs three parents including its own
-        // aggregate shell (lesson 15ac).
-        LLC_BI__Collateral_Type__c colType = new LLC_BI__Collateral_Type__c(
-            Name = 'ZZ-DISCARD-TEST Equipment',
-            LLC_BI__Advance_Rate__c = 80
-        );
-        insert colType;
-        LLC_BI__Collateral__c asset = new LLC_BI__Collateral__c(
-            LLC_BI__Collateral_Type__c = colType.Id,
-            LLC_BI__Description__c = 'ZZ-DISCARD-TEST equipment'
-        );
-        insert asset;
-        LLC_BI__Loan_Collateral_Aggregate__c agg = new LLC_BI__Loan_Collateral_Aggregate__c(
-            Name = 'ZZ-DISCARD-TEST Clone Aggregate'
-        );
-        insert agg;
         insert new LLC_BI__Loan_Collateral2__c(
             LLC_BI__Loan__c = clone.Id,
             LLC_BI__Collateral__c = asset.Id,
-            LLC_BI__Loan_Collateral_Aggregate__c = agg.Id,
+            LLC_BI__Loan_Collateral_Aggregate__c = cloneAgg.Id,
             LLC_BI__Lien_Position__c = '1st',
             LLC_BI__Is_Primary__c = true,
             LLC_BI__Amount_Pledged__c = 400000
@@ -196,6 +205,19 @@ private class StageExecuteDiscardVersionTest {
             WHERE LLC_BI__Account__c = :borrower().Id AND LLC_BI__lookupKey__c = :CLONE_KEY
             LIMIT 1
         ];
+    }
+
+    private static LLC_BI__Loan_Collateral_Aggregate__c shellOf(LLC_BI__Loan__c loan) {
+        Id shellId = [
+            SELECT LLC_BI__Loan_Collateral_Aggregate__c FROM LLC_BI__Loan__c WHERE Id = :loan.Id
+        ].LLC_BI__Loan_Collateral_Aggregate__c;
+        return [
+            SELECT Id, Name, LLC_BI__lookupKey__c FROM LLC_BI__Loan_Collateral_Aggregate__c WHERE Id = :shellId
+        ];
+    }
+
+    private static Integer shellsLeft(Set<Id> shellIds) {
+        return [SELECT COUNT() FROM LLC_BI__Loan_Collateral_Aggregate__c WHERE Id IN :shellIds];
     }
 
     private static Id versionPackageId() {
@@ -385,6 +407,10 @@ private class StageExecuteDiscardVersionTest {
         System.assertEquals(1, byObject.get('LLC_BI__Fee__c'), 'The fee is on the list: ' + byObject);
         System.assertEquals(1, byObject.get('LLC_BI__Legal_Entities__c'), 'The involvement is on the list: ' + byObject);
         System.assertEquals(1, byObject.get('LLC_BI__Loan__c'), 'The clone is on the list, and only the clone: ' + byObject);
+        System.assertEquals(
+            1, byObject.get('LLC_BI__Loan_Collateral_Aggregate__c'),
+            'The clone facility\'s aggregate shell is on the list, and the booked parent\'s is not: ' + byObject
+        );
         System.assertEquals(1, byObject.get('LLC_BI__Product_Package__c'), 'The version package is on the list: ' + byObject);
 
         System.assertEquals(
@@ -449,6 +475,8 @@ private class StageExecuteDiscardVersionTest {
         Id cloneId = cloneLoan().Id;
         Id parentId = parentLoan().Id;
         Id bookedId = bookedPackageId();
+        Id cloneShellId = shellOf(cloneLoan()).Id;
+        Id parentShellId = shellOf(parentLoan()).Id;
         Id assetId = [SELECT Id FROM LLC_BI__Collateral__c LIMIT 1].Id;
         Id covenantId = [SELECT Id FROM LLC_BI__Covenant2__c LIMIT 1].Id;
         String k = key('execute');
@@ -469,10 +497,18 @@ private class StageExecuteDiscardVersionTest {
         System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Pricing_Stream__c WHERE LLC_BI__Loan__c = :cloneId], 'The pricing stream is gone.');
         System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Fee__c WHERE LLC_BI__Loan__c = :cloneId], 'The fee is gone.');
         System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Legal_Entities__c WHERE LLC_BI__Product_Package__c = :versionId], 'The involvement is gone.');
+        System.assertEquals(
+            0, [SELECT COUNT() FROM LLC_BI__Loan_Collateral_Aggregate__c WHERE Id = :cloneShellId],
+            'The clone facility\'s aggregate shell goes with it. Leaving it behind is backlog row 46.'
+        );
 
         System.assertEquals(1, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :bookedId], 'The BOOKED package is untouched.');
         System.assertEquals(1, [SELECT COUNT() FROM LLC_BI__Loan__c WHERE Id = :parentId], 'The BOOKED parent is untouched.');
         System.assertEquals(1, [SELECT COUNT() FROM LLC_BI__Collateral__c WHERE Id = :assetId], 'The asset survives its pledge.');
+        System.assertEquals(
+            1, [SELECT COUNT() FROM LLC_BI__Loan_Collateral_Aggregate__c WHERE Id = :parentShellId],
+            'The BOOKED parent keeps its own shell. Only the shells the version facilities pointed at go.'
+        );
         System.assertEquals(1, [SELECT COUNT() FROM LLC_BI__Covenant2__c WHERE Id = :covenantId], 'The covenant survives its junction.');
         System.assertEquals(1, [SELECT COUNT() FROM LLC_BI__Account_Covenant__c WHERE LLC_BI__Covenant2__c = :covenantId], 'The relationship covenant junction survives.');
 
@@ -510,13 +546,14 @@ private class StageExecuteDiscardVersionTest {
         }
         for (String required : new List<String>{
             'delete_chain', 'delete_pledges', 'delete_covenant_junctions', 'delete_pricing_streams',
-            'delete_fees', 'delete_involvements', 'delete_members', 'delete_package',
-            'verify_parents', 'verify_version_gone', 'withdraw_trail'
+            'delete_fees', 'delete_involvements', 'delete_members', 'delete_aggregates', 'delete_package',
+            'verify_parents', 'verify_version_gone', 'withdraw_trail', 'observe_aggregates'
         }) {
             System.assertNotEquals(null, steps.get(required), 'The plan carries the step ' + required);
         }
         for (String verified : new List<String>{
-            'delete_chain', 'delete_pledges', 'delete_members', 'delete_package', 'verify_parents', 'verify_version_gone'
+            'delete_chain', 'delete_pledges', 'delete_members', 'delete_aggregates', 'delete_package',
+            'verify_parents', 'verify_version_gone'
         }) {
             System.assertEquals(
                 C360Plan.STATE_VERIFIED, steps.get(verified).state,
@@ -548,6 +585,306 @@ private class StageExecuteDiscardVersionTest {
                 'A step that could not run makes the run partial. That is the honest state, not a failure to hide.'
             );
         }
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The collateral aggregate shells (backlog row 46).
+    //
+    // nCino mints one shell per facility and the FACILITY holds the lookup, so a discard that took
+    // the facilities and left the shells left one empty row behind per clone. These four methods
+    // fix the boundary: a shell the version owned goes, and a shell anything else can reach stays.
+    // -------------------------------------------------------------------------------------------
+
+    @IsTest
+    static void everyVersionFacilityLosesItsShellAndTheReQueryProvesIt() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        LLC_BI__Loan_Collateral_Aggregate__c second = new LLC_BI__Loan_Collateral_Aggregate__c(
+            Name = 'ZZ-DISCARD-TEST Second Shell'
+        );
+        insert second;
+        insert facilityOn(versionId, 'ZZDISCARDP1_M2', second.Id);
+        Set<Id> shells = new Set<Id>{ shellOf(cloneLoan()).Id, second.Id };
+        String k = key('twoshells');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+        ExecuteDiscardVersion.Response res = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Execute should succeed. ' + whyExec(res));
+        System.assertEquals(
+            2, countOf(staged.result.items, 'LLC_BI__Loan_Collateral_Aggregate__c'),
+            'Both facilities\' shells are frozen at stage time, because the facility is the only thing that names one.'
+        );
+        System.assertEquals(0, shellsLeft(shells), 'Both shells are gone, proven by re-query rather than by the step saying so.');
+        System.assertEquals(0, res.result.remainingCount, 'Nothing was left behind: ' + res.result.outcome);
+    }
+
+    @IsTest
+    static void aShellCarryingALookupKeyIsNeverFrozenAndIsReportedAsObserved() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        LLC_BI__Loan_Collateral_Aggregate__c shell = shellOf(cloneLoan());
+        shell.LLC_BI__lookupKey__c = 'ZZ-DISCARD-TEST-SEEDED';
+        update shell;
+        String k = key('keyedshell');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+        ExecuteDiscardVersion.Response res = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Execute should succeed. ' + whyExec(res));
+        System.assertEquals(
+            0, countOf(staged.result.items, 'LLC_BI__Loan_Collateral_Aggregate__c'),
+            'A shell keyed outside this cockpit is never on the delete list, so the banker never confirms it.'
+        );
+        System.assertEquals(
+            1, shellsLeft(new Set<Id>{ shell.Id }),
+            'The keyed shell is still there. Bankinggpt carries three seeded this way and none of them is ours.'
+        );
+
+        ExecuteDiscardVersion.StepResult observed = stepOf(res, 'observe_aggregates');
+        System.assertEquals(C360Plan.STATE_FILED_UNVERIFIED, observed.state, 'An observed side effect is never claimed as verified.');
+        System.assert(
+            observed.detail.contains('ZZ-DISCARD-TEST-SEEDED'),
+            'The step names the shell it left standing and why: ' + observed.detail
+        );
+    }
+
+    @IsTest
+    static void aShellAFacilityOutsideTheVersionAlsoPointsAtIsRefused() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        Id shellId = shellOf(cloneLoan()).Id;
+        // A facility on the BOOKED package pointing at the same shell. Deleting it would cascade
+        // through LLC_BI__Loan_Collateral2__c into whatever that facility has pledged.
+        insert facilityOn(bookedPackageId(), 'ZZDISCARDOUT1', shellId);
+        String k = key('sharedshell');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+        ExecuteDiscardVersion.Response res = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Execute should succeed. ' + whyExec(res));
+        System.assertEquals(
+            0, countOf(staged.result.items, 'LLC_BI__Loan_Collateral_Aggregate__c'),
+            'A shell something outside the version points at is not frozen, so it can never be deleted.'
+        );
+        System.assertEquals(1, shellsLeft(new Set<Id>{ shellId }), 'The shared shell stands. It is not the version\'s to remove.');
+        System.assert(
+            stepOf(res, 'observe_aggregates').detail.contains('Left standing'),
+            'The refusal is reported rather than silent: ' + stepOf(res, 'observe_aggregates').detail
+        );
+    }
+
+    @IsTest
+    static void aShellSurvivesAStopBecauseItComesOffTheFrozenPlanRatherThanAFreshRead() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        Id shellId = shellOf(cloneLoan()).Id;
+        String k = key('shellresume');
+
+        // This method used to lift the package to Pending before staging, so that the RESUMED run
+        // could still be ranked as a version once its chain rows and facilities were gone. That
+        // workaround is deleted rather than kept: a resume no longer re-classifies the package, so
+        // the fixture's own stage-less package is the honest shape here, and it is the shape the org
+        // actually carries. aResumeTrustsTheFrozenPlanRatherThanTheHalfDeletedOrg owns that claim.
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+
+        Test.startTest();
+        // Stop ON the shells, which is the one place where stopping strands them: the facilities
+        // are already deleted, so nothing in the org can name their shells any more.
+        ExecuteDiscardVersion.refuseGroupOnce = 'delete_aggregates';
+        ExecuteDiscardVersion.Response stopped = executeOf(k, staged.result);
+        System.assertEquals(true, stopped.ok, 'A stopped chain is an answer, not a fault. ' + whyExec(stopped));
+        System.assertEquals(1, shellsLeft(new Set<Id>{ shellId }), 'The shell is still there, which is what the stop means.');
+        System.assertEquals(
+            0, [SELECT COUNT() FROM LLC_BI__Loan__c WHERE LLC_BI__Product_Package__c = :versionId],
+            'The facilities went before the stop, so the shell is now unreachable by query.'
+        );
+
+        ExecuteDiscardVersion.Response resumed = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, resumed.ok, 'The resume should succeed. ' + whyExec(resumed));
+        System.assertEquals(
+            0, shellsLeft(new Set<Id>{ shellId }),
+            'The resumed run still deletes the shell, because the plan named it before the facilities went.'
+        );
+    }
+
+    @IsTest
+    static void aShellThatWentWithItsCloneReadsAlreadyGoneAndTheChainCarriesOn() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        Id shellId = shellOf(cloneLoan()).Id;
+        String k = key('cascadedshell');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+        // nCino's managed delete handling reproduced: on 2026-09-14 the clone's shell went WITH the
+        // clone inside delete_members, and the all-or-nothing delete then stopped the whole chain on
+        // ENTITY_IS_DELETED with the version package still standing.
+        ExecuteDiscardVersion.vanishBeforeGroup = 'delete_aggregates';
+        ExecuteDiscardVersion.Response res = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Execute should succeed. ' + whyExec(res));
+        System.assertEquals(
+            0, res.result.remainingCount,
+            'A shell that is already gone reached this group\'s outcome, so nothing remains: ' + res.result.outcome
+        );
+        System.assertEquals(
+            'already_gone', outcomeOf(res, shellId),
+            'The item says what actually happened to it rather than claiming a delete this run did not perform.'
+        );
+        System.assertEquals(
+            C360Plan.STATE_VERIFIED, stepOf(res, 'delete_aggregates').state,
+            'The group settles verified: ' + stepOf(res, 'delete_aggregates').detail
+        );
+        System.assertEquals(
+            C360Plan.STATE_VERIFIED, stepOf(res, 'delete_package').state,
+            'And the chain carries on to the package, which is the whole point of tolerating it.'
+        );
+        System.assertEquals(
+            0, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId],
+            'The version package is gone. Before this it was stranded with zero loans.'
+        );
+    }
+
+    @IsTest
+    static void anEmptyShellThisVersionsCreationMintedIsFrozenWithIt() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        // The shape nCino leaves behind on a version creation: minted while the version was built,
+        // by the same user, and pointed at by nothing at all because the clone already had one.
+        LLC_BI__Loan_Collateral_Aggregate__c orphan = new LLC_BI__Loan_Collateral_Aggregate__c(
+            Name = 'ZZ-DISCARD-TEST Creation Orphan'
+        );
+        insert orphan;
+        String k = key('orphanshell');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+        ExecuteDiscardVersion.Response res = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Execute should succeed. ' + whyExec(res));
+        System.assertEquals(
+            2, countOf(staged.result.items, 'LLC_BI__Loan_Collateral_Aggregate__c'),
+            'Both the clone\'s own shell and the orphan its creation minted are frozen, because no facility will be ' +
+            'able to name either one once the facilities are gone.'
+        );
+        System.assertEquals(0, shellsLeft(new Set<Id>{ orphan.Id }), 'The orphan went with the version that caused it.');
+        System.assertEquals(0, res.result.remainingCount, 'Nothing was left behind: ' + res.result.outcome);
+    }
+
+    @IsTest
+    static void anEmptyShellInTheWindowCarryingALookupKeyIsNeverFrozen() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        LLC_BI__Loan_Collateral_Aggregate__c seeded = new LLC_BI__Loan_Collateral_Aggregate__c(
+            Name = 'ZZ-DISCARD-TEST Seeded In Window',
+            LLC_BI__lookupKey__c = 'ZZ-DISCARD-TEST-WINDOW-SEED'
+        );
+        insert seeded;
+        String k = key('windowseed');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+        ExecuteDiscardVersion.Response res = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Execute should succeed. ' + whyExec(res));
+        System.assertEquals(
+            1, countOf(staged.result.items, 'LLC_BI__Loan_Collateral_Aggregate__c'),
+            'Only the clone\'s own shell is frozen. A lookup key is the one field that says a human keyed the row.'
+        );
+        System.assertEquals(1, shellsLeft(new Set<Id>{ seeded.Id }), 'The keyed row stands, whatever the window says.');
+    }
+
+    @IsTest
+    static void anEmptyShellInTheWindowSomethingElsePointsAtIsNeverFrozen() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        LLC_BI__Loan_Collateral_Aggregate__c held = new LLC_BI__Loan_Collateral_Aggregate__c(
+            Name = 'ZZ-DISCARD-TEST Held In Window'
+        );
+        insert held;
+        // A facility on the BOOKED package: born in the same window, and squarely somebody else's.
+        insert facilityOn(bookedPackageId(), 'ZZDISCARDHELD1', held.Id);
+        String k = key('windowheld');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+        ExecuteDiscardVersion.Response res = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Execute should succeed. ' + whyExec(res));
+        System.assertEquals(
+            1, countOf(staged.result.items, 'LLC_BI__Loan_Collateral_Aggregate__c'),
+            'A shell something points at is not an orphan, whatever window it was born in.'
+        );
+        System.assertEquals(1, shellsLeft(new Set<Id>{ held.Id }), 'The referenced shell stands.');
+    }
+
+    /** The outcome the run recorded for one record, or null when it never named it. */
+    private static String outcomeOf(ExecuteDiscardVersion.Response res, Id recordId) {
+        for (ExecuteDiscardVersion.InventoryItem i : res.result.items) {
+            if (i.recordId == String.valueOf(recordId)) {
+                return i.outcome;
+            }
+        }
+        return null;
+    }
+
+    /** An unbooked facility on the named package, carrying the named shell. Builds both the second
+     *  version facility and the outside one that makes a shell shared. */
+    private static LLC_BI__Loan__c facilityOn(Id packageId, String lookupKey, Id shellId) {
+        return new LLC_BI__Loan__c(
+            LLC_BI__Account__c = borrower().Id,
+            LLC_BI__Product_Package__c = packageId,
+            LLC_BI__Stage__c = 'Qualification',
+            LLC_BI__Status__c = 'Open',
+            LLC_BI__lookupKey__c = lookupKey,
+            LLC_BI__Amount__c = 750000,
+            LLC_BI__Product_Line__c = 'Commercial',
+            LLC_BI__Product_Type__c = 'Term Loan',
+            LLC_BI__Product__c = 'Equipment',
+            LLC_BI__isRenewal__c = false,
+            LLC_BI__Is_Modification__c = false,
+            LLC_BI__Loan_Collateral_Aggregate__c = shellId
+        );
+    }
+
+    private static Integer countOf(List<StageDiscardVersion.InventoryItem> items, String objectName) {
+        Integer n = 0;
+        for (StageDiscardVersion.InventoryItem i : items) {
+            if (i.objectName == objectName) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static ExecuteDiscardVersion.StepResult stepOf(ExecuteDiscardVersion.Response res, String stepId) {
+        for (ExecuteDiscardVersion.StepResult s : res.result.steps) {
+            if (s.id == stepId) {
+                return s;
+            }
+        }
+        return null;
     }
 
     @IsTest
@@ -865,6 +1202,201 @@ private class StageExecuteDiscardVersionTest {
         System.assertEquals(
             C360Plan.STATE_VERIFIED, after.get('verify_parents').state,
             'The parents are verified off the STAGED list, so a resumed run still checks them: ' + after.get('verify_parents').detail
+        );
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The resume and the evidence the chain deletes (org proof 2026-09-14, staging row
+    // STG-0000000157).
+    //
+    // assertIsDiscardableVersion ranks a package as a version from its LLC_BI__LoanRenewal__c chain
+    // rows or its members' Is_Modification. The chain rows are group 1 and the members are group 5,
+    // so every stop after delete_chain left a package that no longer looked like a version, and the
+    // resume was refused NOT_A_VERSION by the progress its own first run made. These methods hold
+    // the two halves of the rule: a RESUME trusts the frozen plan, a FIRST execute does not.
+    // -------------------------------------------------------------------------------------------
+
+    @IsTest
+    static void aResumeTrustsTheFrozenPlanRatherThanTheHalfDeletedOrg() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        Id trailId = [SELECT Id FROM cm_Action_Staging__c WHERE cm_Action_Id__c = 'loan-modification' LIMIT 1].Id;
+        String k = key('resumeclassify');
+
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+
+        // Both executes share ONE window, opened after the stage so the stage's reads do not eat
+        // into the budget the two executes share (lesson 8j).
+        Test.startTest();
+
+        // Stop ON the shells, which is exactly where the live Hartwell discard stopped. By then the
+        // chain rows are gone and the facilities with them, which is every piece of evidence the
+        // version classification reads.
+        ExecuteDiscardVersion.refuseGroupOnce = 'delete_aggregates';
+        ExecuteDiscardVersion.Response stopped = executeOf(k, staged.result);
+        System.assertEquals(true, stopped.ok, 'A stopped chain is an answer, not a fault. ' + whyExec(stopped));
+        System.assertEquals(C360Plan.TERMINAL_PARTIAL, stopped.result.terminalState, stopped.result.outcome);
+
+        // The package now reads as nothing at all: no members, and a stage the gate does not
+        // recognise as one this cockpit created. That is the shape the org was left in, and before
+        // this change every resume under this key was refused NOT_A_VERSION.
+        System.assertEquals(
+            0, [SELECT COUNT() FROM LLC_BI__Loan__c WHERE LLC_BI__Product_Package__c = :versionId],
+            'The facilities went before the stop, taking the fork evidence with them.'
+        );
+        String leftStage = [SELECT LLC_BI__Stage__c FROM LLC_BI__Product_Package__c WHERE Id = :versionId].LLC_BI__Stage__c;
+        System.assert(
+            leftStage != 'Pending' && leftStage != 'In Review',
+            'And the package carries no cockpit stage to fall back on, which is the live shape: ' + String.valueOf(leftStage)
+        );
+
+        ExecuteDiscardVersion.Response resumed = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(
+            true, resumed.ok,
+            'A resume must never be refused by the evidence its own first run deleted. ' + whyExec(resumed)
+        );
+        System.assertEquals(false, resumed.result.replayed, 'This is a resume: there was work left to do.');
+        System.assertEquals(
+            0, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId],
+            'The version package went. It is the record the stranded run left standing on the org.'
+        );
+
+        Map<String, ExecuteDiscardVersion.StepResult> after = new Map<String, ExecuteDiscardVersion.StepResult>();
+        for (ExecuteDiscardVersion.StepResult s : resumed.result.steps) {
+            after.put(s.id, s);
+        }
+        System.assertEquals(C360Plan.STATE_VERIFIED, after.get('delete_aggregates').state, after.get('delete_aggregates').detail);
+        System.assertEquals(C360Plan.STATE_VERIFIED, after.get('delete_package').state, after.get('delete_package').detail);
+        System.assertEquals(C360Plan.STATE_VERIFIED, after.get('verify_version_gone').state, after.get('verify_version_gone').detail);
+
+        // The trail is the last step, and whether it can be STAMPED is the org's picklist to decide.
+        // The run is Completed only in the world where Withdrawn exists; in the other one it is
+        // honestly partial, and that is unchanged by this fix.
+        Boolean offered = C360Picklist.activeValues('cm_Action_Staging__c', 'cm_Status__c').contains(StageDiscardVersion.WITHDRAWN);
+        cm_Action_Staging__c row = [SELECT cm_Status__c FROM cm_Action_Staging__c WHERE Id = :staged.result.stagingId];
+        if (offered) {
+            System.assertEquals(C360Plan.TERMINAL_SUCCESS, resumed.result.terminalState, resumed.result.outcome);
+            System.assertEquals('Completed', row.cm_Status__c, 'A finished resume closes the row it was resuming.');
+            System.assertEquals(
+                StageDiscardVersion.WITHDRAWN,
+                [SELECT cm_Status__c FROM cm_Action_Staging__c WHERE Id = :trailId].cm_Status__c,
+                'And the row that filed the version is withdrawn, as the first run would have done.'
+            );
+        } else {
+            System.assertEquals(C360Plan.TERMINAL_PARTIAL, resumed.result.terminalState, resumed.result.outcome);
+            System.assertEquals(
+                C360Plan.STATE_SKIPPED, after.get('withdraw_trail').state,
+                'The only unsettled step is the picklist one: ' + after.get('withdraw_trail').detail
+            );
+        }
+    }
+
+    @IsTest
+    static void aFirstExecuteOnAPackageThatIsNotAVersionIsStillRefused() {
+        C360TestFixture.armCalloutMock();
+        // Staged while it reads Pending, which is what makes it a package this cockpit created, and
+        // moved out of that stage before the click. A FIRST execute re-reads the gate in full, so
+        // this is the refusal the resume exemption must not widen into.
+        LLC_BI__Product_Package__c fresh = new LLC_BI__Product_Package__c(
+            Name = 'ZZ-DISCARD-TEST Declassified Package',
+            LLC_BI__Account__c = borrower().Id,
+            LLC_BI__Stage__c = 'Pending',
+            LLC_BI__Status__c = 'New'
+        );
+        insert fresh;
+        Id freshId = fresh.Id;
+        String k = key('declassified');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, freshId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+        update new LLC_BI__Product_Package__c(Id = freshId, LLC_BI__Stage__c = 'Underwriting');
+        ExecuteDiscardVersion.Response res = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(false, res.ok, 'A first execute still asks the org what this package is.');
+        System.assertEquals('NOT_A_VERSION', res.error.code, 'Refusal code was ' + whyExec(res));
+        System.assertEquals(
+            1, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :freshId], 'Nothing was deleted.'
+        );
+        System.assertEquals(
+            'Failed',
+            [SELECT cm_Status__c FROM cm_Action_Staging__c WHERE Id = :staged.result.stagingId].cm_Status__c,
+            'And the refusal is written to the trail rather than leaving the row Executing.'
+        );
+    }
+
+    @IsTest
+    static void aResumeWhoseVersionIsAlreadyGoneFinishesTheRunRatherThanStrandingIt() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        Id shellId = shellOf(cloneLoan()).Id;
+        String k = key('gonebyresume');
+
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+
+        Test.startTest();
+        ExecuteDiscardVersion.refuseGroupOnce = 'delete_aggregates';
+        ExecuteDiscardVersion.Response stopped = executeOf(k, staged.result);
+        System.assertEquals(true, stopped.ok, 'A stopped chain is an answer, not a fault. ' + whyExec(stopped));
+
+        // Someone finished the job in Salesforce while the run was stopped. The resume meets an org
+        // that is already in the state the plan wanted.
+        delete new LLC_BI__Loan_Collateral_Aggregate__c(Id = shellId);
+        delete new LLC_BI__Product_Package__c(Id = versionId);
+
+        ExecuteDiscardVersion.Response resumed = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, resumed.ok, 'The resume reports the state rather than refusing. ' + whyExec(resumed));
+        System.assertEquals(
+            'already_gone', outcomeOf(resumed, versionId),
+            'The package is named as already gone rather than claimed as a delete this run performed.'
+        );
+        System.assertEquals(
+            C360Plan.STATE_VERIFIED, stepOf(resumed, 'delete_package').state,
+            'The group reached the outcome it wanted: ' + stepOf(resumed, 'delete_package').detail
+        );
+        System.assertEquals(
+            C360Plan.STATE_VERIFIED, stepOf(resumed, 'verify_version_gone').state,
+            stepOf(resumed, 'verify_version_gone').detail
+        );
+        System.assertEquals(0, resumed.result.remainingCount, 'Nothing remains: ' + resumed.result.outcome);
+    }
+
+    @IsTest
+    static void aResumeMustNameTheVersionTheStoppedRunWasDiscarding() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('retarget');
+
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+
+        Test.startTest();
+        ExecuteDiscardVersion.refuseGroupOnce = 'delete_chain';
+        ExecuteDiscardVersion.Response stopped = executeOf(k, staged.result);
+        System.assertEquals(true, stopped.ok, 'A stopped chain is an answer, not a fault. ' + whyExec(stopped));
+
+        // The row is made to point at a different package. A resume trusts the frozen plan for WHAT
+        // the package is, so the one thing it does re-derive is that the row and the plan are still
+        // talking about the same version.
+        update new cm_Action_Staging__c(Id = staged.result.stagingId, cm_Result_Record_Id__c = String.valueOf(bookedPackageId()));
+        ExecuteDiscardVersion.Response resumed = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(false, resumed.ok, 'A row pointing somewhere else is a mix-up, not a run to carry on with.');
+        System.assertEquals('VALIDATION_FAILED', resumed.error.code, 'Refusal code was ' + whyExec(resumed));
+        System.assert(
+            resumed.error.message.contains('does not retarget'),
+            'The refusal says what it is protecting: ' + resumed.error.message
+        );
+        System.assertEquals(
+            1, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId], 'Nothing was deleted.'
         );
     }
 

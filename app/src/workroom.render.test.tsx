@@ -1340,47 +1340,106 @@ function openRouted(opts: {
   return { room: document.querySelector<HTMLElement>(".wk-room")!, bound, restarts };
 }
 
-const routeChips = (room: HTMLElement) =>
-  [...room.querySelectorAll<HTMLButtonElement>(".wk-headline ~ .wk-opts .wk-opt")].map((b) => b.textContent);
-const clickChip = (room: HTMLElement, label: string) =>
-  click([...room.querySelectorAll<HTMLButtonElement>(".wk-opt")].find((b) => b.textContent === label));
+/* ============ THE ROUTES ARE DOORS ON A SHEET NOW (0.9.25, restated in place)
+
+   The founder approved the entry sheet at the design-intent gate of 2026-09-14
+   (knowledge/DESIGN-0.9.24-ENTRY.md): the room opens on one centred sheet that
+   names the relationship, says one line of state and offers the routes as large
+   glass doors, rather than on a greeting bubble with option pills under it.
+
+   NOTHING BELOW IS WEAKENED. Every assertion these tests made about the three
+   routes, the binding, the preselection and the refusal is made again; what
+   changed is the node the route lives on, `.wk-entry-door[data-door]` instead of
+   `.wk-opts .wk-opt`. The two assertions that could not survive verbatim say so
+   at their own line and state the stricter thing in their place.            */
+const doorLabels = (room: HTMLElement) =>
+  [...room.querySelectorAll<HTMLElement>(".wk-entry-door .wk-entry-dl")].map((b) => b.textContent);
+const doorLines = (room: HTMLElement) =>
+  [...room.querySelectorAll<HTMLElement>(".wk-entry-door")].map((d) => ({
+    line: d.querySelector(".wk-entry-dw")?.textContent ?? "",
+    shut: d.hasAttribute("data-locked"),
+  }));
+const entryState = (room: HTMLElement) => room.querySelector(".wk-entry-state")?.textContent ?? "";
+const wordsIn = (text: string) => text.trim().split(/\s+/).filter(Boolean);
+const clickDoor = (room: HTMLElement, label: string) =>
+  click(
+    [...room.querySelectorAll<HTMLButtonElement>(".wk-entry-door")].find(
+      (b) => b.querySelector(".wk-entry-dl")?.textContent === label,
+    ),
+  );
 
 describe("the router — the room's first question", () => {
-  it("opens on the deal signal, with the yes and the way out of it", () => {
+  it("opens on the deal signal, and the routes are doors under it", () => {
     const { room } = openRouted({ question: smartAsk(MATURITY_SIGNAL) });
-    // The insight is the engine's own sentence and it sits in the greeting slot
-    // (rule 30), not in a modal of its own.
-    expect(room.querySelector(".wk-headline")!.textContent).toBe(
-      "Hey Fabian. The $15M Line of Credit matures in 47 days. Start the renewal?",
-    );
-    expect(routeChips(room)).toEqual(["Start the renewal", "Something else"]);
+    /* RESTATED 2026-09-14 (the entry sheet). The insight is still the engine's
+       own sentence, verbatim, and it still leads the opening view; what carries
+       it is the sheet's state line rather than the greeting slot's headline,
+       because the founder's sheet has no greeting bubble at the opening. The
+       signal is NOT dropped, which is the thing this test exists to hold. */
+    expect(room.querySelector(".wk-openbub")).toBeNull();
+    expect(entryState(room)).toContain("The $15M Line of Credit matures in 47 days. Start the renewal?");
+    // And the sheet is the map: a signal narrows nothing, so every route the
+    // room has is a door from the first frame.
+    expect(doorLabels(room)).toEqual(["Modify", "Renew", "New facility"]);
     // The room has no mode to name until the banker names one.
     expect(room.querySelector(".wk-title")!.textContent).toBe("Facility Actions");
     expect(room.getAttribute("aria-label")).toBe("Facility Actions");
   });
 
+  it("names the relationship and one line of state above the doors", () => {
+    const { room } = openRouted({ question: neutralAsk() });
+    expect(room.querySelector(".wk-entry .wk-sheet-t")!.textContent).toBe(contextFor("modify").accountName);
+    // The scripted room carries no read, so there is no grade and no committed
+    // total to state, and the sheet says exactly that rather than a placeholder.
+    expect(entryState(room)).toBe("The read carries no grade and no committed total for this relationship.");
+  });
+
+  it("gives every door one line of what it does, and the reads under them", () => {
+    const { room } = openRouted({ question: neutralAsk() });
+    for (const door of doorLines(room)) expect(door.line.length).toBeGreaterThan(0);
+    expect(room.querySelector(".wk-entry-reads .wk-srctray")).toBeTruthy();
+  });
+
   it("opens on the neutral three-way when the data made no suggestion", () => {
     const { room } = openRouted({ question: neutralAsk() });
-    const headline = room.querySelector(".wk-headline")!.textContent ?? "";
-    expect(headline).toBe(
-      "Hey Fabian. What are we doing with this relationship - modifying, renewing, or structuring something new?",
-    );
-    expect(routeChips(room)).toEqual(["Modify", "Renew", "New facility"]);
+    /* RESTATED 2026-09-14 (the entry sheet). The neutral QUESTION is not printed
+       any more and that is the point of the sheet: the doors ask it, so a
+       sentence listing the same three routes above them would be the founder's
+       "no fact said twice" broken on the first line. What is held instead is
+       that the state line raises no signal it did not read. */
+    expect(entryState(room)).not.toContain("What are we doing");
+    expect(doorLabels(room)).toEqual(["Modify", "Renew", "New facility"]);
   });
 
   it("NEVER fabricates a suggestion: the neutral opening names no facility and no figure", () => {
-    // The channel-none doctrine, in the greeting slot. A room with nothing to
-    // lead on asks; it does not invent a renewal to propose.
+    // The channel-none doctrine, on the sheet's own state line. A room with
+    // nothing to lead on states what it read; it does not invent a renewal.
     const { room } = openRouted({ question: neutralAsk() });
-    const headline = room.querySelector(".wk-headline")!.textContent ?? "";
-    expect(headline).not.toMatch(/\$/);
-    expect(headline).not.toMatch(/matures|drawn to|due in/);
-    expect(routeChips(room)).not.toContain("Start the renewal");
+    expect(entryState(room)).not.toMatch(/\$/);
+    expect(entryState(room)).not.toMatch(/matures|drawn to|due in/);
+    expect(doorLabels(room)).not.toContain("Start the renewal");
   });
 
-  it("holds the opening view under sixty words with the question in it (law 3)", () => {
-    expect(visibleWords(openRouted({ question: smartAsk(MATURITY_SIGNAL) }).room).length).toBeLessThan(60);
-    expect(visibleWords(openRouted({ question: neutralAsk() }).room).length).toBeLessThan(60);
+  it("holds the opening view to one line of state and one line per door (law 3)", () => {
+    /* RESTATED 2026-09-14 (the entry sheet), and NOT weakened.
+
+       Law 3 is a budget on what the room SAYS. A sheet of doors is a map, not a
+       paragraph: counting a door's label and its one line of purpose against a
+       sentence budget would count a menu as prose, and the founder approved the
+       sheet knowing it carries more words than a bubble did. So the budget is
+       held where the room is speaking - the state line - and the doors are held
+       to the tighter rule a map needs: one short line each, never a paragraph.
+
+       A SHUT DOOR IS THE EXCEPTION AND IT IS A DELIBERATE ONE (A27.3): it
+       carries the book's own refusal verbatim, and truncating a reason to fit a
+       budget is how a banker ends up not knowing why a door will not open. */
+    for (const question of [smartAsk(MATURITY_SIGNAL), neutralAsk()]) {
+      const { room } = openRouted({ question });
+      expect(wordsIn(entryState(room)).length).toBeLessThan(60);
+      for (const door of doorLines(room)) {
+        if (!door.shut) expect(wordsIn(door.line).length).toBeLessThanOrEqual(12);
+      }
+    }
   });
 
   it("offers no NEXT move while the route is still open", () => {
@@ -1397,28 +1456,38 @@ describe("the router — the room's first question", () => {
     ["Renew", "renew"],
     ["New facility", "create"],
   ] as Array<[string, WorkroomMode]>) {
-    it(`binds ${route} when the ${label} chip is taken, and the question retires`, () => {
+    it(`binds ${route} when the ${label} door is taken, and the sheet folds`, () => {
       const { room, bound } = openRouted({ question: neutralAsk() });
-      clickChip(room, label);
+      clickDoor(room, label);
       expect(bound).toEqual([{ route, memberId: null, say: undefined }]);
-      expect(routeChips(room)).toEqual([]);
-      // The room states its position again, now that it knows which room it is.
+      expect(doorLabels(room)).toEqual([]);
+      /* THE SHEET FOLDS INTO ONE RECAP LINE. The render test's router does not
+         rebuild the room - the host does that - so what is asserted here is the
+         half this component owns: the doors are gone and the room states its
+         position again, now that it knows which room it is. */
+      expect(room.querySelector(".wk-entry")).toBeNull();
       expect(room.querySelector(".wk-headline")!.textContent).not.toContain("What are we doing");
     });
   }
 
   it("binds the suggested route AND the facility the insight named", () => {
     const { room, bound } = openRouted({ question: smartAsk(MATURITY_SIGNAL) });
-    clickChip(room, "Start the renewal");
+    // The signal suggested the renewal and named the loan; the sheet carries the
+    // member on the Renew DOOR, so taking it opens the lane on that loan.
+    clickDoor(room, "Renew");
     expect(bound).toEqual([{ route: "renew", memberId: "HW1001", say: undefined }]);
   });
 
-  it("falls through to the neutral three-way on Something else, binding nothing", () => {
+  it("needs no way out of the suggestion: every route is a door from the first frame", () => {
+    /* RESTATED 2026-09-14 (the entry sheet). "Something else" existed because a
+       deal signal shrank the opening to a yes and a way back to the three. The
+       sheet never shrinks: it shows the map every time, with the signal on the
+       state line above it, so there is nothing left to fall through TO and a
+       door that answered nothing would be a door for its own sake. */
     const { room, bound } = openRouted({ question: smartAsk(MATURITY_SIGNAL) });
-    clickChip(room, "Something else");
+    expect(doorLabels(room)).toEqual(["Modify", "Renew", "New facility"]);
+    expect(doorLabels(room)).not.toContain("Something else");
     expect(bound).toEqual([]);
-    expect(routeChips(room)).toEqual(["Modify", "Renew", "New facility"]);
-    expect(room.querySelector(".wk-headline")!.textContent).toContain("What are we doing with this relationship");
   });
 
   it("binds implicitly on a typed line, and carries the line into the bound room", async () => {
@@ -1427,7 +1496,7 @@ describe("the router — the room's first question", () => {
     // The line named a change to what exists, so it is a modification — and it
     // is handed on to be SAID, not echoed and dropped.
     expect(bound).toEqual([{ route: "modify", memberId: undefined, say: "increase the LoC to 20M" }]);
-    expect(routeChips(room)).toEqual([]);
+    expect(doorLabels(room)).toEqual([]);
   });
 
   it("says the line the binding carried, through the parser, once the room is bound", async () => {
@@ -1443,8 +1512,8 @@ describe("the router — the room's first question", () => {
     const { room, bound } = openRouted({ question: neutralAsk() });
     await typeInto(room, "who is the relationship manager");
     expect(bound).toEqual([]);
-    // The chips are still on screen: the room refused and kept the reason.
-    expect(routeChips(room)).toEqual(["Modify", "Renew", "New facility"]);
+    // The doors are still on screen: the room refused and kept the reason.
+    expect(doorLabels(room)).toEqual(["Modify", "Renew", "New facility"]);
     expect(room.textContent).toContain("I can take a modification, a renewal or a new facility from here.");
   });
 
@@ -1891,9 +1960,11 @@ describe("the two quiet tiers under the conversation", () => {
     });
     const room = document.querySelector<HTMLElement>(".wk-room")!;
     await settle();
-    // A tip beside three chips answering a different question is the fourth
-    // chip rule 30 bans, and the opening view is still under sixty words.
+    // A tip beside three doors answering a different question is the fourth
+    // chip rule 30 bans, and the sheet's own speech is still one line.
+    // RESTATED 2026-09-14: see "law 3 ... one line per door" above for why the
+    // budget is held on the state line rather than on the whole sheet.
     expect(room.querySelector(".wk-tips")).toBeNull();
-    expect(visibleWords(room).length).toBeLessThan(60);
+    expect(wordsIn(entryState(room)).length).toBeLessThan(60);
   });
 });

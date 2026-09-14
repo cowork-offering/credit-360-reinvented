@@ -1026,6 +1026,7 @@ global with sharing class ExecuteLoanModification {
             }
             C360Plan.setState(steps, 'verify_package', C360Plan.STATE_SKIPPED, null);
             C360Plan.setState(steps, 'carry_junctions', C360Plan.STATE_SKIPPED, null);
+            C360Plan.setState(steps, C360AggregateSweep.STEP_ID, C360Plan.STATE_SKIPPED, null);
             for (Integer ci = 0; ci < covenantAddCount; ci++) {
                 C360Plan.setState(steps, 'covenant_create_' + ci, C360Plan.STATE_SKIPPED, null);
                 C360Plan.setState(steps, 'covenant_attach_' + ci, C360Plan.STATE_SKIPPED, null);
@@ -1075,6 +1076,7 @@ global with sharing class ExecuteLoanModification {
             }
             C360Plan.setState(steps, 'verify_package', C360Plan.STATE_FAILED, why);
             C360Plan.setState(steps, 'carry_junctions', C360Plan.STATE_SKIPPED, null);
+            C360Plan.setState(steps, C360AggregateSweep.STEP_ID, C360Plan.STATE_SKIPPED, null);
             for (Integer ci = 0; ci < covenantAddCount; ci++) {
                 C360Plan.setState(steps, 'covenant_create_' + ci, C360Plan.STATE_SKIPPED, null);
                 C360Plan.setState(steps, 'covenant_attach_' + ci, C360Plan.STATE_SKIPPED, null);
@@ -1594,6 +1596,13 @@ global with sharing class ExecuteLoanModification {
         Map<String, Object> v,
         List<FacilityResult> results
     ) {
+        // The moment this hop began, taken BEFORE its first write so every row it causes reads back
+        // inside the window. EXACT, with no slack: CreatedDate is stamped at DML time, which is
+        // always after this reading, and a back-margin of even one second reaches into the
+        // transaction that ran before this one (proved by a test run on 2026-09-14, where a one
+        // second margin swept a row the fixture's own setup had written).
+        Datetime txStart = Datetime.now();
+
         Integer covenantAddCount = intCount(v.get('covenantAddCount'));
         Integer involvementChangeCount = intCount(v.get('involvementChangeCount'));
         Integer fieldChangeCount = intCount(v.get('fieldChangeCount'));
@@ -2048,6 +2057,15 @@ global with sharing class ExecuteLoanModification {
             carryReport.startsWith('CARRIED') ? C360Plan.STATE_VERIFIED : C360Plan.STATE_FILED_UNVERIFIED,
             carryReport.removeStart('CARRIED ')
         );
+
+        // THE SHELLS THIS HOP CAUSED AND NEVER USED (org proof 2026-09-14, backlog row 46). The
+        // pledge insert above wakes nCino's collateral automation, which mints a shell of its own
+        // per pledge; the clone already carries the one the carry made, so nothing ever points at
+        // nCino's. Five were left on a single Hartwell version creation, and a discard can never
+        // reach them because no facility names them. They are removed here, where they can still be
+        // identified, and the step says so whether it found any or not.
+        C360AggregateSweep.Result swept = C360AggregateSweep.sweep(ACTION_ID, txStart);
+        C360Plan.setState(steps, C360AggregateSweep.STEP_ID, swept.state(), swept.detail);
 
         // The fees the carry just inserted for us, proven the only way this tool ever proves
         // anything: ONE re-read of the rows themselves. On a percentage fee the money is the ORG'S
@@ -2984,7 +3002,7 @@ global with sharing class ExecuteLoanModification {
         // verify_clone_i is deliberately NOT here: the engine leg settles it, because it is the only
         // leg holding the parent's pre-image and therefore the only one that can say honestly whether
         // the parent moved.
-        List<String> ids = new List<String>{ 'carry_junctions' };
+        List<String> ids = new List<String>{ 'carry_junctions', C360AggregateSweep.STEP_ID };
         for (ParentSnapshot snap : snapshots) {
             ids.add('apply_changes_' + snap.index);
         }

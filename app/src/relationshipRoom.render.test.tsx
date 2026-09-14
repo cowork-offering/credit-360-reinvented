@@ -204,6 +204,18 @@ const liveAsk = () => {
   return (copy.textContent ?? "").trim();
 };
 
+/* THE REVIEWS ARE DOORS ON THE ENTRY SHEET (0.9.25, founder design-intent gate
+   2026-09-14). The room opens on one centred sheet: the relationship, one line
+   of state, the briefing, and then the eight routes as doors. Same routes, same
+   bindings, same disabled-with-the-reason rule; what moved is the node they live
+   on. A narrowing OFFER, which is the room answering a typed line with the one
+   or two routes that apply, is still a bubble with its own chips. */
+const entryDoors = () => [...document.body.querySelectorAll<HTMLButtonElement>(".wk-entry-door")];
+const entryDoorLabels = () =>
+  entryDoors().map((d) => (d.querySelector(".wk-entry-dl")?.textContent ?? "").trim());
+const entryDoor = (label: string) =>
+  entryDoors().find((d) => (d.querySelector(".wk-entry-dl")?.textContent ?? "").trim() === label)!;
+
 const openingOpening: RelOpening = {
   line: "The Debt Service Coverage test is due in 6 days. Run the covenant review?",
   route: "covenant",
@@ -245,24 +257,48 @@ describe("the room is the workroom's sheet", () => {
 /* ------------------------------------------------------------ smart opening */
 
 describe("the smart opening", () => {
-  it("leads on the signal and offers the yes plus the way out of it", () => {
+  it("leads on the signal, and every review is still a door under it", () => {
     open({ question: smartRelAsk(openingOpening) });
-    expect(document.body.textContent).toContain("The Debt Service Coverage test is due in 6 days.");
-    expect(byText(/Open the covenant review/)).toBeTruthy();
-    expect(byText(/Something else/)).toBeTruthy();
+    /* RESTATED 2026-09-14 (the entry sheet). The signal is still carried
+       verbatim and still leads the opening view; it rides the sheet's state
+       line rather than a greeting bubble. What is NOT the same, deliberately:
+       the signal no longer shrinks the opening to a yes and a way out of it. A
+       sheet is a map, so the eight routes are on it every time. */
+    expect(document.body.querySelector(".wk-entry-state")!.textContent).toContain(
+      "The Debt Service Coverage test is due in 6 days. Run the covenant review?",
+    );
+    expect(entryDoorLabels()).toHaveLength(8);
+    expect(entryDoorLabels()).not.toContain("Something else");
   });
 
-  it("binds the route AND the covenant the signal named, on the yes", () => {
+  it("binds the route and PRE-FILLS NOTHING: the door is the route, not the suggestion", async () => {
+    /* RESTATED 2026-09-14 (the entry sheet). The signal's yes-chip used to do two
+       things at once: bind the covenant review AND answer its first question with
+       the covenant it named. A door does the first only. 0.9.24 is explicit that
+       the covenant review is driven from the relationship with EVERY covenant and
+       its associations in front of the banker, and the recommendation rule says a
+       grounded suggestion is a chip, never a pre-filled answer. The signal is not
+       lost: it is the sentence on the sheet's own state line. */
     const { bound } = open({ question: smartRelAsk(openingOpening) });
-    click(byText(/Open the covenant review/));
-    expect(bound).toEqual([{ route: "covenant", opts: { covenantId: "cov1" } }]);
+    click(entryDoor("Covenant review"));
+    expect(bound).toEqual([{ route: "covenant", opts: { covenantId: null, say: undefined } }]);
   });
 
-  it("falls through to the neutral five-way on 'Something else', binding nothing", () => {
+  it("still preselects where a CALLER names the covenant, which is the seam that survives", async () => {
+    const { room } = open({ route: "covenant", covenantId: "cov1" });
+    await settle();
+    // The review opens with that test already on the list rather than making the
+    // banker find it again; nothing on the sheet takes this path.
+    expect(room.textContent).toContain("Debt Service Coverage");
+  });
+
+  it("needs no way out of the suggestion: the other seven are already on the sheet", () => {
+    /* RESTATED 2026-09-14. "Something else" existed because a signal shrank the
+       opening to two chips. Nothing shrinks now, so there is nothing to fall
+       through TO, and a door that answered nothing would be a door for its own
+       sake. Every route the room has is still reachable in one gesture, which
+       is what this case has always been about. */
     const { bound } = open({ question: smartRelAsk(openingOpening) });
-    click(byText(/Something else/));
-    expect(bound).toEqual([]);
-    expect(document.body.textContent).toContain("Which review are we running on this relationship?");
     for (const label of [
       "Annual review",
       "Covenant review",
@@ -271,8 +307,9 @@ describe("the smart opening", () => {
       "Service request",
       "Add a covenant or an asset",
     ]) {
-      expect(byText(new RegExp(label))).toBeTruthy();
+      expect(entryDoor(label)).toBeTruthy();
     }
+    expect(bound).toEqual([]);
   });
 });
 
@@ -280,11 +317,12 @@ describe("the neutral six-way", () => {
   it("offers all six and binds the one the banker taps", () => {
     const { bound } = open({ question: neutralRelAsk() });
     /* EIGHT SINCE 0.9.23: the six the room has always taken, and the two that
-       shape the version in flight. The two version chips are always on the
+       shape the version in flight. The two version doors are always on the
        glass and are DISABLED with their reason where the relationship carries
-       nothing amendable (A27.3), so the count does not move with the book. */
-    expect(document.body.querySelectorAll(".wk-opts .wk-opt")).toHaveLength(8);
-    click(byText(/Collateral valuation/));
+       nothing amendable (A27.3), so the count does not move with the book.
+       COUNTED ON THE SHEET SINCE 0.9.25, where the routes now live. */
+    expect(entryDoorLabels()).toHaveLength(8);
+    click(entryDoor("Collateral valuation"));
     expect(bound[0].route).toBe("valuation");
   });
 
@@ -343,16 +381,13 @@ describe("the neutral six-way", () => {
     ]);
   });
 
-  it("still offers all six on 'Something else', binding nothing", async () => {
+  it("puts the whole sheet back on 'Something else', binding nothing", async () => {
     const { room, bound } = open({ question: neutralRelAsk() });
     await type(room, "james wants the june certificate");
+    // The offer narrowed the room to two chips; its way out is the sheet, whole.
     click(byText(/Something else/));
     expect(bound).toEqual([]);
-    /* EIGHT SINCE 0.9.23: the six the room has always taken, and the two that
-       shape the version in flight. The two version chips are always on the
-       glass and are DISABLED with their reason where the relationship carries
-       nothing amendable (A27.3), so the count does not move with the book. */
-    expect(document.body.querySelectorAll(".wk-opts .wk-opt")).toHaveLength(8);
+    expect(entryDoorLabels()).toHaveLength(8);
   });
 
   /* A FIELD EXAM IS NOT ONE OF THE FIVE. No route word matches "field exam",
@@ -847,12 +882,12 @@ describe("one live exchange", () => {
     expect(room.querySelectorAll(".wk-step.wk-gone")).toHaveLength(0);
   });
 
-  it("keeps the route question on screen while it is still open", async () => {
+  it("keeps the entry sheet on screen while the route is still open", async () => {
     const { room } = open({ question: neutralRelAsk() });
     await type(room, "no idea");
-    // Collapsing step 0 behind the answer would hide the five chips in the same
-    // gesture that said "pick one".
-    expect(document.body.querySelectorAll(".wk-opts .wk-opt").length).toBeGreaterThanOrEqual(5);
+    // Collapsing step 0 behind the answer would take the doors off the glass in
+    // the same gesture that said "pick one".
+    expect(entryDoorLabels().length).toBeGreaterThanOrEqual(5);
   });
 });
 

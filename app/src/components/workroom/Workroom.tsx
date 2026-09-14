@@ -70,6 +70,7 @@ import {
   type SmartOpening,
 } from "./route";
 import { bankerly, isQuestion, readRole, readTopic, unsoundFieldChange, whatICanDo, type ReadTopic } from "./ask";
+import { EntryFold, EntrySheet, entryStateLine, type EntryDoor } from "./EntrySheet";
 import { buildEnvelope, clarifyOffWire, facilityLabel, politeCommand, toReadCardModel } from "./brainRoute";
 import type { BrainEnvelope, BrainReply, BrainTurn } from "../../channel/brainLane";
 import { UNREADABLE_CLARIFY, isDegrade, restateProposal } from "../../channel/brainLane";
@@ -545,6 +546,22 @@ const PACKAGE_QUESTION_NOTE = "One package is one plan under one approval.";
  *  not plan one, so it asks which and stages nothing. */
 const MEMO_PACKAGE_QUESTION = "Which package is the memo for?";
 const MEMO_PACKAGE_NOTE = "The memo is written about one package. Nothing is staged.";
+/** The memo door on the entry sheet: the label, and the one line under it. */
+const MEMO_DOOR = "Credit memo";
+const MEMO_DOOR_WHAT = "Drafts the memo for this package. Nothing is staged.";
+/* WHAT EACH DOOR DOES, ONE LINE, IN THE ROOM'S OWN VOICE (0.9.25 entry sheet).
+   A route chip carried a label and nothing else, which is enough when a banker
+   has already been told what the room is; the sheet is the first thing on the
+   glass, so each door says what taking it would DO before it is taken. */
+const DOOR_WHAT: Record<WorkroomMode, string> = {
+  modify: "Versions the package through nCino's credit action.",
+  renew: "Rolls a maturing facility forward through the same credit action.",
+  create: "Files a new facility on a new package.",
+  amend: "Shapes the version the org already holds.",
+};
+/** The door's own label for a bound route, for the line the fold leaves. */
+const routeLabel = (mode: WorkroomMode): string =>
+  ROUTE_CHIPS.find((c) => c.route === mode)?.label ?? AMEND_CHIP.label;
 /** The header's own word for the anchor, in each of the three states. */
 const PACKAGE_ONLY = "the relationship's only package";
 const PACKAGE_NONE = "no product package on this relationship yet";
@@ -1429,33 +1446,47 @@ export function Workroom({
     [lockedHref, step],
   );
 
-  const refuseLockedRoute = useCallback(
-    (route: WorkroomMode): boolean => {
+  /**
+   * WHY THIS ROUTE IS SHUT TODAY, or null.
+   *
+   * ONE JUDGEMENT, TWO SURFACES (0.9.25). The entry sheet renders a shut door
+   * disabled with this sentence on it (A27.3) and the refusal below says the
+   * same sentence out loud when a typed line or the desk names the route. They
+   * were two copies of the same three tests for exactly as long as the sheet
+   * did not exist; a disabled door explaining one thing while the room refused
+   * with another is the drift this closes.
+   */
+  const lockReason = useCallback(
+    (route: WorkroomMode): { text: string; href: string | null } | null => {
       /* A VERSION IN APPROVAL REFUSES EVERY ROUTE, not just the two that fork.
          There is nothing to change in it from here at any stage above the
          approval rung, so the room says so before it asks anything else. */
-      if (versionLocked) {
-        sayInFlightRefusal(IN_APPROVAL_REFUSAL, packageDeepLink(instanceUrl, versionLocked.id));
-        return true;
-      }
+      if (versionLocked) return { text: IN_APPROVAL_REFUSAL, href: packageDeepLink(instanceUrl, versionLocked.id) };
       /* AND A VERSION IS NOT A FORK TARGET EITHER, at any stage. It holds no
          booked loan, so the org would refuse the staging; the room says so
          first, and in the same place the source's own refusal lives. */
+      /* AND THE WAY OUT IS IN THIS ROOM NOW (0.9.23). Before the amend route
+         existed the only honest door was Salesforce, so the refusal said so;
+         it would be a lie to keep saying it beside a door that does the work.
+         A version the room cannot amend either - one the org has taken - is
+         already answered above by `IN_APPROVAL_REFUSAL`, so the Salesforce
+         sentence survives exactly where it is still true. */
       if (versionHere && (route === "modify" || route === "renew")) {
-        /* AND THE WAY OUT IS IN THIS ROOM NOW (0.9.23). Before the amend route
-           existed the only honest door was Salesforce, so the refusal said so;
-           it would be a lie to keep saying it beside a chip that does the work.
-           A version the room cannot amend either - one the org has taken - is
-           already answered above by `IN_APPROVAL_REFUSAL`, so the Salesforce
-           sentence survives exactly where it is still true. */
-        sayInFlightRefusal(amendHere ? VERSION_AMEND_REFUSAL : VERSION_TARGET_REFUSAL, null);
-        return true;
+        return { text: amendHere ? VERSION_AMEND_REFUSAL : VERSION_TARGET_REFUSAL, href: null };
       }
-      if (!lockedRoute(route)) return false;
-      sayInFlightRefusal();
+      return lockedRoute(route) ? { text: IN_FLIGHT_REFUSAL, href: lockedHref } : null;
+    },
+    [amendHere, instanceUrl, lockedHref, lockedRoute, versionHere, versionLocked],
+  );
+
+  const refuseLockedRoute = useCallback(
+    (route: WorkroomMode): boolean => {
+      const lock = lockReason(route);
+      if (!lock) return false;
+      sayInFlightRefusal(lock.text, lock.href);
       return true;
     },
-    [amendHere, instanceUrl, lockedRoute, sayInFlightRefusal, versionHere, versionLocked],
+    [lockReason, sayInFlightRefusal],
   );
 
   const [histOpen, setHistOpen] = useState(false);
@@ -2060,7 +2091,11 @@ export function Workroom({
   /* ---- the thread follows the conversation down. */
   useEffect(() => {
     const el = threadRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    /* WHILE THE ENTRY SHEET IS OPEN THE COLUMN STAYS AT ITS HEAD: the name, the
+       state line and the doors are the first screen, and following the sheet
+       down would open the room on the tail of the briefing (gate 2026-09-14). */
+    el.scrollTop = el.querySelector('[data-entry="open"]') ? 0 : el.scrollHeight;
   }, [items, thinking, flow]);
 
   /* THE MARK GOES BACK TO READING BETWEEN TURNS (B2). `writing` is latched by
@@ -3935,11 +3970,17 @@ export function Workroom({
         if (!preCard) {
           const route = readRouteIntent(trimmed);
           if (route) {
-            /* A TYPED LINE IS REFUSED THE SAME WAY A CHIP IS (rule 2). The
+            /* A TYPED LINE IS REFUSED THE SAME WAY A DOOR IS SHUT (rule 2). The
                banker's own bubble lands first, because a refusal answering
                nothing visible reads as the room talking to itself; the refusal
-               owns the step, so both land in the same exchange. */
-            if (lockedRoute(route)) {
+               owns the step, so both land in the same exchange.
+
+               AND IT IS THE SAME JUDGEMENT NOW (0.9.25). This read `lockedRoute`,
+               which knows only about a second fork off a booked source, so a
+               line typed at a room standing IN a version bound a modification the
+               version cannot carry while the sheet's own door for it was shut.
+               One judgement, `lockReason`, decides both. */
+            if (lockReason(route)) {
               setItems((prev) => [...prev, bankerLine(step + 1, (said ?? heard).trim(), opts?.fed)]);
               refuseLockedRoute(route);
               return;
@@ -4978,7 +5019,7 @@ export function Workroom({
       openGates,
       reopensHeldRate,
       settle,
-      lockedRoute,
+      lockReason,
       pricingDeclined,
       pricingOutstanding,
       pricingPending,
@@ -6351,110 +6392,162 @@ export function Workroom({
       ),
     });
 
-  /* THE FOURTH CHIP, AND IT IS CONDITIONAL BY CONSTRUCTION (0.9.23, spec 2a.1).
-     Modify, Renew and New facility are the routes for every room; Amend exists
-     only where the room is standing in something that can be shaped in place,
-     so it is appended from the roster rather than living in `ROUTE_CHIPS`. It
-     sits BESIDE the other three and before "Something else", which answers
-     nothing and stays last. Never twice: a smart opening whose yes-chip is
-     already the amend route keeps its own chip. */
-  const routeChips = useMemo(() => {
-    const chips = ask?.chips ?? [];
-    if (!amendHere || chips.some((c) => c.route === "amend")) return chips;
-    const at = chips.findIndex((c) => c.route === null);
-    const amend = { label: AMEND_CHIP.label, route: AMEND_CHIP.route };
-    return at === -1 ? [...chips, amend] : [...chips.slice(0, at), amend, ...chips.slice(at)];
-  }, [amendHere, ask]);
+  /* ================================================== THE ENTRY SHEET (0.9.25)
 
-  const openingItem = (
-    <div className="wk-msg wk-agent" data-who="Agent" key="opening">
-      <div className="wk-bub wk-openbub">
-        {/* THE EXPLAINER LEAVES THE ROW (founder, 2026-09-01). It used to be a
-            "Why" pill sitting under the option chips, which put three kinds of
-            control in one band and made the question read busy. It is a quiet
-            "?" in the bubble's own top-right corner now: available to anyone
-            who wants it, and out of the way of the decision. */}
+     FOUNDER, design-intent gate 2026-09-14: the room opens on what there is to
+     act on and the doors, not on a greeting bubble with pills under it. The
+     sheet is the finale's mirror, the routes are its doors, and the memo door
+     sits among them rather than in a band of its own under a chip row.
+
+     THE FOURTH DOOR IS CONDITIONAL BY CONSTRUCTION (0.9.23, spec 2a.1). Modify,
+     Renew and New facility are the routes for every room; Amend exists only
+     where the room is standing in something that can be shaped in place, so it
+     is appended from the roster rather than living in `ROUTE_CHIPS`.
+
+     A SHUT DOOR STAYS ON THE SHEET (A27.3), disabled, carrying `lockReason`'s
+     own sentence. It is the same judgement the room refuses a typed route with.
+
+     AND THE SIGNAL'S PRESELECTION SURVIVES. A smart opening names a facility
+     along with the route it suggests; the sheet carries that member on the door
+     for that route, so taking it opens the lane on the loan the signal named. */
+  const entryDoors = useMemo<EntryDoor[]>(() => {
+    if (!router) return [];
+    const signal = router.question?.chips.find((c) => c.route) ?? null;
+    const doors: EntryDoor[] = ROUTE_CHIPS.map((c) => ({
+      id: c.route,
+      label: c.label,
+      what: DOOR_WHAT[c.route],
+      locked: lockReason(c.route)?.text ?? null,
+      onPick: () =>
+        chooseRoute({ label: c.label, route: c.route, memberId: signal?.route === c.route ? signal.memberId : null }),
+    }));
+    if (router.onMemo) doors.push({ id: "memo", label: MEMO_DOOR, what: MEMO_DOOR_WHAT, onPick: () => askMemoPackage() });
+    if (amendHere) {
+      doors.push({
+        id: AMEND_CHIP.route,
+        label: AMEND_CHIP.label,
+        what: DOOR_WHAT.amend,
+        locked: lockReason(AMEND_CHIP.route)?.text ?? null,
+        onPick: () => chooseRoute({ label: AMEND_CHIP.label, route: AMEND_CHIP.route }),
+      });
+    }
+    return doors;
+  }, [amendHere, askMemoPackage, chooseRoute, lockReason, router]);
+
+  /** The route the banker took at the sheet, once they have taken one. Null in a
+   *  room that never showed a sheet: the palette and the deep link name their
+   *  own route, and a line saying it was "chosen" would be the room claiming a
+   *  gesture nobody made. */
+  const foldedRoute = router && !router.question && !ask ? routeLabel(context.mode) : null;
+
+  const openingItem = ask ? (
+    <EntrySheet
+      key="entry"
+      name={context.accountName}
+      /* ONE LINE OF STATE, off the figures the room already holds: the grade on
+         the snapshot, the relationship's committed total on the exposure, and
+         the version the roster carries. The signal rides the same line where the
+         room opened on one, because that sentence is what the room was going to
+         lead with and the sheet is now the thing that leads. */
+      state={entryStateLine({
+        grade: reads?.bundle?.snapshot?.primaryRiskRating,
+        committed: reads?.bundle?.exposure?.totalCommitted,
+        packages: roster,
+        signal: router?.question && router.question.line !== NEUTRAL_QUESTION ? router.question.line : null,
+      })}
+      doors={entryDoors}
+      why={
         <button type="button" className="wk-whybtn" aria-label="Why this position" onClick={(e) => openWhy(e.currentTarget)}>
           ?
         </button>
-        {/* THE PIN IS A PACKAGE FIGURE, so it waits for the package. "$10M →
-            $13M" over an unanswered package question is the founder's own
-            complaint in miniature: a figure at package altitude on a room that
-            has not been told which package. */}
-        {brief.askPin && !packageUnknown && <span className="wk-askpin tnum">{brief.askPin}</span>}
-        {/* THE ROOM OPENS BY NAME. The greeting is a real read or it is absent;
-            it is never a label, and it is never a record id. */}
-        <div className="wk-headline">
-          {/* The greeting is its own span so the room can be read as opening BY
-              NAME, but the stagger runs straight through it: two <Words> that
-              both start at zero would speak the position over the greeting. */}
-          {brief.greeting && (
-            <span className="wk-greet">
-              <Words text={brief.greeting} />{" "}
-            </span>
-          )}
-          {/* THE FIRST QUESTION ROUTES. While the route is open this slot
-              carries the question instead of the position — the position is
-              what the room says once it knows which room it is. */}
-          <Words
-            text={ask ? ask.line : packagePending ? PACKAGE_QUESTION : brief.position}
-            offset={brief.greeting ? brief.greeting.trim().split(/\s+/).length : 0}
-          />
-        </div>
-        {/* The routes, in the room's own option-pill style. A chip does nothing
-            a typed line could not: both land in `readRouteIntent`'s answer. */}
-        {/* ONE ROW, tighter (founder, 2026-09-01): the three routes are one
-            decision, so they read as one line rather than a wrapping field of
-            pills. Two or three one-word labels always fit. */}
-        {/* AND THE ROUTE NO LONGER WAITS ON THE PACKAGE (spec 2c.3). It is the
-            first decision, because it is the one that says what a package is
-            being picked FOR; the package question follows it, scoped by it. */}
-        {ask && (
-          <div className="wk-opts wk-routes">
-            {routeChips.map((chip) => (
-              <button type="button" className="wk-opt" key={chip.label} onClick={() => chooseRoute(chip)}>
-                {chip.label}
-              </button>
-            ))}
-          </div>
-        )}
-        {/* THE MEMO DOOR, beside the routes rather than behind the package: a
-            memo is about one package version and nothing else, so where the room
-            does not know which package yet the door ASKS, with the review
-            picker, and opens the memo on the one the banker names. It sits
-            UNDER the row so the route decision keeps its own line. */}
-        {ask && router?.onMemo && (
-          <div className="wk-memodoor">
-            <button type="button" className="wk-memobtn" data-door="memo" onClick={() => askMemoPackage()}>
-              Credit memo
+      }
+      reads={
+        <div className="wk-srctray">
+          {brief.sources.map((s) => (
+            <button
+              type="button"
+              key={s.id}
+              className="wk-srcchip"
+              title={s.kicker}
+              onClick={(e) =>
+                openPeek(e.currentTarget, {
+                  kicker: s.kicker,
+                  width: 440,
+                  content: s.email ? <ClientEmail /> : <HaveRows rows={sourceRows(s)} />,
+                })
+              }
+            >
+              <SourceIcon icon={s.icon} />
+              <span>{s.label}</span>
             </button>
-            <span className="wk-memonote">Draft the memo for this package. Nothing is staged.</span>
+          ))}
+        </div>
+      }
+    />
+  ) : (
+    <>
+      {/* THE SHEET FOLDS INTO ONE RECAP LINE, and the flow under it is the room
+          exactly as it always was. */}
+      {foldedRoute && <EntryFold key="fold" label={foldedRoute} />}
+      <div className="wk-msg wk-agent" data-who="Agent" key="opening">
+        <div className="wk-bub wk-openbub">
+          {/* THE EXPLAINER LEAVES THE ROW (founder, 2026-09-01). It used to be a
+              "Why" pill sitting under the option chips, which put three kinds of
+              control in one band and made the question read busy. It is a quiet
+              "?" in the bubble's own top-right corner now: available to anyone
+              who wants it, and out of the way of the decision. */}
+          <button type="button" className="wk-whybtn" aria-label="Why this position" onClick={(e) => openWhy(e.currentTarget)}>
+            ?
+          </button>
+          {/* THE PIN IS A PACKAGE FIGURE, so it waits for the package. "$10M →
+              $13M" over an unanswered package question is the founder's own
+              complaint in miniature: a figure at package altitude on a room that
+              has not been told which package. */}
+          {brief.askPin && !packageUnknown && <span className="wk-askpin tnum">{brief.askPin}</span>}
+          {/* THE ROOM OPENS BY NAME. The greeting is a real read or it is absent;
+              it is never a label, and it is never a record id. */}
+          <div className="wk-headline">
+            {/* The greeting is its own span so the room can be read as opening BY
+                NAME, but the stagger runs straight through it: two <Words> that
+                both start at zero would speak the position over the greeting. */}
+            {brief.greeting && (
+              <span className="wk-greet">
+                <Words text={brief.greeting} />{" "}
+              </span>
+            )}
+            {/* THE ROUTE IS SETTLED BY THE TIME THIS BUBBLE EXISTS. While it was
+                open the sheet above carried the question; this slot says the
+                position, or asks which package the settled route runs in. */}
+            <Words
+              text={packagePending ? PACKAGE_QUESTION : brief.position}
+              offset={brief.greeting ? brief.greeting.trim().split(/\s+/).length : 0}
+            />
           </div>
-        )}
-        <div className="wk-posfoot">
-          <div className="wk-srctray">
-            {brief.sources.map((s) => (
-              <button
-                type="button"
-                key={s.id}
-                className="wk-srcchip"
-                title={s.kicker}
-                onClick={(e) =>
-                  openPeek(e.currentTarget, {
-                    kicker: s.kicker,
-                    width: 440,
-                    content: s.email ? <ClientEmail /> : <HaveRows rows={sourceRows(s)} />,
-                  })
-                }
-              >
-                <SourceIcon icon={s.icon} />
-                <span>{s.label}</span>
-              </button>
-            ))}
+          <div className="wk-posfoot">
+            <div className="wk-srctray">
+              {brief.sources.map((s) => (
+                <button
+                  type="button"
+                  key={s.id}
+                  className="wk-srcchip"
+                  title={s.kicker}
+                  onClick={(e) =>
+                    openPeek(e.currentTarget, {
+                      kicker: s.kicker,
+                      width: 440,
+                      content: s.email ? <ClientEmail /> : <HaveRows rows={sourceRows(s)} />,
+                    })
+                  }
+                >
+                  <SourceIcon icon={s.icon} />
+                  <span>{s.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 
   const membersItem = brief.showsMembers ? (
