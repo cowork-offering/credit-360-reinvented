@@ -1129,3 +1129,18 @@ Nothing in this section was settled from the spec's wording.
 
 *Maintained by the orchestrator. Add to this file in the same build wave a lesson is learned; a lesson
 that lives only in a session transcript does not exist.*
+
+## 8o. `LLC_BI__Default_App__c` decides whether the nCino Loan page renders at all (2026-09-14)
+
+77. nCino's Loan record page is nFORCE's UI container; it resolves the route from
+    `LLC_BI__Loan__c.LLC_BI__Default_App__c`. In bankinggpt-at only `loans.dashboard-loan` resolves; the
+    value `loan.dashboard-loan` (the bulk seed's value, and what nCino's insert default produced on the
+    cockpit's own net-new facilities on 2026-09-04) renders the path bar and an EMPTY body, no Aura or
+    Apex error anywhere (the only console error, `LoanController.getLoanRecord`, appears on working
+    pages too). Found by a full-field odd-one-out diff of Sunbelt against Piedmont and Hartwell; record
+    types, owners, page visibility rules, loan details and child records were all equal.
+78. Clones copy the parent's value, so fixing booked parents fixes every later modification; a net-new
+    facility does not inherit anything and must set the field explicitly (backlog 55).
+79. A record-triggered nCino flow ("Loan After Save") can refuse every update on a seed whose email
+    alert has no recipient (EverPetal); the API error is CANNOT_EXECUTE_FLOW_TRIGGER, not a validation
+    rule. Check the owner and loan team before blaming the field.
