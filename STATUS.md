@@ -2,6 +2,31 @@
 
 ## Changelog
 
+- **0.9.28 (2026-09-15)** THE BOOM LANE. Boom is its own MCP server (`boom-mcp`) and the cockpit talks
+  to it directly: the two reads dropped the gateway's `boom-mcp-js___` prefix, `boom_get_ratios` takes
+  a BORROWER and `boom_get_spread` the FILE those ratios name, and the Spreading room walks the real
+  four-call ladder (`boom_ensure_company`, `boom_create_upload`, `boom_upload_bytes`,
+  `boom_process_file`) with `boom_list_files` in front of it so a re-drop reuses the file Boom already
+  holds. THE CONNECTOR IS FOUND, NOT NAMED (decision D1): the page asks `listTools()` which connector
+  serves both reads, since the viewer names it when they add it; "Boom" is the fallback, the grant's
+  declared name and the health row's label, and the manifest can only declare that one spelling.
+  THE WAIT IS THE ROOM'S OWN (D3): repeated `boom_await_file` calls of 20 s inside a two-minute budget,
+  the first expiry a statement ("Boom is still processing … I will keep checking") that re-arms itself
+  and only the second offering the two doors; the file handle is written down the moment a file id
+  exists, so a closed room resumes from `boom_get_file` and never sends the bytes twice. The spread
+  that lands is Boom's, so it is published with `provenance: "boom"` and nothing on the glass says
+  provisional; the cap on one file is Boom's own (3 MB of base64, 2.3 MB of file) and is named in the
+  refusal. A borrower Boom has never heard of reads as "not in Boom", never as an error toast. File
+  groups are skipped (D4: Boom refuses them on this org); the stub lane stays behind one constant and
+  says it is the stub on every surface when it is flipped back.
+  Proofs: the live server's own answers, saved verbatim in `app/src/__fixtures__/boom-live/` and
+  `knowledge/proofs/boom-live-2026-09-15-ratios.json`; Boom's `raw` matches the on-file snapshot to the
+  digit for Piedmont (leverage 3.8460068781047, coverage 2.637546468401487) and `spread/coverage.ts`
+  restrikes the same figure off the live spread.
+  Gates: tsc 0; vitest 230 files, 5,431 passed, 0 failed; `drive-boom.mjs` 5 scenarios / 35 assertions
+  green; spread-e2e csv, xlsx and pdf on Kingsley all completed with no provisional word and no page
+  errors; drive matrix PASS, 0 findings (589 s, run alone); bundle 2,127,773 B (2.029 MiB).
+  THE STATEMENT REGISTER, in the Spreading room (founder: "Noland has a ton of exciting spreading stuff, check the MCP UIs for the workroom, cool, sexy and working"; design pick delegated, `knowledge/DESIGN-0.9.28-SPREAD-REGISTER.md`): ported from Noland's Boom workspace widget as native components (`components/workroom/register/`): a real statement select, period chips, Full/K/M, Variance and Variance % behind one toggle (`n/m` where the prior is not meaningful), Adjusted vs As given as a SERVER re-read through `boom_get_spread(adjusted)`, account-code chips in the nine `--cat-*` families with the mis-map flag, per-period coverage ticks, "Validated in Boom · N of M lines carry a Boom account code · $ in thousands", the provenance footer with Open in Boom last; `flipSign` applied; markers only on the lines that feed a headline ratio; Boom's "[Abstract]" header rows hidden. It replaces `SpreadStatements` and the file-level badge (a fact twice); tiles, trend, prose and the two doors are untouched. The Financials tab carries the same register compact (no chip column, three newest periods and Variance %) where the book holds full statements, the four-column table as the fallback. THE IDB GATEWAY IS RETIRED: its last role, the vocabulary restate fallback, is gone; the assist is session-door only and the honest miss is the degrade; connector list = Customer 360, Boom, Microsoft 365, Experience / nCino, AFS, optional Salesforce Read Backup. Gates: FINAL_GATES_PLACEHOLDER
 - **0.9.27 (2026-09-15)** THE LIVE-TEST RELEASE. Everything in it came out of the founder's real filings on
   0.9.26 the evening before Dreamforce, and every fix is proven on the org or on the built bundle.
   Org side (bankinggpt-at): (55) every facility the cockpit inserts sets `LLC_BI__Default_App__c =
