@@ -30,6 +30,10 @@ private class StageExecuteDiscardVersionTest {
     private static final String BORROWER = 'ZZ-DISCARD-TEST Borrower';
     private static final String PARENT_KEY = 'ZZDISCARDP1';
     private static final String CLONE_KEY = 'ZZDISCARDP1_M1';
+    private static final String RELAY_URL = 'https://bot.connectry.io/c360-relay/relay';
+    private static final String RELAY_SECRET = 'ZZ-TEST-SECRET-NOT-A-REAL-ONE';
+    private static final String PATH_SELF = 'self';
+    private static final String PATH_BOX = 'box';
 
     // -------------------------------------------------------------------------------------------
     // Fixture.
@@ -38,6 +42,16 @@ private class StageExecuteDiscardVersionTest {
     @TestSetup
     static void makeFixture() {
         C360TestFixture.armCalloutMock();
+
+        // The relay leg reads this out of the application cache. It is set up here rather than in
+        // each method so the relay tests perform NO DML of their own: a callout in a transaction
+        // that has already written is refused by the platform, and that rule is the whole reason
+        // the outer leg is read-only.
+        cm_Relay_Config__c cfg = cm_Relay_Config__c.getOrgDefaults();
+        cfg.cm_Relay_URL__c = RELAY_URL;
+        cfg.cm_Shared_Secret__c = RELAY_SECRET;
+        insert cfg;
+
         Account a = new Account(Name = BORROWER);
         insert a;
 
@@ -244,13 +258,25 @@ private class StageExecuteDiscardVersionTest {
         return StageDiscardVersion.stage(new List<StageDiscardVersion.Request>{ stageReq(k, versionId) })[0];
     }
 
-    private static ExecuteDiscardVersion.Response executeOf(String k, StageDiscardVersion.StageResult s) {
+    private static ExecuteDiscardVersion.Request execRequest(String k, StageDiscardVersion.StageResult s) {
         ExecuteDiscardVersion.Request r = new ExecuteDiscardVersion.Request();
         r.idempotencyKey = k;
         r.stagingId = s.stagingId;
         r.planHash = s.planHash;
         r.decisionToken = s.decisionToken;
         r.approverUserId = UserInfo.getUserId();
+        return r;
+    }
+
+    /**
+     * An INLINE request: the shape the relay's inner leg sends, and what every test outside the
+     * relay section drives. Since 2026-09-15 a request without this flag is relayed instead of run
+     * here, because the MCP dispatcher context cannot host nCino's trigger (backlog row 66), so a
+     * test of the chain itself has to say which leg it is testing.
+     */
+    private static ExecuteDiscardVersion.Response executeOf(String k, StageDiscardVersion.StageResult s) {
+        ExecuteDiscardVersion.Request r = execRequest(k, s);
+        r.inlineExecution = true;
         return ExecuteDiscardVersion.run(new List<ExecuteDiscardVersion.Request>{ r })[0];
     }
 
@@ -1288,6 +1314,7 @@ private class StageExecuteDiscardVersionTest {
         r.planHash = staged.result.planHash;
         r.decisionToken = 'not-the-token-that-was-minted';
         r.approverUserId = UserInfo.getUserId();
+        r.inlineExecution = true;
         ExecuteDiscardVersion.Response res = ExecuteDiscardVersion.run(new List<ExecuteDiscardVersion.Request>{ r })[0];
         Test.stopTest();
 
@@ -1310,6 +1337,7 @@ private class StageExecuteDiscardVersionTest {
         r.planHash = 'a-hash-the-banker-never-saw';
         r.decisionToken = staged.result.decisionToken;
         r.approverUserId = UserInfo.getUserId();
+        r.inlineExecution = true;
         ExecuteDiscardVersion.Response res = ExecuteDiscardVersion.run(new List<ExecuteDiscardVersion.Request>{ r })[0];
         Test.stopTest();
 
@@ -1354,6 +1382,7 @@ private class StageExecuteDiscardVersionTest {
         r.planHash = staged.result.planHash;
         r.decisionToken = staged.result.decisionToken;
         r.approverUserId = String.valueOf(C360Wave2Fixture.fakeId(User.SObjectType));
+        r.inlineExecution = true;
         ExecuteDiscardVersion.Response res = ExecuteDiscardVersion.run(new List<ExecuteDiscardVersion.Request>{ r })[0];
         Test.stopTest();
 
@@ -1829,6 +1858,7 @@ private class StageExecuteDiscardVersionTest {
             r.planHash = missing == 'planHash' ? '  ' : staged.result.planHash;
             r.decisionToken = staged.result.decisionToken;
             r.approverUserId = UserInfo.getUserId();
+            r.inlineExecution = true;
             out.add(ExecuteDiscardVersion.run(new List<ExecuteDiscardVersion.Request>{ r })[0]);
         }
         Test.stopTest();
@@ -1937,5 +1967,431 @@ private class StageExecuteDiscardVersionTest {
             System.assertEquals('Completed', back.get(filer.Id).cm_Status__c,
                 'With no Withdrawn value in the org the rows are left exactly as they stood, never restamped.');
         }
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The relay leg, and its two doors (2026-09-15, backlog row 66).
+    //
+    // The MCP dispatcher context cannot host nCino's managed LoanTrigger, and deleting a revision-1
+    // chain row wakes it on the booked parent, so a call that does not say inlineExecution is
+    // relayed into a REST transaction instead of run here. Page.getContent() cannot be called from
+    // a test method at all, so the session mint is reached through a seam. What is tested is the
+    // DOOR ORDER and the safety rules around it: the outer leg writes NOTHING, refuses a bad token
+    // before it costs a round trip, hands the inner answer back unedited, leaves the banker's
+    // confirmation intact whenever the hop fails, and carries a RESUME through without consuming
+    // anything a second time.
+    // -------------------------------------------------------------------------------------------
+
+    private static final String SELF_URL =
+        URL.getOrgDomainUrl().toExternalForm() + '/services/data/v61.0/actions/custom/apex/ExecuteDiscardVersion';
+    private static final String FAKE_SID = '00DDz000001qeO2!AQEAQFAKEsessionFORtestsONLY';
+
+    /** The shape the MCP dispatcher sends: no inlineExecution, so the call is relayed. */
+    private static ExecuteDiscardVersion.Response relayOf(String k, StageDiscardVersion.StageResult s) {
+        return ExecuteDiscardVersion.run(new List<ExecuteDiscardVersion.Request>{ execRequest(k, s) })[0];
+    }
+
+    /** A session mint that works. */
+    private class GoodSession implements ExecuteDiscardVersion.SessionSource {
+        public String sessionId() {
+            return FAKE_SID;
+        }
+    }
+
+    /** A session mint that does not, which is the whole reason a second door exists. */
+    private class DeadSession implements ExecuteDiscardVersion.SessionSource {
+        public String sessionId() {
+            throw new CalloutException('getContent is not supported in this context');
+        }
+    }
+
+    /**
+     * Scripts both doors independently and records what each was sent.
+     *
+     * It answers anything that is NEITHER door with a bare 200, because only one mock can be armed
+     * at a time and the CDC callout shield still has to hold underneath.
+     */
+    private class DoorMock implements HttpCalloutMock {
+        Integer selfStatus = 200;
+        String selfBody;
+        Boolean selfThrows = false;
+        Integer boxStatus = 200;
+        String boxBody;
+        Boolean boxThrows = false;
+        HttpRequest sawSelf;
+        HttpRequest sawBox;
+        Integer selfCalls = 0;
+        Integer boxCalls = 0;
+
+        public HttpResponse respond(HttpRequest req) {
+            HttpResponse r = new HttpResponse();
+            if (req.getEndpoint() == SELF_URL) {
+                selfCalls++;
+                if (sawSelf == null) {
+                    sawSelf = req;
+                }
+                if (selfThrows) {
+                    throw new CalloutException('Read timed out');
+                }
+                r.setStatusCode(selfStatus);
+                r.setBody(selfBody);
+                return r;
+            }
+            if (req.getEndpoint() == RELAY_URL) {
+                boxCalls++;
+                if (sawBox == null) {
+                    sawBox = req;
+                }
+                if (boxThrows) {
+                    throw new CalloutException('Unable to tunnel through proxy');
+                }
+                r.setStatusCode(boxStatus);
+                r.setBody(boxBody);
+                return r;
+            }
+            r.setStatusCode(200);
+            r.setBody('{}');
+            return r;
+        }
+    }
+
+    /** What the REST Actions API puts around an invocable's own answer. */
+    private static String envelope(Object outputValues, Boolean isSuccess, Object errors) {
+        return JSON.serialize(new List<Object>{
+            new Map<String, Object>{
+                'actionName' => 'ExecuteDiscardVersion',
+                'errors' => errors,
+                'isSuccess' => isSuccess,
+                'outputValues' => outputValues
+            }
+        });
+    }
+
+    /** A plausible inner success: enough of the real shape to prove the passthrough is faithful. */
+    private static ExecuteDiscardVersion.Response innerSuccess(Id versionId) {
+        ExecuteDiscardVersion.InventoryItem item = new ExecuteDiscardVersion.InventoryItem();
+        item.objectName = 'LLC_BI__LoanRenewal__c';
+        item.recordId = String.valueOf(C360Wave2Fixture.fakeId(LLC_BI__LoanRenewal__c.SObjectType));
+        item.name = 'Renewal chain row on ZZ-INNER-CLONE';
+        item.outcome = 'deleted';
+
+        ExecuteDiscardVersion.StepResult step = new ExecuteDiscardVersion.StepResult();
+        step.id = 'delete_chain';
+        step.type = 'write';
+        step.label = 'Remove the renewal chain rows';
+        step.state = C360Plan.STATE_VERIFIED;
+        step.detail = 'Every row in this group is gone.';
+
+        ExecuteDiscardVersion.ExecuteResult r = new ExecuteDiscardVersion.ExecuteResult();
+        r.versionPackageId = String.valueOf(versionId);
+        r.deletedCount = 7;
+        r.remainingCount = 0;
+        r.terminalState = C360Plan.TERMINAL_SUCCESS;
+        r.items = new List<ExecuteDiscardVersion.InventoryItem>{ item };
+        r.steps = new List<ExecuteDiscardVersion.StepResult>{ step };
+        r.parentsCleared = new List<String>{ 'ZZ-INNER-PARENT' };
+        r.replayed = false;
+        r.outcome = 'Version ' + versionId + ' discarded: 7 records deleted.';
+
+        ExecuteDiscardVersion.Response answer = new ExecuteDiscardVersion.Response();
+        answer.ok = true;
+        answer.result = r;
+        return answer;
+    }
+
+    /** Arms both seams and returns the mock, so each test says only what it is actually varying. */
+    private static DoorMock doors(ExecuteDiscardVersion.SessionSource sess, Id versionId) {
+        ExecuteDiscardVersion.sessionOverride = sess;
+        DoorMock m = new DoorMock();
+        m.selfBody = envelope(innerSuccess(versionId), true, null);
+        m.boxBody = envelope(innerSuccess(versionId), true, null);
+        Test.setMock(HttpCalloutMock.class, m);
+        return m;
+    }
+
+    private static cm_Action_Staging__c rowState(Id stagingId) {
+        return [
+            SELECT cm_Status__c, cm_Token_Consumed_At__c, cm_Result_Record_Id__c
+            FROM cm_Action_Staging__c WHERE Id = :stagingId
+        ];
+    }
+
+    @IsTest
+    static void theSelfDoorCarriesTheDiscardAndTheOuterLegWritesNothing() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('selfok');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        Test.stopTest();
+        System.assertEquals(true, staged.ok, why(staged));
+
+        DoorMock m = doors(new GoodSession(), versionId);
+        Integer dmlBefore = Limits.getDmlStatements();
+        ExecuteDiscardVersion.Response done = relayOf(k, staged.result);
+        Integer dmlAfter = Limits.getDmlStatements();
+
+        System.assertNotEquals(null, m.sawSelf, 'A call without inlineExecution tries the org itself first');
+        System.assertEquals('Bearer ' + FAKE_SID, m.sawSelf.getHeader('Authorization'),
+            'The Visualforce session IS the credential: hosted MCP runs on a JWT that UserInfo.getSessionId cannot use');
+        System.assertEquals(null, m.sawBox, 'The external relay is a fallback, not a first choice');
+        System.assertEquals(PATH_SELF, done.result.relayPath, 'And the answer says which door carried it');
+        System.assertEquals(1, m.selfCalls, 'A discard runs no engine, so it takes ONE hop, not the modification\'s two');
+
+        // The inner leg is told to execute inline, which is also what stops it relaying again.
+        Map<String, Object> sent = (Map<String, Object>) JSON.deserializeUntyped(m.sawSelf.getBody());
+        Map<String, Object> input = (Map<String, Object>) ((List<Object>) sent.get('inputs'))[0];
+        System.assertEquals(true, input.get('inlineExecution'), 'The recursion guard IS the inline flag on the inner call');
+        System.assertEquals(staged.result.decisionToken, input.get('decisionToken'), 'The inner leg needs the token to burn it');
+        System.assertEquals(k, input.get('idempotencyKey'));
+        System.assertEquals(staged.result.stagingId, input.get('stagingId'));
+
+        // The outer leg wrote nothing. Apex forbids DML before a callout, and a claim out here would
+        // strand the row at Executing on a hop that never arrived.
+        System.assertEquals(dmlBefore, dmlAfter, 'The relay leg performs no DML at all');
+        cm_Action_Staging__c row = rowState(staged.result.stagingId);
+        System.assertEquals(null, row.cm_Token_Consumed_At__c,
+            'The OUTER leg never burns the token: the inner one does, inside the transaction that works');
+        System.assertEquals('Staged', row.cm_Status__c, 'And it never moves the row either');
+        System.assertEquals(1, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId],
+            'It certainly deletes nothing');
+
+        // The answer is the inner leg's answer.
+        System.assertEquals(true, done.ok, 'The inner leg succeeded, so this call succeeded');
+        System.assertEquals(C360Plan.TERMINAL_SUCCESS, done.result.terminalState);
+        System.assertEquals(7, done.result.deletedCount, 'Counts survive the round trip');
+        System.assertEquals('deleted', done.result.items[0].outcome, 'And so does every inventory line the banker reads');
+        System.assertEquals('delete_chain', done.result.steps[0].id, 'And the tracker steps, which the panel renders');
+    }
+
+    @IsTest
+    static void aSessionThatCannotBeMintedFallsThroughToTheBoxRelayWithItsSecretAndItsAction() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('nosession');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        Test.stopTest();
+        System.assertEquals(true, staged.ok, why(staged));
+
+        DoorMock m = doors(new DeadSession(), versionId);
+        ExecuteDiscardVersion.Response done = relayOf(k, staged.result);
+
+        System.assertEquals(null, m.sawSelf, 'With no session there is nothing to send, so nothing is sent');
+        System.assertNotEquals(null, m.sawBox, 'Which is exactly the case the box relay exists for');
+        System.assertEquals(RELAY_SECRET, m.sawBox.getHeader('x-c360-relay-secret'),
+            'The relay refuses anything unsigned, so an unsigned hop is a broken hop');
+        System.assertEquals('ExecuteDiscardVersion', m.sawBox.getHeader('x-c360-action'),
+            'The relay carries an allow-list now, so the hop has to name which action it wants');
+        System.assertEquals(true, done.ok, whyExec(done));
+        System.assertEquals(PATH_BOX, done.result.relayPath, 'The answer names the door that actually carried it');
+    }
+
+    @IsTest
+    static void bothDoorsDownLeavesTheTokenGoodForARetryAndDeletesNothing() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('alldown');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        Test.stopTest();
+        System.assertEquals(true, staged.ok, why(staged));
+
+        DoorMock m = doors(new GoodSession(), versionId);
+        m.selfThrows = true;
+        m.boxThrows = true;
+        ExecuteDiscardVersion.Response res = relayOf(k, staged.result);
+
+        System.assertEquals(false, res.ok);
+        System.assertEquals('ORG_UNAVAILABLE', res.error.code);
+        System.assertEquals(true, res.error.resumable, 'Nothing was attempted, so this same call is the retry');
+        System.assert(res.error.message.contains('has not been used'),
+            'The banker is told plainly the confirmation still stands: ' + res.error.message);
+        System.assert(res.error.orgError.contains('self:') && res.error.orgError.contains('box:'),
+            'Both doors report why they did not carry it: ' + res.error.orgError);
+
+        cm_Action_Staging__c row = rowState(staged.result.stagingId);
+        System.assertEquals(null, row.cm_Token_Consumed_At__c, 'And the confirmation does still stand');
+        System.assertEquals('Staged', row.cm_Status__c, 'The row is exactly where the stage left it');
+        System.assertEquals(1, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId], 'Nothing was deleted.');
+    }
+
+    @IsTest
+    static void aDoorThatAnswersNon200IsReportedRatherThanRetriedThroughTheOther() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('self500');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        Test.stopTest();
+        System.assertEquals(true, staged.ok, why(staged));
+
+        DoorMock m = doors(new GoodSession(), versionId);
+        m.selfStatus = 500;
+        m.selfBody = '[{"message":"An unexpected error occurred","errorCode":"UNKNOWN_EXCEPTION"}]';
+        ExecuteDiscardVersion.Response res = relayOf(k, staged.result);
+
+        System.assertEquals(null, m.sawBox,
+            'A 500 landed on something that COULD have deleted. Trying the other door would be a second run, not a retry');
+        System.assertEquals(false, res.ok);
+        System.assertEquals('ORG_UNAVAILABLE', res.error.code, 'The path failed. The org refused nothing and neither did we');
+        System.assertEquals(true, res.error.resumable, 'The token gate and the frozen plan make a retry safe even here');
+        System.assert(res.error.orgError.contains('500'), 'The refusal carries what the door actually said: ' + res.error.orgError);
+        System.assertEquals(null, rowState(staged.result.stagingId).cm_Token_Consumed_At__c);
+    }
+
+    @IsTest
+    static void theRelayLegRefusesABadTokenBeforeItCostsARoundTrip() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('relaybadtoken');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        Test.stopTest();
+        System.assertEquals(true, staged.ok, why(staged));
+
+        DoorMock m = doors(new GoodSession(), versionId);
+        ExecuteDiscardVersion.Request r = execRequest(k, staged.result);
+        r.decisionToken = 'not-the-token-the-banker-was-given';
+        ExecuteDiscardVersion.Response res = ExecuteDiscardVersion.run(new List<ExecuteDiscardVersion.Request>{ r })[0];
+
+        System.assertEquals(false, res.ok);
+        System.assertEquals('TOKEN_REFUSED', res.error.code, 'The token gate is enforced on the OUTER leg too, not only inside');
+        System.assertEquals(null, m.sawSelf, 'A refused call must never reach a door');
+        System.assertEquals(null, m.sawBox);
+        System.assertEquals(1, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId], 'Nothing was deleted.');
+    }
+
+    @IsTest
+    static void theInlineFlagRunsTheChainHereAndTouchesNoDoorAtAll() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('inline');
+
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, why(staged));
+
+        DoorMock m = doors(new GoodSession(), versionId);
+        Test.startTest();
+        ExecuteDiscardVersion.Response done = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, done.ok, whyExec(done));
+        System.assertEquals(null, m.sawSelf, 'The inline flag IS the recursion guard: an inner leg never relays again');
+        System.assertEquals(null, m.sawBox);
+        System.assertEquals(null, done.result.relayPath, 'An inline run went through no door at all');
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId],
+            'And it really deleted the version, here, in this transaction');
+    }
+
+    @IsTest
+    static void aRelayedReplayReportsThePriorRunWithoutHopping() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('relayreplay');
+
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, why(staged));
+
+        Test.startTest();
+        ExecuteDiscardVersion.Response first = executeOf(k, staged.result);
+        Test.stopTest();
+        System.assertEquals(true, first.ok, 'first execute should succeed: ' + whyExec(first));
+
+        DoorMock m = doors(new GoodSession(), versionId);
+        ExecuteDiscardVersion.Response again = relayOf(k, staged.result);
+
+        System.assertEquals(true, again.ok, 'A replay is a successful invocation on either leg');
+        System.assertEquals(true, again.result.replayed);
+        System.assertEquals(0, again.result.deletedCount, 'A replay deletes nothing');
+        System.assertEquals(null, m.sawSelf, 'And answers it locally: a finished key is not worth a round trip');
+        System.assertEquals(null, m.sawBox);
+    }
+
+    /**
+     * The resume crosses the hop, which is the property the two legs could most easily have broken.
+     *
+     * A run that stopped mid-chain has ALREADY consumed its token, so an outer leg that checked
+     * `assertClaimable` would refuse the banker's own resume as a spent token and never reach the
+     * door. It checks `assertArmable` instead: the same token, the same plan and the same named
+     * human against a row the first leg left open, consuming nothing.
+     */
+    @IsTest
+    static void aStoppedRunResumesThroughTheDoorAndTheTokenIsNotSpentTwice() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('relayresume');
+
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, why(staged));
+
+        Test.startTest();
+        ExecuteDiscardVersion.refuseGroupOnce = 'delete_members';
+        ExecuteDiscardVersion.Response stopped = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, stopped.ok, 'A stopped chain is an answer, not a fault. ' + whyExec(stopped));
+        System.assertEquals(C360Plan.TERMINAL_PARTIAL, stopped.result.terminalState, stopped.result.outcome);
+        cm_Action_Staging__c open = rowState(staged.result.stagingId);
+        System.assertEquals('Executing', open.cm_Status__c, 'The run stays open, which is what makes the key resumable');
+        System.assertNotEquals(null, open.cm_Token_Consumed_At__c, 'And its token is already spent');
+
+        DoorMock m = doors(new GoodSession(), versionId);
+        ExecuteDiscardVersion.Response resumed = relayOf(k, staged.result);
+
+        System.assertEquals(true, resumed.ok, whyExec(resumed));
+        System.assertNotEquals(null, m.sawSelf, 'A resume is relayed like any other execute: the inner leg does the deleting');
+        System.assertEquals(PATH_SELF, resumed.result.relayPath);
+        Map<String, Object> sent = (Map<String, Object>) JSON.deserializeUntyped(m.sawSelf.getBody());
+        Map<String, Object> input = (Map<String, Object>) ((List<Object>) sent.get('inputs'))[0];
+        System.assertEquals(staged.result.decisionToken, input.get('decisionToken'),
+            'The inner leg proves the same token again, and consumes nothing a second time');
+
+        cm_Action_Staging__c after = rowState(staged.result.stagingId);
+        System.assertEquals(open.cm_Token_Consumed_At__c, after.cm_Token_Consumed_At__c,
+            'The outer leg re-asserted the token read-only: the consumption stamp is the one the first leg wrote');
+        System.assertEquals('Executing', after.cm_Status__c, 'And the row is still the inner leg\'s to move');
+    }
+
+    /**
+     * The hop fails on a resume. The token was spent by the leg that stopped, so "resumable" here
+     * means the frozen plan and the open row are still exactly as they were, and the same call is
+     * the retry once the path is back.
+     */
+    @IsTest
+    static void aResumeWhoseDoorIsDownLeavesTheStoppedRunExactlyAsItStood() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('resumedown');
+
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, why(staged));
+
+        Test.startTest();
+        ExecuteDiscardVersion.refuseGroupOnce = 'delete_members';
+        ExecuteDiscardVersion.Response stopped = executeOf(k, staged.result);
+        Test.stopTest();
+        System.assertEquals(true, stopped.ok, whyExec(stopped));
+        Integer standing = [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId];
+        cm_Action_Staging__c open = rowState(staged.result.stagingId);
+
+        DoorMock m = doors(new GoodSession(), versionId);
+        m.selfThrows = true;
+        m.boxThrows = true;
+        ExecuteDiscardVersion.Response res = relayOf(k, staged.result);
+
+        System.assertEquals(false, res.ok);
+        System.assertEquals('ORG_UNAVAILABLE', res.error.code);
+        System.assertEquals(true, res.error.resumable, 'The stopped run is still resumable, and this call is the retry');
+        cm_Action_Staging__c after = rowState(staged.result.stagingId);
+        System.assertEquals(open.cm_Status__c, after.cm_Status__c, 'A hop that never landed changes nothing');
+        System.assertEquals(open.cm_Result_Record_Id__c, after.cm_Result_Record_Id__c);
+        System.assertEquals(standing, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId],
+            'And deletes nothing further');
     }
 }

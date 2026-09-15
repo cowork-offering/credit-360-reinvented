@@ -68,6 +68,39 @@
  * knows, unchanged, so the per-tool door is the ONLY door and a tool that has not been named on
  * the guard's delete table cannot delete anything at all.
  *
+ * WHERE THIS RUNS, AND WHY THERE ARE TWO LEGS (2026-09-15, backlog row 66).
+ * The Salesforce-hosted MCP dispatcher invokes this class in a context that CANNOT host nCino's
+ * credit-action engine: the managed LoanTrigger reaches for session APIs that context does not have
+ * (hosted MCP authenticates with a JWT access token, and UserInfo.getSessionId is specified as
+ * unusable under one), and dies in a way no catch block can see. Deleting a revision-1
+ * `LLC_BI__LoanRenewal__c` row makes nCino recompute the renewal state on the booked parent, which
+ * is a Loan UPDATE, which wakes exactly that engine: the founder's Sunbelt run of 2026-09-15 stopped
+ * on its FIRST write group with `CANNOT_INSERT_UPDATE_ACTIVATE_ENTITY, LLC_BI.LoanTrigger: execution
+ * of BeforeUpdate caused by: System.UnexpectedException: Script-thrown exception`, and nothing was
+ * deleted. The SAME four rows delete cleanly in every DML shape this class uses when the call
+ * arrives over the REST Actions API, and the WHOLE class ran green under a savepoint from anonymous
+ * Apex on the same staging row, same plan hash, same token. So the rows are fine and the class is
+ * fine; the context is not.
+ *
+ * The answer is the door `ExecuteLoanModification` already opened and proved. A call that arrives
+ * without `inlineExecution` does every read-only check it can, then calls out to a door that
+ * re-enters the org over REST with `inlineExecution` true. The inner leg is the one that claims the
+ * row, burns the token, runs the groups, verifies and records the outcome, inside a transaction that
+ * works. The OUTER leg writes NOTHING: Apex forbids DML before a callout, and a claim out here would
+ * strand the row at `Executing` on a hop that never arrived, which is the one state a banker cannot
+ * get out of. Which door carried the call is reported as `relayPath`.
+ *
+ * ONE HOP, NOT TWO. The modification splits into an engine hop and an arm hop because nCino's own
+ * per-namespace query budget cannot hold both. A discard reads and deletes; there is no engine to
+ * run and no second budget to buy, so it takes one hop and the resume semantics below are unchanged
+ * by the trip.
+ *
+ * THE RESUME SURVIVES THE HOP because the leg that writes is the leg that transitions the row. The
+ * outer leg only re-asserts, read-only, what the inner leg will prove again: a row at `Executing`
+ * with a result id is armable (`assertArmable`, which consumes nothing), anything else terminal is
+ * replayed here without a round trip, and a fresh run is checked with `assertClaimable`. A hop that
+ * fails leaves the token unconsumed and the row exactly where it was, so the same call is the retry.
+ *
  * Org contract: SPEC-0.9.23-TOOL-CONTRACT.md pair 2.
  */
 global with sharing class ExecuteDiscardVersion {
@@ -81,6 +114,31 @@ global with sharing class ExecuteDiscardVersion {
      * name the same action, so they name it the same way.
      */
     private static final String ACTION_ID = 'discard-version';
+
+    /**
+     * The relay seam. These mirror `ExecuteLoanModification` deliberately rather than being shared
+     * with it: that class is the shipping P0 path for the credit action, its session seam is wired
+     * into its own test class, and re-opening it to extract a helper is a wider change than the
+     * defect this door fixes. The rule the door encodes (fall through only on a failure that
+     * PROVABLY did not reach the action) is written out in both places, in `send` below.
+     */
+    private static final String RELAY_SECRET_HEADER = 'x-c360-relay-secret';
+
+    /**
+     * Which action the relay is to re-enter the org on. The relay carries an allow-list and refuses
+     * anything not on it; a call that names nothing is read as `ExecuteLoanModification`, which is
+     * the only action it carried before this shipped.
+     */
+    private static final String RELAY_ACTION_HEADER = 'x-c360-action';
+    private static final String ACTION_NAME = 'ExecuteDiscardVersion';
+    private static final Integer RELAY_TIMEOUT_MS = 120000;
+    private static final String ACTION_PATH = '/services/data/v61.0/actions/custom/apex/ExecuteDiscardVersion';
+    private static final String PATH_SELF = 'self';
+    private static final String PATH_BOX = 'box';
+
+    private static final String RELAY_UNAVAILABLE =
+        'The execution path into the org is unavailable, so nothing was attempted and nothing was written. ' +
+        'The decision token has not been used: retry this same call once the path is back.';
 
     /**
      * THE REFUSAL SEAM, and why a delete chain needs one.
@@ -132,6 +190,8 @@ global with sharing class ExecuteDiscardVersion {
         global String decisionToken;
         @InvocableVariable(label='Approver User Id' required=true)
         global String approverUserId;
+        @InvocableVariable(label='Inline Execution' description='INTERNAL PLUMBING. Leave unset. True means run the delete chain in THIS transaction, which only a REST transaction can do; the relay sets it on the inner leg, and that is also what stops a relay from relaying again.')
+        global Boolean inlineExecution;
     }
 
     global class InventoryItem {
@@ -196,6 +256,8 @@ global with sharing class ExecuteDiscardVersion {
         global String outcome;
         @InvocableVariable(label='Replayed')
         global Boolean replayed;
+        @InvocableVariable(label='Relay Path' description='Which door carried this discard into a transaction that can host nCino\'s trigger: self (the org calling itself with a Visualforce-minted session) or box (the external relay). Null when the call ran inline.')
+        global String relayPath;
     }
 
     global class Response {
@@ -224,38 +286,366 @@ global with sharing class ExecuteDiscardVersion {
     global static List<Response> run(List<Request> requests) {
         List<Response> out = new List<Response>();
         for (Request req : requests) {
-            Response res = new Response();
-            try {
-                res.result = execute(req);
-                res.ok = true;
-            } catch (StageDiscardVersion.GateException e) {
-                res.ok = false;
-                res.error = err(e.code, e.getMessage(), null, null, false, req.idempotencyKey);
-            } catch (ToolException e) {
-                res.ok = false;
-                res.error = err('VALIDATION_FAILED', e.getMessage(), null, null, false, req.idempotencyKey);
-            } catch (StageDiscardVersion.ToolException e) {
-                res.ok = false;
-                res.error = err('VALIDATION_FAILED', e.getMessage(), null, null, false, req.idempotencyKey);
-            } catch (C360Facilities.SelectionException e) {
-                res.ok = false;
-                res.error = err('VALIDATION_FAILED', e.getMessage(), null, null, false, req.idempotencyKey);
-            } catch (C360ActionStaging.StagingException e) {
-                res.ok = false;
-                res.error = err('TOKEN_REFUSED', e.getMessage(), null, null, false, req.idempotencyKey);
-            } catch (C360WriteGuard.GuardException e) {
-                res.ok = false;
-                res.error = err('ALLOWLIST_REFUSED', e.getMessage(), null, null, false, req.idempotencyKey);
-            } catch (DmlException e) {
-                res.ok = false;
-                res.error = err('ORG_REJECTED_WRITE', 'The org refused part of the discard.', e.getMessage(), null, true, req.idempotencyKey);
-            } catch (QueryException e) {
-                res.ok = false;
-                res.error = err('READ_FAILED', 'A record this plan depends on could not be read.', e.getMessage(), null, true, req.idempotencyKey);
-            }
-            out.add(res);
+            out.add(req.inlineExecution == true ? runInline(req) : runRelayed(req));
         }
         return out;
+    }
+
+    /**
+     * The leg that actually deletes. Only a transaction nCino's managed trigger survives in reaches
+     * here: the REST Actions API re-entry a door opens, or a caller that set the flag itself.
+     */
+    private static Response runInline(Request req) {
+        Response res = new Response();
+        try {
+            res.result = execute(req);
+            res.ok = true;
+        } catch (StageDiscardVersion.GateException e) {
+            res.ok = false;
+            res.error = err(e.code, e.getMessage(), null, null, false, req.idempotencyKey);
+        } catch (ToolException e) {
+            res.ok = false;
+            res.error = err('VALIDATION_FAILED', e.getMessage(), null, null, false, req.idempotencyKey);
+        } catch (StageDiscardVersion.ToolException e) {
+            res.ok = false;
+            res.error = err('VALIDATION_FAILED', e.getMessage(), null, null, false, req.idempotencyKey);
+        } catch (C360Facilities.SelectionException e) {
+            res.ok = false;
+            res.error = err('VALIDATION_FAILED', e.getMessage(), null, null, false, req.idempotencyKey);
+        } catch (C360ActionStaging.StagingException e) {
+            res.ok = false;
+            res.error = err('TOKEN_REFUSED', e.getMessage(), null, null, false, req.idempotencyKey);
+        } catch (C360WriteGuard.GuardException e) {
+            res.ok = false;
+            res.error = err('ALLOWLIST_REFUSED', e.getMessage(), null, null, false, req.idempotencyKey);
+        } catch (DmlException e) {
+            res.ok = false;
+            res.error = err('ORG_REJECTED_WRITE', 'The org refused part of the discard.', e.getMessage(), null, true, req.idempotencyKey);
+        } catch (QueryException e) {
+            res.ok = false;
+            res.error = err('READ_FAILED', 'A record this plan depends on could not be read.', e.getMessage(), null, true, req.idempotencyKey);
+        }
+        return res;
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The relay leg, and its two doors.
+    //
+    // Everything here is read-only until the callout, and there is nothing after it but reading the
+    // answer. That is not a style choice: Apex refuses a callout in a transaction that has already
+    // done DML, and claiming the row here would strand the banker's confirmation at Executing on a
+    // hop that may never land. The inner leg owns every write, including the state transitions the
+    // resume depends on.
+    // -------------------------------------------------------------------------------------------
+
+    /** The leg the MCP dispatcher reaches. Validates what it can, then hands the work to a door. */
+    private static Response runRelayed(Request req) {
+        Response res = new Response();
+        try {
+            // A terminal run is answered here rather than relayed: a known key is not worth a round
+            // trip, and a resume is NOT terminal, so it falls through to the door.
+            cm_Action_Staging__c prior = C360ActionStaging.findCompleted(req.idempotencyKey);
+            if (prior != null && prior.cm_Status__c != 'Executing') {
+                res.result = replay(prior);
+                res.ok = true;
+                return res;
+            }
+            preflight(req, prior);
+        } catch (ToolException e) {
+            res.ok = false;
+            res.error = err('VALIDATION_FAILED', e.getMessage(), null, null, false, req.idempotencyKey);
+            return res;
+        } catch (C360ActionStaging.StagingException e) {
+            res.ok = false;
+            res.error = err('TOKEN_REFUSED', e.getMessage(), null, null, false, req.idempotencyKey);
+            return res;
+        } catch (QueryException e) {
+            res.ok = false;
+            res.error = err('READ_FAILED', 'A record this plan depends on could not be read.', e.getMessage(), null, true, req.idempotencyKey);
+            return res;
+        }
+        return callRelay(req);
+    }
+
+    /**
+     * Every check the outer leg can make without writing: the request shape, the plan belongs to
+     * THIS tool, and the token is the right one for what this call is.
+     *
+     * The fork is the same one `execute` makes and it has to be, or the outer leg would refuse a
+     * legitimate resume before it ever reached the door: a run left mid-chain has already consumed
+     * its token, so `assertClaimable` would read it as spent. `assertArmable` proves the same token,
+     * the same plan and the same named human against a row the first leg left open, and consumes
+     * nothing. Neither call writes, so a refusal here costs the banker nothing.
+     */
+    private static void preflight(Request req, cm_Action_Staging__c prior) {
+        if (String.isBlank(req.idempotencyKey)) {
+            throw new ToolException('idempotencyKey is required and must match the key used at stage time.');
+        }
+        if (String.isBlank(req.stagingId)) {
+            throw new ToolException('stagingId is required.');
+        }
+        if (String.isBlank(req.planHash)) {
+            throw new ToolException('planHash is required.');
+        }
+        cm_Action_Staging__c staged = readStaging(req.stagingId);
+        if (staged == null) {
+            throw new ToolException('No staging record found for stagingId ' + req.stagingId + '.');
+        }
+        if (staged.cm_Action_Id__c != ACTION_ID) {
+            throw new ToolException(
+                'Staging record ' + req.stagingId + ' was staged for ' + String.valueOf(staged.cm_Action_Id__c) +
+                ', not for ' + ACTION_ID + '. A token is bound to the plan it was minted for.'
+            );
+        }
+        Id approver = C360Plan.asId(req.approverUserId);
+        if (prior == null) {
+            C360ActionStaging.assertClaimable(req.stagingId, req.planHash, req.decisionToken, approver);
+        } else {
+            C360ActionStaging.assertArmable(req.stagingId, req.planHash, req.decisionToken, approver);
+        }
+    }
+
+    /** Carries the plan into a transaction that can host it. One hop: a discard runs no engine. */
+    private static Response callRelay(Request req) {
+        Hop hop = openDoor(innerPayload(req));
+        if (hop.body == null) {
+            return unavailable(req, hop.why);
+        }
+        return withPath(readInner(req, hop.body), hop.path);
+    }
+
+    /**
+     * Tries the doors in order and returns the first real answer.
+     *
+     * A door only gets skipped past on a failure that PROVABLY did not reach the action: the session
+     * could not be minted, the callout threw, or the endpoint refused the caller. Every other status
+     * means the request landed somewhere that could have executed, and is reported rather than
+     * retried through a second door.
+     */
+    private static Hop openDoor(String payload) {
+        Hop viaSelf = selfHop(payload);
+        if (viaSelf.body != null) {
+            viaSelf.path = PATH_SELF;
+            return viaSelf;
+        }
+        if (viaSelf.stop) {
+            viaSelf.why = 'self: ' + viaSelf.why;
+            return viaSelf;
+        }
+
+        Hop viaBox = boxHop(payload);
+        if (viaBox.body != null) {
+            viaBox.path = PATH_BOX;
+            return viaBox;
+        }
+        viaBox.why = 'self: ' + viaSelf.why + ' | box: ' + viaBox.why;
+        return viaBox;
+    }
+
+    /** One attempt at one door: a body to read, or why it is not one, and whether to try the next. */
+    private class Hop {
+        String body;
+        String why;
+        String path;
+        Boolean stop = false;
+    }
+
+    /** This door did not answer, and the next one is worth trying: nothing here reached the action. */
+    private static Hop refused(String why) {
+        Hop h = new Hop();
+        h.why = why;
+        return h;
+    }
+
+    /**
+     * This door did not answer and NO other door may be tried. The request landed somewhere that
+     * could have executed, so a second attempt at the same plan is not a retry, it is a second run.
+     */
+    private static Hop halt(String why) {
+        Hop h = new Hop();
+        h.why = why;
+        h.stop = true;
+        return h;
+    }
+
+    private static Hop answered(String body) {
+        Hop h = new Hop();
+        h.body = body;
+        return h;
+    }
+
+    /** The org calling its own Actions API, authenticated by a Visualforce-minted session id. */
+    private static Hop selfHop(String payload) {
+        String sid;
+        try {
+            sid = session().sessionId();
+        } catch (Exception e) {
+            return refused('the session could not be minted (' + e.getTypeName() + ': ' + e.getMessage() + ')');
+        }
+        if (String.isBlank(sid)) {
+            return refused('the session page rendered nothing usable');
+        }
+        HttpRequest hr = baseRequest(URL.getOrgDomainUrl().toExternalForm() + ACTION_PATH, payload);
+        hr.setHeader('Authorization', 'Bearer ' + sid);
+        return send(hr, 'the org refused its own session');
+    }
+
+    /** The external relay, which re-enters with a proper OAuth token. */
+    private static Hop boxHop(String payload) {
+        cm_Relay_Config__c cfg = cm_Relay_Config__c.getOrgDefaults();
+        if (String.isBlank(cfg.cm_Relay_URL__c) || String.isBlank(cfg.cm_Shared_Secret__c)) {
+            return refused('cm_Relay_Config__c carries no URL or no secret');
+        }
+        HttpRequest hr = baseRequest(cfg.cm_Relay_URL__c, payload);
+        hr.setHeader(RELAY_SECRET_HEADER, cfg.cm_Shared_Secret__c);
+        hr.setHeader(RELAY_ACTION_HEADER, ACTION_NAME);
+        return send(hr, 'the relay refused this call (a wrong shared secret, or an action it does not carry)');
+    }
+
+    private static HttpRequest baseRequest(String endpoint, String payload) {
+        HttpRequest hr = new HttpRequest();
+        hr.setEndpoint(endpoint);
+        hr.setMethod('POST');
+        hr.setHeader('Content-Type', 'application/json');
+        hr.setTimeout(RELAY_TIMEOUT_MS);
+        hr.setBody(payload);
+        return hr;
+    }
+
+    /**
+     * 401 and 403 prove the request was turned away before anything could run, and are the only
+     * statuses this falls through on. A callout that threw never reached the host at all, which is
+     * equally safe. Every other status halts: the plan is reported unavailable and resumable, and
+     * the token gate in the inner leg makes that retry safe even if something did run.
+     */
+    private static Hop send(HttpRequest hr, String authRefusal) {
+        HttpResponse http;
+        try {
+            http = new Http().send(hr);
+        } catch (Exception e) {
+            return refused('the door could not be reached (' + e.getTypeName() + ': ' + e.getMessage() + ')');
+        }
+        Integer status = http.getStatusCode();
+        if (status == 401 || status == 403) {
+            return refused(authRefusal + ' (HTTP ' + status + ')');
+        }
+        if (status != 200) {
+            return halt('the door answered HTTP ' + status + '. ' + shorten(http.getBody()));
+        }
+        return answered(http.getBody());
+    }
+
+    private static String innerPayload(Request req) {
+        return JSON.serialize(new Map<String, Object>{
+            'inputs' => new List<Object>{
+                new Map<String, Object>{
+                    'idempotencyKey' => req.idempotencyKey,
+                    'stagingId' => req.stagingId,
+                    'planHash' => req.planHash,
+                    'decisionToken' => req.decisionToken,
+                    'approverUserId' => req.approverUserId,
+                    'inlineExecution' => true
+                }
+            }
+        });
+    }
+
+    /** Stamps the door onto an answer that came back from it. */
+    private static Response withPath(Response res, String path) {
+        if (res.result != null) {
+            res.result.relayPath = path;
+        }
+        return res;
+    }
+
+    /**
+     * Unwraps the Actions API envelope and returns the inner leg's own Response.
+     *
+     * Past this point the inner leg has RUN. A body we cannot read is therefore never reported as
+     * "nothing happened": records may be gone, the staging record is the authority, and the answer
+     * says exactly that instead of inviting a blind retry.
+     */
+    private static Response readInner(Request req, String body) {
+        Response res = new Response();
+        try {
+            List<Object> rows = (List<Object>) JSON.deserializeUntyped(body);
+            Map<String, Object> row = (Map<String, Object>) rows[0];
+            if (row.get('isSuccess') != true) {
+                res.ok = false;
+                res.error = err(
+                    'ORG_REJECTED_WRITE',
+                    'The org refused the relayed discard.',
+                    shorten(JSON.serialize(row.get('errors'))),
+                    null,
+                    true,
+                    req.idempotencyKey
+                );
+                return res;
+            }
+            return (Response) JSON.deserialize(JSON.serialize(row.get('outputValues')), Response.class);
+        } catch (Exception e) {
+            res.ok = false;
+            res.error = err(
+                'READ_FAILED',
+                'The relayed discard ran but its answer could not be read back here. The staging record for this ' +
+                'idempotency key holds what actually happened, and a resume from it is safe.',
+                e.getTypeName() + ': ' + e.getMessage(),
+                null,
+                true,
+                req.idempotencyKey
+            );
+            return res;
+        }
+    }
+
+    /** Nothing was attempted and nothing was written, so the token is still good for a retry. */
+    private static Response unavailable(Request req, String detail) {
+        Response res = new Response();
+        res.ok = false;
+        res.error = err('ORG_UNAVAILABLE', RELAY_UNAVAILABLE, detail, 'delete_chain', true, req.idempotencyKey);
+        return res;
+    }
+
+    private static String shorten(String s) {
+        if (s == null) {
+            return null;
+        }
+        return s.length() > 500 ? s.substring(0, 500) + '...' : s;
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The session seam.
+    //
+    // Page.getContent() returns a blank page in a test context, so the door that depends on it can
+    // only be tested through a seam. The default implementation is the real page, so the shipping
+    // path is never the stubbed one.
+    // -------------------------------------------------------------------------------------------
+
+    /** Where the self-hop's bearer token comes from. */
+    public interface SessionSource {
+        String sessionId();
+    }
+
+    @TestVisible
+    private static SessionSource sessionOverride;
+
+    private static SessionSource session() {
+        return sessionOverride == null ? new VisualforceSession() : sessionOverride;
+    }
+
+    /**
+     * An opaque UI session id, minted by rendering a page rather than read off the running request.
+     * That is the whole point: the JWT access token a hosted-MCP context runs on is exactly what
+     * UserInfo.getSessionId() cannot work with.
+     */
+    public class VisualforceSession implements SessionSource {
+        public String sessionId() {
+            String body = Page.C360RelaySession.getContent().toString().trim();
+            // A login page, an error page or an empty render is not a session, and must not be sent
+            // as one: a malformed bearer would come back as a 401 and be read as "try the next door"
+            // when the truth is that this door is broken.
+            return (body.length() < 20 || body.contains('<')) ? null : body;
+        }
     }
 
     private static ExecuteResult execute(Request req) {
@@ -891,6 +1281,21 @@ global with sharing class ExecuteDiscardVersion {
     // ---------------------------------------------------------------------------------------
     // Helpers.
     // ---------------------------------------------------------------------------------------
+
+    /**
+     * The staging row, read for its action id alone. The outer leg needs to know the plan belongs to
+     * this tool before it spends a round trip on it, and must learn that without writing.
+     */
+    private static cm_Action_Staging__c readStaging(String stagingId) {
+        List<cm_Action_Staging__c> rows = [
+            SELECT Id, cm_Action_Id__c
+            FROM cm_Action_Staging__c
+            WHERE Id = :stagingId
+            WITH USER_MODE
+            LIMIT 1
+        ];
+        return rows.isEmpty() ? null : rows[0];
+    }
 
     /** An idempotent replay reports the prior run and writes nothing. */
     private static ExecuteResult replay(cm_Action_Staging__c prior) {

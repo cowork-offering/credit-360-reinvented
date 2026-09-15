@@ -2,6 +2,23 @@
 
 ## Changelog
 
+- **0.9.28 hotfix 2, org and relay (2026-09-15)** THE DISCARD TAKES THE RELAY DOOR. The founder's Sunbelt rollback
+  stopped at `delete_chain` twice (STG-0000000169, 17:51 UTC; a fresh stage at 18:30 UTC) with nCino's
+  `LLC_BI.LoanTrigger: execution of BeforeUpdate ... Script-thrown exception`. Cause, proven four ways: the
+  Salesforce-hosted MCP dispatcher (the Customer 360 connector) cannot host nCino's renewal engine, which a
+  revision-1 chain-row delete wakes on the booked parent; the same class, row and token completed the whole
+  discard from anonymous Apex under a savepoint, and the REST Actions API deleted 12 chain rows per run in the
+  0923/0925 proofs. Same wall the modification execute hit on 30 August. `ExecuteDiscardVersion` now has two
+  legs like the modification: the dispatcher leg writes nothing, re-asserts the token read-only and calls the
+  relay; the relay re-enters the org through REST with `inlineExecution` and the inline leg runs unchanged.
+  The relay carries an allow-list (`x-c360-action`: ExecuteLoanModification, ExecuteDiscardVersion), refuses
+  anything else with 403 before reading the body, and lists the actions on `/healthz`. Deployed
+  0Afbb00000Dx8wXCAR (validate 0Afbb00000Dx8YLCAZ, 153 of 153 tests: modification 67, discard 52, new facility
+  34); relay restarted 20:48 CEST. New facility and amend need no door (lesson 84: neither touches a chain row).
+  Lessons 83, 84; backlog 66. Also in this commit: the FY2025 statement generator (`tools/statements`, nine
+  relationships, three files each, reconciled to the book) and the 0.9.29 design seed for the governed-action
+  stage (backlog 64, 65). No cockpit change, no plugin bump.
+
 - **0.9.28 hotfix, org only (2026-09-15)** THE ROLLBACK READS IN BANKER WORDS. The founder's discard of the Sunbelt
   version from the Activity tab staged (STG-0000000165/166) and the cockpit's id guard refused the plan:
   `items[12].name looks like an org record id (a4ybb000002kean)`. nCino's pricing engine writes `Name` = `Id` on

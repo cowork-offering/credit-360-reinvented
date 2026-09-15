@@ -127,6 +127,13 @@ global with sharing class ExecuteLoanModification {
     };
     private static final String BEAN_NAME = 'LLC_BI.InvokableCreditActionXPkg';
     private static final String RELAY_SECRET_HEADER = 'x-c360-relay-secret';
+    /**
+     * Which action the relay is to re-enter the org on. Added 2026-09-15, when the discard took the
+     * same door: the relay now carries an allow-list rather than one pinned action, and a call that
+     * names nothing is read as this one, which is the only action it ever carried before.
+     */
+    private static final String RELAY_ACTION_HEADER = 'x-c360-action';
+    private static final String ACTION_NAME = 'ExecuteLoanModification';
     private static final Integer RELAY_TIMEOUT_MS = 120000;
     private static final String ACTION_PATH = '/services/data/v61.0/actions/custom/apex/ExecuteLoanModification';
     private static final String PATH_SELF = 'self';
@@ -731,7 +738,8 @@ global with sharing class ExecuteLoanModification {
         }
         HttpRequest hr = baseRequest(cfg.cm_Relay_URL__c, payload);
         hr.setHeader(RELAY_SECRET_HEADER, cfg.cm_Shared_Secret__c);
-        return send(hr, 'the relay refused the shared secret');
+        hr.setHeader(RELAY_ACTION_HEADER, ACTION_NAME);
+        return send(hr, 'the relay refused this call (a wrong shared secret, or an action it does not carry)');
     }
 
     private static HttpRequest baseRequest(String endpoint, String payload) {

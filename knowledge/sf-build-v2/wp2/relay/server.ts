@@ -7,9 +7,18 @@
  * dispatcher context CAN make HTTP callouts (probed 2026-08-30, status 200). So the org calls out
  * to this service, and this service re-enters the org through REST, where the engine is healthy.
  *
+ * WHICH ACTION (2026-09-15). ExecuteDiscardVersion takes the same door for the same reason: deleting
+ * a revision-1 renewal chain row makes nCino recompute the renewal state on the booked parent, which
+ * is a Loan update, which wakes the same managed trigger and dies the same way. So the action is no
+ * longer pinned: the caller names it in the x-c360-action header and this service refuses anything
+ * that is not on ALLOWED_ACTIONS. A call that names nothing is read as ExecuteLoanModification, the
+ * only action this service carried before that header existed, so an org still running the older
+ * Apex keeps working across the deploy window.
+ *
  * It forwards a body it does not interpret. The org owns validation, the token gate and the
- * verification; this process owns exactly two things the org cannot do for itself: proving the
- * caller holds the shared secret, and minting a fresh org access token.
+ * verification; this process owns three things the org cannot do for itself: proving the caller
+ * holds the shared secret, holding the allow-list of actions it may re-enter on, and minting a
+ * fresh org access token.
  *
  * NEVER LOG THE BODY. It carries the single-use decision token that proves a named human confirmed
  * a specific plan. Request id, method, path, status and duration only.
@@ -20,7 +29,11 @@ const SECRET = process.env.C360_RELAY_SECRET ?? "";
 const API_VERSION = process.env.C360_SF_API_VERSION ?? "v61.0";
 const TOKEN_HELPER = process.env.C360_TOKEN_HELPER ?? "/home/fabian/.local/bin/bankinggpt-rest";
 const TOKEN_TTL_MS = 10 * 60 * 1000;
-const ACTION_PATH = `/services/data/${API_VERSION}/actions/custom/apex/ExecuteLoanModification`;
+const ACTION_HEADER = "x-c360-action";
+const DEFAULT_ACTION = "ExecuteLoanModification";
+/** The only actions this door may re-enter the org on. A write door with an open action list is not a door. */
+const ALLOWED_ACTIONS = new Set(["ExecuteLoanModification", "ExecuteDiscardVersion"]);
+const actionPath = (action: string) => `/services/data/${API_VERSION}/actions/custom/apex/${action}`;
 
 if (!SECRET) {
   console.error("C360_RELAY_SECRET is unset. Refusing to start: an unauthenticated relay is a write door.");
@@ -81,7 +94,14 @@ const server = Bun.serve({
     if ((req.method === "GET" || req.method === "HEAD") && url.pathname === "/healthz") {
       done(200);
       return json(
-        { ok: true, service: "c360-relay", uptimeSeconds: Math.round((Date.now() - startedAt) / 1000), apiVersion: API_VERSION, tokenCached: cached !== null },
+        {
+          ok: true,
+          service: "c360-relay",
+          uptimeSeconds: Math.round((Date.now() - startedAt) / 1000),
+          apiVersion: API_VERSION,
+          actions: [...ALLOWED_ACTIONS],
+          tokenCached: cached !== null,
+        },
         200,
       );
     }
@@ -94,6 +114,15 @@ const server = Bun.serve({
     if (!secretMatches(req.headers.get("x-c360-relay-secret"))) {
       done(401, "bad-secret");
       return json({ ok: false, error: "Unauthorized." }, 401);
+    }
+
+    // The allow-list is checked before the body is even read: an action this door does not carry is
+    // refused without touching a payload that holds a decision token. 403 rather than 400 because
+    // the Apex side reads 401 and 403 as "this request provably did not run", which is the truth.
+    const action = req.headers.get(ACTION_HEADER) ?? DEFAULT_ACTION;
+    if (!ALLOWED_ACTIONS.has(action)) {
+      done(403, "action-refused");
+      return json({ ok: false, error: `This relay does not carry the action ${action}.` }, 403);
     }
 
     let body: unknown;
@@ -122,7 +151,7 @@ const server = Bun.serve({
       return json({ ok: probe.ok, noop: true, orgStatus: probe.status, instance: auth.instance }, probe.ok ? 200 : 502);
     }
 
-    const upstream = await fetch(`${auth.instance}${ACTION_PATH}`, {
+    const upstream = await fetch(`${auth.instance}${actionPath(action)}`, {
       method: "POST",
       headers: { authorization: `Bearer ${auth.token}`, "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -130,7 +159,7 @@ const server = Bun.serve({
     const text = await upstream.text();
     // A 401 means the cached token died early; drop it so the next call re-mints.
     if (upstream.status === 401) cached = null;
-    done(upstream.status, "action");
+    done(upstream.status, action);
     return new Response(text, { status: upstream.status, headers: { "content-type": "application/json" } });
   },
 });

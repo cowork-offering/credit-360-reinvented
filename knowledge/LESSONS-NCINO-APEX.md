@@ -1220,3 +1220,91 @@ that lives only in a session transcript does not exist.*
     alphanumerics, so the shape test already covers "the Name is literally its own id" and a second
     equality comparison would be unreachable code; and the facility name used in the fallback is put
     through the same test, so the fallback cannot smuggle an id in from the other side.
+
+## 8p. Any execute whose writes can wake nCino's renewal or credit-action engine takes the relay door (2026-09-15, backlog row 66)
+
+83. **The rule, stated before the evidence, because it is a design rule and not a war story: an
+    execute tool that runs in the Salesforce-hosted MCP dispatcher context may NOT perform a write
+    that wakes nCino's renewal or credit-action engine. A chain-row insert or delete, a roll, a
+    renewal, anything that makes the managed package recompute a booked parent's renewal state, goes
+    through the relay door `ExecuteLoanModification` opened: the outer leg writes nothing and
+    re-asserts the token gate read-only, a door re-enters the org over the REST Actions API with
+    `inlineExecution` true, and the inner leg does all of it.**
+
+    THE EVIDENCE. `ExecuteDiscardVersion` ran clean for two days through the REST Actions API
+    (proofs `0923-discard-exec.json`, `0925-discard-aggregates-*.json`, twelve chain rows each) and
+    then failed on its FIRST write group the moment a founder ran it from the cockpit, which is the
+    MCP dispatcher. `STG-0000000169` (17:51 UTC) and a fresh stage-and-execute at 18:30 UTC both
+    stopped at `delete_chain` with zero records gone and the same message:
+    `CANNOT_INSERT_UPDATE_ACTIVATE_ENTITY, LLC_BI.LoanTrigger: execution of BeforeUpdate caused by:
+    System.UnexpectedException: Script-thrown exception`. The full debug log of the 18:30 run
+    (`ApexLog 07Lbb00000s0ok5EAA`) shows nFORCE and LLC_BI managed code reading `System_Properties__c`
+    and `CFG_ConfigValue__c` and then throwing inside `LoanTrigger` BeforeUpdate on the booked parent;
+    no Validation code unit is ever reached. Three controls say the rows and the class are fine and
+    the CONTEXT is not: the same four `LLC_BI__LoanRenewal__c` rows delete cleanly in anonymous Apex
+    as the same user in every DML shape the class uses (single, four in one, `Database.delete`
+    USER_MODE partial, `delete as user`), rolled back each time; the WHOLE class,
+    `ExecuteDiscardVersion.run(...)` on staging row `a8abb00001Oj89mAAB` with its real plan hash and
+    its real token, returned `terminalState success` with every group verified when run from
+    anonymous Apex under a savepoint; and the identical call over REST had worked all week.
+
+    WHY THE DELETE IS A WRITE TO THE ENGINE, which is the part that is not obvious from the DML:
+    deleting a revision-1 `LLC_BI__LoanRenewal__c` row makes nCino recompute the renewal state on the
+    BOOKED PARENT, which is a Loan update, which is a `LoanTrigger` BeforeUpdate, which is the same
+    managed code path the credit action needs. The root cause is the one the modification already
+    documented: hosted MCP authenticates with a JWT access token, `UserInfo.getSessionId()` is
+    specified as unusable under one, and the managed trigger reaches for session APIs and dies in a
+    way no catch block can see. A delete chain does not look like a credit action, and it wakes the
+    same engine anyway.
+
+    THE NEAR MISS, and it is the reason this is written as a rule rather than as a fix. The
+    created-package discard (`STG-0000000164`, backlog row 58) went through the MCP context on
+    2026-09-14 and PASSED, 25 steps verified. Not because the door was safe, but because a package
+    this cockpit created has no chain rows at all: `delete_chain` had nothing to delete, so the
+    engine was never woken. That green run was luck, and reading it as proof that the discard was
+    MCP-safe is exactly the mistake this lesson exists to stop. GENERALISE: a write path that
+    sometimes touches the managed engine has to be routed as though it always does, because the
+    run where it does not is the one you will happen to test.
+
+    WHAT CARRIES ACROSS THE HOP, and what has to be got right when copying this door onto a new tool.
+    A discard takes ONE hop where the modification takes two: the modification's split exists because
+    the engine and the arm together spend more than the LLC_BI namespace's own hundred-query budget,
+    and a discard runs no engine and has no second budget to buy. The RESUME is the part that needs
+    care. `ExecuteDiscardVersion` is resumable (8n), and a run that stopped mid-chain has already
+    consumed its token, so an outer leg that checked `assertClaimable` would refuse the banker's own
+    resume as a spent token and never reach the door. The outer leg forks exactly as `execute` does:
+    a terminal row is replayed locally without a round trip, a row at `Executing` with a result id is
+    proved with `assertArmable` (same token, same plan, same named human, consuming nothing), and a
+    fresh run is proved with `assertClaimable`. The leg that WRITES is the leg that transitions the
+    row, so every state change still happens exactly once, in the transaction that works. And the
+    outer leg must stay read-only whatever the temptation: Apex forbids DML before a callout, and a
+    claim out here would strand the row at `Executing` on a hop that never arrived, which is the one
+    state a banker cannot get himself out of.
+
+    THE RELAY IS NOW AN ALLOW-LIST rather than one pinned action. `ACTION_PATH` in `server.ts` was
+    hard-wired to `ExecuteLoanModification`; the action is now named in the `x-c360-action` header
+    and checked against `{ExecuteLoanModification, ExecuteDiscardVersion}` BEFORE the body is read,
+    so a refused action never touches a payload carrying a decision token. The refusal is `403`
+    deliberately: the Apex side reads `401` and `403` as "this request provably did not run", which
+    leaves the token unconsumed and the call retryable. A hop carrying no header at all is read as
+    `ExecuteLoanModification`, which is the only action the service carried before the header
+    existed, so the relay and the org can be deployed in either order.
+
+84. **`ExecuteNewFacility` and `ExecuteAmendVersion` do NOT need this door, and the reason is the
+    engine rather than the amount of writing.** Lesson 52 already said it for the amend: it runs the
+    same arm code against records that already exist, invokes no engine, and runs inline in one
+    transaction. The same test applied to the new facility comes out the same way, on the classes'
+    own evidence: neither class contains a single reference to `LLC_BI__LoanRenewal__c` (grep, both
+    files), so neither can insert, delete or disturb a chain row. `ExecuteNewFacility` INSERTS a
+    package, a loan, an involvement and its arms, and its only two updates are to the Loan Detail and
+    the one allowlisted stage hop to Proposal, both on the facility it has just created itself: a
+    brand-new loan has no revision-1 row pointing at it and no booked parent behind it, so nothing it
+    writes asks nCino to recompute a renewal state. The live record agrees: the cockpit, which IS the
+    MCP dispatcher, created facilities through this tool on 2026-09-04 (lesson 80, the `Default_App`
+    finding is about those very rows) and the Piedmont package and facility of 2026-09-14 (backlog
+    row 58), and no invocation has ever produced the `LoanTrigger` failure. The amend's exposure is
+    one step closer and still clear: it updates version CLONES, which a revision-1 row does point at,
+    but a scalar change on a clone is not a change of renewal state and the same live record carries
+    no failure. Conclusion: leave both alone. The trigger for revisiting is not a new field or a new
+    arm, it is any new write that touches `LLC_BI__LoanRenewal__c`, moves a facility between
+    packages, or rolls or renews anything.
