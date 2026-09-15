@@ -42,10 +42,52 @@
  *  these numbers bound is how long a room will sit on a call that has told it
  *  nothing at all. */
 export const DEADLINES = {
-  /** One staging round trip. Zero DML by contract, so an expiry is clean. */
-  stage: 25_000,
+  /**
+   * The staging call, LADDER AND ALL. Zero DML by contract, so an expiry is
+   * clean whatever it cost.
+   *
+   * IT ROSE FROM 25s TO 32s WITH THE WRITE DOOR (0.9.29). A staging call is no
+   * longer one round trip and has not been since the keys earned a retry: the
+   * seam climbs a three-attempt ladder under the same idempotency key, and when
+   * that ladder is spent on a transport failure the same payload goes out once
+   * more through the write door we run (channel/writeDoor.ts). A budget that
+   * expired mid-ladder would stop the room exactly where the founder's 502
+   * stopped it, with the door never knocked on. So the arithmetic, per attempt
+   * allowance, is on the page:
+   *
+   *     3 Salesforce attempts   3 x 6s  = 18s   WRITE_RETRY_ATTEMPTS
+   *     the ladder's own waits  2s + 4s =  6s   WRITE_RETRY_BUDGET_MS, worst case
+   *     1 write-door attempt    1 x 6s  =  6s   one attempt, never a second ladder
+   *                                       ----
+   *                                        30s  and 32s is that plus two seconds
+   *                                             for the page's own assembly
+   *
+   * THE 6s ALLOWANCE IS MEASURED, NOT PICKED. StageLoanModification logs Success
+   * in 451 to 735 ms in the org, the same plan staged in 2.4s end to end over
+   * the REST Actions API, and one artifact-to-connector hop was measured at 236
+   * to 560 ms; a 502 comes back faster than any of them. Six seconds is generous
+   * against every one of those figures.
+   *
+   * A STAGE THAT HAS TO BE RE-ISSUED under a derived key climbs all of that
+   * twice, and always did: that is a lost first answer AND a lost replay, both
+   * doors, and what stops it is this clock, with nothing filed but the row the
+   * org already holds and says so on its own trail.
+   *
+   * THE WHOLE 30s ALSO FITS INSIDE `WRITE_DEADLINE_MS` (60s, channel/mcp.ts),
+   * which is the seam's ceiling on ONE attempt: the room's clock is the one that
+   * fires first on a ladder, and the seam's is what catches a single hop that
+   * says nothing at all.
+   */
+  stage: 32_000,
   /** The write. Past this the room stops waiting on the socket and starts
-   *  reading the org's record instead; it never re-executes on its own. */
+   *  reading the org's record instead; it never re-executes on its own.
+   *
+   *  IT DID NOT RISE WITH THE STAGE BUDGET, deliberately. An execute that runs
+   *  out of clock is not left unanswered: `settleExecution.ts` reads the org's
+   *  own staging record and reports what it holds, which is a better instrument
+   *  than more waiting. The write door still carries a LOST execute answer at
+   *  the seam; what this bounds is how long the room sits before it starts
+   *  reading the record instead. */
   execute: 45_000,
   /** Any read a room opens on, or refreshes with. */
   read: 15_000,

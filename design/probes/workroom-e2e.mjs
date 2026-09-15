@@ -250,6 +250,12 @@ const SCENARIOS = {
      room must survive without a duplicate staging row, and every answer dropped, where the room
      must name the row Salesforce is holding instead of saying nothing was filed. */
   relayDrop: { drive: driveRelayDrop },
+  /* 0.9.29 P0. THE SALESFORCE HOP IS DEAD AND THE PLAN LANDS ANYWAY (the founder's 502 live in
+     front of an audience, 2026-09-15). Every stage answer on the claude.ai hop is dropped while
+     the org files the rows, the write door is granted, and the drive asserts the plan reaches the
+     org through the door, that no key ever produced two rows, and that the glass names the door
+     that carried it. */
+  writeDoor: { drive: driveWriteDoor, lanes: { writeDoor: "granted", rotateOnReplay: true } },
   /* ROW 51. THE DOORS OPEN ON EVERY BOOK. The relationship room and the memo door were driven on
      Hartwell alone, where the package question is always asked; a book that binds its one package
      silently walks a different branch through both of them, and a door that throws on it is a
@@ -263,11 +269,14 @@ const SCENARIOS = {
 
 /** A page on the built bundle, on the stub lanes, with the CHOSEN book open. One door for every
  *  scenario, script or drive, so no two of them open the cockpit differently. */
-async function openPage(version) {
+async function openPage(version, lanes) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errs = []; page.on("pageerror", (e) => errs.push(String(e).slice(0, 160)));
   await page.addInitScript(STUB); await page.addInitScript(SAMPLE);
-  await page.addInitScript((cfg) => { var i = setInterval(function () { if (window.__LANES) { clearInterval(i); window.__LANES.relayMs = 200; window.__LANES.livePatch = Object.assign({}, window.__LANES.livePatch || {}, cfg.patch); window.__LANES.accounts = cfg.accounts || []; if (cfg.version) window.__LANES.version = cfg.version; } }, 0); }, { patch, accounts: BOOK.orgAccounts, version: version || null });
+  /* `lanes` IS SET BEFORE THE PAGE BOOTS, and it has to be: the connectors the
+     cockpit can see are read once, by the boot probe's `listTools()`, and a door
+     granted after that is a door this page session will never find. */
+  await page.addInitScript((cfg) => { var i = setInterval(function () { if (window.__LANES) { clearInterval(i); window.__LANES.relayMs = 200; window.__LANES.livePatch = Object.assign({}, window.__LANES.livePatch || {}, cfg.patch); window.__LANES.accounts = cfg.accounts || []; if (cfg.version) window.__LANES.version = cfg.version; if (cfg.lanes) Object.assign(window.__LANES, cfg.lanes); } }, 0); }, { patch, accounts: BOOK.orgAccounts, version: version || null, lanes: lanes || null });
   await page.goto(server.url + "b/", { waitUntil: "commit" });
   await page.waitForSelector(`[data-open="${ACCOUNT}"]`, { timeout: 30000 });
   await page.click(`[data-open="${ACCOUNT}"]`); await page.waitForSelector("#view-account .hero", { timeout: 15000 });
@@ -554,6 +563,91 @@ async function openTrail(page) {
   await page.waitForTimeout(900);
 }
 
+/* ------------------------------------------------- the discard, on the stage
+
+   0.9.29 TOOK THIS ACTION OFF THE CONFIRM GATE. The door on the trail still opens the panel and
+   the panel still takes the reason, but from the plan onward the discard leaves the modal
+   entirely: `app/src/components/GovernedStage.tsx` has the page, and the plan, the confirmation
+   and the run are three beats on ONE sheet (`[data-governed-stage]`). So this drive walks the
+   stage, and asserts the same truths the gate drive asserted, in the stage's own words:
+
+     the plan beat   the org's count line as the lede, one row per write group carrying the org's
+                     names and its own count, and the row's reasons under it.
+     the gesture     one ink commit pill, `[data-commit="stage"]`.
+     the run         every group settles and leaves the sheet, and what is left is the closing,
+                     typed one sentence at a time in the EXECUTOR's own words.
+
+   THE WAIT IS ON THE SHEET, NEVER ON A ROW. A missing inventory is a FINDING about the stage, and
+   a drive that hung on a row selector would report a timeout instead of the defect and would never
+   exercise the commit, the closing, the trail or the book afterwards. That doctrine is the gate
+   drive's, word for word; only the selector it waits on has moved.
+
+   AND THE RUN IS A REVEAL, NOT A POLL. `execute_discard_version` answers every step's settled
+   state in one call and the sheet reads them at a pace, so the wait after the press is on the
+   closing being COMPLETE (the doors are on), never on a fixed sleep long enough to cover the
+   longest book. */
+
+/** What the stage is showing, whichever beat it is on. */
+async function stageRead(page) {
+  return page.evaluate(() => {
+    const st = document.querySelector("[data-governed-stage]");
+    if (!st) return null;
+    const t = (n) => (n ? (n.textContent || "").replace(/\s+/g, " ").trim() : "");
+    const sheet = st.querySelector(".gs-sheet");
+    const commit = st.querySelector('[data-commit="stage"]');
+    const back = st.querySelector(".gs-doors .wk-sheet-back");
+    return {
+      phase: sheet ? sheet.getAttribute("data-phase") : null,
+      title: t(st.querySelector(".gs-hd h2")),
+      /* The org's own count line, verbatim, is the sheet's lede; the rest of its warnings sit in
+         the foot beside the closing line. Both are read: the sentence about what is NOT touched
+         is the org's and the stage may put it in either. */
+      lede: [...st.querySelectorAll(".gs-lede")].map(t).join(" "),
+      notes: [...st.querySelectorAll(".gs-gov")].map(t).join(" "),
+      /* The whole inventory block: the rows AND the reasons under them, which is where the org's
+         exact record names stay when a row's own line shows only what differs. */
+      inventory: t(st.querySelector(".gs-inv")),
+      rows: [...st.querySelectorAll(".gs-row")].map((r) => ({
+        group: r.getAttribute("data-group"),
+        state: r.getAttribute("data-state"),
+        title: t(r.querySelector(".gs-t")),
+        names: t(r.querySelector(".gs-d")),
+        count: Number(t(r.querySelector(".gs-n"))),
+      })),
+      said: [...st.querySelectorAll(".gs-said p")].map(t).filter(Boolean),
+      after: [...st.querySelectorAll(".gs-after p")].map(t).filter(Boolean),
+      doors: [...st.querySelectorAll(".gs-doors a, .gs-doors button")].map((n) => ({
+        text: t(n), deeplink: n.getAttribute("data-deeplink"), resume: n.getAttribute("data-resume"),
+      })),
+      commit: commit ? { label: t(commit), disabled: commit.disabled } : null,
+      back: Boolean(back),
+      notices: [...st.querySelectorAll(".gs-notice")].map(t),
+    };
+  });
+}
+
+/** Is this org name on the glass?
+ *
+ *  THE STAGE COMPRESSES A GROUP'S NAMES. Where every name in a group opens with the same words the
+ *  row shows what DIFFERS, cut at a separator inside the shared opening and never mid-word
+ *  (`app/src/actions/stageModel.ts:stripShared`), and identical names are counted rather than
+ *  repeated ("... x2"). The exact string stays in the reasons under the row, so the book's wanted
+ *  name is named if EITHER form is on the glass. A count suffix needs no special case: the name it
+ *  is appended to is still the name. */
+function namesIt(onGlass, want) {
+  if (!onGlass || !want) return false;
+  if (onGlass.indexOf(want) !== -1) return true;
+  for (const sep of [" - ", " on "]) {
+    let at = want.indexOf(sep);
+    while (at !== -1) {
+      const tail = want.slice(at + sep.length);
+      if (tail.length >= 12 && onGlass.indexOf(tail) !== -1) return true;
+      at = want.indexOf(sep, at + 1);
+    }
+  }
+  return false;
+}
+
 async function driveDiscard(page) {
   const findings = [];
   const turns = [];
@@ -568,6 +662,8 @@ async function driveDiscard(page) {
     if (!/editable until approval/.test(standing)) findings.push("the standing row does not say the version is editable until approval");
   }
 
+  /* THE DOOR ON THE TRAIL STILL OPENS THE PANEL, and the panel still takes the reason: only what
+     comes after "Review the plan" moved to the stage. */
   const door = await page.$('[data-discard-door="trail"]');
   if (!door) { findings.push("no Discard this version door on the trail"); return { turns, findings }; }
   await door.click();
@@ -580,30 +676,116 @@ async function driveDiscard(page) {
   await page.fill("#f-discardReason", "Forked the wrong package; the booked terms stand.");
   await page.waitForTimeout(300);
   await page.evaluate(() => { const b = [...document.querySelectorAll('[role="dialog"] button')].find((x) => /Review the plan/.test(x.textContent || "")); if (b) b.click(); });
-  /* THE GATE, NOT THE INVENTORY, is what the wait is on. A missing inventory is a FINDING about
-     the gate, and a drive that hung on its selector would report a timeout instead of the defect
-     and would never exercise the confirm, the trail row or the book afterwards. */
-  await page.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] button')].some((b) => /^Confirm and file$/.test((b.textContent || "").trim())), null, { timeout: 25000 });
-  await page.waitForTimeout(500);
-  const inventory = await text(page, '[data-inventory="discard"]');
-  const gate = await text(page, '[role="dialog"][aria-label="Discard this version"]');
-  note("[chip] Review the plan", (inventory || gate || "").slice(0, 600));
-  if (!inventory) findings.push("the confirm gate renders no inventory block: the staged plan reached it carrying no items[] the gate could read");
+  /* THE SHEET, NOT THE INVENTORY, is what the wait is on. See the doctrine above. */
+  await page.waitForSelector("[data-governed-stage]", { timeout: 25000 });
+  await page.waitForTimeout(900);
+
+  const plan = await stageRead(page);
+  if (!plan) { findings.push("the governed-action stage vanished after it opened"); return { turns, findings }; }
+  note("[stage] the plan", `${plan.title} || ${plan.lede} || ${plan.rows.map((r) => `${r.title}: ${r.names} (${r.count})`).join(" | ")}`.slice(0, 900));
+  if (plan.phase !== "plan") findings.push(`the stage opened on ${plan.phase} rather than on the plan`);
+  if (!/Discard the version/.test(plan.title || "")) findings.push(`the stage does not say what it is about to do: "${plan.title}"`);
+
+  /* WHAT STAYS, IN THE ORG'S OWN WORDS. The gate said it in ours ("only the version's own copies
+     of them go"); the stage puts the org's count line up as its lede and the rest of the org's
+     warnings in the foot, and the sentence the banker needs is the one that says the list is the
+     whole of it. */
+  const saidBeside = `${plan.lede} ${plan.notes}`;
+  if (!plan.lede) findings.push("the stage renders no count line: the staged plan reached it carrying no warnings the sheet could lead with");
+  if (!/Nothing outside the list above is touched/.test(saidBeside)) {
+    findings.push(`the stage never says what is left untouched: "${saidBeside.slice(0, 240)}"`);
+  }
+  if (!/stay exactly as they are|stays exactly as it is/.test(saidBeside)) {
+    findings.push(`the stage does not say the booked side stays exactly as it is: "${saidBeside.slice(0, 240)}"`);
+  }
+
+  /* THE ROWS ARE THE INVENTORY NOW. No rows means the plan reached the stage carrying no
+     write/verify pairs it could group, which is the same defect the gate reported as an empty
+     inventory block and is reported the same way: a finding, and the drive carries on. */
+  if (!plan.rows.length) {
+    findings.push("the stage renders no group rows: the staged plan reached it carrying no write/verify pairs the sheet could group");
+  }
+  for (const row of plan.rows) {
+    if (!row.title) findings.push(`a group row on the stage has no title: ${JSON.stringify(row)}`);
+    if (!Number.isFinite(row.count)) findings.push(`the group "${row.title}" shows no record count`);
+    if (!row.names) findings.push(`the group "${row.title}" names none of the records it removes`);
+  }
+  /* AND THE ROWS AND THE COUNT LINE MUST AGREE. The org counts the records it deletes in its own
+     sentence and the sheet counts them again down the column; two different numbers on one page is
+     the banker's problem whichever of them is right. */
+  const declared = /DELETES (\d+) records/.exec(plan.lede || "");
+  if (declared && plan.rows.length) {
+    const onGlass = plan.rows.reduce((n, r) => n + (Number.isFinite(r.count) ? r.count : 0), 0);
+    if (onGlass !== Number(declared[1])) {
+      findings.push(`the count line says ${declared[1]} records and the rows add up to ${onGlass}`);
+    }
+  }
   /* WHAT THE INVENTORY MUST NAME, off this book: the clone the filing RENAMED to the raised
      figure, one sibling clone that came across untouched, and the version package itself. */
   for (const want of BOOK.inventoryWants) {
-    if (!inventory || inventory.indexOf(want) === -1) findings.push(`the inventory does not name "${want}"`);
+    if (!namesIt(plan.inventory, want)) findings.push(`the inventory does not name "${want}"`);
   }
-  if (inventory && !/Staging rows, marked Withdrawn/.test(inventory)) findings.push("the inventory does not show the staging rows as kept and marked Withdrawn");
-  if (inventory && !/only the version's own copies of them go/.test(inventory)) findings.push("the gate does not say what stays beside what goes");
+  if (/—/.test(`${plan.title} ${saidBeside} ${plan.inventory}`)) findings.push("em dash in what the stage says about the discard");
 
-  await page.evaluate(() => { const b = [...document.querySelectorAll('[role="dialog"] button')].find((x) => /^Confirm and file$/.test((x.textContent || "").trim())); if (b) b.click(); });
-  await page.waitForTimeout(3500);
-  const tracker = await text(page, '[role="dialog"][aria-label="Discard this version"]');
-  note("[chip] Confirm and file", (tracker || "").slice(0, 300));
+  if (!plan.commit) { findings.push("the stage offers no commit pill"); return { turns, findings }; }
+  if (plan.commit.disabled) {
+    findings.push(`the commit pill is closed on the plan the stage rendered: ${JSON.stringify(plan.notices)}`);
+    return { turns, findings };
+  }
+  await page.click('[data-commit="stage"]');
 
-  await page.evaluate(() => { const b = [...document.querySelectorAll('[role="dialog"] button')].find((x) => /^Close$/.test((x.textContent || "").trim()) || x.getAttribute("aria-label") === "Close"); if (b) b.click(); });
+  /* THE RUN ANSWERS AT ONCE AND IS READ AT A PACE, so the wait is on the ENDING: the closing
+     sentences are typed out and the doors come up under them. Never a sleep: the pace is one beat
+     per group and a book with eleven groups outlasts any number this drive could pick. */
+  const ended = await page
+    .waitForFunction(() => {
+      const st = document.querySelector("[data-governed-stage]");
+      const sheet = st && st.querySelector(".gs-sheet");
+      const after = st && st.querySelector(".gs-after");
+      const phase = sheet && sheet.getAttribute("data-phase");
+      return (phase === "close" || phase === "stopped") && Boolean(after && after.hasAttribute("data-on"));
+    }, null, { timeout: 90000 })
+    .then(() => true)
+    .catch(() => false);
+  const run = await stageRead(page);
+  note("[press] the commit pill", run ? `${run.phase} || ${run.said.join(" ")} || ${run.after.join(" ")}`.slice(0, 900) : "the stage is gone");
+  if (!ended || !run) {
+    findings.push("the run never reached its closing: the stage never typed a closing sentence and never put its doors up");
+    return { turns, findings };
+  }
+  if (run.phase === "stopped") {
+    findings.push(`the run stopped part way on a plan the org answered clean: "${run.said.join(" ").slice(0, 240)}"`);
+  }
+
+  /* THE CLOSING IS THE EXECUTOR'S OWN SENTENCES. Three truths have to be in them: the version is
+     gone, the booked parents read hasRenewal false and can be forked again, and the trail rows are
+     KEPT and marked Withdrawn rather than deleted. */
+  const closing = run.said.join(" ");
+  if (!run.said.length) findings.push("the run ended with nothing said: the executor returned no closing the stage could read");
+  if (!/no longer resolves|the version is gone|version .* discarded/i.test(closing)) {
+    findings.push(`the closing never says the version is gone: "${closing.slice(0, 240)}"`);
+  }
+  if (!/hasRenewal false/.test(closing)) {
+    findings.push(`the closing never says the booked parents read hasRenewal false: "${closing.slice(0, 240)}"`);
+  }
+  if (!/Withdrawn/.test(closing) || !/kept|keeps/i.test(closing)) {
+    findings.push(`the closing does not say the trail rows are kept and marked Withdrawn: "${closing.slice(0, 240)}"`);
+  }
+  /* AND THE SHEET EMPTIED. Every group that went has left the list; a row still queued, still
+     writing or never attempted is a run that did not finish whatever the closing says. */
+  const left = run.rows.filter((r) => r.state !== "gone");
+  if (left.length) findings.push(`the sheet still stands on ${left.length} rows after the run: ${JSON.stringify(left.map((r) => `${r.title}: ${r.state}`))}`);
+  if (run.doors.some((d) => d.resume === "stage")) findings.push("the stage offers a resume after a run that finished");
+  if (!run.back) findings.push("the stage offers no way back to the relationship after the run");
+
+  /* THE DOOR BACK. The sheet folds into the trail's own standing row, which is the row the undo
+     has just taken off the page, so the fold is also the assertion that the stage lets go. */
+  await page.click(".gs-doors .wk-sheet-back");
+  await page.waitForSelector("[data-governed-stage]", { state: "detached", timeout: 10000 }).catch(() => {
+    findings.push("the stage never left the page after the door back was taken");
+  });
   await page.waitForTimeout(1200);
+
   await openTrail(page);
   const trail = await text(page, "#pane-activity");
   note("[read] the trail after the undo", (trail || "").slice(0, 400));
@@ -629,7 +811,7 @@ async function driveDiscard(page) {
   }
   if (rows.some((r) => /Modification in Progress/.test(r))) findings.push("a package still reads Modification in Progress after the version was discarded");
   if (rows.some((r) => /Modification in flight/.test(r))) findings.push("the discarded version is still on the package ask");
-  return { turns, findings, path: BOOK.multiPackage ? "version undone, the book's own packages still ask" : "version undone, the one remaining package binds silently" };
+  return { turns, findings, path: BOOK.multiPackage ? "version undone on the stage, the book's own packages still ask" : "version undone on the stage, the one remaining package binds silently" };
 }
 
 /* ------------------------------------------------- the no-version books
@@ -1054,6 +1236,162 @@ async function driveRelayDrop(page) {
   for (const r of after) keys[r.key] = (keys[r.key] || 0) + 1;
   if (Object.values(keys).some((n) => n > 1)) findings.push(`a key produced more than one staging row after the second half: ${JSON.stringify(keys)}`);
   return { turns, findings, path: "the plan is composed, one answer dropped and then every answer dropped" };
+}
+
+/* ========================================================= the write door
+
+   THE FOUNDER'S 502, LIVE IN FRONT OF AN AUDIENCE (2026-09-15, 20:17 to 20:31 UTC). Five
+   `stage_loan_modification` attempts from a fresh page answered `server_unavailable` within
+   seconds while the ORG staged every one of them: STG-0000000172 to 175, Apex Success in 451 to
+   735 ms. The answer carries the single-use decision token, so a lost answer is a plan the banker
+   cannot file, and no retry ladder outlasts a dead window nobody can measure.
+
+   SO THIS DRIVE KILLS THE SALESFORCE HOP FOR STAGING AND NOTHING ELSE. Reads keep answering,
+   exactly as they did live; every stage answer is swallowed with the relay's own 502 while the org
+   files the row; and the write door is granted. What is asserted is what the founder needed and did
+   not get: the plan reaches the org through the other door, under the same key so the org never
+   holds two rows for one, with a decision token on the card so the confirm gate can file it, and
+   the glass saying which hop carried it.                                                       */
+async function driveWriteDoor(page) {
+  const findings = [];
+  const turns = [];
+  const note = (you, reply) => turns.push({ you, reply: String(reply ?? "").slice(0, 400), replied: !!reply, repeat: false, refusal: false, emDash: /\u2014/.test(String(reply ?? "")), visibleChips: 0, openCard: 0, freshCount: reply ? 1 : 0, ms: 0 });
+
+  /* THE DOOR HAS TO BE THERE BEFORE THE FIRST READ. `lanes` on the scenario granted it in the
+     init script; this only proves the page FOUND it, because a door discovered by the tools it
+     serves and a door nobody added fail in the same silent way. */
+  const found = await page.evaluate(() =>
+    window.claude.use("mcp").then((m) => m.listTools()).then((r) => r.servers.map((s) => s.server)),
+  );
+  if (!found.includes("Customer 360 Write Door")) {
+    findings.push(`the write door is not in the connector list: ${JSON.stringify(found)}`);
+    return { turns, findings };
+  }
+
+  await openFacilityRoom(page);
+  const picked = await routeThenPackage(page, "Modify", PKG_WANT);
+  note(`[route] Modify, then the package carrying the ${BOOK.shortMoney} ${BOOK.product}`, picked);
+  await page.waitForFunction(() => { const t = document.querySelector(".wk-txt"); return t && !t.disabled; }, null, { timeout: 20000 });
+
+  const takeChips = async () => {
+    const CHIP = "button.eg-btn-ink, .wk-opts button, .wk-opt, .wk-chip";
+    for (let k = 0; k < 4; k++) {
+      const took = await page.evaluate((sel) => {
+        const ns = [...document.querySelectorAll(sel)].filter((n) => n.offsetParent !== null);
+        const hit = ns.find((n) => /^(Confirm|Acknowledge|Acknowledged|Yes, confirm|Confirm and file)/i.test((n.textContent || "").trim()));
+        if (hit) { const t = hit.textContent.trim(); hit.click(); return t; }
+        return null;
+      }, CHIP);
+      if (!took) break;
+      await page.waitForTimeout(2200);
+    }
+  };
+
+  const say = async (line) => {
+    await page.waitForFunction(() => { const t = document.querySelector(".wk-txt"); return t && !t.disabled; }, null, { timeout: 20000 });
+    await page.fill(".wk-txt", line);
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(4000);
+    await takeChips();
+    const said = await page.$$eval(".wk-msg.wk-agent .wk-bub", (ns) => ns.map((n) => (n.textContent || "").trim()).slice(-1)[0] || "");
+    note(line, said);
+    return said;
+  };
+
+  await say(`Increase the ${BOOK.product} to ${BOOK.raisedToPhrase}`);
+  if (PICK) await say(PICK);
+  await say("240 months");
+  await say("1 October 2026");
+  await say("no change");
+
+  /* A RELATIONSHIP WITH NOTHING BOOKED NEVER REACHES A MANIFEST, so there is no plan for either
+     door to carry and the assertion is the other one: the room said why, and neither door was
+     asked to file anything. */
+  if (!BOOK.hasBooked) {
+    const said = await roomSaid(page);
+    const wire = await page.evaluate(() => window.__LANES.calls.filter((c) => c.server === "Customer 360 Write Door").length);
+    note("[read] the room on a relationship with nothing booked", said.slice(0, 400));
+    if (!/booked/i.test(said)) findings.push("the room never says a credit action needs a booked facility on a relationship that has none");
+    if (wire) findings.push(`${wire} write-door calls were made on a relationship carrying no booked facility`);
+    return { turns, findings, path: "nothing booked on this book, so no plan is composed and no door is asked" };
+  }
+
+  /* EVERY STAGE ANSWER ON THE SALESFORCE HOP IS DROPPED, and the org files its row each time,
+     which is the live shape exactly. Nine is "for the rest of this run": the point is a window
+     that does not reopen, because a window that reopens is the one a longer ladder already
+     survives. The scenario also runs the stub with the org's own rotation rule on
+     (`rotateOnReplay`, C360ActionStaging 2026-09-13), which is what makes the door worth walking
+     to: the door re-asks the SAME key, the org hands back the row it already holds with a fresh
+     token on it, and one plan is filed once. */
+  await page.evaluate(() => { window.__LANES.failNext = { stage_loan_modification: 9 }; });
+  const review = await page.$(".wk-propose");
+  if (!review) {
+    const visible = await page.evaluate(() => [...document.querySelectorAll(".wk-opts button, .wk-opt, .wk-chip, button.eg-btn-ink, button.eg-btn-quiet, .wk-propose")].filter((n) => n.offsetParent !== null).map((n) => (n.textContent || "").trim().slice(0, 60)));
+    findings.push(`no Review & execute chip after the manifest was composed; on screen: ${JSON.stringify(visible)}`);
+    return { turns, findings };
+  }
+  await review.click();
+  await page.waitForTimeout(22000);
+
+  const card = await page.evaluate(() => {
+    const tok = document.querySelector(".wk-tok");
+    const approve = document.querySelector(".wk-approve");
+    return {
+      token: tok ? (tok.textContent || "").trim() : null,
+      approve: approve ? { label: (approve.textContent || "").trim(), disabled: approve.disabled } : null,
+      said: [...document.querySelectorAll(".wk-msg.wk-agent .wk-bub")].map((n) => (n.textContent || "").trim()).slice(-1)[0] || "",
+    };
+  });
+  const wire = await page.evaluate(() => ({
+    door: window.__LANES.calls.filter((c) => c.server === "Customer 360 Write Door").map((c) => c.tool),
+    salesforce: window.__LANES.calls.filter((c) => c.server === "Customer 360" && /^stage_loan_modification$/.test(c.tool)).length,
+    rows: window.__LANES.staging.rows.map((r) => ({ id: r.stagingId, key: r.key })),
+    calls: window.__LANES.staging.calls.map((c) => c.key),
+  }));
+  note("[chip] Review & execute, with the Salesforce hop dead for staging", `${card.token || card.said} || door: ${wire.door.join(", ")} || rows: ${wire.rows.map((r) => r.id).join(", ")}`);
+
+  /* THE PLAN LANDED, AND IT LANDED THROUGH THE DOOR. */
+  if (!wire.door.includes("gw_StageLoanModification")) {
+    findings.push(`the plan never went through the write door: door calls ${JSON.stringify(wire.door)}`);
+  }
+  if (wire.salesforce < 3) findings.push(`the Salesforce hop was not given its whole ladder first: ${wire.salesforce} attempts`);
+  if (!card.token || !/decision token/.test(card.token)) {
+    findings.push(`the plan did not land with the Salesforce hop dead: the flow card carries no decision token ("${String(card.said).slice(0, 200)}")`);
+  }
+  if (card.approve && card.approve.disabled) findings.push("the approval is closed on a plan the write door filed");
+  const perKey = {};
+  for (const r of wire.rows) perKey[r.key] = (perKey[r.key] || 0) + 1;
+  if (Object.values(perKey).some((n) => n > 1)) findings.push(`a key produced more than one staging row: ${JSON.stringify(perKey)}`);
+  /* ONE PLAN, ONE ROW. The door sends the key the Salesforce hop already sent, so the org has
+     nothing new to file and the banker is not left with a second plan stranded at Staged. */
+  if (wire.rows.length !== 1) findings.push(`the same plan left ${wire.rows.length} staging rows: ${JSON.stringify(wire.rows)}`);
+  if (new Set(wire.calls).size !== 1) findings.push(`the door was sent a different key: ${JSON.stringify([...new Set(wire.calls)])}`);
+  if (/\u2014/.test(card.said)) findings.push("em dash in what the room said about the door");
+
+  /* AND THE GLASS NAMES THE DOOR THAT CARRIED IT. The health line is the cockpit's one standing
+     sentence about the connectors: the lane the banker knows reads via backup, because the figures
+     and the filing ARE the org's, and the door's own row says it was the hop that answered. */
+  const line = await page.evaluate(() => {
+    const el = document.querySelector(".health-line");
+    if (!el) return null;
+    const lane = (name) => {
+      const btn = el.querySelector(`[data-lane="${name}"]`);
+      return btn ? { state: btn.getAttribute("data-lane-state"), said: (btn.textContent || "").trim(), title: btn.getAttribute("title") || "" } : null;
+    };
+    return { door: lane("Customer 360 Write Door"), salesforce: lane("Customer 360") };
+  });
+  note("[glass] the health line", line ? JSON.stringify(line) : "no health line");
+  if (!line || !line.door) findings.push("the write door is not on the health line after it carried the plan");
+  else {
+    if (line.door.state !== "live") findings.push(`the write door reads ${line.door.state} on the line after it answered`);
+    if (!/^Write door /.test(line.door.said)) findings.push(`the write door's line does not name it: "${line.door.said}"`);
+    if (!/second hop/.test(line.door.title)) findings.push(`the write door's row does not say what it carries: "${line.door.title}"`);
+  }
+  if (line && line.salesforce && line.salesforce.state !== "backup") {
+    findings.push(`Salesforce reads ${line.salesforce.state} on the line after the other door filed the plan`);
+  }
+
+  return { turns, findings, path: "every stage answer on the Salesforce hop dropped, the write door granted, the plan filed through it" };
 }
 
 /* ============================================================ the doors
@@ -1516,7 +1854,7 @@ const out = {};
 for (const [name, spec] of Object.entries(SCENARIOS)) {
   if (ONLY && ONLY !== name) continue;
   if (spec.drive) {
-    const { page, errs } = await openPage(spec.version ? VERSION : null);
+    const { page, errs } = await openPage(spec.version ? VERSION : null, spec.lanes ?? null);
     let result;
     try {
       result = await driveFor(name, spec)(page);

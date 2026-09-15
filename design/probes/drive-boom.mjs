@@ -22,7 +22,12 @@
                          restart and there is one set of periods, never two
      4  failed           a file Boom cannot read ends `failed` with the server's
                          own message, verbatim, and no spread at all
-     5  never verified   nothing in the run returns `verified`, a validated
+     5  wait rejected    the transport swallows a `boom_await_file` (502) while
+                         Boom carries on spreading: the next wait answers
+                         `processing`, then `done`, and the spread lands. A
+                         rejected WAIT is never a failed FILE (founder,
+                         2026-09-15 19:37 UTC, Hartwell)
+     6  never verified   nothing in the run returns `verified`, a validated
                          statement or a validation URL: verification is an
                          analyst's act inside Boom and no stub may claim one
 
@@ -234,7 +239,66 @@ try {
     await page.close();
   }
 
-  /* ---------------------------------------------------- 5. never verified */
+  /* ------------------------------------------------------ 5. wait rejected */
+  {
+    const page = await openPage(browser);
+    await page.evaluate(() => {
+      window.__LANES.boom.processingMs = 2500;
+    });
+    const run = await ladder(page, SHA);
+
+    /* THE DEFECT, REPRODUCED AT THE WIRE. One `boom_await_file` is swallowed by
+       the relay. Boom has the file and is spreading it; nothing about the file
+       changed, and the room that read this as "Failed" was reading the
+       transport, not the ladder. */
+    await page.evaluate(() => {
+      window.__LANES.boom.rejects.boom_await_file = 1;
+    });
+    /* CAUGHT INSIDE THE PAGE, deliberately: the rejection is a plain OBJECT and
+       not an Error, and carrying it back out through playwright would turn it
+       into one and hide the very thing that produced "[object Object]" on the
+       glass. `stringified` is that defect, at the wire, in one field. */
+    const rejected = await page.evaluate(
+      async ({ server, fileId }) => {
+        const mcp = await window.claude.use("mcp");
+        try {
+          await mcp.callTool(server, "boom_await_file", { fileId, maxSeconds: 10 });
+          return null;
+        } catch (err) {
+          return {
+            isError: err instanceof Error,
+            code: err?.code ?? null,
+            message: err?.message ?? null,
+            stringified: String(err),
+          };
+        }
+      },
+      { server: BOOM_SERVER, fileId: run.fileId },
+    );
+
+    // The file is exactly where it was: the rejection carried no news of it.
+    const during = await getFile(page, run.fileId);
+    const stillWaiting = await awaitFile(page, run.fileId, 1);
+    await sleep(2_600);
+    const settled = await awaitFile(page, run.fileId);
+    const spread = await getSpread(page, run.fileId);
+    results.waitRejected = { rejected, during, stillWaiting, settled, statements: (spread.spread?.financialStatements ?? []).length };
+    check("waitRejected", "the wait is refused by the transport, not by Boom", rejected !== null);
+    check("waitRejected", "and the refusal is the relay's own 502", /502/.test(rejected?.message ?? ""));
+    check("waitRejected", "the refusal is an object and not an Error", rejected?.isError === false);
+    check(
+      "waitRejected",
+      "so String() of it is the defect the founder saw, which is why the room may never print it",
+      rejected?.stringified === "[object Object]",
+    );
+    check("waitRejected", "Boom still holds the file, still processing", during.file?.status === "processing");
+    check("waitRejected", "the next wait answers rather than refusing", stillWaiting.status === "processing" && stillWaiting.done === false);
+    check("waitRejected", "and then reports done on a terminal rung", settled.done === true && settled.status === "completed");
+    check("waitRejected", "the spread lands after the rejected wait", results.waitRejected.statements === 1);
+    await page.close();
+  }
+
+  /* ---------------------------------------------------- 6. never verified */
   {
     const every = JSON.stringify(results);
     results.neverVerified = { scannedChars: every.length };

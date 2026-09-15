@@ -23,6 +23,7 @@ import type { WorkroomExecution } from "../workroom/types";
 import type { MemoPublication } from "../memo/publishTypes";
 import { CREATED_OBJECT, packageDeepLink, recordDeepLink } from "../components/DeepLink";
 import { discardCounts, discardSummary, groupInventory, DISCARD_ACTION_ID, STAGING_KEPT } from "./discardVersion";
+import { stoppedRunRow } from "./resumeRun";
 
 export interface ExecutedEntryInput {
   actionId: string;
@@ -642,6 +643,22 @@ export function historyActivityEntry(row: ActionHistoryRow, instanceUrl?: string
       reference: row.resultRecordId
         ? { kind: "ncino-record", id: row.resultRecordId, label: object, source: "Customer 360", webLink: href ?? undefined }
         : undefined,
+    };
+  }
+
+  /* A RUN THAT STOPPED PART WAY (0.9.29, backlog row 64). `Executing` with a
+     result id is the org's own pair for a chain that ran, wrote some of what it
+     planned and stopped: the staging row stays OPEN so the same idempotency key
+     resumes rather than replays. "recorded as Executing" is true and useless;
+     the trail says what actually happened and the tab puts a resume under it. */
+  if (stoppedRunRow(row)) {
+    return {
+      ...base,
+      kind: "ACTION_STAGED",
+      title: `${label} stopped part way`,
+      summary:
+        row.summary ||
+        "The chain wrote part of the plan and stopped. Nothing after the stop was attempted, and the staging row is still open.",
     };
   }
 

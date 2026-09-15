@@ -15,7 +15,7 @@ import { Portal } from "../Portal";
 import { odoRoll } from "../Odometer";
 import { RoomBoundary } from "./RoomBoundary";
 import { SpreadRegister } from "./register/SpreadRegister";
-import { closeSpreadingRoom, forgetBoomFile, pendingBoomFile, rememberBoomFile, useSpreadingRoom } from "./spreadSession";
+import { closeSpreadingRoom, forgetBoomFile, pendingBoomFiles, rememberBoomFile, useSpreadingRoom } from "./spreadSession";
 import { openMemoRoom } from "../memo/memoSession";
 import { startPacer } from "../../channel/streamPacer";
 import { prefersReducedMotion } from "../../data/motion";
@@ -324,13 +324,16 @@ export function SpreadingRoom({
 
   useEffect(() => () => engine.dispose(), [engine]);
 
-  /* A FILE LEFT WITH BOOM IS PICKED BACK UP ON THE WAY IN (decision D3). The
-     room opens on its drop zone as always; where this relationship has a file
-     Boom is still working on, the wait rejoins it instead and nothing is sent.
-     Once, on mount: the handle is cleared by the engine when the file settles. */
+  /* THE FILES LEFT WITH BOOM ARE PICKED BACK UP ON THE WAY IN (decision D3).
+     The room opens on its drop zone as always; where this relationship has work
+     Boom is still doing, the wait rejoins it instead and nothing is sent.
+     Once, on mount: each handle is cleared by the engine when its file settles.
+
+     EVERY FILE, NOT ONE (0.9.29), and handed NOTHING the engine asks Boom
+     itself: the receipts are module memory and a reloaded page has none, which
+     is the state the founder's own re-entry landed in on 2026-09-15. */
   useEffect(() => {
-    const handle = pendingBoomFile(ctx.accountId);
-    if (handle) void engine.resume(handle);
+    void engine.resume(pendingBoomFiles(ctx.accountId));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine]);
 
@@ -665,6 +668,15 @@ export function SpreadingRoom({
                         }
                         newPeriodEnd={state.newPeriod}
                         verificationUrl={state.validationUrl}
+                        /* LAZY, ON THE CLICK (row 61, 0.9.29). Boom's
+                           verification session lives 60 minutes; minting one for
+                           every banker who opened a spread to read it would
+                           spend a token on somebody who never verifies
+                           anything. The control asks, and only then is there a
+                           URL to open. */
+                        onVerify={state.verifiable ? () => void engine.openVerification() : undefined}
+                        verifying={state.verifying}
+                        verifyError={state.verifyError}
                         provenance={{
                           /* ONE FILE, NAMED; several, and the period and the
                              system carry the citation instead of a list. */

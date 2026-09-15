@@ -9,6 +9,14 @@ import { ActivityDetailModal } from "../ActivityDetailModal";
 import { ActionPanel } from "../ActionPanel";
 import { DISCARD_ACTION_ID, DISCARD_LABEL, DISCARD_LINE } from "../../actions/discardVersion";
 import { discardTargetFor } from "../../actions/discardTarget";
+import {
+  recallRun,
+  RESUME_LABEL,
+  RESUME_LINE,
+  RESUME_NEEDS_RESTAGE,
+  stagingIdOf,
+  stoppedRunRow,
+} from "../../actions/resumeRun";
 import { MODIFICATION_IN_PROGRESS } from "../../book/packages";
 import { EmptyPane, Note, Pane, PaneCard, SecHead } from "./paneKit";
 
@@ -226,11 +234,42 @@ function ModificationInProgressRow({ bundle, onDiscard }: { bundle: BorrowerBund
   );
 }
 
+/* =============================================================================
+   A STOPPED RUN, AND SOMETHING TO PRESS (0.9.29, backlog row 64).
+
+   FOUNDER, 2026-09-15 17:51 UTC, Sunbelt discard STG-0000000169 stopped at
+   `delete_chain`: the tracker's own text said to re-run the executor with the
+   same idempotency key and the page offered nothing at all.
+
+   THE CONTROL IS OFFERED ONLY WHERE THE RUN CAN ACTUALLY BE RESUMED. The
+   decision token is minted server-side at stage time and lives only on the page
+   that made the run; a reload, a republish or another banker holds none. Where
+   this page no longer holds it the row says so in one line and offers nothing,
+   because the alternative is a button that would have to invent a token.
+   ============================================================================= */
+function StoppedRunRow({ stagingId, onResume }: { stagingId: string; onResume: () => void }) {
+  const run = recallRun(stagingId);
+  return (
+    <div className="mb-3 rounded-[10px] px-3.5 py-3" data-stopped-run={stagingId} style={{ background: "var(--warning-bg)" }}>
+      <div className="text-[12px] leading-relaxed" style={{ color: "var(--warning-prose)" }}>
+        {run ? RESUME_LINE : RESUME_NEEDS_RESTAGE}
+      </div>
+      {run && (
+        <button type="button" className="eg-btn-ink c360-press mt-2" data-resume={stagingId} onClick={onResume}>
+          {RESUME_LABEL}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function ActivityTab({ bundle }: { bundle: BorrowerBundle }) {
   const { data, state, dispatch } = useApp();
   const [openId, setOpenId] = useState<string | null>(null);
   // A33.1.1 entry point 4: the standing in-flight row opens the same panel.
   const [panelActionId, setPanelActionId] = useState<string | null>(null);
+  /** The staging id a resume is aimed at, where the banker pressed one. */
+  const [resumeStagingId, setResumeStagingId] = useState<string | null>(null);
   const generatedAt = data.meta?.generatedAt ?? "";
   const accountId = accountKey(state.accountId, bundle.snapshot?.accountId);
   const accountName =
@@ -247,6 +286,12 @@ export function ActivityTab({ bundle }: { bundle: BorrowerBundle }) {
     return mergeTrail(org, local, bundle.activity ?? []);
   }, [bundle.activity, state.sessionActivity, state.actionHistory, accountId, data.meta?.instanceUrl]);
   const open = entries.find((e) => e.id === openId) ?? null;
+
+  /** The org's own Executing-plus-result-id rows: the runs that stopped. */
+  const stopped = useMemo(
+    () => new Set((state.actionHistory[accountId] ?? []).filter(stoppedRunRow).map((r) => r.stagingId)),
+    [state.actionHistory, accountId],
+  );
 
   return (
     <Pane id="activity">
@@ -265,12 +310,12 @@ export function ActivityTab({ bundle }: { bundle: BorrowerBundle }) {
                  prose. A message the reader refuses (a REQUEST_RECEIVED entry
                  that is not a mailbox message) falls through to the trail's
                  ordinary entry, which is what it always was. */
-              const row = readMailRow(e, bundle);
-              return row ? (
+              const mail = readMailRow(e, bundle);
+              const row = mail ? (
                 <MailEntry
                   key={e.id}
                   entry={e}
-                  row={row}
+                  row={mail}
                   index={i}
                   onOpen={() =>
                     openMailRoom({
@@ -291,6 +336,21 @@ export function ActivityTab({ bundle }: { bundle: BorrowerBundle }) {
                   onOpen={() => setOpenId(e.id)}
                 />
               );
+              const stagingId = stagingIdOf(e.id);
+              return stagingId && stopped.has(stagingId) ? (
+                <div key={`${e.id}-open`}>
+                  {row}
+                  <StoppedRunRow
+                    stagingId={stagingId}
+                    onResume={() => {
+                      setResumeStagingId(stagingId);
+                      setPanelActionId(DISCARD_ACTION_ID);
+                    }}
+                  />
+                </div>
+              ) : (
+                row
+              );
             })}
           </div>
         )}
@@ -305,7 +365,16 @@ export function ActivityTab({ bundle }: { bundle: BorrowerBundle }) {
       />
 
       {open && <ActivityDetailModal entry={open} bundle={bundle} onClose={() => setOpenId(null)} />}
-      {panelActionId && <ActionPanel actionId={panelActionId} onClose={() => setPanelActionId(null)} />}
+      {panelActionId && (
+        <ActionPanel
+          actionId={panelActionId}
+          resumeStagingId={resumeStagingId ?? undefined}
+          onClose={() => {
+            setPanelActionId(null);
+            setResumeStagingId(null);
+          }}
+        />
+      )}
     </Pane>
   );
 }

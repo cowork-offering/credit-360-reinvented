@@ -55,6 +55,34 @@
         ]
       },
       {
+        "server": "Customer 360 Write Door",
+        "tools": [
+          "gw_StageCollateralValuation",
+          "gw_ExecuteCollateralValuation",
+          "gw_StageServiceRequest",
+          "gw_ExecuteServiceRequest",
+          "gw_StageAnnualReview",
+          "gw_ExecuteAnnualReview",
+          "gw_StageNewFacility",
+          "gw_ExecuteNewFacility",
+          "gw_StageRiskRatingReview",
+          "gw_ExecuteRiskRatingReview",
+          "gw_StageCovenantReview",
+          "gw_ExecuteCovenantReview",
+          "gw_StageLoanModification",
+          "gw_ExecuteLoanModification",
+          "gw_StageRenewal",
+          "gw_StageRelationshipIntake",
+          "gw_ExecuteRelationshipIntake",
+          "gw_CompleteNewFacilityDetail",
+          "gw_StageAmendVersion",
+          "gw_ExecuteAmendVersion",
+          "gw_StageDiscardVersion",
+          "gw_ExecuteDiscardVersion",
+          "gw_health"
+        ]
+      },
+      {
         "server": "Boom",
         "tools": [
           "boom_get_ratios",

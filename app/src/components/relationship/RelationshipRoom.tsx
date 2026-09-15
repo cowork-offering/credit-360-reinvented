@@ -3831,9 +3831,10 @@ function RelFlowCard({
         <button type="button" className="eg-btn-quiet" onClick={onCancel}>
           Cancel
         </button>
+        {/* The same glass register as the workroom's plan card (row 59). */}
         <button
           type="button"
-          className="wk-approve eg-btn-ink"
+          className="wk-approve wk-sheet-go"
           disabled={!flow.staging?.decisionToken || filing || sealed}
           onClick={onExecute}
         >

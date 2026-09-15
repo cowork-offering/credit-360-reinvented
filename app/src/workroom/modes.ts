@@ -30,7 +30,14 @@ export interface ModeVocabulary {
   changeWord: [string, string];
   /** The sentence under the plan card, above the approve action. */
   planTitle: string;
-  /** The approve action, given how many changes are stacked above it. */
+  /**
+   * The primary action, given how many changes are stacked above it.
+   *
+   * IT SAYS WHAT IT DOES, AND IT DOES NOT SAY "APPROVE" (backlog row 59, 0.9.29).
+   * A33.3.1: this control files a staged plan and is never a credit approval,
+   * so "Approve and file 4 changes" claimed a decision the gesture does not
+   * make. The word the mode owns is its own: file, or submit.
+   */
   approveLabel: (count: number) => string;
   /** The gate hint on the scene bar while the approval is the open move. */
   approveHint: string;
@@ -52,7 +59,7 @@ const VOCABULARY: Record<WorkroomMode, ModeVocabulary> = {
     emptyLine: "Nothing staged yet. Confirmed changes land here, grouped.",
     changeWord: ["change", "changes"],
     planTitle: "One clone. One single use token. One approval.",
-    approveLabel: (n) => `Approve and file ${n} ${n === 1 ? "change" : "changes"}`,
+    approveLabel: (n) => `File ${n} ${n === 1 ? "change" : "changes"}`,
     approveHint: "Approve to file the plan",
     filedWord: "Filed",
     nextMove: "Anything else on this facility, or shall I stage it?",
@@ -64,7 +71,7 @@ const VOCABULARY: Record<WorkroomMode, ModeVocabulary> = {
     emptyLine: "Nothing staged yet. Confirmed renewal terms land here, grouped.",
     changeWord: ["term", "terms"],
     planTitle: "One renewal plan. One single use token. One submission.",
-    approveLabel: (n) => `Approve and submit ${n} ${n === 1 ? "term" : "terms"}`,
+    approveLabel: (n) => `Submit ${n} ${n === 1 ? "term" : "terms"}`,
     approveHint: "Approve to submit the renewal plan",
     filedWord: "Submitted",
     nextMove: "Anything else on this renewal, or shall I put it up?",
@@ -81,7 +88,7 @@ const VOCABULARY: Record<WorkroomMode, ModeVocabulary> = {
     emptyLine: "Nothing staged yet. Confirmed changes to this version land here, grouped.",
     changeWord: ["change", "changes"],
     planTitle: "One version, changed in place. One single use token. One approval.",
-    approveLabel: (n) => `Approve and file ${n} ${n === 1 ? "change" : "changes"}`,
+    approveLabel: (n) => `File ${n} ${n === 1 ? "change" : "changes"}`,
     approveHint: "Approve to file the amendment",
     filedWord: "Filed",
     nextMove: "Anything else on this version, or shall I stage it?",

@@ -100,10 +100,35 @@ export const POLL_EVERY_MS = 1_200;
  */
 export const BOOM_WAIT_BUDGET_MS = 120_000;
 
-/** Seconds handed to ONE `boom_await_file`. Under the server's 25-second
- *  ceiling, so a call that reaches the ceiling is the server answering and not
- *  the page's clock firing. */
-export const BOOM_AWAIT_SECONDS = 20;
+/**
+ * Seconds handed to ONE `boom_await_file`.
+ *
+ * TEN, AND THE NUMBER IS THE FIX (founder, 2026-09-15 19:37 UTC, Hartwell).
+ * It was twenty, chosen against the SERVER's 25-second ceiling, and the ceiling
+ * was never the binding clock. A read at the connector seam carries
+ * `READ_DEADLINE_MS`, fifteen seconds (`channel/mcp.ts`), so a wait asked to
+ * block for twenty could not answer inside the page's own budget under any
+ * circumstances: every wait rejected at fifteen seconds, every row said Failed,
+ * and Boom held all three files at `processing` throughout.
+ *
+ * Ten seconds plus the relay hop is `awaitDeadlineMs` (`channel/boomUpload.ts`),
+ * which the live adapter now hands the seam explicitly, so this number and the
+ * clock over it move together and neither is inherited from a generic budget.
+ * The room polls more often for it; the TOTAL wait is unchanged and is still
+ * `BOOM_WAIT_BUDGET_MS`.
+ */
+export const BOOM_AWAIT_SECONDS = 10;
+
+/**
+ * Consecutive wait REJECTIONS before the room stops blocking and reads instead.
+ *
+ * `boom_await_file` holds a socket open for its whole answer; `boom_get_file`
+ * answers at once. Where the blocking call is the thing the transport cannot
+ * carry (a relay that gives up on a long hop, a session dropped mid-wait),
+ * asking it a third time is asking the same question of the same broken pipe.
+ * Two is enough to tell a blip from a shape.
+ */
+export const BOOM_AWAIT_MISS_FALLBACK = 2;
 
 /* ------------------------------------------------------------------ shapes */
 
@@ -226,7 +251,25 @@ export interface SpreadState {
   figuresProvisional: boolean;
   newPeriod: string | null;
   validationStatus: "not_validated" | "validated" | null;
+  /**
+   * THE ANALYST VERIFICATION PAGE, AND ONLY ONCE THE BANKER ASKED FOR IT.
+   *
+   * It is null until then, deliberately (row 61, 0.9.29). `boom_open_verification`
+   * mints a 60-minute session token, and a room that called it at render would
+   * burn one on every banker who opened a spread to read it, most of whom never
+   * verify anything. It also never got filled: nothing in the live lane called
+   * the tool at all, so the footer's link hung on a field that was permanently
+   * null and the control simply did not exist.
+   */
   validationUrl: string | null;
+  /** True where this lane can mint one at all. The control is not drawn where
+   *  it cannot: an adapter with no verification page has no page to offer. */
+  verifiable: boolean;
+  /** The call is out. The control says so rather than doing nothing visible. */
+  verifying: boolean;
+  /** Boom refused, in the words it used. The footer says it and offers no link:
+   *  a dead link is worse than an honest sentence. */
+  verifyError: string | null;
   postRead: string[];
   /** Caps, duplicates and unreadable files, said once each. */
   refusals: string[];
@@ -296,13 +339,20 @@ export interface SpreadEngine {
   answer(askId: string, value: string): void;
   /** The banker confirmed the plan. Runs the ladder and the post-read. */
   confirm(): Promise<void>;
-  /** A file left with Boom earlier, picked back up. Reads where it got to and
-   *  waits again; nothing is sent. */
-  resume(handle: BoomFileHandle): Promise<void>;
+  /** The files left with Boom earlier, picked back up. Reads where each got to
+   *  and waits again; nothing is sent. Handed an EMPTY list the room asks Boom
+   *  what it is still holding for this relationship, which is the only record
+   *  left once the page has been reloaded. */
+  resume(handles: readonly BoomFileHandle[]): Promise<void>;
   /** Re-read the spread on the other basis. Resolves once Boom has answered and
    *  the register has the figures the server holds; a lane that cannot re-read
    *  does nothing. */
   setAdjusted(next: boolean): Promise<void>;
+  /** THE BANKER ASKED TO VERIFY IN BOOM. Mints the session (one call, one
+   *  60-minute token) and puts its URL in `validationUrl`. Called on a click
+   *  and never at render: a token spent on somebody who only wanted to read the
+   *  spread is a token wasted and a page the room cannot honestly offer twice. */
+  openVerification(): Promise<void>;
   /** The stall's two doors. */
   keepWaiting(): void;
   leaveWithBoom(): void;
@@ -390,6 +440,11 @@ export const postReadDeadlineLine = (waited: string): string =>
 
 export const REREAD_FAILED =
   "Boom did not answer the re-read, so the register is showing the figures it already had.";
+
+/** Boom refused the verification page. Its own words, and no link: a control
+ *  that opened nothing would be worse than the sentence. */
+export const verifyFailedLine = (reason: string): string =>
+  `Boom did not open the verification page: ${reason}`;
 
 export const PROVISIONAL_NOTE =
   "Provisional, read in the browser before anything was sent. Boom's own spread replaces it.";
@@ -913,6 +968,9 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
     newPeriod: onFileRead.period,
     validationStatus: null,
     validationUrl: null,
+    verifiable: Boolean(deps.adapter.validationSession),
+    verifying: false,
+    verifyError: null,
     postRead: [],
     refusals: [],
     notice: null,
@@ -1059,32 +1117,75 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
   const row = (fileId: string, patch: Partial<LadderRow>) =>
     set({ rows: state.rows.map((r) => (r.fileId === fileId ? { ...r, ...patch } : r)) });
 
+  /** Boom already has a plan in this room. Asked again after any await, because
+   *  a resume that took a round trip to decide may find a drop confirmed under
+   *  it. A function rather than an expression so the check is re-read and never
+   *  narrowed away. */
+  const busy = (): boolean => state.stage === "sending" || state.stage === "spread";
+
+  /** What one watched file left behind.
+   *
+   *  `open` is the whole reason this is not just a result: it says Boom is STILL
+   *  holding the file unsettled, which is exactly when the receipt must survive.
+   *  The room used to drop the handle on every outcome, so the one case it was
+   *  written for - a file still spreading when the room closed - was the one
+   *  case it never covered. */
+  interface WatchOutcome {
+    result: BoomUploadResult | null;
+    open: boolean;
+  }
+
   /**
    * Wait on one file until Boom has it somewhere terminal.
    *
-   * THE SERVER OWNS THE BLOCKING (`boom_await_file`, 25 seconds by its own
-   * design) and this owns the TOTAL. Where an adapter offers no bounded wait
-   * the room polls `status` on its own clock instead, which is the same shape
-   * a beat slower.
+   * THE SERVER OWNS THE BLOCKING (`boom_await_file`) and this owns the TOTAL.
+   * Where an adapter offers no bounded wait the room polls `status` on its own
+   * clock instead, which is the same shape a beat slower.
    *
    * THE FIRST BUDGET IS A STATEMENT AND THE SECOND IS A QUESTION. Boom
    * routinely takes longer than two minutes; a room that put two doors in
    * front of a banker at the first one would be interrupting work that is
    * going perfectly well. So the first expiry says the room is still checking
    * and re-arms itself, and only the second stops and offers the doors.
+   *
+   * A WAIT THAT FAILED IS NOT A FILE THAT FAILED (founder, 2026-09-15 19:37
+   * UTC, Hartwell). Once `boom_process_file` has answered, the bytes are Boom's
+   * and the only thing a rejected `boom_await_file` or `boom_get_file` can
+   * possibly mean is that the ROOM did not hear back: a page clock, an abort, a
+   * 502, an envelope off the relay. None of that is knowledge about the file,
+   * and the room used to write "Failed" on the glass for all of it. It now
+   * treats every such rejection as a miss: the row stays where Boom last put it,
+   * the room says it is still checking, and the poll re-arms. Only two things
+   * end a file badly: Boom's OWN `failed` rung, with Boom's own message, and a
+   * rung refused before there was a file id at all (which is `runLadder`, not
+   * this).
    */
-  async function watch(
-    fileId: string,
-    name: string,
-    first: BoomUploadResult,
-  ): Promise<BoomUploadResult | null> {
+  async function watch(fileId: string, name: string, first: BoomUploadResult): Promise<WatchOutcome> {
     let latest = first;
     const startedAt = Date.now();
     let until = startedAt + BOOM_WAIT_BUDGET_MS;
     let saidStillProcessing = false;
+    /** Consecutive transport rejections. Resets on any answer. */
+    let misses = 0;
+    /** A `status` answer has been taken SINCE the file became readable, which is
+     *  the only answer that carries the statements: the wait reports a rung and
+     *  nothing else. */
+    let readFull = false;
     const waiting = () => latest.status === "processing" || latest.status === "waiting_for_upload";
 
-    while (!dead && waiting()) {
+    while (!dead) {
+      // Boom's own words, verbatim. Boom has no structured failure reason (Q&A
+      // tracker #14), so there is nothing else to read and a second round trip
+      // would only confirm the rung.
+      if (latest.status === "failed") {
+        row(fileId, { state: "failed", message: latest.message ?? null });
+        return { result: null, open: false };
+      }
+      if (!waiting() && readFull) {
+        set({ notice: null });
+        return { result: latest, open: false };
+      }
+
       if (Date.now() >= until) {
         if (!saidStillProcessing) {
           saidStillProcessing = true;
@@ -1094,60 +1195,81 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
           set({ notice: null, stall: { fileId, name, line: stallLine(name, minutesWaited(startedAt)) } });
           if (!(await waitOnStall())) {
             row(fileId, { stalled: true });
-            return null;
+            return { result: null, open: true };
           }
           until = Date.now() + BOOM_WAIT_BUDGET_MS;
         }
       }
-      if (dead) return null;
+      if (dead) return { result: null, open: true };
+
+      /* WHICH CALL. The blocking wait while the file is moving and the transport
+         is carrying it; the plain read once Boom is ready (it is the answer that
+         carries the spread) or once the blocking call has missed twice in a row. */
+      const blocking = waiting() && Boolean(deps.adapter.awaitSettled) && misses < BOOM_AWAIT_MISS_FALLBACK;
       try {
         /* A FLOOR UNDER THE LOOP, WHATEVER THE ADAPTER DOES. The server's own
-           wait blocks for up to twenty seconds, so the pause is normally its.
-           An adapter that answers instantly - a fixture, a server that
-           short-circuits a settled file - would otherwise spin this loop as
-           fast as the event loop allows and hammer the connector for the whole
-           budget. The floor is paid only while the file is still moving. */
+           wait blocks for its seconds, so the pause is normally its. An adapter
+           that answers instantly - a fixture, a server that short-circuits a
+           settled file - would otherwise spin this loop as fast as the event
+           loop allows and hammer the connector for the whole budget. The floor
+           is paid only while the file is still moving. */
         const askedAt = Date.now();
-        latest = deps.adapter.awaitSettled
+        latest = blocking
           ? await withDeadline(
               (signal) => deps.adapter.awaitSettled!(latest.fileId, BOOM_AWAIT_SECONDS, { signal }),
               "stage",
               `${name} at Boom`,
             )
           : await withDeadline((signal) => deps.adapter.status(latest.fileId, { signal }), "read", `${name} at Boom`);
+        misses = 0;
+        readFull = !blocking && !waiting();
+        row(fileId, { state: uploadStateOf(latest.status), message: latest.message ?? null });
         if (waiting() && Date.now() - askedAt < POLL_EVERY_MS) await sleep(POLL_EVERY_MS);
       } catch (e) {
-        if (!isDeadline(e)) {
-          row(fileId, { state: "failed", message: messageOf(e) });
-          return null;
-        }
-        continue;
+        /* THE MISS. Nothing about the FILE changed, so nothing on its row does
+           either: `latest` is untouched and the loop asks again. The only
+           visible effect is the room saying out loud that it is still checking,
+           which is true, and which a banker can act on in a way that
+           "[object Object]" never was. */
+        misses += 1;
+        const line = stillProcessingLine(name);
+        if (state.notice !== line) set({ notice: line });
+        if (dead) return { result: null, open: true };
+        await sleep(POLL_EVERY_MS);
       }
-      row(fileId, { state: uploadStateOf(latest.status), message: latest.message ?? null });
     }
-    if (dead) return null;
-    // Boom's own words, verbatim, where the wait carried any. Boom has no
-    // structured failure reason (Q&A tracker #14), so there is nothing else
-    // to read and a second round trip would only confirm the rung.
-    if (latest.status === "failed") {
-      row(fileId, { state: "failed", message: latest.message ?? null });
-      return null;
-    }
-    /* THE WAIT CARRIES NO SPREAD. `boom_await_file` reports a rung and
-       nothing else, so the statements are read once, here, off the file that
-       has just become readable. */
+    return { result: null, open: true };
+  }
+
+  /**
+   * WHAT BOOM IS STILL HOLDING FOR THIS RELATIONSHIP, asked when the room has no
+   * receipt of its own.
+   *
+   * UNSETTLED RUNGS ONLY, and that is the whole safety of it. Boom's file list
+   * for a borrower is its whole history: Piedmont's carries files from May and
+   * June, completed and verified. Resuming onto one of those would put an old
+   * spread on the glass as though the banker had just asked for it. A file at
+   * `processing` or `waiting_for_upload` can only be work in flight right now,
+   * and rejoining that is the entire point.
+   *
+   * A read that misses says nothing and costs nothing: the room opens on its
+   * drop zone, which is where it opens anyway.
+   */
+  async function recoverHandles(): Promise<BoomFileHandle[]> {
+    const list = deps.adapter.listFiles;
+    if (!list) return [];
     try {
-      const full = await withDeadline(
-        (signal) => deps.adapter.status(latest.fileId, { signal }),
-        "read",
-        `${name} at Boom`,
-      );
-      row(fileId, { state: uploadStateOf(full.status), message: full.message ?? null });
-      set({ notice: null });
-      return full;
-    } catch (e) {
-      row(fileId, { state: "failed", message: messageOf(e) });
-      return null;
+      const files = await withDeadline((signal) => list(ctx.accountId, { signal }), "read", `${ctx.company} at Boom`);
+      return files
+        .filter((f) => f.status === "processing" || f.status === "waiting_for_upload")
+        .map((f) => ({
+          fileId: f.fileId,
+          companyId: null,
+          fileName: f.fileName,
+          startedAt: f.createdAt ? Date.parse(f.createdAt) || Date.now() : Date.now(),
+        }));
+    } catch {
+      return [];
     }
   }
 
@@ -1278,10 +1400,13 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
           `${item.name} going to Boom`,
         );
       } catch (e) {
+        /* THE ONE PLACE A REFUSAL IS STILL A FAILED FILE: there is no file id
+           yet, so nothing is in Boom and nothing can be resumed. Boom's own
+           ladder never got past the reservation. */
         row(item.fileId, {
           state: isDeadline(e) ? "processing" : "failed",
           stalled: isDeadline(e),
-          message: isDeadline(e) ? null : messageOf(e),
+          message: isDeadline(e) ? null : failureText(e),
         });
         if (!isDeadline(e)) continue;
         set({ stall: { fileId: item.fileId, name: item.name, line: stallLine(item.name, waitedFor(e)) } });
@@ -1307,9 +1432,13 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
         reused: result.reused === true,
       });
       if (result.reused) refuse(reusedLine(item.name));
-      const settled = await watch(item.fileId, item.name, result);
-      if (settled) landed.push(settled);
-      deps.forgetFile?.(result.fileId);
+      const watched = await watch(item.fileId, item.name, result);
+      if (watched.result) landed.push(watched.result);
+      /* THE RECEIPT OUTLIVES THE WAIT, AND ONLY THE WAIT. A file Boom settled
+         (either way) is finished with; a file Boom is still holding keeps its
+         handle, which is the one thing that lets the next session rejoin the
+         wait instead of sending the same bytes again. */
+      if (!watched.open) deps.forgetFile?.(result.fileId);
     }
 
     await settleSpread(landed);
@@ -1406,49 +1535,80 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
     /**
      * PICK THE WAIT BACK UP, NEVER SEND AGAIN.
      *
-     * The handle says Boom already holds these bytes, so the room reads where
-     * the file got to (`boom_get_file`, one call) and rejoins the wait from
-     * there. A file that has settled while the room was shut lands its spread
+     * Each handle says Boom already holds those bytes, so the room reads where
+     * each file got to (`boom_get_file`, one call each) and rejoins the wait
+     * from there. A file that settled while the room was shut lands its spread
      * on the first read and the banker walks straight into the Financials.
+     *
+     * PLURAL SINCE 0.9.29, because a plan is (founder, 2026-09-15: three files
+     * in one drop on Hartwell). The room held ONE receipt per relationship, so
+     * the second file overwrote the first and the third overwrote the second;
+     * whichever file the banker came back for, at most one could be found.
+     *
+     * HANDED NOTHING, IT ASKS BOOM. The receipts live in module memory
+     * (`spreadSession`) and die with the document, so a reloaded page has none
+     * even while Boom is still spreading three files. `boom_list_files` is the
+     * only record left, and it is read for the UNSETTLED rungs only: a file
+     * Boom completed weeks ago is that borrower's history, not this session's
+     * work, and putting its spread on the glass unasked would be worse than
+     * opening on the drop zone.
      */
-    async resume(handle: BoomFileHandle) {
-      if (state.stage === "sending" || state.stage === "spread") return;
+    async resume(handles: readonly BoomFileHandle[]) {
+      if (busy()) return;
+      const known = handles.length ? [...handles] : await recoverHandles();
+      if (!known.length || dead || busy()) return;
+
       set({
         stage: "sending",
         notice: null,
-        refusals: [...state.refusals, resumedLine(handle.fileName)],
-        rows: [
-          {
-            fileId: handle.fileId,
-            name: handle.fileName,
-            state: "processing" as UploadState,
-            boomFileId: handle.fileId,
-            message: null,
-            stalled: false,
-          },
-        ],
+        refusals: [...state.refusals, ...known.map((h) => resumedLine(h.fileName))],
+        rows: known.map((h) => ({
+          fileId: h.fileId,
+          name: h.fileName,
+          state: "processing" as UploadState,
+          boomFileId: h.fileId,
+          message: null,
+          stalled: false,
+        })),
       });
-      let first: BoomUploadResult;
-      try {
-        first = await withDeadline(
-          (signal) => deps.adapter.status(handle.fileId, { signal }),
-          "read",
-          `${handle.fileName} at Boom`,
-        );
-      } catch (e) {
-        row(handle.fileId, { state: "failed", message: messageOf(e) });
+
+      const landed: BoomUploadResult[] = [];
+      for (const handle of known) {
+        if (dead) return;
+        let first: BoomUploadResult;
+        try {
+          first = await withDeadline(
+            (signal) => deps.adapter.status(handle.fileId, { signal }),
+            "read",
+            `${handle.fileName} at Boom`,
+          );
+        } catch {
+          /* THE FIRST READ MISSED, WHICH SAYS NOTHING ABOUT THE FILE. Boom has
+             it either way, so the row stays where it is, the receipt stays
+             written and the wait carries on: exactly the treatment every later
+             miss gets, and the reason none of them prints "Failed" any more. */
+          const watched = await watch(handle.fileId, handle.fileName, {
+            fileId: handle.fileId,
+            companyId: handle.companyId,
+            fileGroupId: null,
+            status: "processing",
+          });
+          if (watched.result) landed.push(watched.result);
+          if (!watched.open) deps.forgetFile?.(handle.fileId);
+          continue;
+        }
+        row(handle.fileId, { state: uploadStateOf(first.status), message: first.message ?? null });
+        if (first.status === "processing" || first.status === "waiting_for_upload") {
+          const watched = await watch(handle.fileId, handle.fileName, first);
+          if (watched.result) landed.push(watched.result);
+          if (!watched.open) deps.forgetFile?.(handle.fileId);
+          continue;
+        }
+        if (first.status !== "failed") landed.push(first);
         deps.forgetFile?.(handle.fileId);
-        await settleSpread([]);
-        return;
       }
-      row(handle.fileId, { state: uploadStateOf(first.status), message: first.message ?? null });
-      const settled = first.status === "processing" || first.status === "waiting_for_upload"
-        ? await watch(handle.fileId, handle.fileName, first)
-        : first.status === "failed"
-          ? null
-          : first;
-      deps.forgetFile?.(handle.fileId);
-      await settleSpread(settled ? [settled] : []);
+      if (dead) return;
+      await settleSpread(landed);
     },
 
     /* THE BASIS IS A RE-READ (design 0.9.28). Boom holds both reads of the same
@@ -1471,6 +1631,36 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
         set({ adjusted: next, statements: reads.flat(), notice: null });
       } catch {
         set({ notice: REREAD_FAILED });
+      }
+    },
+
+    /**
+     * OPEN THE ANALYST'S PAGE IN BOOM, ON THE BANKER'S CLICK AND NEVER BEFORE.
+     *
+     * `boom_open_verification` mints a session token that lives 60 minutes.
+     * Calling it at render would burn one for every banker who opened a spread
+     * to read it, and the room has no way to know in advance which of them will
+     * verify anything. So it is lazy, it is one call, and a refusal is said in
+     * the org's own words rather than left as a link that opens nothing.
+     *
+     * BY FILE, and the file is one Boom has actually spread: a verification
+     * page for a file still processing would be a page with nothing on it.
+     */
+    async openVerification() {
+      const open = deps.adapter.validationSession;
+      if (!open || state.verifying || state.validationUrl) return;
+      const fileId = state.rows.find(
+        (r) => r.boomFileId && (r.state === "completed" || r.state === "verified"),
+      )?.boomFileId;
+      if (!fileId) return;
+      set({ verifying: true, verifyError: null });
+      try {
+        const session = await withDeadline(() => open(fileId), "read", "the Boom verification page");
+        if (dead) return;
+        set({ verifying: false, validationUrl: session.url, verifyError: null });
+      } catch (e) {
+        if (dead) return;
+        set({ verifying: false, verifyError: verifyFailedLine(failureText(e)) });
       }
     },
 
@@ -1517,8 +1707,62 @@ function uploadStateOf(status: BoomUploadResult["status"]): UploadState {
   }
 }
 
-function messageOf(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+/**
+ * THE ONE PLACE A REJECTION BECOMES WORDS ON THE GLASS.
+ *
+ * FOUNDER, 2026-09-15 19:37 UTC, Hartwell, the first live upload out of this
+ * room: three files, each row reading `Failed` and, as its reason,
+ * "[object Object]". The room had `e instanceof Error ? e.message : String(e)`,
+ * and NOTHING that rejects on this path is an Error: `callTool` throws a spread
+ * of its normalized failure (`{ ...failure, attempts }`, channel/mcp.ts) and its
+ * own wall clock throws a `LaneTimeout` object literal. `String()` of either is
+ * "[object Object]", which is the page telling a banker nothing at all about a
+ * file that was sitting safely in Boom.
+ *
+ * SO THE SHAPES ARE HANDLED, IN ORDER, AND THERE IS NO FINAL `String()`:
+ *   an Error            its message
+ *   a string            itself
+ *   { message }         the message, which is where every McpFailure and every
+ *                       Boom refusal puts its own words
+ *   { code }            the code, where a failure arrived with no message
+ *   anything else       JSON, so the reason is at worst readable and never a
+ *                       type name
+ *   nothing at all      one stated sentence, because an empty reason beside the
+ *                       word "Failed" is the same defect in a quieter voice
+ *
+ * Capped, because this lands inside one row on one line.
+ */
+export const NO_REASON_GIVEN = "No reason was given.";
+
+/** How much of a reason fits on a ladder row. */
+export const FAILURE_TEXT_MAX = 240;
+
+export function failureText(e: unknown): string {
+  return clip(rawFailureText(e));
+}
+
+function clip(text: string): string {
+  const one = text.replace(/\s+/g, " ").trim();
+  if (!one) return NO_REASON_GIVEN;
+  return one.length <= FAILURE_TEXT_MAX ? one : `${one.slice(0, FAILURE_TEXT_MAX - 1)}…`;
+}
+
+function rawFailureText(e: unknown): string {
+  if (e instanceof Error) return e.message || e.name || NO_REASON_GIVEN;
+  if (typeof e === "string") return e;
+  if (e === null || e === undefined) return NO_REASON_GIVEN;
+  if (typeof e !== "object") return String(e);
+  const envelope = e as { message?: unknown; code?: unknown };
+  if (typeof envelope.message === "string" && envelope.message.trim()) return envelope.message;
+  if (typeof envelope.code === "string" && envelope.code.trim()) return envelope.code;
+  try {
+    const json = JSON.stringify(e);
+    return json && json !== "{}" ? json : NO_REASON_GIVEN;
+  } catch {
+    // A cycle, a getter that throws, a BigInt: still not a reason to print a
+    // type name at a banker.
+    return NO_REASON_GIVEN;
+  }
 }
 
 /** How long the room has been waiting, in the unit a banker would say it in. */

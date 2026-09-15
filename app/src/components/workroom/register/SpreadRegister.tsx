@@ -74,8 +74,17 @@ export interface SpreadRegisterProps {
   onAdjustedChange?: (next: boolean) => void;
   /** The period a fresh upload added, marked the room's way. */
   newPeriodEnd?: string | null;
-  /** The analyst verification page, where the room holds one. */
+  /** The analyst verification page, ONCE the room has been asked to mint one.
+   *  Null until then, and that is the design: the session token lives 60
+   *  minutes and is spent on a click, never at render (row 61, 0.9.29). */
   verificationUrl?: string | null;
+  /** Ask Boom for that page. Absent where the lane has none to give, and the
+   *  control is then not drawn at all. */
+  onVerify?: () => void;
+  /** The call is out. */
+  verifying?: boolean;
+  /** Boom's own words on a refusal. Shown INSTEAD of a link, never beside one. */
+  verifyError?: string | null;
   provenance?: SpreadRegisterProvenance | null;
 }
 
@@ -91,6 +100,7 @@ const CODE_HEAD = "Mapped account code";
 const LINE_HEAD = "Reported line item";
 const UNMAPPED = "unmapped";
 const OPEN_IN_BOOM = "Open in Boom";
+const OPENING_BOOM = "Opening Boom";
 const SPREAD_BY_BOOM = "Spread by Boom";
 const MISMAP_TITLE = "Boom returned no account code for this line, so it is not in Boom's aggregate.";
 const NOT_MEANINGFUL_TITLE = "Not meaningful: the prior period is zero or negative.";
@@ -111,6 +121,9 @@ export function SpreadRegister({
   onAdjustedChange,
   newPeriodEnd = null,
   verificationUrl = null,
+  onVerify,
+  verifying = false,
+  verifyError = null,
   provenance = null,
 }: SpreadRegisterProps) {
   const compact = mode === "compact";
@@ -393,14 +406,26 @@ export function SpreadRegister({
         </table>
       </div>
 
-      {!compact && (provLine || verificationUrl) && (
+      {!compact && (provLine || verificationUrl || onVerify || verifyError) && (
         <div className="rg-prov">
           <b>{SPREAD_BY_BOOM}</b>
           {provLine && <span className="rg-provline">{provLine}</span>}
-          {verificationUrl && (
+          {verifyError && <span className="rg-proverr">{verifyError}</span>}
+          {/* THE LINK ONLY ONCE BOOM HAS MINTED THE SESSION. Before that the
+              control is a BUTTON that asks for one, because there is no URL to
+              put in an href and a link to nowhere is the defect row 61 opened
+              on. After it, the real anchor, so the banker's own click is what
+              navigates and no popup blocker sits between them and the page. */}
+          {verificationUrl ? (
             <a className="rg-provlink" href={verificationUrl} target="_blank" rel="noreferrer">
               {OPEN_IN_BOOM}
             </a>
+          ) : (
+            onVerify && (
+              <button type="button" className="rg-provlink" onClick={onVerify} disabled={verifying}>
+                {verifying ? OPENING_BOOM : OPEN_IN_BOOM}
+              </button>
+            )
           )}
         </div>
       )}

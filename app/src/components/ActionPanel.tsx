@@ -37,7 +37,7 @@ import { ConfirmGate } from "./ConfirmGate";
 import { StepTracker } from "./StepTracker";
 import { TechnicalToggle } from "./ui";
 import { isSimulationAllowed, simulateStagedOutput, type StagedOutput } from "../actions/stagedPlan";
-import { byDeadline, isDeadline } from "./workroom/deadline";
+import { byDeadline, isDeadline, DEADLINES } from "./workroom/deadline";
 import {
   executeAction,
   isLostWriteAnswer,
@@ -54,7 +54,15 @@ import { observedPicklistMap } from "../actions/observedPicklists";
 import { newRequestId } from "../channel/adapter";
 import { initTracker, type TrackerState } from "../actions/tracker";
 import { executedActivityEntry, versionDiscardedActivityEntry } from "../actions/executedActivity";
-import { isDiscardRefusal, DISCARD_ACTION_ID, NO_VERSION_REASON } from "../actions/discardVersion";
+import {
+  isDiscardRefusal,
+  DISCARD_ACTION_ID,
+  DISCARD_LABEL,
+  DISCARD_OBJECT_TITLES,
+  NO_VERSION_REASON,
+} from "../actions/discardVersion";
+import { GovernedStage } from "./GovernedStage";
+import { forgetRun, recallRun, rememberRun, stoppedMidRun } from "../actions/resumeRun";
 import { discardTargetFor } from "../actions/discardTarget";
 import { bundleAfterDiscard } from "../channel/syncSweep";
 import { packageDeepLink } from "./DeepLink";
@@ -419,10 +427,15 @@ export function ActionPanel({
   actionId,
   onClose,
   returnFocusTo,
+  resumeStagingId,
 }: {
   actionId: string;
   onClose: () => void;
   returnFocusTo?: () => HTMLElement | null;
+  /** A run THIS PAGE made that stopped part way (0.9.29, backlog row 64). The
+   *  panel opens straight on the governed stage's stop scene, on the frozen
+   *  plan the banker already confirmed, and the only gesture is the resume. */
+  resumeStagingId?: string;
 }) {
   const { data, state, worklist, dispatch } = useApp();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -518,7 +531,9 @@ export function ActionPanel({
   const [acknowledged, setAcknowledged] = useState<Record<string, string>>({});
   /** briefing -> compile -> plan -> execution. Compile is the bridge, not a
    *  stop on the stepper: it is how the plan gets built. */
-  const [phase, setPhase] = useState<Phase>("form");
+  /** A resume opens on the stage, on the plan the banker already confirmed. */
+  const resumed = useMemo(() => (resumeStagingId ? recallRun(resumeStagingId) : null), [resumeStagingId]);
+  const [phase, setPhase] = useState<Phase>(resumed ? "tracker" : "form");
   const [showAllFields, setShowAllFields] = useState(false);
   /** The panel element, as STATE: a ref alone never re-renders, so the sheet's
    *  portal host would stay null forever after the first pass. */
@@ -527,12 +542,12 @@ export function ActionPanel({
   /** The values the current plan was built from. Editing away from these means
    *  the plan on the next screen is stale and has to be rebuilt. */
   const [stagedValues, setStagedValues] = useState<string | null>(null);
-  const [plan, setPlan] = useState<StagedOutput | null>(null);
+  const [plan, setPlan] = useState<StagedOutput | null>(resumed?.plan ?? null);
   const [tracker, setTracker] = useState<TrackerState | null>(null);
   const [token, setToken] = useState<DecisionToken | null>(null);
   const [toolError, setToolError] = useState<ToolError | null>(null);
   const [live, setLive] = useState(false);
-  const [outcome, setOutcome] = useState<ExecuteResult | null>(null);
+  const [outcome, setOutcome] = useState<ExecuteResult | null>(resumed?.outcome ?? null);
   /** How the filing was obtained, where that is a fact of its own: on the second
    *  ask, or read off the org's trail after the answer was lost. */
   const [filingNote, setFilingNote] = useState<string | null>(null);
@@ -541,12 +556,16 @@ export function ActionPanel({
   const [continuing, setContinuing] = useState(false);
   /** The Salesforce id of the banker who CONFIRMED this plan. Bound at confirm
    *  and used for every resume, so a resume can never run as someone else. */
-  const approverRef = useRef<string | null>(null);
+  const approverRef = useRef<string | null>(resumed?.approverUserId ?? null);
   /** Stable across a stage/execute pair and across resume (A33.3.5). Ours, not
    *  nCino's: the platform is known to duplicate on failed background Apex. */
-  const idempotencyKeyRef = useRef<string>(newRequestId());
+  const idempotencyKeyRef = useRef<string>(resumed?.idempotencyKey ?? newRequestId());
   /** Set by the ticket while an option sheet is open (A31.1 stacking). */
   const sheetCloserRef = useRef<(() => void) | null>(null);
+  /** The governed stage's heading, bound the first time the stage opens. */
+  const stageTitleRef = useRef<string | null>(null);
+  /** Where the stage's closing scene points, bound at the same instant. */
+  const stageDoneHrefRef = useRef<string | null>(null);
 
   const engine = useMemo(
     () => computeSuggestions({ data, bundle, actionId, liveStoredAt, liveSections }),
@@ -1024,7 +1043,7 @@ export function ActionPanel({
                 throw {
                   code: "TRANSPORT",
                   message:
-                    "The org has not answered the staging call in 25 seconds, so I have stopped waiting on it. " +
+                    `The org has not answered the staging call in ${Math.round(DEADLINES.stage / 1000)} seconds, so I have stopped waiting on it. ` +
                     "Staging writes nothing, so nothing has been filed and the briefing is exactly as you left it.",
                 };
               }
@@ -1143,6 +1162,25 @@ export function ActionPanel({
             accountId: activityAccountId,
             patch: bundleAfterDiscard(bundle, discarded.version.id),
           });
+        }
+        /* A RUN THAT STOPPED PART WAY IS AN OPEN RUN (backlog row 64). What a
+           resume needs is held for exactly as long as this page lives: the same
+           key, the same server token and the frozen plan. A run that finished
+           is not resumable and is dropped. */
+        if (plan) {
+          const bound = approverRef.current;
+          if (stoppedMidRun(executed) && bound) {
+            rememberRun({
+              actionId,
+              plan,
+              idempotencyKey: idempotencyKeyRef.current,
+              approverUserId: bound,
+              approver: data.meta?.user,
+              outcome: executed,
+            });
+          } else {
+            forgetRun(plan.stagingId);
+          }
         }
       } else {
         const entry = executedActivityEntry({
@@ -1290,6 +1328,76 @@ export function ActionPanel({
     if (f.prefill.source === "AGENT_NARRATIVE") {
       setEditedFields((prev) => (prev.includes(f.key) ? prev : [...prev, f.key]));
     }
+  }
+
+  /* ==========================================================================
+     THE GOVERNED-ACTION STAGE TAKES THE PAGE (0.9.29, backlog row 65).
+
+     FOUNDER, 2026-09-15, on the discard: "way more sleeker, and ideally the
+     execution on a different page after where its working bit more cinematic".
+     So once the plan is staged, the discard leaves the modal entirely: the
+     relationship dims behind a centred glass sheet that carries the plan, the
+     confirmation and the run on one surface, and empties itself as the version
+     leaves the org. The briefing and the compile stay in the panel below;
+     everything from the plan onward is the stage.
+
+     ONLY THIS PAIR IS WIRED. The stage is generic over the stage/execute
+     contract and every other action keeps its confirm gate and its tracker.
+     ========================================================================== */
+  if (actionId === DISCARD_ACTION_ID && plan && (phase === "confirm" || phase === "tracker")) {
+    /* THE TITLE IS FIXED THE FIRST TIME THE STAGE OPENS. A successful discard
+       patches the version off the bundle, so re-reading the roster mid-run took
+       the version's name out of the sheet's own heading while the run that was
+       removing it was still on the glass. The stage names what it is doing,
+       from open to fold. */
+    if (!stageTitleRef.current) {
+      const target = discardTargetFor(bundle, null);
+      stageTitleRef.current = target ? `Discard the version ${target.version.name}` : "Discard the version";
+      /* AND THE ADDRESS THE CLOSE OFFERS. What the discard removed cannot be
+         opened, so the door at the end is the BOOKED package the relationship
+         returns to, resolved while the roster can still name it. */
+      stageDoneHrefRef.current = target?.source
+        ? packageDeepLink(data.meta?.instanceUrl, target.source.id)
+        : null;
+    }
+    return (
+      <GovernedStage
+        plan={plan}
+        actionId={actionId}
+        title={stageTitleRef.current}
+        objectTitles={DISCARD_OBJECT_TITLES}
+        commitLabel={DISCARD_LABEL}
+        simulated={!live}
+        idempotencyKey={idempotencyKeyRef.current}
+        liveStoredAt={liveStoredAt}
+        liveSections={liveSections}
+        asOf={asOf}
+        resume={resumed}
+        backLabel={`Back to ${accountName}`}
+        stopDoor={
+          versionHref ? (
+            <a href={versionHref} target="_blank" rel="noreferrer" data-deeplink="version" className="wk-sheet-go">
+              Open the version in nCino
+            </a>
+          ) : null
+        }
+        closeDoor={
+          stageDoneHrefRef.current ? (
+            <a
+              href={stageDoneHrefRef.current}
+              target="_blank"
+              rel="noreferrer"
+              data-deeplink="source"
+              className="wk-sheet-go"
+            >
+              Open the booked package in nCino
+            </a>
+          ) : null
+        }
+        onConfirmed={onConfirmed}
+        onClose={onClose}
+      />
+    );
   }
 
   return (

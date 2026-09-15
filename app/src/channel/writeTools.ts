@@ -17,7 +17,7 @@
    and Result inner classes), never guessed.
    ============================================================================= */
 
-import { callTool, failedAttempts, SERVERS, TOOLS, unwrapInvocableOne, type McpFailure } from "./mcp";
+import { callTool, failedAttempts, SERVERS, TOOLS, unwrapInvocableOne, type McpFailure, type WriteDoor } from "./mcp";
 import { isTerminalStatus, readActionState } from "./cockpitTools";
 import type { ActionHistoryRow } from "../data/contract";
 import type { PlanStep, StagedAssociation, StagedCovenant, StagedFacility, StagedItem, StagedOutput, StepType } from "../actions/stagedPlan";
@@ -490,9 +490,17 @@ function toStagedItem(raw: Record<string, unknown>): StagedItem {
     writeStepId: typeof raw.writeStepId === "string" ? raw.writeStepId : undefined,
     verifyStepId: typeof raw.verifyStepId === "string" ? raw.verifyStepId : undefined,
     rollupStepId: typeof raw.rollupStepId === "string" ? raw.rollupStepId : undefined,
-    // 0.9.23 discard inventory (SPEC-0.9.23-TOOL-CONTRACT pair 2).
-    object: typeof raw.object === "string" ? raw.object : undefined,
-    id: typeof raw.id === "string" ? raw.id : undefined,
+    /* 0.9.23 discard inventory (SPEC-0.9.23-TOOL-CONTRACT pair 2).
+
+       THE WIRE SPELLS THESE `objectName` AND `recordId`, observed on the live
+       Sunbelt plan (STG-0000000169, 2026-09-15). Reading only `object` and `id`
+       dropped every one of its 32 rows as "not an inventory row", so the
+       surface that renders what a discard deletes rendered nothing at all over
+       a plan that deletes 32 records. Both spellings are read and the wire's
+       wins; `id` is what `assertNoRecordIds` allowlists by path, so the
+       normalisation keeps that fence pointed at the same place. */
+    object: str(raw.objectName) ?? str(raw.object),
+    id: str(raw.recordId) ?? str(raw.id),
     name: typeof raw.name === "string" ? raw.name : undefined,
     reason: typeof raw.reason === "string" ? raw.reason : undefined,
     associations: parseAssociations(raw.associations),
@@ -1226,6 +1234,10 @@ async function findStagedRow(args: {
 export type StageOutcome = ToolOutcome<StagedOutput> & {
   /** How many times the same key went out. One means it answered first time. */
   attempts: number;
+  /** WHICH DOOR CARRIED IT (0.9.29). `backup` means the Salesforce hop spent its
+   *  ladder on a transport failure and the same key went out through the write
+   *  door we run. Absent on an outcome no call produced. */
+  door?: WriteDoor;
   /** The staging row an earlier lost attempt left in the org, when this plan had
    *  to be re-issued under a fresh key to obtain a token. Its presence is what
    *  lets a room say "filed as STG-0000000149 on the second ask" rather than
@@ -1381,7 +1393,7 @@ async function stageOnce<K extends WriteActionId>(
     covenantCarryoverCount: typeof r.covenantCarryoverCount === "number" ? r.covenantCarryoverCount : undefined,
     provenance: parseProvenance(r.provenanceJson),
   }));
-  return { ...out, attempts: res.attempts ?? 1 };
+  return { ...out, attempts: res.attempts ?? 1, door: res.door };
 }
 
 /* ---------------------------------------------------------------- execute */
@@ -1437,6 +1449,8 @@ export function resolveApproverUserId(meta: { user?: string; userId?: string } |
 /** What an execute answered, plus how the answer was obtained. */
 export type ExecuteOutcome = ToolOutcome<ExecuteResult> & {
   attempts: number;
+  /** Which door carried it (0.9.29). See {@link StageOutcome.door}. */
+  door?: WriteDoor;
   /** True when the wire never answered and this outcome was read off the org's
    *  own trail. The run is the org's either way; the room says which. */
   recovered?: boolean;
@@ -1629,7 +1643,7 @@ export async function executeAction(
         })
       : [],
   }));
-  return { ...out, attempts: res.attempts ?? 1 };
+  return { ...out, attempts: res.attempts ?? 1, door: res.door };
 }
 
 /** A non-empty string, or undefined. Blank is not a name. */

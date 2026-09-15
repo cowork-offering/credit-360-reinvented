@@ -28,7 +28,8 @@ import type { BoomFileHandle } from "../../workroom/spreadEngine";
    send the same file again and Boom would spread it twice. So the fileId, the
    company and the name are kept, per relationship, for exactly as long as the
    file is unsettled: the room resumes from `boom_get_file` and sends nothing.
-   It is deliberately NOT the bytes and NOT the plan; it is a receipt.
+   It is deliberately NOT the bytes and NOT the plan; it is a receipt, and
+   there is one PER FILE: a plan of three statements leaves three.
    ============================================================================= */
 
 export interface SpreadSession {
@@ -51,26 +52,40 @@ export function openSpreadingRoom(context: { accountId: string; accountName: str
 
 /* ------------------------------------------------------- the file receipts */
 
-/** Per relationship, the file Boom is still working on. */
-const pending = new Map<string, BoomFileHandle>();
+/**
+ * Per relationship, EVERY file Boom is still working on.
+ *
+ * ONE RECEIPT PER FILE, NOT PER RELATIONSHIP (0.9.29). It was a flat
+ * `Map<accountId, handle>`, which is a store with room for exactly one file,
+ * and a plan is routinely more than one: on 2026-09-15 the founder dropped
+ * three statements on Hartwell in one gesture, so the second receipt overwrote
+ * the first and the third overwrote the second. Whichever file the banker came
+ * back for, at most one of the three could be found. The inner map is keyed by
+ * Boom's own file id and holds them in the order they were sent, which is the
+ * order the room walks them back.
+ */
+const pending = new Map<string, Map<string, BoomFileHandle>>();
 
 /** Boom has these bytes. Written the moment a file id exists, not when the room
  *  gives up waiting: a session can die anywhere in between. */
 export function rememberBoomFile(accountId: string, handle: BoomFileHandle): void {
-  pending.set(accountId, handle);
+  const forAccount = pending.get(accountId) ?? new Map<string, BoomFileHandle>();
+  forAccount.set(handle.fileId, handle);
+  pending.set(accountId, forAccount);
   emit();
 }
 
 /** The file settled, or the banker walked away from it deliberately. */
 export function forgetBoomFile(accountId: string, fileId: string): void {
-  if (pending.get(accountId)?.fileId !== fileId) return;
-  pending.delete(accountId);
+  const forAccount = pending.get(accountId);
+  if (!forAccount?.delete(fileId)) return;
+  if (!forAccount.size) pending.delete(accountId);
   emit();
 }
 
-/** The file this relationship left with Boom, or none. */
-export function pendingBoomFile(accountId: string): BoomFileHandle | null {
-  return pending.get(accountId) ?? null;
+/** The files this relationship left with Boom, oldest first. */
+export function pendingBoomFiles(accountId: string): BoomFileHandle[] {
+  return [...(pending.get(accountId)?.values() ?? [])];
 }
 
 /** Tests. */

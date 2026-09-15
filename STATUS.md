@@ -2,6 +2,50 @@
 
 ## Changelog
 
+- **0.9.29 (2026-09-15)** THE STAGE, THE DOOR, AND THE WAIT. Three things a live day taught.
+  THE GOVERNED-ACTION STAGE (founder: "way more sleeker ... cinematic ... they gently and elegantly dissolve"):
+  discard-version no longer opens a popup. The stage takes the page, the relationship dims behind it, and one
+  sheet carries the action through three beats: the plan (the org's write groups as rows, count and banker names,
+  expandable to the org's exact strings and reasons), one recording line and one ink commit, then the run, where
+  the group being written carries the filling ">" and a verified group settles one beat and dissolves so the sheet
+  empties as the version leaves the org; a `filed_unverified` group stays standing in warning ink because
+  written-but-unproven is neither gone nor failed; the closing sentences are the executor's own step details;
+  then the sheet folds back into the relationship by FLIP. A stop leaves the refused group standing with the
+  org's words and one control, RESUME FROM HERE (backlog 64), same key, same token, frozen plan; the Activity
+  trail shows the same control on every Executing row that carries a result id, and a page without the token
+  says so in one line instead of showing a dead button. Reduced motion reaches the same ending. On the way the
+  fixture caught a live defect: the inventory reader spelt the wire `object`/`id` where the org sends
+  `objectName`/`recordId`, so the old popup listed nothing on a real plan. The confirm doctrine is one module
+  (`governedConfirm.ts`) that the gate and the stage both call. Primary actions moved into the glass register
+  (backlog 59): "File N changes" and "Submit N terms", never "approve"; the commit moment stays ink (rule 27/41).
+  THE WRITE DOOR (backlog 68; the founder's five stage attempts at 20:17 to 20:31 UTC answered
+  `server_unavailable` on the page while the org staged each in about half a second, STG-0000000172 to 175;
+  the same plan staged and executed first try over REST): the gateway we already run serves the 21 governed
+  stage/execute actions as `gw_<Action>` on a SEPARATE secret path (connector "Customer 360 Write Door",
+  optional; the read endpoint is byte-identical, the read prefix cannot reach the write surface, the audit
+  never carries a token or a plan). The page's ladder for an idempotent write stays three same-key attempts
+  on the Salesforce hop; on transport failure only it sends the SAME payload under the SAME key once through
+  the door, and the result names the door that carried it. The stage budget rises from 25 s to 32 s
+  (3 x 6 s attempts + 2 s + 4 s waits + one 6 s door attempt + 2 s assembly). D-W1, stated not widened: the
+  door runs as the connector's org identity, so an execute by any other viewer is refused by the org's own
+  approver gate. Spec `knowledge/SPEC-0.9.29-WRITE-DOOR.md`.
+  THE WAIT (backlog 67; the first live drop from the Spreading room, three Hartwell files at 19:37 UTC, showed
+  "Failed [object Object]" while Boom held all three and completed two PDFs in six minutes): the room asked
+  Boom to block 20 s under a 15 s read clock, so every wait died five seconds early, the timeout object was
+  printed by `String()`, a failed wait was read as a failed file, and receipts were kept per relationship so
+  three files overwrote each other. Now: `failureText()` is the one place a rejection becomes words; a rejected
+  wait after a file id exists is a miss ("Boom is still processing X. I will keep checking"), re-armed, and
+  after two misses the room polls `boom_get_file`; waits are 10 s under a clock of seconds asked plus four;
+  receipts are per file and survive an open wait; re-entry with no receipts asks `boom_list_files` for unsettled
+  rungs; Open in Boom (backlog 61) is a control that calls `boom_open_verification` on the banker's click, never
+  at render. Also: the drive gate retries a row once on a harness crash and never reads it as a room finding
+  (backlog 60, self-test `--classify-selftest`).
+  Proofs: 232 test files, 5519 tests; Boom drive 6 scenarios 43 assertions; the write-door drive on three
+  books; gateway 56 tests and the live refused `gw_StageDiscardVersion` on the booked Hartwell package; bundle
+  2,171,199 bytes (2.071 MiB) under the 2.25 MiB cap, +29.8 KB over 0.9.28 for the stage, the door and the
+  register footer. Org side today (no plugin change): discard names never ids (hotfix 1), discard takes the
+  relay door (hotfix 2).
+
 - **0.9.28 hotfix 2, org and relay (2026-09-15)** THE DISCARD TAKES THE RELAY DOOR. The founder's Sunbelt rollback
   stopped at `delete_chain` twice (STG-0000000169, 17:51 UTC; a fresh stage at 18:30 UTC) with nCino's
   `LLC_BI.LoanTrigger: execution of BeforeUpdate ... Script-thrown exception`. Cause, proven four ways: the

@@ -8,6 +8,7 @@ import {
   CapabilitiesError,
   READ_BACKUP_TOOLS,
   SERVERS,
+  WRITE_DOOR_TOOLS,
   buildCapabilities,
   channelToolNames,
   checkCapabilities,
@@ -45,6 +46,24 @@ test("the read backup mirrors the org's ten reads, and carries its own health to
   );
   for (const t of tools) {
     assert.ok(!/^gw_(stage|execute|complete)_/.test(t), `${t} is a write tool and must never be mirrored`);
+  }
+});
+
+test("the write door mirrors the org's governed writes, and carries no read at all", () => {
+  // 0.9.29. Derived from the SAME manifest, so a pair the org gains is on the
+  // door at the next regeneration. The door exists to carry a write whose
+  // answer the relay lost; a read on it would be a second read lane nobody
+  // asked for, and the read backup is already that.
+  const tools = serverEntry(committed(), SERVERS.writeDoor).tools;
+  assert.deepEqual(tools, WRITE_DOOR_TOOLS());
+  assert.deepEqual(
+    tools.filter((t) => t !== "gw_health"),
+    manifestToolNames()
+      .filter((n) => /^(stage|execute|complete)_/.test(n))
+      .map((n) => `gw_${n.replace(/(^|_)([a-z0-9])/g, (_m, _sep, c) => c.toUpperCase())}`)
+  );
+  for (const t of tools) {
+    assert.ok(!t.startsWith("gw_Customer360"), `${t} is a read and must never be on the write door`);
   }
 });
 
@@ -106,12 +125,14 @@ test("the memo writeback grants are the tool names the page itself calls", () =>
   );
 });
 
-test("all six connectors are declared, by display name", () => {
+test("all seven connectors are declared, by display name", () => {
   // 2026-09-15: IDB Gateway retired; the restate assist is session-door only,
   // so the grant that used to sit third is gone and nothing replaced it.
+  // 0.9.29: the write door is declared third, beside the read backup it shares
+  // a host with and never shares a tool with.
   assert.deepEqual(
     committed().mcp.servers.map((s) => s.server),
-    [SERVERS.customer360, SERVERS.readBackup, SERVERS.boom, SERVERS.m365, SERVERS.experience, SERVERS.afs]
+    [SERVERS.customer360, SERVERS.readBackup, SERVERS.writeDoor, SERVERS.boom, SERVERS.m365, SERVERS.experience, SERVERS.afs]
   );
   assert.ok(!committed().mcp.servers.some((s) => s.server === "IDB Gateway"));
 });

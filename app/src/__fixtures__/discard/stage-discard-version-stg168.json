@@ -1,0 +1,566 @@
+[
+  {
+    "actionName": "StageDiscardVersion",
+    "errors": null,
+    "expectedError": false,
+    "invocationId": null,
+    "isSuccess": true,
+    "outcome": null,
+    "outputValues": {
+      "error": null,
+      "ok": true,
+      "result": {
+        "warnings": [
+          "This action DELETES 32 records. Nothing outside the list above is touched: the booked package, the booked facilities, the collateral assets and their ownership junctions, and the covenant records all stay exactly as they are.",
+          "After the discard, Sunbelt Hospitality Group Inc - Purchase - $18,000,000.00, Sunbelt Hospitality Group Inc - Term - $2,500,000.00 will read hasRenewal false and be available to fork again. That is verified by re-query, not assumed.",
+          "3 Opportunity History rows hang off the version facilities. nCino mints those at facility creation and clears them on its own delete path; they are not deleted by this action. If the org keeps one, the facility delete stops there and this action reports exactly what is gone and what remains.",
+          "2 collateral aggregate shells go with this version: 2 that its facilities point at, and 0 that its creation minted and nothing ever used. A shell is a per-facility rollup anchor with no lookup back, so leaving one behind leaves an empty row for good.",
+          "1 action trail row belonging to this version is KEPT and marked Withdrawn. That is every row anchored on the version AND the row that FILED it, which is anchored on the source package and named one of these facilities as its result. The trail is the audit and is never deleted."
+        ],
+        "versionPackageId": "a5Fbb000000JIR3EAO",
+        "tokenRotated": false,
+        "summary": "Discards version Sunbelt Hospitality Group Inc - 9/14/2026 - PP on Sunbelt Hospitality Group Inc: deletes 32 records across 11 groups, including 2 version facilities and the version package, and keeps 1 action trail row marked Withdrawn. The relationship returns to booked package Sunbelt Lakeside Hotel Package only. Nothing booked is touched.",
+        "steps": [
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__LoanRenewal__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "label": "Remove the renewal chain rows that keep the booked parents flagged (4)",
+            "id": "delete_chain",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__LoanRenewal__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__LoanRenewal__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "label": "Confirm every LLC_BI__LoanRenewal__c in this group is gone",
+            "id": "delete_chain_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan_Collateral2__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "label": "Remove the collateral pledges copied onto the version facilities (3)",
+            "id": "delete_pledges",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Loan_Collateral2__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan_Collateral2__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "label": "Confirm every LLC_BI__Loan_Collateral2__c in this group is gone",
+            "id": "delete_pledges_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan_Covenant__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "label": "Detach the covenants from the version facilities (5)",
+            "id": "delete_covenant_junctions",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Loan_Covenant__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan_Covenant__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "label": "Confirm every LLC_BI__Loan_Covenant__c in this group is gone",
+            "id": "delete_covenant_junctions_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Rate_Component__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Rate_Component__c",
+            "label": "Remove the pricing rate components on the version facilities (0)",
+            "id": "delete_rate_components",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Pricing_Rate_Component__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Rate_Component__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Rate_Component__c",
+            "label": "Confirm every LLC_BI__Pricing_Rate_Component__c in this group is gone",
+            "id": "delete_rate_components_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Payment_Component__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "label": "Remove the pricing payment components on the version facilities (2)",
+            "id": "delete_payment_components",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Pricing_Payment_Component__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Payment_Component__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "label": "Confirm every LLC_BI__Pricing_Payment_Component__c in this group is gone",
+            "id": "delete_payment_components_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Stream__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "label": "Remove the pricing streams nCino cloned onto the version facilities (2)",
+            "id": "delete_pricing_streams",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Pricing_Stream__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Pricing_Stream__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "label": "Confirm every LLC_BI__Pricing_Stream__c in this group is gone",
+            "id": "delete_pricing_streams_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Fee__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Fee__c",
+            "label": "Remove the fees on the version facilities (4)",
+            "id": "delete_fees",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Fee__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Fee__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Fee__c",
+            "label": "Confirm every LLC_BI__Fee__c in this group is gone",
+            "id": "delete_fees_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Legal_Entities__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "label": "Remove the borrowing structure rows on the version (7)",
+            "id": "delete_involvements",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Legal_Entities__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Legal_Entities__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "label": "Confirm every LLC_BI__Legal_Entities__c in this group is gone",
+            "id": "delete_involvements_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan__c",
+            "label": "Remove the version facilities (2)",
+            "id": "delete_members",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Loan__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan__c",
+            "label": "Confirm every LLC_BI__Loan__c in this group is gone",
+            "id": "delete_members_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan_Collateral_Aggregate__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan_Collateral_Aggregate__c",
+            "label": "Remove the collateral aggregate shells this version owns (2)",
+            "id": "delete_aggregates",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Loan_Collateral_Aggregate__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Loan_Collateral_Aggregate__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan_Collateral_Aggregate__c",
+            "label": "Confirm every LLC_BI__Loan_Collateral_Aggregate__c in this group is gone",
+            "id": "delete_aggregates_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id IN :planned",
+            "type": "write",
+            "state": "pending",
+            "objectName": "LLC_BI__Product_Package__c",
+            "label": "Remove the version package (1)",
+            "id": "delete_package",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": [
+              "nCino managed delete handling on LLC_BI__Product_Package__c"
+            ]
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id IN :planned",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Product_Package__c",
+            "label": "Confirm every LLC_BI__Product_Package__c in this group is gone",
+            "id": "delete_package_verify",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT Id, Name, LLC_BI__hasRenewal__c, LLC_BI__Number_Of_Renewals__c FROM LLC_BI__Loan__c WHERE Id IN :parents",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Loan__c",
+            "label": "Confirm every booked parent reads hasRenewal false",
+            "id": "verify_parents",
+            "fields": [
+              "LLC_BI__hasRenewal__c",
+              "LLC_BI__Number_Of_Renewals__c"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionPackageId",
+            "type": "verification",
+            "state": "pending",
+            "objectName": "LLC_BI__Product_Package__c",
+            "label": "Confirm the version package id no longer resolves",
+            "id": "verify_version_gone",
+            "fields": [
+              "Id"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": "SELECT Id, cm_Status__c FROM cm_Action_Staging__c WHERE Id IN :trail",
+            "type": "write",
+            "state": "pending",
+            "objectName": "cm_Action_Staging__c",
+            "label": "Mark the version's action trail rows Withdrawn (1)",
+            "id": "withdraw_trail",
+            "fields": [
+              "cm_Status__c"
+            ],
+            "automationWoken": []
+          },
+          {
+            "verification": null,
+            "type": "observed_side_effect",
+            "state": "pending",
+            "objectName": null,
+            "label": "Collateral aggregate shells left standing (0)",
+            "id": "observe_aggregates",
+            "fields": [],
+            "automationWoken": [
+              "LLC_BI__ColPledgesAutoUpdater"
+            ]
+          }
+        ],
+        "stagingId": "a8abb00001Oj89mAAB",
+        "sourcePackageId": "a5Fbb000000JBJ7EAO",
+        "replayed": false,
+        "provenanceJson": "{\"sourcePackageId\":{\"citation\":\"Read off LLC_BI__LoanRenewal__c.LLC_BI__Original_Product_Package__c, falling back to the booked parent's own package.\",\"provenance\":\"DERIVED\",\"prefill\":\"COMPUTED\"},\"inventory\":{\"citation\":\"Discovered by query from version package a5Fbb000000JIR3EAO at stage time.\",\"provenance\":\"NCINO\",\"prefill\":\"COMPUTED\"}}",
+        "planHash": "91df88cba201c3051df71ae58d581e200c13c40c812c9aa16daad8264abe2325",
+        "items": [
+          {
+            "recordId": "a4Obb000000GBihEAG",
+            "reason": "chain row revision 1 linking booked facility Sunbelt Hospitality Group Inc - Purchase - $18,000,000.00 to this version. While it stands the parent reads hasRenewal true and every later roll is refused.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000885"
+          },
+          {
+            "recordId": "a4Obb000000GBiiEAG",
+            "reason": "chain row revision 1 linking booked facility Sunbelt Hospitality Group Inc - Term - $2,500,000.00 to this version. While it stands the parent reads hasRenewal true and every later roll is refused.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000886"
+          },
+          {
+            "recordId": "a4Obb000000GBifEAG",
+            "reason": "the revision-0 self anchor this fork minted on booked facility Sunbelt Hospitality Group Inc - Purchase - $18,000,000.00.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000883"
+          },
+          {
+            "recordId": "a4Obb000000GBigEAG",
+            "reason": "the revision-0 self anchor this fork minted on booked facility Sunbelt Hospitality Group Inc - Term - $2,500,000.00.",
+            "objectName": "LLC_BI__LoanRenewal__c",
+            "name": "RL-00000884"
+          },
+          {
+            "recordId": "a4Rbb0000027iKvEAI",
+            "reason": "a pledge of COL-000799 copied onto this version. The asset itself and its ownership junction stay. This row must go before its facility: the lookup carries restrictedDelete.",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00454"
+          },
+          {
+            "recordId": "a4Rbb0000027iKxEAI",
+            "reason": "a pledge of COL-000827 copied onto this version. The asset itself and its ownership junction stay. This row must go before its facility: the lookup carries restrictedDelete.",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00456"
+          },
+          {
+            "recordId": "a4Rbb0000027iKwEAI",
+            "reason": "a pledge of COL-000800 copied onto this version. The asset itself and its ownership junction stay. This row must go before its facility: the lookup carries restrictedDelete.",
+            "objectName": "LLC_BI__Loan_Collateral2__c",
+            "name": "LC-00455"
+          },
+          {
+            "recordId": "a4Vbb000000rH7ZEAU",
+            "reason": "the junction holding a covenant on a version facility. The covenant record itself stays on the borrower.",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "name": "COV-0311"
+          },
+          {
+            "recordId": "a4Vbb000000rH7aEAE",
+            "reason": "the junction holding a covenant on a version facility. The covenant record itself stays on the borrower.",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "name": "COV-0312"
+          },
+          {
+            "recordId": "a4Vbb000000rH7bEAE",
+            "reason": "the junction holding a covenant on a version facility. The covenant record itself stays on the borrower.",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "name": "COV-0313"
+          },
+          {
+            "recordId": "a4Vbb000000rH7cEAE",
+            "reason": "the junction holding a covenant on a version facility. The covenant record itself stays on the borrower.",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "name": "COV-0314"
+          },
+          {
+            "recordId": "a4Vbb000000rH7dEAE",
+            "reason": "the junction holding a covenant on a version facility. The covenant record itself stays on the borrower.",
+            "objectName": "LLC_BI__Loan_Covenant__c",
+            "name": "COV-0315"
+          },
+          {
+            "recordId": "a4ybb000002keanAAA",
+            "reason": "a payment component on a version facility.",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "Pricing payment component on Sunbelt Hospitality Group Inc - Purchase - $19,000,000.00"
+          },
+          {
+            "recordId": "a4ybb000002keaoAAA",
+            "reason": "a payment component on a version facility.",
+            "objectName": "LLC_BI__Pricing_Payment_Component__c",
+            "name": "Pricing payment component on Sunbelt Hospitality Group Inc - Term - $2,500,000.00"
+          },
+          {
+            "recordId": "a50bb00000vQIwZAAW",
+            "reason": "a pricing stream nCino cloned onto this version. The parent facility keeps its own.",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "Pricing stream on Sunbelt Hospitality Group Inc - Purchase - $19,000,000.00"
+          },
+          {
+            "recordId": "a50bb00000vQIwaAAG",
+            "reason": "a pricing stream nCino cloned onto this version. The parent facility keeps its own.",
+            "objectName": "LLC_BI__Pricing_Stream__c",
+            "name": "Pricing stream on Sunbelt Hospitality Group Inc - Term - $2,500,000.00"
+          },
+          {
+            "recordId": "a45bb000001mXYzAAM",
+            "reason": "a fee on a version facility.",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000310"
+          },
+          {
+            "recordId": "a45bb000001mXZ0AAM",
+            "reason": "a fee on a version facility.",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000311"
+          },
+          {
+            "recordId": "a45bb000001mXZ1AAM",
+            "reason": "a fee on a version facility.",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000312"
+          },
+          {
+            "recordId": "a45bb000001mXZ2AAM",
+            "reason": "a fee on a version facility.",
+            "objectName": "LLC_BI__Fee__c",
+            "name": "FEE-000313"
+          },
+          {
+            "recordId": "a4Lbb000000PqQ1EAK",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "Entity involvement on Sunbelt Hospitality Group Inc - Purchase - $19,000,000.00"
+          },
+          {
+            "recordId": "a4Lbb000000PqQ2EAK",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "Entity involvement on Sunbelt Hospitality Group Inc - Purchase - $19,000,000.00"
+          },
+          {
+            "recordId": "a4Lbb000000PqQ3EAK",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "Entity involvement on Sunbelt Hospitality Group Inc - Purchase - $19,000,000.00"
+          },
+          {
+            "recordId": "a4Lbb000000PqQ4EAK",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "Entity involvement on Sunbelt Hospitality Group Inc - Purchase - $19,000,000.00"
+          },
+          {
+            "recordId": "a4Lbb000000PqQ5EAK",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "Entity involvement on Sunbelt Hospitality Group Inc - Term - $2,500,000.00"
+          },
+          {
+            "recordId": "a4Lbb000000PqQ6EAK",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "Entity involvement on Sunbelt Hospitality Group Inc - Term - $2,500,000.00"
+          },
+          {
+            "recordId": "a4Lbb000000PqQ7EAK",
+            "reason": "a borrowing structure row on this version. The account it names is untouched.",
+            "objectName": "LLC_BI__Legal_Entities__c",
+            "name": "Entity involvement on Sunbelt Hospitality Group Inc - Term - $2,500,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KvLxEAK",
+            "reason": "a facility on this version at Qualification. Its Loan Detail and loan documents are master-detail children and go with it.",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Sunbelt Hospitality Group Inc - Purchase - $19,000,000.00"
+          },
+          {
+            "recordId": "a4Zbb000002KvLyEAK",
+            "reason": "a facility on this version at Qualification. Its Loan Detail and loan documents are master-detail children and go with it.",
+            "objectName": "LLC_BI__Loan__c",
+            "name": "Sunbelt Hospitality Group Inc - Term - $2,500,000.00"
+          },
+          {
+            "recordId": "a4Sbb00000GZSOPEA5",
+            "reason": "the collateral aggregate shell nCino minted for a version facility. It carries no lookup back to the facility, so deleting the facility alone would strand it empty.",
+            "objectName": "LLC_BI__Loan_Collateral_Aggregate__c",
+            "name": "Loan collateral aggregate on Sunbelt Hospitality Group Inc - Purchase - $19,000,000.00"
+          },
+          {
+            "recordId": "a4Sbb00000GZSOQEA5",
+            "reason": "the collateral aggregate shell nCino minted for a version facility. It carries no lookup back to the facility, so deleting the facility alone would strand it empty.",
+            "objectName": "LLC_BI__Loan_Collateral_Aggregate__c",
+            "name": "Loan collateral aggregate on Sunbelt Hospitality Group Inc - Term - $2,500,000.00"
+          },
+          {
+            "recordId": "a5Fbb000000JIR3EAO",
+            "reason": "the version package itself.",
+            "objectName": "LLC_BI__Product_Package__c",
+            "name": "Sunbelt Hospitality Group Inc - 9/14/2026 - PP"
+          }
+        ],
+        "decisionToken": "86670d35d10dd844797bc855069a8e4daffe8919990aeee7b53eb88d33b3ab1e",
+        "accountId": "001bb00001Ld0rZAAR"
+      }
+    },
+    "sortOrder": 0,
+    "version": 1
+  }
+]

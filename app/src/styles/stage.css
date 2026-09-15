@@ -1,0 +1,732 @@
+/* =============================================================================
+   THE GOVERNED-ACTION STAGE (0.9.29, backlog row 65).
+
+   FOUNDER, 2026-09-15, on the discard dialog: "kind of like this old school
+   looking pop up, i would like to have it way more sleeker, and ideally the
+   execution on a different page after where its working bit more cinematic you
+   know, not a workroom but just sleek and elegant not so cluttered though."
+   And on the run: "sleek loading of when the system is deleting each step ...
+   ideally like the loading in credit memo but all on this page ... when this
+   action its done they gently and elegantly dissolve ... like its magic?"
+
+   THIS IS THE APPROVED OPTION, PORTED. Every rule below came off
+   `preview-site/builds/stage-0929-option/_src/stage.template.html`, which the
+   founder gated; the values in that prototype were themselves lifted from
+   tokens.css, electric-glass.css, workroom.css, finale-clip.css and memo.css,
+   so nothing here is a new material. The class prefix is `gs-` (governed
+   stage), beside `wk-` (workroom), `mm-` (memo) and `sp-` (spreading).
+
+   A STAGE, NOT A MODAL. The relationship RECEDES rather than being covered:
+   there is no dark scrim anywhere on this surface, which is the whole
+   difference. `body[data-c360-stage]` dims the app behind it.
+   ============================================================================= */
+
+/* ============================================================== the backdrop */
+body[data-c360-stage="open"] #root,
+body[data-c360-stage="folding"] #root {
+  opacity: 0.34;
+  transform: scale(0.992);
+  transform-origin: 50% 22%;
+  pointer-events: none;
+}
+#root {
+  transition: opacity 560ms var(--ease-settle), transform 560ms var(--ease-settle);
+}
+
+.gs-stage {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 44px 24px 24px;
+  pointer-events: none;
+  overflow-y: auto;
+}
+
+/* THE SHEET. workroom.css .wk-sheet, verbatim, at the stage's own width. */
+.gs-sheet {
+  position: relative;
+  pointer-events: auto;
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  border-radius: 18px;
+  padding: 22px 24px 18px;
+  font-size: 12.5px;
+  color: var(--ink-body);
+  border: 1px solid var(--glass-hairline);
+  background: rgba(255, 255, 255, 0.78);
+  /* autoprefixer: ignore next */
+  -webkit-backdrop-filter: blur(var(--blur-workroom)) saturate(1.8);
+  backdrop-filter: blur(var(--blur-workroom)) saturate(1.8);
+  box-shadow: var(--glass-rim), 0 20px 54px -24px rgba(0, 0, 0, 0.28);
+  font-variant-numeric: tabular-nums;
+  animation: gs-in 640ms var(--ease-settle) both;
+}
+@keyframes gs-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.965);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.004);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* THE RAINBOW, THINNED TO AN EDGE AND HELD STILL, and clipped to the box it
+   belongs to (finale-clip.css: the glow stops at the card's edge). */
+.gs-aura {
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(12px);
+  opacity: 0.62;
+  clip-path: inset(3px round 18px);
+}
+.gs-aura i {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 14px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(161, 0, 255, 0.35),
+    rgba(79, 140, 255, 0.3),
+    rgba(45, 212, 167, 0.28),
+    rgba(255, 211, 77, 0.28),
+    rgba(255, 107, 107, 0.3),
+    rgba(161, 0, 255, 0.35)
+  );
+  /* autoprefixer: ignore next */
+  -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* THE FOLD. The lens stands down for the 720ms the sheet is moving and the tint
+   it was producing stands in for it (workroom.css [data-morph="from"]).
+   THE FADE WAITS FOR THE TRAVEL: an opacity starting with the move had the
+   sheet at 14% before it had visibly shrunk, which reads as a cross-fade
+   rather than a fold. */
+.gs-sheet[data-morph="from"] {
+  /* autoprefixer: ignore next */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.93);
+  will-change: transform, opacity;
+  animation: none;
+  transform-origin: 50% 0;
+  transition: transform 720ms var(--ease-settle), opacity 480ms var(--ease-out) 260ms;
+}
+.gs-sheet[data-morph="from"] > .gs-aura {
+  filter: none;
+  opacity: 0.5;
+}
+
+/* --------------------------------------------------------------- the header */
+.gs-hd {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.gs-kick {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+.gs-hd h2 {
+  margin: 2px 0 0;
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.gs-lede {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-body);
+  max-height: 84px;
+  overflow: hidden;
+  transition: opacity 360ms var(--ease-settle), max-height 460ms var(--ease-settle),
+    margin-top 460ms var(--ease-settle);
+}
+.gs-hd[data-quiet] .gs-lede {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+}
+
+/* ------------------------------------------------------------ the inventory */
+.gs-inv {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 520ms var(--ease-settle);
+}
+.gs-inv[data-gone] {
+  grid-template-rows: 0fr;
+}
+.gs-inv[data-off] {
+  display: none;
+}
+.gs-inv > .gs-inv-in {
+  overflow: hidden;
+  min-height: 0;
+}
+.gs-colhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0 0 7px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.gs-colhead span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+.gs-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: min(456px, calc(100vh - 470px));
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.gs-rows::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+/* A LIST THAT HAS MORE UNDER IT SAYS SO AT ITS EDGE. Hidden scrollbars plus a
+   hard cut read as a rendering fault; the same cut behind a 26px fade reads as
+   a list that continues. Set from script, so a list that fits keeps its last
+   hairline crisp. */
+.gs-rows[data-scroll] {
+  /* autoprefixer: ignore next */
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 26px), transparent);
+  mask-image: linear-gradient(#000 calc(100% - 26px), transparent);
+}
+/* A STOPPED RUN KEEPS ITS LIST: the stopped group, the org's own words under it
+   and every row that was never attempted all stay on the glass, so the list
+   takes a tighter clamp and scrolls inside itself rather than pushing the
+   resume control off the page. */
+.gs-sheet[data-phase="stopped"] .gs-rows {
+  max-height: min(300px, calc(100vh - 486px));
+}
+
+.gs-row {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--beat) var(--ease-settle);
+}
+.gs-row[data-state="gone"] {
+  grid-template-rows: 0fr;
+}
+.gs-row > .gs-row-in {
+  overflow: hidden;
+  min-height: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.045);
+}
+/* A COLLAPSED ROW KEEPS NO HAIRLINE. `overflow: hidden` takes the content to
+   zero height; the border is outside that box and still paints, so six rows
+   that had left the org stacked into a six-pixel grey bar at the top of the
+   list. The row is already fully dissolved by the time it collapses. */
+.gs-row[data-state="gone"] > .gs-row-in {
+  border-bottom-width: 0;
+}
+.gs-row-b {
+  width: 100%;
+  display: grid;
+  align-items: center;
+  gap: 0 10px;
+  grid-template-columns: 22px minmax(0, 1fr) 46px;
+  padding: 3px 0 4px;
+  background: transparent;
+  border: 0;
+  font-family: var(--font-sans);
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: opacity 260ms var(--ease-settle);
+}
+.gs-row-b:disabled {
+  cursor: default;
+}
+.gs-t {
+  grid-column: 2;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.24;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 240ms var(--ease-settle);
+}
+.gs-d {
+  grid-column: 2;
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+  transition: color 240ms var(--ease-settle);
+}
+.gs-n {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  align-self: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  transition: color 240ms var(--ease-settle);
+}
+.gs-mk {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  position: relative;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-label);
+}
+.gs-mk-dot {
+  font-size: 11px;
+  line-height: 1;
+}
+.gs-mk-g,
+.gs-mk-f {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-brand);
+  font-weight: 800;
+  font-size: 12.5px;
+  line-height: 1;
+}
+.gs-mk-g {
+  color: var(--ink-faint);
+}
+/* THE DECK-STUDIO LOADING LAW (tokens.css, "THE '>' CHOREOGRAPHY"): the ">"
+   FILLS with brand ink, it never travels. */
+.gs-mk-f {
+  color: var(--brand);
+  clip-path: inset(0 calc(100% - var(--gs-p, 0) * 100%) 0 0);
+}
+
+.gs-row[data-state="queued"] .gs-row-b {
+  opacity: 0.78;
+}
+.gs-row[data-state="writing"] .gs-t {
+  color: var(--ink);
+  font-weight: 600;
+}
+.gs-row[data-state="writing"] .gs-d {
+  color: var(--ink-muted);
+}
+.gs-row[data-state="writing"] .gs-n {
+  color: var(--ink);
+}
+.gs-row[data-state="writing"] .gs-mk-dot {
+  display: none;
+}
+.gs-row[data-state="writing"] .gs-mk-g,
+.gs-row[data-state="writing"] .gs-mk-f {
+  display: flex;
+}
+.gs-row[data-state="verified"] .gs-mk-dot {
+  color: var(--accent);
+  font-size: 10px;
+}
+.gs-row[data-state="verified"] .gs-t {
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+.gs-row[data-state="verified"] .gs-n {
+  color: var(--ink-faint);
+}
+.gs-row[data-state="skipped"] .gs-row-b {
+  opacity: 0.4;
+}
+/* WRITTEN, NOT PROVEN. Never dissolved and never rendered as a failure: the
+   row stays standing in warning ink with the org's own reason under it. */
+.gs-row[data-state="kept"] .gs-mk-dot {
+  color: var(--warning);
+}
+.gs-row[data-state="kept"] .gs-d {
+  color: var(--warning);
+  white-space: normal;
+}
+.gs-row[data-state="stopped"] .gs-mk-dot {
+  color: var(--critical);
+  font-size: 12px;
+}
+.gs-row[data-state="stopped"] .gs-t {
+  color: var(--ink);
+  font-weight: 600;
+}
+.gs-row[data-state="stopped"] .gs-d {
+  color: var(--critical);
+}
+
+/* THE DISSOLVE. Opacity and a soft clip, the memo way: the row is unmade from
+   its own left edge and the rows below hold their place until it is gone. */
+.gs-row[data-state="leaving"] .gs-row-in {
+  animation: gs-dissolve 560ms var(--ease-settle) both;
+}
+@keyframes gs-dissolve {
+  0% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  55% {
+    opacity: 0.34;
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 0 100%);
+  }
+}
+
+/* The reasons, in the org's own words. One line per distinct reason, carrying
+   the names that gave it: repeating one sentence seven times is not detail. */
+.gs-why {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 380ms var(--ease-settle);
+}
+.gs-row[data-open] .gs-why {
+  grid-template-rows: 1fr;
+}
+.gs-why > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.gs-why ul {
+  margin: 0;
+  padding: 5px 0 9px 32px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.gs-why li {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-body);
+}
+/* THE REASON LEADS. The names are the footnote to it, not the other way round:
+   seven bolded copies of one record name is a wall, and the org's sentence is
+   the thing the banker is actually being asked to read. */
+.gs-why li b {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+.gs-why .gs-auto {
+  color: var(--ink-faint);
+  font-size: 10.5px;
+}
+.gs-row-b:hover:not(:disabled) .gs-t {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--ink-faint);
+  text-underline-offset: 3px;
+}
+
+/* ------------------------------------------------------------------ the foot */
+.gs-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+.gs-gov {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+.gs-gov b {
+  font-weight: 600;
+  color: var(--ink-body);
+}
+/* THE ORG'S REMAINING NOTES, ON A BUDGET. Every one of them is on the glass
+   before the gesture (A33.5.3); together they run to four paragraphs, which at
+   full height put the commit pill below the fold on a laptop. They scroll
+   inside their own box instead, and the box is part of the sheet's quiet type
+   rather than a second surface. */
+.gs-gov.gs-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 92px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.gs-gov.gs-notes::-webkit-scrollbar {
+  width: 0;
+}
+.gs-gov.gs-notes p {
+  margin: 0;
+}
+.gs-conf {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  opacity: 0;
+  transition: opacity 420ms var(--ease-settle);
+}
+.gs-conf[data-on] {
+  opacity: 1;
+}
+.gs-acts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.gs-gov,
+.gs-acts {
+  max-height: 200px;
+  overflow: hidden;
+  transition: opacity 260ms var(--ease-settle), max-height 420ms var(--ease-settle);
+}
+.gs-foot[data-quiet] .gs-gov,
+.gs-foot[data-quiet] .gs-acts {
+  opacity: 0;
+  max-height: 0;
+}
+.gs-foot[data-quiet] .gs-acts {
+  pointer-events: none;
+}
+.gs-foot[data-quiet] {
+  gap: 0;
+}
+
+/* A REFUSAL ON THE SHEET, in the cockpit's own critical register. */
+.gs-notice {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.gs-notice[data-tone="critical"] {
+  background: var(--critical-bg);
+  color: var(--critical);
+}
+.gs-notice[data-tone="warning"] {
+  background: var(--warning-bg);
+  color: var(--warning-prose);
+}
+.gs-notice b {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.gs-notice[data-tone="warning"] b {
+  color: var(--warning);
+}
+.gs-notice ul {
+  margin: 0;
+  padding: 0 0 0 14px;
+}
+
+/* ----------------------------------------------------------------- the close */
+.gs-close {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 520ms var(--ease-settle);
+}
+.gs-close[data-on] {
+  grid-template-rows: 1fr;
+}
+.gs-close > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.gs-said {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 4px 0 2px;
+}
+.gs-said p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  min-height: 1.45em;
+}
+.gs-caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.92em;
+  background: var(--brand);
+  margin-left: 4px;
+  vertical-align: -1px;
+  animation: gs-blink 1.05s steps(1) infinite;
+}
+@keyframes gs-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.gs-after {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  opacity: 0;
+  transition: opacity 520ms var(--ease-settle);
+}
+.gs-after[data-on] {
+  opacity: 1;
+}
+.gs-after p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+.gs-after .gs-prov {
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+
+/* ------------------------------------------------------------------ the stop */
+.gs-stopblk {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 420ms var(--ease-settle);
+}
+.gs-row[data-state="stopped"] .gs-stopblk {
+  grid-template-rows: 1fr;
+}
+.gs-stopblk > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.gs-stopblk .gs-stop-in {
+  padding: 8px 0 10px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gs-orgsays {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--critical);
+  background: var(--critical-bg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+}
+.gs-stopblk .gs-stop-in p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-body);
+}
+
+/* The doors, in the sheet's own glass register (workroom.css .wk-sheet-go). */
+.gs-doors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  margin-top: 2px;
+}
+
+/* ------------------------------------------------------------- reduced motion
+   The same ending, without the dissolves. */
+@media (prefers-reduced-motion: reduce) {
+  .gs-sheet,
+  .gs-row-in,
+  .gs-mk-f {
+    animation: none !important;
+  }
+  #root,
+  .gs-inv,
+  .gs-row,
+  .gs-why,
+  .gs-close,
+  .gs-after,
+  .gs-conf,
+  .gs-lede,
+  .gs-gov,
+  .gs-acts,
+  .gs-stopblk {
+    transition: none !important;
+  }
+  .gs-caret {
+    animation: none;
+  }
+}
+
+/* -------------------------------------------------------------------- narrow */
+@media (max-width: 720px) {
+  .gs-stage {
+    padding: 14px 16px 40px;
+  }
+  .gs-sheet {
+    padding: 18px 16px 16px;
+  }
+  .gs-rows {
+    max-height: none;
+  }
+  .gs-sheet[data-phase="stopped"] .gs-rows {
+    max-height: none;
+  }
+  .gs-t,
+  .gs-d {
+    white-space: normal;
+  }
+  .gs-said p {
+    font-size: 14px;
+  }
+}

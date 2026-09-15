@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 
 import {
   awaitArgs,
+  awaitDeadlineMs,
   BOOM_BASE64_CAP_BYTES,
   BOOM_MAX_FILE_BYTES,
   BOOM_READY,
@@ -30,6 +31,7 @@ import {
   type BoomToolCall,
 } from "./boomUpload";
 import { isBoomNotFound, readBoom, readBoomAnswer } from "./boom";
+import { BOOM_AWAIT_SECONDS } from "../workroom/spreadEngine";
 import {
   BOOM_FALLBACK_NAME,
   boomServer,
@@ -37,7 +39,7 @@ import {
   noteBoomServers,
   resetBoomServer,
 } from "./boomLane";
-import { BOOM_SIGNATURE_TOOLS, SERVERS, TOOLS, type McpOk } from "./mcp";
+import { BOOM_SIGNATURE_TOOLS, READ_DEADLINE_MS, SERVERS, TOOLS, type McpOk } from "./mcp";
 import { normaliseBoom } from "../../../client-360/render/boom-normalise.mjs";
 import { interestCoverageAt } from "../spread/coverage";
 import { isProvisionalPeriod, publishSpread } from "../spread/publishSpread";
@@ -384,10 +386,45 @@ describe("the live adapter", () => {
 
   it("reads the bounded wait's own answer, and asks for no more seconds than the server takes", async () => {
     const { call, calls } = fakeCall({ boom_await_file: payload(AWAIT).payload });
-    const res = await liveBoomAdapter(call).awaitSettled!("cf677dcc-594c-45b5-b47d-c92c0b2ee909", 20);
-    expect(calls[0].input).toEqual({ fileId: "cf677dcc-594c-45b5-b47d-c92c0b2ee909", maxSeconds: 20 });
+    const res = await liveBoomAdapter(call).awaitSettled!("cf677dcc-594c-45b5-b47d-c92c0b2ee909", 10);
+    expect(calls[0].input).toEqual({ fileId: "cf677dcc-594c-45b5-b47d-c92c0b2ee909", maxSeconds: 10 });
     expect((calls[0].options as { read?: boolean }).read).toBe(true);
     expect(res.status).toBe("verified");
+  });
+
+  /* THE DEFECT OF 2026-09-15 19:37 UTC, AT ITS ROOT. `boom_await_file` is a
+     READ, and a read at the seam carries READ_DEADLINE_MS, fifteen seconds. The
+     room asked Boom to BLOCK for twenty, so the page's own clock fired five
+     seconds before the server could answer, every time, on every file. */
+  it("carries its own wall clock, derived from the seconds it asked Boom for", async () => {
+    const { call, calls } = fakeCall({ boom_await_file: payload(AWAIT).payload });
+    await liveBoomAdapter(call).awaitSettled!("cf677dcc-594c-45b5-b47d-c92c0b2ee909", BOOM_AWAIT_SECONDS);
+    const options = calls[0].options as { deadlineMs?: number };
+    expect(options.deadlineMs).toBe(awaitDeadlineMs(BOOM_AWAIT_SECONDS));
+    // Strictly longer than the block itself: the hop has to fit too.
+    expect(options.deadlineMs!).toBeGreaterThan(BOOM_AWAIT_SECONDS * 1_000);
+  });
+
+  it("asks Boom for a wait that fits inside the seam's own read budget", () => {
+    /* THE ARITHMETIC THAT WAS WRONG, PINNED. Even with no explicit deadline on
+       the call, the seconds the room asks for plus one relay hop must fit the
+       generic read budget: anything else is a page clock guaranteed to fire
+       first, which is exactly what wrote "Failed" under three healthy files. */
+    expect(awaitDeadlineMs(BOOM_AWAIT_SECONDS)).toBeLessThanOrEqual(READ_DEADLINE_MS);
+    expect(BOOM_AWAIT_SECONDS * 1_000).toBeLessThan(READ_DEADLINE_MS);
+  });
+
+  it("reads back what Boom holds for a borrower, rungs only, off the live list", async () => {
+    const { call, calls } = fakeCall({ boom_list_files: payload(FILES).payload });
+    const rows = await liveBoomAdapter(call).listFiles!("001bb00001DLtRMAA1");
+    expect(calls[0].input).toEqual({ salesforceRecordId: "001bb00001DLtRMAA1" });
+    expect(rows).toHaveLength(FILES.files.length);
+    // The one file the live org had in flight on 2026-09-15.
+    const inFlight = rows.filter((r) => r.status === "processing");
+    expect(inFlight.map((r) => r.fileId)).toEqual(["d6a2ecc3-5321-47c3-8615-a2879d629108"]);
+    expect(inFlight[0].createdAt).toBe("2026-09-14T19:13:53.941+00:00");
+    // Rungs only: nothing here pretends to carry a spread.
+    expect(Object.keys(rows[0]).sort()).toEqual(["createdAt", "fileGroupId", "fileId", "fileName", "status"]);
   });
 
   it("refuses to invent a file id or a rung it was not given", async () => {

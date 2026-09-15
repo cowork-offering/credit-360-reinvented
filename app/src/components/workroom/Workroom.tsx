@@ -7660,9 +7660,15 @@ function FlowCard({
         <button type="button" className="eg-btn-quiet" onClick={onCancel}>
           {held.length > 0 ? "Discard the plan" : "Cancel"}
         </button>
+        {/* THE PRIMARY SITS IN THE ROOM'S GLASS REGISTER (backlog row 59,
+            0.9.29). Founder doctrine since 0.9.19: emphasis by weight and rim,
+            never a solid coloured fill. The one exception is the commit moment
+            of the governed-action stage, which is the ink pill per rule 27/41;
+            this is the plan card, not that moment. `.wk-approve` stays on it:
+            the drives address this control by that class. */}
         <button
           type="button"
-          className="wk-approve eg-btn-ink"
+          className="wk-approve wk-sheet-go"
           disabled={!flow.staging?.decisionToken || filing || sealed || held.length > 0}
           onClick={onExecute}
         >

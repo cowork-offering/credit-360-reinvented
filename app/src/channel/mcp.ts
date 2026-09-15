@@ -13,7 +13,8 @@
    ============================================================================= */
 
 import { BOOM_FALLBACK_NAME, boomServer, noteBoomServers } from "./boomLane";
-import { noteLaneAttempt, noteLaneFailure, noteLaneGrant, noteLaneSuccess, noteNoBridge } from "./laneHealth";
+import { noteLaneAttempt, noteLaneBackup, noteLaneFailure, noteLaneGrant, noteLaneSuccess, noteNoBridge } from "./laneHealth";
+import { doorTool, noteWriteDoorServers, WRITE_DOOR_FALLBACK_NAME, writeDoorServer } from "./writeDoor";
 
 /* ---------------------------------------------------------------- ambient */
 
@@ -118,6 +119,15 @@ export const SERVERS = {
      and `boom_get_spread`. This name is what the lane is called before that
      answers, and where the runtime cannot enumerate servers at all. */
   boom: BOOM_FALLBACK_NAME,
+  /* THE WRITE DOOR (0.9.29, SPEC-0.9.29-WRITE-DOOR). The second hop for the
+     governed writes, run by us, taken ONLY when the Salesforce hop has spent its
+     ladder on a TRANSPORT failure. OPTIONAL: a cockpit without it behaves
+     exactly as it did before, and no read ever touches it. LIKE BOOM, IT IS
+     FOUND RATHER THAN NAMED: every door call goes to `writeDoorServer()` in
+     channel/writeDoor.ts, whichever connector `listTools()` says serves the
+     gateway's `gw_Stage...` / `gw_Execute...` pairs. This string is what the
+     health row and the published grant call it until that answers. */
+  writeDoor: WRITE_DOOR_FALLBACK_NAME,
 } as const;
 
 /** Upstream tool names exactly as `listTools()` returns them.
@@ -388,11 +398,20 @@ export function describeFailure(err: unknown, server: string, tool: string): Mcp
 
 /* -------------------------------------------------------------- call layer */
 
+/** WHICH DOOR CARRIED THIS WRITE. `salesforce` is the connector the banker
+ *  added and the only door a read ever uses; `backup` is the write door we run
+ *  (channel/writeDoor.ts), which answers only after the Salesforce hop has spent
+ *  its ladder on a transport failure. Present on every answer `callTool` gives,
+ *  so a surface can say which hop filed a plan without asking anything. */
+export type WriteDoor = "salesforce" | "backup";
+
 export interface McpOk<T> {
   payload: T;
   /** How many attempts this answer cost, 1 when it answered first time. Absent
    *  only on a value a test or an adapter built by hand. */
   attempts?: number;
+  /** Which door answered. Absent only on a value built by hand. */
+  door?: WriteDoor;
   /** Present only when served from cache. Drive "last updated" from
    *  `cache.storedAt` — NEVER Date.now(). Absent ⇒ executed fresh. */
   cache?: { storedAt: number; revalidating: boolean };
@@ -679,15 +698,19 @@ export async function callTool<T = unknown>(
      timed, its deliveries are pushes, and a push has no round trip to clock. */
   let attemptMs = 0;
 
-  const invoke = async (): Promise<McpOk<T>> => {
+  /* ONE ATTEMPT, ADDRESSED. The door is a parameter because the SAME payload
+     goes out on both doors and nothing else about an attempt differs: same wall
+     clock, same in-flight meter, same unwrap. A second copy of this for the
+     write door is how the two doors would drift apart. */
+  const invoke = async (onServer: string, withTool: string): Promise<McpOk<T>> => {
     inFlightCalls += 1;
     lastCallStartedAt = Date.now();
     const startedAt = lastCallStartedAt;
     try {
       const result = await withDeadline(
-        api.callTool(server, tool, input, { cache: options.cache, signal: options.signal }),
+        api.callTool(onServer, withTool, input, { cache: options.cache, signal: options.signal }),
         budgetMs,
-        () => laneTimeout({ server, tool, ms: budgetMs, ambiguous: options.read !== true }),
+        () => laneTimeout({ server: onServer, tool: withTool, ms: budgetMs, ambiguous: options.read !== true }),
       );
       return { payload: result.payload as T, cache: result.cache, raw: result };
     } finally {
@@ -701,9 +724,9 @@ export async function callTool<T = unknown>(
   let attempts = 1;
 
   try {
-    const ok = await invoke();
+    const ok = await invoke(server, tool);
     noteLaneSuccess(server, Date.now(), { tool, ms: attemptMs });
-    return { ...ok, attempts };
+    return { ...ok, attempts, door: "salesforce" };
   } catch (err) {
     let failure = describeFailure(err, server, tool);
     /* THE LADDER, OR NOTHING. A read climbs it on the code alone; an idempotent
@@ -716,6 +739,11 @@ export async function callTool<T = unknown>(
       : options.idempotent
         ? { max: WRITE_RETRY_ATTEMPTS, window: WRITE_WINDOW, may: isRetryableWrite }
         : null;
+    /* A CALLER'S VETO STOPS THE DOOR TOO. The execute lane vetoes the next ask
+       once the org's own trail says the first one left Staged, which means Apex
+       has it and the token is spent; another door is the last thing that should
+       then be knocked on. */
+    let vetoed = false;
     if (ladder) {
       for (let attempt = 0; attempt < ladder.max - 1 && ladder.may(failure); attempt += 1) {
         // The attempt that just failed goes on the lane's own history, and the
@@ -723,18 +751,71 @@ export async function callTool<T = unknown>(
         // health line may call unreachable.
         noteLaneAttempt(server, { tool, ms: attemptMs, ok: false });
         options.onAttempt?.({ attempt: attempts + 1, failure });
-        if (options.beforeRetry && (await options.beforeRetry(failure)) === false) break;
+        if (options.beforeRetry && (await options.beforeRetry(failure)) === false) {
+          vetoed = true;
+          break;
+        }
         await sleep(retryDelayMs(failure, Math.random, attempt, ladder.window));
         attempts += 1;
         try {
-          const ok = await invoke();
+          const ok = await invoke(server, tool);
           noteLaneSuccess(server, Date.now(), { tool, ms: attemptMs });
-          return { ...ok, attempts };
+          return { ...ok, attempts, door: "salesforce" };
         } catch (err2) {
           failure = describeFailure(err2, server, tool);
         }
       }
     }
+
+    /* ------------------------------------------------------- THE WRITE DOOR
+
+       THE LADDER IS SPENT AND THE ANSWER IS STILL LOST, so the same payload
+       under the same key goes out through the door we run (0.9.29, and the
+       evidence is in channel/writeDoor.ts: five staged plans the page never
+       heard about, in front of an audience).
+
+       THE CONDITIONS ARE ALL FOUR OF THESE, and each one is load-bearing:
+         - the caller promised idempotency, so the same key may be re-sent;
+         - it is not a read, which has its own second door (gateway/lane.ts);
+         - the failure is a LOST ANSWER (`isRetryableWrite`: the relay's own
+           502, an upstream that fell over, or the page's own clock). NEVER an
+           authz denial, never a validation refusal, never anything the org
+           actually answered: an answer is not re-asked at another door, it is
+           reported;
+         - a door is connected AND serves this exact tool.
+
+       Safe by the org's own replay semantics, which are the same through either
+       door: one key returns the staging row the org already holds, and one
+       stagingId plus token reports the run already made.
+
+       IT IS ONE ATTEMPT. The door is not a second ladder: if our own hop cannot
+       carry a plan either, the banker is owed the sentence, not more waiting. */
+    if (options.idempotent && !options.read && !vetoed && isRetryableWrite(failure)) {
+      const doorName = doorTool(tool);
+      if (doorName) {
+        const doorServer = writeDoorServer();
+        // The Salesforce attempt that just failed goes on that lane's history;
+        // its STATE is settled below by whichever door answers.
+        noteLaneAttempt(server, { tool, ms: attemptMs, ok: false });
+        options.onAttempt?.({ attempt: attempts + 1, failure });
+        attempts += 1;
+        try {
+          const ok = await invoke(doorServer, doorName);
+          noteLaneSuccess(doorServer, Date.now(), { tool: doorName, ms: attemptMs });
+          // Recorded against the lane the banker knows: the plan IS filed, and
+          // this says which hop carried it. The door's own row says it answered.
+          noteLaneBackup(server);
+          return { ...ok, attempts, door: "backup" };
+        } catch (doorErr) {
+          // BOTH DOORS ARE SHUT, and the failure reported is the Salesforce
+          // one: a banker asked for a plan, not for a hop, and the copy that
+          // helps names the connector they added. The door's own failure is
+          // recorded where the health line reads it.
+          noteLaneFailure(doorServer, describeFailure(doorErr, doorServer, doorName), { tool: doorName, ms: attemptMs });
+        }
+      }
+    }
+
     noteLaneFailure(server, failure, { tool, ms: attemptMs });
     throw { ...failure, attempts };
   }
@@ -784,9 +865,14 @@ export async function probeConnectorGrants(servers: readonly string[]): Promise<
        place the page can learn it. Noted BEFORE the grants below, so the Boom
        lane's grant is filed under the name its calls will actually carry. */
     noteBoomServers(res?.servers, BOOM_SIGNATURE_TOOLS);
+    /* AND SO DOES THE WRITE DOOR (0.9.29), for the same reason and off the same
+       answer: the viewer names the connector, and this is the only place the
+       page can learn the spelling and the tools it serves. */
+    noteWriteDoorServers(res?.servers);
     const seen = new Map((res?.servers ?? []).map((s) => [s.server, String(s.authStatus ?? "")]));
     for (const requested of servers) {
-      const server = requested === SERVERS.boom ? boomServer() : requested;
+      const server =
+        requested === SERVERS.boom ? boomServer() : requested === SERVERS.writeDoor ? writeDoorServer() : requested;
       const status = seen.get(server);
       noteLaneGrant(server, status !== undefined && !UNUSABLE_AUTH.has(status));
     }

@@ -31,6 +31,7 @@ import { boomConnector, readBoomAnswer } from "./boom";
 import { mapLineCodes } from "../spread/lineMap";
 import type {
   BoomAdapter,
+  BoomFileListing,
   BoomFileStatus,
   BoomFinancialStatement,
   BoomRatioSupportLine,
@@ -139,6 +140,29 @@ export const fileArgs = (fileId: string): Record<string, unknown> => ({ fileId }
 export const spreadArgs = (fileId: string, adjusted: boolean): Record<string, unknown> => ({ fileId, adjusted });
 export const awaitArgs = (fileId: string, maxSeconds: number): Record<string, unknown> => ({ fileId, maxSeconds });
 
+/* ------------------------------------------------- the wait's own wall clock
+
+   THE DEFECT THIS CLOSES (founder, 2026-09-15 19:37 UTC, Hartwell, the first
+   live upload from the Spreading room). `boom_await_file` is a READ, and a read
+   at the seam carries `READ_DEADLINE_MS`, fifteen seconds (`channel/mcp.ts`).
+   The room asked Boom to BLOCK for twenty. The page's own clock therefore fired
+   five seconds before the server could possibly answer, on every wait, for every
+   file: three files, three rejections, three rows saying "Failed" while Boom
+   held all three at `processing`.
+
+   SO THE WAIT BRINGS ITS OWN DEADLINE, derived from the seconds it asked for
+   rather than borrowed from the generic read budget. A caller that asks Boom for
+   ten seconds is prepared to wait ten seconds plus one relay hop, and nothing
+   about that number should move when somebody retunes reads elsewhere. */
+
+/** The hop, on top of the seconds Boom was asked to block. Generous: the
+ *  artifact-to-connector relay is not instrumented from inside the page beyond
+ *  the round trip `callTool` already records. */
+const BOOM_AWAIT_MARGIN_MS = 4_000;
+
+/** How long ONE `boom_await_file` attempt may take at the seam. */
+export const awaitDeadlineMs = (maxSeconds: number): number => maxSeconds * 1_000 + BOOM_AWAIT_MARGIN_MS;
+
 /* ---------------------------------------------------------------- the lane */
 
 /**
@@ -241,6 +265,12 @@ export function liveBoomAdapter(call: BoomToolCall = callTool): BoomAdapter {
     return readBoomAnswer<Record<string, unknown>>(res, key)?.body;
   };
 
+  /** Boom's own `File` rows for one borrower, read once. */
+  async function listing(salesforceRecordId: string, signal?: AbortSignal): Promise<Array<Record<string, unknown>>> {
+    const listed = await body(BOOM_TOOLS.listFiles, listFilesArgs(salesforceRecordId), read(signal));
+    return Array.isArray(listed?.files) ? (listed.files as Array<Record<string, unknown>>) : [];
+  }
+
   /** The file Boom already holds for these bytes, or nothing.
    *
    *  IDEMPOTENCY IS KEPT ON BOTH SIDES. `boom_create_upload` is idempotent on
@@ -249,9 +279,7 @@ export function liveBoomAdapter(call: BoomToolCall = callTool): BoomAdapter {
    *  words that it is reusing it. A `failed` file is NOT reused: that is a file
    *  the banker is deliberately sending again. */
   async function existingFile(req: BoomUploadRequest, signal?: AbortSignal): Promise<BoomUploadResult | null> {
-    const listed = await body(BOOM_TOOLS.listFiles, listFilesArgs(req.company.externalUniqueId), read(signal));
-    const files = Array.isArray(listed?.files) ? (listed.files as Array<Record<string, unknown>>) : [];
-    for (const file of files) {
+    for (const file of await listing(req.company.externalUniqueId, signal)) {
       if (asString(file.fileName) !== req.file.name) continue;
       const status = asString(file.status);
       if (!status || status === "failed" || !LADDER.includes(status as BoomFileStatus)) continue;
@@ -304,6 +332,26 @@ export function liveBoomAdapter(call: BoomToolCall = callTool): BoomAdapter {
       };
     },
 
+    /** WHAT BOOM HOLDS FOR THIS BORROWER, rungs only. The room asks it on the
+     *  way in, where its own receipts died with the page, so a reload lands the
+     *  banker back in the wait instead of in front of an empty drop zone. */
+    async listFiles(companyExternalId: string, opts?: { signal?: AbortSignal }): Promise<BoomFileListing[]> {
+      const rows: BoomFileListing[] = [];
+      for (const file of await listing(companyExternalId, opts?.signal)) {
+        const id = asString(file.id);
+        const status = asString(file.status);
+        if (!id || !status || !LADDER.includes(status as BoomFileStatus)) continue;
+        rows.push({
+          fileId: id,
+          fileName: asString(file.fileName) ?? id,
+          status: status as BoomFileStatus,
+          fileGroupId: asString(file.fileGroupId) ?? null,
+          createdAt: asString(file.createdAt) ?? null,
+        });
+      }
+      return rows;
+    },
+
     /** Where the file has got to, with Boom's own spread once it is readable. */
     async status(fileId: string, opts?: { signal?: AbortSignal }): Promise<BoomUploadResult> {
       const signal = opts?.signal;
@@ -332,7 +380,10 @@ export function liveBoomAdapter(call: BoomToolCall = callTool): BoomAdapter {
      *  so waiting longer than that is the ROOM's business (`spreadEngine.ts`),
      *  not a longer argument here. */
     async awaitSettled(fileId: string, maxSeconds: number, opts?: { signal?: AbortSignal }): Promise<BoomUploadResult> {
-      const waited = await body(BOOM_TOOLS.awaitFile, awaitArgs(fileId, maxSeconds), read(opts?.signal));
+      const waited = await body(BOOM_TOOLS.awaitFile, awaitArgs(fileId, maxSeconds), {
+        ...read(opts?.signal),
+        deadlineMs: awaitDeadlineMs(maxSeconds),
+      });
       const status = statusOf(waited, BOOM_TOOLS.awaitFile);
       if (!status) transformError(BOOM_TOOLS.awaitFile, `${BOOM_TOOLS.awaitFile} returned no status`);
       return { fileId: fileIdOf(waited, fileId)!, companyId: null, fileGroupId: null, status };

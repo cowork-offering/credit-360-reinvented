@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { fmtAsOf } from "../data/format";
 import { boomServer } from "../channel/boomLane";
 import { probeConnectorGrants, SERVERS } from "../channel/mcp";
+import { writeDoorServer } from "../channel/writeDoor";
 import { laneCalls, useLaneHealth, type LaneHealth } from "../channel/laneHealth";
 
 /* =============================================================================
@@ -48,7 +49,7 @@ import { laneCalls, useLaneHealth, type LaneHealth } from "../channel/laneHealth
    ("Boom"), which is also what a call would be addressed to. The label is the
    connector's own name so an operator reading this line and the connector list
    in claude.ai sees one string, not two. */
-function lanes(): ReadonlyArray<{ server: string; label: string }> {
+function lanes(): ReadonlyArray<{ server: string; label: string; carries?: string; optional?: true }> {
   return [
     { server: SERVERS.customer360, label: "Salesforce" },
     /* THE BACKUP EARNS ITS PLACE ON THE LINE OR IT IS NOT ON IT. A read lane
@@ -58,6 +59,19 @@ function lanes(): ReadonlyArray<{ server: string; label: string }> {
        keeps any lane that has been called), or the viewer has not added it, which
        is a connector to add and worth one word. */
     { server: SERVERS.readBackup, label: "Backup" },
+    /* THE WRITE DOOR (0.9.29), OPTIONAL AND SAYING WHAT IT CARRIES. It appears
+       on the same two terms the backup does: it answered for Salesforce, or the
+       viewer has not added it. `carries` is the one sentence that tells an
+       operator what this connector is for, and it rides the title rather than
+       the line, because the line is the quietest thing in the cockpit and this
+       lane is silent in a session where nothing was filed the hard way. Found,
+       not named: the row addresses whichever connector discovery resolved. */
+    {
+      server: writeDoorServer(),
+      label: "Write door",
+      carries: "the second hop for the governed stage and execute pairs, taken only when the Salesforce hop loses an answer. Reads never use it.",
+      optional: true,
+    },
     { server: boomServer(), label: boomServer() },
     { server: SERVERS.m365, label: "Inbox" },
     { server: SERVERS.experience, label: "nCino" },
@@ -137,12 +151,19 @@ export function HealthLine() {
   }, []);
 
   const now = Date.now();
-  const shown = LANES.filter(({ server }) => {
+  const shown = LANES.filter(({ server, optional }) => {
     const lane = health[server];
     // A lane nobody has called and nobody granted has nothing to say. The two
     // writeback connectors sit unused for whole sessions; naming them idle
     // every time would make the line longer than it is useful.
-    return lane !== undefined && !(lane.grant === "granted" && lane.state === "idle");
+    if (lane === undefined || (lane.grant === "granted" && lane.state === "idle")) return false;
+    /* AND AN OPTIONAL DOOR NOBODY HAS NEEDED IS NOT NEWS EITHER. The backup
+       earns its "not granted" word because without it an outage leaves the page
+       on stored figures; the write door changes nothing at all until a governed
+       write loses its answer, so it appears once it has carried something (or
+       failed to), and never merely because a viewer did not add it. */
+    if (optional && lane.grant !== "granted") return false;
+    return true;
   });
 
   if (!shown.length) return null;
@@ -161,7 +182,7 @@ export function HealthLine() {
           unavailable in this view
         </span>
       ) : (
-        shown.map(({ server, label }) => {
+        shown.map(({ server, label, carries }) => {
           const lane = health[server];
           const isOpen = open === server;
           return (
@@ -181,7 +202,7 @@ export function HealthLine() {
                 data-lane={server}
                 data-lane-state={lane?.state}
                 aria-expanded={isOpen}
-                title={lane?.message ? `${server}: ${lane.message}` : server}
+                title={[server, carries, lane?.message].filter(Boolean).join(": ")}
                 onClick={() => setOpen(isOpen ? null : server)}
               >
                 {laneSentence(lane, label, now)}

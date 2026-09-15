@@ -127,6 +127,33 @@ export const INVENTORY_GROUPS: readonly InventoryGroup[] = [
  *  would make the inventory a shorter list than the delete set. */
 export const OTHER_GROUP_TITLE = "Also going";
 
+/**
+ * THE SHORT BANKER NAME PER ORG OBJECT (0.9.29, the governed-action stage).
+ *
+ * The stage puts one row per write group on the glass, and `LLC_BI__Pricing_-
+ * Payment_Component__c` is not a row title a banker reads. The org's own step
+ * label rides alongside it verbatim and is what the run shows, so this is a
+ * heading and never a substitute for what the org said.
+ *
+ * One entry per object the frozen contract deletes. An object outside this list
+ * still renders, off its API name read plainly (`actions/stageModel.ts`): a
+ * group the vocabulary has not caught up with is still a group that goes.
+ */
+export const DISCARD_OBJECT_TITLES: Record<string, string> = {
+  LLC_BI__LoanRenewal__c: "Version chain rows",
+  LLC_BI__Loan_Collateral2__c: "Collateral pledges",
+  LLC_BI__Loan_Covenant__c: "Covenant junctions",
+  LLC_BI__Pricing_Rate_Component__c: "Pricing rate components",
+  LLC_BI__Pricing_Payment_Component__c: "Pricing payment components",
+  LLC_BI__Pricing_Stream__c: "Pricing streams",
+  LLC_BI__Fee__c: "Fees",
+  LLC_BI__Legal_Entities__c: "Borrowing structure",
+  LLC_BI__Loan_Detail__c: "Facility detail",
+  LLC_BI__Loan__c: "The version's facilities",
+  LLC_BI__Loan_Collateral_Aggregate__c: "Collateral aggregate shells",
+  LLC_BI__Product_Package__c: "The version package",
+};
+
 export interface GroupedInventory {
   title: string;
   items: InventoryRow[];

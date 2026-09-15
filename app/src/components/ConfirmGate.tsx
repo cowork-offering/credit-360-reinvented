@@ -1,37 +1,13 @@
-import { useCallback, useMemo, useRef, useState } from "react";
 import { useApp } from "../state/appState";
 import type { StagedOutput } from "../actions/stagedPlan";
-import { SIMULATION_BANNER, assertNoRecordIds } from "../actions/stagedPlan";
-import {
-  RECHECK_LINE,
-  blockingDrift,
-  computeSuggestions,
-  detectDrift,
-  isRecheckOnly,
-  type DriftReason,
-} from "../actions/suggestionEngine";
+import { SIMULATION_BANNER } from "../actions/stagedPlan";
+import { RECHECK_LINE, type DriftReason } from "../actions/suggestionEngine";
 import { packageFacilityCount } from "../actions/dealTicket";
-import { validateDiscardPlan, validatePlan } from "../actions/transitionAllowlist";
-import { mintDecisionToken, type DecisionToken } from "../actions/decisionToken";
-import {
-  ASKING_AGAIN,
-  EXECUTE_CLOCK_MS,
-  EXECUTION_HELD_COPY,
-  executeAction,
-  executionHeldReason,
-  isExecutionHeld,
-  isWriteAction,
-  resolveApproverUserId,
-  toolErrorCopy,
-  TRANSPORT_SENTENCE,
-  type ExecuteResult,
-  type ToolError,
-} from "../channel/writeTools";
-import { mcpAvailable } from "../channel/mcp";
+import type { DecisionToken } from "../actions/decisionToken";
+import { ASKING_AGAIN, EXECUTE_CLOCK_MS, toolErrorCopy, type ExecuteResult } from "../channel/writeTools";
 import { STEP_TYPE_LABEL } from "../actions/tracker";
 import { resolveBundle } from "../actions/registry";
-import { groupInventory, DISCARD_ACTION_ID, STAGING_KEPT, whatStays } from "../actions/discardVersion";
-import { packageRoster } from "../book/packages";
+import { useGovernedConfirm } from "./governedConfirm";
 
 /* =============================================================================
    THE CONFIRM GATE (A33.3.1)
@@ -174,59 +150,24 @@ export function ConfirmGate({
   onBack: () => void;
 }) {
   const { data, state } = useApp();
-  const [drift, setDrift] = useState<DriftReason[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [executing, setExecuting] = useState(false);
-  const [toolError, setToolError] = useState<ToolError | null>(null);
-  /** True once the gate's own clock has run out on a call still in flight. */
-  const [unsettled, setUnsettled] = useState(false);
-  /** The attempt now going out, while the same key is re-asked. Zero when the
-   *  gate is not re-asking anything. */
-  const [asking, setAsking] = useState(0);
-  /** WHICH GESTURE OWNS THE SCREEN. The gate's clock leaves a call running
-   *  behind the notice, and "Try again" starts another under the same key. Both
-   *  may answer; only the LATEST one may write to this gate, or a late answer to
-   *  a superseded ask would settle over the one the banker is watching. */
-  const run = useRef(0);
-
   const bundle = resolveBundle(data, state.accountId);
 
-  /** A33.2.7 recomputation, in one place: the gesture runs it to decide, and
-   *  the render runs it to say whether the read moved on underneath. */
-  const recompute = useCallback(
-    () =>
-      detectDrift(
-        plan.suggestions,
-        computeSuggestions({ data, bundle, actionId, liveStoredAt, liveSections }),
-        asOf ?? data.meta?.generatedAt ?? "",
-      ),
-    [plan.suggestions, data, bundle, actionId, liveStoredAt, liveSections, asOf],
-  );
+  /* THE GESTURE AND ITS DOCTRINE LIVE IN ONE PLACE. The governed-action stage
+     (0.9.29) runs the identical recompute, allowlist, id fence, token and clock
+     on its own commit pill, and two copies of that would be two things to keep
+     in step. This gate decides only what it SAYS. */
+  const gate = useGovernedConfirm({
+    plan,
+    actionId,
+    simulated,
+    idempotencyKey,
+    liveStoredAt,
+    liveSections,
+    asOf,
+    onConfirmed,
+  });
+  const { drift, rechecked, violations, idLeaks, held, heldReason, blocked, executing, asking, unsettled, toolError, error } = gate;
 
-  /** A newer read with every figure unchanged. Informational, never a block. */
-  const rechecked = useMemo(() => isRecheckOnly(recompute()), [recompute]);
-
-  // A33.3.1 — the plan must be allowlisted before a gesture is offered at all.
-  /* THE DISCARD IS VALIDATED AGAINST ITS OWN FENCE. The allowlist governs
-     WRITES and refuses the renewal chain rows by name; a discard's whole job is
-     to take them, in order, so a plan that deletes is held to the objects the
-     frozen contract names instead. See actions/transitionAllowlist.ts. */
-  const violations = useMemo(
-    () => (actionId === DISCARD_ACTION_ID ? validateDiscardPlan(plan.steps) : validatePlan(plan.steps)),
-    [plan.steps, actionId],
-  );
-  // A33.5.3 — a staged plan carrying a record id means something already wrote.
-  const idLeaks = useMemo(() => assertNoRecordIds(plan), [plan]);
-
-  // LV06: the plan is real and staged, and there is no execute tool to run it.
-  // The ORG's own verdict wins when it speaks: `executionHeld` + `heldReason`
-  // come back on the observed stage response, and the reason is rendered
-  // verbatim rather than restated from our own copy.
-  const held = plan.executionHeld === true || isExecutionHeld(actionId);
-  // The ORG's reason when it gives one, else THIS action's own reason: LV06 and
-  // a founder gate are different facts and must not borrow each other's words.
-  const heldReason = plan.heldReason ?? executionHeldReason(actionId) ?? EXECUTION_HELD_COPY;
-  const blocked = violations.length > 0 || idLeaks.length > 0 || held;
   /** A package-anchored plan over SEVERAL facilities. Drives the plural copy
    *  below: "the new facility" is wrong when the plan clones four of them. */
   const multi = (plan.facilities?.length ?? 0) > 1;
@@ -234,178 +175,6 @@ export function ConfirmGate({
    *  selection out of it rather than as a bare figure a banker can read as the
    *  package's own size. Zero means the read cannot place the package. */
   const dealSize = packageFacilityCount(bundle, plan.productPackageId);
-  /** The org's delete set, grouped as the contract orders it. Empty on every
-   *  plan that carries no inventory, which is every plan but a discard. */
-  const inventory = useMemo(() => groupInventory(plan.items), [plan.items]);
-  const inventoryCount = useMemo(() => inventory.reduce((n, g) => n + g.items.length, 0), [inventory]);
-  /** The booked package the discard leaves behind, named by the roster. */
-  const sourceName = useMemo(() => {
-    if (!inventory.length) return null;
-    const roster = packageRoster(bundle);
-    const byVersion = plan.productPackageId
-      ? roster.find((e) => e.inFlightVersionId === plan.productPackageId)
-      : undefined;
-    return (byVersion ?? roster.find((e) => e.inFlightVersionId))?.name ?? null;
-  }, [inventory.length, bundle, plan.productPackageId]);
-
-  async function confirm() {
-    setError(null);
-    setToolError(null);
-    setUnsettled(false);
-
-    // A33.2.7 — MANDATORY recompute. A plan is never executed against figures
-    // the banker did not see. A moved FIGURE stops here; a newer timestamp over
-    // identical figures is stated above and does not.
-    const moved = blockingDrift(recompute());
-    if (moved.length > 0) {
-      setDrift(moved);
-      return;
-    }
-    setDrift(null);
-
-    const userId = data.meta?.user;
-    if (!userId) {
-      setError("The confirmation must name the banker making it, and this view has no user.");
-      return;
-    }
-
-    // The org checks this against the RUNNING IDENTITY before it will redeem
-    // the token. A display name fails that check and nothing is written, so
-    // the gesture stops here rather than producing a generic tool failure.
-    const approverUserId = resolveApproverUserId(data.meta);
-
-    // The SERVER mints the authoritative token at stage time and redeems it on
-    // execute. The client record below is a cache of that fact, exactly as the
-    // tracker's step state is a cache of the staging record (A33.3.3).
-    let record: DecisionToken;
-    try {
-      record = mintDecisionToken({ stagingId: plan.stagingId, planHash: plan.planHash, userId });
-    } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
-      return;
-    }
-
-    // No live capability, or a simulated plan: record the confirmation and show
-    // the tracker. Nothing executes, which is the fail-closed path.
-    if (simulated || !mcpAvailable() || !isWriteAction(actionId)) {
-      onConfirmed(record);
-      return;
-    }
-
-    if (!approverUserId) {
-      setError(
-        "This view has no Salesforce user id for the signed-in identity, and the org will not file a record without one. The cockpit needs meta.userId staged before this can be confirmed.",
-      );
-      return;
-    }
-
-    // The SERVER token from the staging result, verbatim. The client-minted
-    // record above is a bookkeeping cache and must never reach the wire.
-    const serverToken = plan.decisionToken;
-    if (!serverToken) {
-      setError(
-        "This plan carries no confirmation token from the staging call, so it cannot be executed. Stage it again.",
-      );
-      return;
-    }
-
-    setExecuting(true);
-    setAsking(0);
-    const mine = ++run.current;
-
-    const work = executeAction(
-      actionId,
-      {
-        // Exactly the five fields Execute*.cls reads, each taken from the
-        // staging result verbatim. The idempotency key is the STAGE key: that
-        // pairing is what the proven Apex round trip used.
-        idempotencyKey: idempotencyKey ?? plan.stagingId,
-        stagingId: plan.stagingId,
-        planHash: plan.planHash,
-        decisionToken: serverToken,
-        approverUserId,
-      },
-      {
-        /* THE RELATIONSHIP, SO A LOST ANSWER CAN BE CHASED. Without it the lane
-           can only report that the wire went quiet; with it, the org's own trail
-           says how the run actually ended. */
-        accountId: plan.accountId ?? state.accountId,
-        onAttempt: (n) => {
-          if (run.current === mine) setAsking(n);
-        },
-      },
-    );
-
-    /** The org's answer, whenever it comes, and whichever way it goes. Named
-     *  because the clock below hands the SAME function to a late answer. */
-    const settle = (outcome: Awaited<typeof work>) => {
-      if (run.current !== mine) return;
-      setUnsettled(false);
-      setAsking(0);
-      if (!outcome.ok) {
-        setToolError(outcome.error);
-        return;
-      }
-      /* SAID ONCE, WHERE THE BANKER LANDS. A filing that took two asks, or that
-         had to be read off the trail, is a different fact from one that answered
-         first time, and the tracker is where it belongs: the gate is gone by the
-         time it would be read here. */
-      const note = outcome.recovered
-        ? `The answer never came back over the connector. This is Salesforce's own trail for ${outcome.result.stagingId}, read after ${outcome.attempts} asks.`
-        : outcome.attempts > 1
-          ? `Filed as ${outcome.result.recordName ?? outcome.result.stagingId} on the ${outcome.attempts === 2 ? "second" : "third"} ask.`
-          : undefined;
-      onConfirmed(record, outcome.result, note);
-    };
-
-    const fail = (e: unknown) => {
-      if (run.current !== mine) return;
-      setUnsettled(false);
-      setAsking(0);
-      /* THE ROOM'S SENTENCE LEADS AND THE PLATFORM'S CODE FOLLOWS. It used to be
-         the other way round, and "request failed (502)" in critical ink over a
-         write nobody had asked about was the whole defect: it reads as a verdict
-         and it is not one. The org's own refusals still lead with their own
-         words, because those are answers. */
-      const f = e as { code?: string; fix?: string; message?: string; said?: string };
-      const platform = [f.code, f.message].filter(Boolean).join(": ");
-      setToolError({
-        code: f.code ?? "TRANSPORT",
-        message: f.said ?? f.fix ?? f.message ?? TRANSPORT_SENTENCE,
-        orgError: f.said ? platform : f.message && f.fix && f.message !== f.fix ? f.fix : undefined,
-        resumable: true,
-      });
-    };
-
-    let expired = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const clock = new Promise<"clock">((resolve) => {
-      timer = setTimeout(() => {
-        expired = true;
-        resolve("clock");
-      }, EXECUTE_CLOCK_MS);
-    });
-
-    try {
-      const first = await Promise.race([work, clock]);
-      if (first === "clock") {
-        /* THE WAIT ENDS, THE CALL DOES NOT. The banker is told the truth, the
-           org has not answered, and the execute keeps running behind it. When
-           it lands, this replaces the notice with the real outcome. */
-        setUnsettled(true);
-        work.then(settle, fail);
-        return;
-      }
-      settle(first);
-    } catch (e) {
-      // A rejection that beat the clock. One that loses to it is handled by the
-      // continuation above, so nothing is reported twice.
-      if (!expired) fail(e);
-    } finally {
-      if (timer !== undefined) clearTimeout(timer);
-      setExecuting(false);
-    }
-  }
 
   return (
     <div className="flex flex-col">
@@ -536,40 +305,6 @@ export function ConfirmGate({
               written. The rest are reported with a reason each and nothing about them is changed.
             </p>
           )}
-        </div>
-      )}
-
-      {/* THE INVENTORY (0.9.23, SPEC-0.9.23-TOOL-CONTRACT pair 2). A discard is
-          the only plan on this gate that DELETES, so the banker reads the org's
-          own list of what goes before confirming, grouped in the order the
-          executor will run: the chain rows that flip the parents back, then the
-          copies, then the loans, then the package, and last the staging rows,
-          which are kept and marked Withdrawn rather than deleted. Every row is
-          the org's, discovered by query; nothing here is derived. What STAYS is
-          stated in the same block, because a list of deletions with no
-          counterweight reads as a far bigger act than this one is. */}
-      {inventory.length > 0 && (
-        <div className="border-b border-divider px-5 py-4" data-inventory="discard">
-          <div className="kicker mb-2">
-            {inventoryCount} {inventoryCount === 1 ? "record" : "records"} in this discard
-          </div>
-          <div className="flex flex-col gap-3">
-            {inventory.map((group) => (
-              <div key={group.title}>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">{group.title}</div>
-                <ul className="mt-1 space-y-1.5">
-                  {group.items.map((item, i) => (
-                    <li key={`${item.object}-${item.id ?? i}`}>
-                      <div className="text-[12.5px] font-semibold text-ink">{item.name ?? item.id ?? item.object}</div>
-                      {item.reason && <div className="mt-0.5 text-[11px] leading-relaxed text-ink-muted">{item.reason}</div>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <p className="mt-2.5 text-[11.5px] leading-relaxed text-ink-muted">{STAGING_KEPT}</p>
-          <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-muted">{whatStays(sourceName)}</p>
         </div>
       )}
 
@@ -743,10 +478,7 @@ export function ConfirmGate({
             {toolError.code === "TRANSPORT" && (
               <button
                 type="button"
-                onClick={() => {
-                  setToolError(null);
-                  void confirm();
-                }}
+                onClick={gate.retry}
                 disabled={executing}
                 className="c360-btn mt-2.5 rounded-md px-3.5 py-1.5 text-[12px] font-semibold disabled:opacity-40"
                 style={{ background: "var(--accent)", color: "var(--accent-ink)" }}
@@ -778,15 +510,19 @@ export function ConfirmGate({
           Back
         </button>
         <div className="flex-1" />
+        {/* THE COMMIT IS INK (rule 27/41, reconciled for backlog row 59, 0.9.29).
+            A primary sits in the room's glass register EXCEPT at the commit
+            moment, which is the ink pill. This control IS that moment and it
+            carried a solid violet fill, which the rule bans outright; the
+            governed-action stage's own commit pill is this same pill. */}
         <button
           type="button"
           // A blocked gate with a re-stage affordance offers ONE way forward.
           // Leaving Confirm live beside it would recompute the same divergence
           // and refuse again, which is the dead end this pass removes.
           disabled={blocked || executing || Boolean(drift && onRestage)}
-          onClick={() => void confirm()}
-          className="c360-btn rounded-md px-3.5 py-1.5 text-[12px] font-semibold disabled:opacity-40"
-          style={{ background: "var(--accent)", color: "var(--accent-ink)" }}
+          onClick={() => void gate.confirm()}
+          className="eg-btn-ink c360-press"
         >
           {held ? "Filing is on hold" : executing ? "Working…" : drift ? "Confirm the new figures" : simulated ? "Confirm" : "Confirm and file"}
         </button>

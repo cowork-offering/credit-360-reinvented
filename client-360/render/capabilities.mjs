@@ -9,6 +9,8 @@
 //
 //   Customer 360         <- the org's own McpServerDefinition, via tool-names.mjs (org order, all of them)
 //   Salesforce Read Backup <- the same manifest's ten reads, gw_-prefixed, plus the backup's own health tool
+//   Customer 360 Write Door <- the same manifest's governed WRITES, as the Apex class names the gateway
+//                              publishes them under, plus the door's own health tool
 //   Boom              <- app/src/channel/mcp.ts, the two reads and the upload ladder
 //   Microsoft 365     <- app/src/channel/mcp.ts TOOLS.mailSearch
 //   Experience / nCino <- app/src/channel/mcp.ts, the memo writeback and ledger tools
@@ -50,6 +52,15 @@ export const SERVERS = {
      other name gets that refusal with its own operator sentence rather than a
      silent lane. Adding speculative spellings here would spend a consent prompt
      per guess, which is worse. */
+  /* THE WRITE DOOR (0.9.29), UNDER ITS FALLBACK NAME, and for the same reason
+     Boom is: the page RESOLVES the door at run time by asking `listTools()`
+     which connector serves the gateway's `gw_Stage...` / `gw_Execute...` pairs
+     (app/src/channel/writeDoor.ts), but this manifest gates by display name. So
+     the grant is declared under the spelling the plugin's setup sentence tells
+     the operator to type, and a door added under another name is refused
+     `not_in_manifest` with its own operator sentence rather than failing
+     silently mid-write. */
+  writeDoor: "Customer 360 Write Door",
   boom: "Boom",
   m365: "Microsoft 365",
   experience: "Experience / nCino",
@@ -69,6 +80,29 @@ export const READ_BACKUP_TOOLS = (manifestPath) =>
   manifestToolNames(manifestPath)
     .filter((n) => n.startsWith("Customer360"))
     .map((n) => `gw_${n}`)
+    .concat("gw_health");
+
+/**
+ * THE GATEWAY'S NAME FOR ONE GOVERNED WRITE. One tool per Apex invocable class,
+ * under the class's own name with the `gw_` prefix: `stage_loan_modification` is
+ * `StageLoanModification.cls` is `gw_StageLoanModification`. The page derives
+ * the same name the same way (app/src/channel/writeDoor.ts, `doorToolName`), so
+ * the grant and the call cannot spell it differently.
+ */
+const gwWriteName = (name) => `gw_${name.replace(/(^|_)([a-z0-9])/g, (_m, _sep, c) => c.toUpperCase())}`;
+
+/**
+ * The write door: the org's governed stage and execute pairs, its stage-only
+ * renewal and its second-hop completion tool, plus the door's own health tool.
+ * DERIVED FROM THE SAME MANIFEST as the Customer 360 grant, so a pair the org
+ * gains is on the door at the next regeneration and no hand-typed list can
+ * drift. NO READ IS EVER ON IT: reads have their own second door, and this one
+ * exists to carry a write whose answer the relay lost.
+ */
+export const WRITE_DOOR_TOOLS = (manifestPath) =>
+  manifestToolNames(manifestPath)
+    .filter((n) => /^(stage|execute|complete)_/.test(n))
+    .map(gwWriteName)
     .concat("gw_health");
 
 /** `TOOLS` keys in app/src/channel/mcp.ts, by the server that answers them. */
@@ -153,6 +187,7 @@ export function buildCapabilities({ manifestPath = MANIFEST_PATH, channelPath = 
       servers: [
         { server: SERVERS.customer360, tools: manifestToolNames(manifestPath) },
         { server: SERVERS.readBackup, tools: READ_BACKUP_TOOLS(manifestPath) },
+        { server: SERVERS.writeDoor, tools: WRITE_DOOR_TOOLS(manifestPath) },
         { server: SERVERS.boom, tools: channelToolNames(BOOM_KEYS, channelPath) },
         { server: SERVERS.m365, tools: channelToolNames(M365_KEYS, channelPath) },
         { server: SERVERS.experience, tools: channelToolNames(EXPERIENCE_KEYS, channelPath) },

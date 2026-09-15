@@ -8,7 +8,7 @@ import { SpreadingRoom } from "./components/workroom/SpreadingRoom";
 import { liveBoomAdapter } from "./channel/boomUpload";
 import { resetBoomServer } from "./channel/boomLane";
 import type { McpOk } from "./channel/mcp";
-import { forgetBoomFile, pendingBoomFile, rememberBoomFile, resetBoomFiles } from "./components/workroom/spreadSession";
+import { forgetBoomFile, pendingBoomFiles, rememberBoomFile, resetBoomFiles } from "./components/workroom/spreadSession";
 import { interestCoverageAt } from "./spread/coverage";
 import { isProvisionalPeriod } from "./spread/publishSpread";
 import { provisionalRead } from "./spread/provisional";
@@ -26,7 +26,9 @@ import type { RelationshipSpreadContext } from "./spread/preRead";
 import type { Boom, BorrowerBundle } from "./data/contract";
 import type { DroppedFile, ExtractedDocument, FilePreRead } from "./spread/types";
 
+import AWAIT from "./__fixtures__/boom-live/await-piedmont.json";
 import FILE from "./__fixtures__/boom-live/file-piedmont.json";
+import FILES from "./__fixtures__/boom-live/files-piedmont.json";
 import FILE_PROCESSING from "./__fixtures__/boom-live/file-processing.json";
 import RATIOS from "./__fixtures__/boom-live/ratios-piedmont.json";
 import SPREAD from "./__fixtures__/boom-live/spread-piedmont.json";
@@ -303,7 +305,7 @@ describe("the wait, across the room's own clock", () => {
     await e.drop([droppedFile()]);
     await e.confirm();
     // Settled, so the receipt is gone: nothing to resume.
-    expect(pendingBoomFile(ACCOUNT)).toBeNull();
+    expect(pendingBoomFiles(ACCOUNT)).toEqual([]);
   });
 
   it("resumes from the file Boom still holds rather than sending the bytes again", async () => {
@@ -316,7 +318,7 @@ describe("the wait, across the room's own clock", () => {
         forgetFile: (fileId) => forgetBoomFile(ACCOUNT, fileId),
       }),
     }));
-    await e.resume(pendingBoomFile(ACCOUNT)!);
+    await e.resume(pendingBoomFiles(ACCOUNT));
 
     // NOTHING WAS SENT. Only the reads: where the file got to, its spread, and
     // the ratio support that says which line feeds which headline figure.
@@ -324,7 +326,157 @@ describe("the wait, across the room's own clock", () => {
     expect(e.getState().stage).toBe("spread");
     expect(e.getState().statements).toHaveLength(3);
     expect(e.getState().refusals.join(" ")).toContain("still with Boom from earlier");
-    expect(pendingBoomFile(ACCOUNT)).toBeNull();
+    expect(pendingBoomFiles(ACCOUNT)).toEqual([]);
+  });
+});
+
+/* =============================================================================
+   HARTWELL, 2026-09-15 19:37 UTC: THE THREE FILES, AND COMING BACK FOR THEM.
+
+   Three statements went to Boom in one drop, all three landed at `processing`,
+   and the room reported three failures. Every answer below is the live server's
+   own, off `src/__fixtures__/boom-live/`, and what is pinned is the whole of
+   what the founder's run needed and did not have: three receipts rather than
+   one, a wait that survives a rejected call, and a re-entry that finds the
+   files through `boom_list_files` when the page itself has been reloaded and
+   the receipts are gone.
+   ============================================================================= */
+describe("three files left with Boom, and the way back to them", () => {
+  const NAMES = ["Hartwell_FY2024_compiled.pdf", "Hartwell_company_prepared.pdf", "Hartwell_TB.xlsx"];
+  const IDS = ["0a07bf4e-0001-4000-8000-000000000001", "0a07bf4e-0002-4000-8000-000000000002", "0a07bf4e-0003-4000-8000-000000000003"];
+
+  /** Boom's own `boom_await_file` answer on a file it is still spreading, the
+   *  shape the founder read off the live tools a minute after the drop. */
+  const AWAITING = (fileId: string) => ({ ...AWAIT, fileId, status: "processing", done: false });
+
+  it("keeps one receipt per file rather than letting the third overwrite the first", async () => {
+    const handles = IDS.map((fileId, i) => ({ fileId, companyId: null, fileName: NAMES[i], startedAt: Date.now() }));
+    for (const h of handles) rememberBoomFile(ACCOUNT, h);
+    expect(pendingBoomFiles(ACCOUNT).map((h) => h.fileId)).toEqual(IDS);
+
+    forgetBoomFile(ACCOUNT, IDS[1]);
+    expect(pendingBoomFiles(ACCOUNT).map((h) => h.fileId)).toEqual([IDS[0], IDS[2]]);
+  });
+
+  it("rejoins all three waits on re-entry, sends nothing, and calls none of them failed", async () => {
+    vi.useFakeTimers();
+    const state = { spreading: true };
+    const tools: string[] = [];
+    const call = async (_s: string, tool: string, input?: unknown): Promise<McpOk<unknown>> => {
+      tools.push(tool);
+      const fileId = (input as { fileId?: string } | undefined)?.fileId ?? "";
+      if (tool === "boom_await_file") {
+        return { payload: state.spreading ? AWAITING(fileId) : { ...AWAIT, fileId, status: "verified", done: true }, raw: {} };
+      }
+      if (tool === "boom_get_file") return { payload: state.spreading ? FILE_PROCESSING : FILE, raw: {} };
+      if (tool === "boom_get_spread") return { payload: SPREAD, raw: {} };
+      if (tool === "boom_get_ratios") return { payload: RATIOS, raw: {} };
+      return { payload: {}, raw: {} };
+    };
+    for (const [i, fileId] of IDS.entries()) {
+      rememberBoomFile(ACCOUNT, { fileId, companyId: null, fileName: NAMES[i], startedAt: Date.now() - 60_000 });
+    }
+    const e = (engine = createSpreadEngine({
+      ctx: CTX,
+      deps: deps({ adapter: liveBoomAdapter(call), forgetFile: (id) => forgetBoomFile(ACCOUNT, id) }),
+    }));
+
+    const resumed = e.resume(pendingBoomFiles(ACCOUNT));
+    await vi.advanceTimersByTimeAsync(5_000);
+    // Three rows, all three still with Boom, none of them called Failed.
+    expect(e.getState().rows.map((r) => r.name)).toEqual(NAMES);
+    expect(e.getState().rows.every((r) => r.state === "processing")).toBe(true);
+    expect(e.getState().rows.every((r) => r.message === null)).toBe(true);
+    // NOTHING WAS SENT: no rung of the upload ladder appears at all.
+    expect(tools).not.toContain("boom_create_upload");
+    expect(tools).not.toContain("boom_upload_bytes");
+    expect(tools).not.toContain("boom_process_file");
+
+    state.spreading = false;
+    await vi.advanceTimersByTimeAsync(20_000);
+    await resumed;
+    expect(e.getState().stage).toBe("spread");
+    expect(e.getState().statements.length).toBeGreaterThan(0);
+    // Every receipt is cleared, because every file settled.
+    expect(pendingBoomFiles(ACCOUNT)).toEqual([]);
+  });
+
+  it("finds the files through boom_list_files when the page was reloaded and the receipts are gone", async () => {
+    vi.useFakeTimers();
+    const tools: string[] = [];
+    const call = async (_s: string, tool: string): Promise<McpOk<unknown>> => {
+      tools.push(tool);
+      if (tool === "boom_list_files") return { payload: FILES, raw: {} };
+      if (tool === "boom_get_file") return { payload: FILE, raw: {} };
+      if (tool === "boom_get_spread") return { payload: SPREAD, raw: {} };
+      if (tool === "boom_get_ratios") return { payload: RATIOS, raw: {} };
+      return { payload: {}, raw: {} };
+    };
+    const e = (engine = createSpreadEngine({ ctx: CTX, deps: deps({ adapter: liveBoomAdapter(call) }) }));
+
+    // No receipts at all: exactly the state a reloaded cockpit is in.
+    expect(pendingBoomFiles(ACCOUNT)).toEqual([]);
+    const resumed = e.resume(pendingBoomFiles(ACCOUNT));
+    await vi.advanceTimersByTimeAsync(20_000);
+    await resumed;
+
+    expect(tools[0]).toBe("boom_list_files");
+    /* ONLY THE FILE THAT WAS IN FLIGHT. The live list carries six files for this
+       borrower, including two `completed` and one `verified` from May and June.
+       Resuming onto those would put a months-old spread on the glass unasked. */
+    expect(e.getState().rows.map((r) => r.boomFileId)).toEqual([
+      "f8c8bd3b-255a-4a37-81bd-ad0829b7c87b",
+      "78b4bae4-2aeb-4570-924e-97582544b10e",
+      "f17f6915-5c56-421f-8e60-afb72037a534",
+      "d6a2ecc3-5321-47c3-8615-a2879d629108",
+    ]);
+    expect(tools).not.toContain("boom_create_upload");
+  });
+
+  it("opens on the drop zone, not a wait, when Boom is holding nothing in flight", async () => {
+    const call = async (_s: string, tool: string): Promise<McpOk<unknown>> => {
+      if (tool === "boom_list_files") return { payload: { ...FILES, files: [] }, raw: {} };
+      return { payload: {}, raw: {} };
+    };
+    const e = (engine = createSpreadEngine({ ctx: CTX, deps: deps({ adapter: liveBoomAdapter(call) }) }));
+    await e.resume([]);
+    expect(e.getState().stage).toBe("idle");
+    expect(e.getState().rows).toEqual([]);
+    expect(e.getState().refusals).toEqual([]);
+  });
+
+  it("does not call a resumed file failed when the read of it misses", async () => {
+    vi.useFakeTimers();
+    let misses = 2;
+    const call = async (_s: string, tool: string): Promise<McpOk<unknown>> => {
+      if (tool === "boom_get_file") {
+        if (misses > 0) {
+          misses -= 1;
+          // The relay's own shape: an object, never an Error.
+          throw { code: "server_unavailable", message: "request failed (502)", retryable: false };
+        }
+        return { payload: FILE, raw: {} };
+      }
+      if (tool === "boom_await_file") throw { code: "cancelled", message: "timeout after 15000ms", timedOut: true };
+      if (tool === "boom_get_spread") return { payload: SPREAD, raw: {} };
+      if (tool === "boom_get_ratios") return { payload: RATIOS, raw: {} };
+      return { payload: {}, raw: {} };
+    };
+    rememberBoomFile(ACCOUNT, { fileId: FILE_ID, companyId: null, fileName: FILE_NAME, startedAt: Date.now() });
+    const e = (engine = createSpreadEngine({
+      ctx: CTX,
+      deps: deps({ adapter: liveBoomAdapter(call), forgetFile: (id) => forgetBoomFile(ACCOUNT, id) }),
+    }));
+
+    const resumed = e.resume(pendingBoomFiles(ACCOUNT));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(e.getState().rows[0].state).not.toBe("failed");
+    expect(e.getState().rows[0].message).not.toBe("[object Object]");
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    await resumed;
+    expect(e.getState().stage).toBe("spread");
+    expect(e.getState().statements.length).toBeGreaterThan(0);
   });
 });
 
@@ -388,7 +540,7 @@ describe("the room's spread section", () => {
   });
 
   /** Drop, answer whatever the room asks, confirm, and let Boom answer. */
-  async function spreadInTheRoom(): Promise<HTMLElement> {
+  async function spreadInTheRoom(over: Partial<SpreadDeps> = {}): Promise<HTMLElement> {
     vi.useFakeTimers();
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -404,7 +556,7 @@ describe("the room's spread section", () => {
             { period: "FY2023", revenue: 56_266_000 },
             { period: "FY2024", revenue: 59_915_000 },
           ],
-          deps: deps(),
+          deps: deps(over),
           onDraftMemo: () => {},
           onClose: () => {},
         }),
@@ -463,5 +615,97 @@ describe("the room's spread section", () => {
     expect(room.querySelector(".rg-adj")).not.toBeNull();
     const feeds = [...room.querySelectorAll(".rg-feeds")].map((n) => n.textContent);
     expect(feeds).toEqual(["feeds revenue", "feeds operating income", "feeds interest expense"]);
+  });
+
+  /* ---------------------------------------------------------------- row 61
+
+     "OPEN IN BOOM NEVER RENDERS". The footer's link hung on `state.validationUrl`
+     and nothing in the lane ever filled it: `liveBoomAdapter.status()` returns
+     none and `boom_open_verification` was not called from anywhere. The control
+     therefore did not exist on any spread the live lane landed.
+
+     THE SESSION IS MINTED ON THE CLICK, AND ONLY THERE. It is a 60-minute token;
+     spending one at render, for every banker who opened a spread to read it,
+     would be spending most of them on nobody. */
+  it("draws Open in Boom as a control, and calls nothing until the banker clicks it", async () => {
+    const tools: string[] = [];
+    const server = boomServerStub();
+    const call = async (s: string, tool: string, input?: unknown): Promise<McpOk<unknown>> => {
+      tools.push(tool);
+      if (tool === "boom_open_verification") {
+        return {
+          payload: envelope({ url: "https://app.boom.build/file-validation/x#token=bvs_1", expiresAt: "2026-09-15T21:00:00Z" }),
+          raw: {},
+        };
+      }
+      return server.call(s, tool, input);
+    };
+    const room = await spreadInTheRoom({ adapter: liveBoomAdapter(call) });
+
+    const control = room.querySelector<HTMLButtonElement>("button.rg-provlink")!;
+    expect(control).not.toBeNull();
+    expect(control.textContent).toBe("Open in Boom");
+    // NOT CALLED AT RENDER: the token is unspent until somebody asks for it.
+    expect(tools).not.toContain("boom_open_verification");
+    // And there is no anchor to click yet, because there is no URL to put in it.
+    expect(room.querySelector("a.rg-provlink")).toBeNull();
+
+    await act(async () => {
+      control.click();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(tools.filter((t) => t === "boom_open_verification")).toHaveLength(1);
+    const link = room.querySelector<HTMLAnchorElement>("a.rg-provlink")!;
+    expect(link).not.toBeNull();
+    expect(link.getAttribute("href")).toBe("https://app.boom.build/file-validation/x#token=bvs_1");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(room.querySelector("button.rg-provlink")).toBeNull();
+  });
+
+  it("asks for the verification page by the FILE Boom spread", async () => {
+    const asked: unknown[] = [];
+    const server = boomServerStub();
+    const call = async (s: string, tool: string, input?: unknown): Promise<McpOk<unknown>> => {
+      if (tool === "boom_open_verification") {
+        asked.push(input);
+        return { payload: envelope({ url: "https://app.boom.build/file-validation/x", expiresAt: "2026-09-15T21:00:00Z" }), raw: {} };
+      }
+      return server.call(s, tool, input);
+    };
+    const room = await spreadInTheRoom({ adapter: liveBoomAdapter(call) });
+    await act(async () => {
+      room.querySelector<HTMLButtonElement>("button.rg-provlink")!.click();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(asked).toEqual([{ fileId: FILE_ID }]);
+  });
+
+  it("says Boom's own words on a refusal and offers no dead link", async () => {
+    const server = boomServerStub();
+    const call = async (s: string, tool: string, input?: unknown): Promise<McpOk<unknown>> => {
+      if (tool === "boom_open_verification") {
+        // The relay's own shape: a plain object, never an Error.
+        throw { code: "server_unavailable", message: "request failed (502)", retryable: false };
+      }
+      return server.call(s, tool, input);
+    };
+    const room = await spreadInTheRoom({ adapter: liveBoomAdapter(call) });
+    await act(async () => {
+      room.querySelector<HTMLButtonElement>("button.rg-provlink")!.click();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    const footer = room.querySelector<HTMLElement>(".rg-prov")!;
+    expect(footer.textContent).toContain("Boom did not open the verification page: request failed (502)");
+    // No link at all, and certainly not the defect.
+    expect(room.querySelector("a.rg-provlink")).toBeNull();
+    expect(footer.textContent).not.toContain("[object Object]");
   });
 });

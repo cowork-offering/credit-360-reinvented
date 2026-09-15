@@ -44,11 +44,35 @@
                  502 of 2026-09-13: STG-0000000149 existed in Salesforce while
                  the page said the request had failed. Default {} , so every
                  drive written before it is unchanged.
+                 IT IS THE claude.ai HOP THAT DROPS THEM (0.9.29), so the WRITE
+                 DOOR below never sees a drop: that is a hop of our own, and a
+                 stub where one knob shut both doors could not tell the door
+                 working from the door never being reached.
+     writeDoor   "absent" (default) | "granted". THE SECOND HOP FOR THE GOVERNED
+                 WRITES (0.9.29, SPEC-0.9.29-WRITE-DOOR). Granted, a third
+                 connector appears in `listTools()` serving `gw_<ApexClass>` for
+                 every stage/execute pair plus `gw_health`, and it answers the
+                 SAME bodies from the SAME staging ledger: one row per key,
+                 whichever door files it. Absent by default, so every drive
+                 written before it is unchanged and the relay-drop scenario still
+                 exercises the re-issue path with no door to fall to.
      staging     THE STAGING LEDGER, fenced on the idempotency key the way
                  C360ActionStaging.stagePlan is: one row per key, a repeat
                  returns that row with `replayed: true` and a NULL decision
                  token, and `staging.calls` carries every stage call so a drive
                  can prove no key ever produced two rows.
+     rotateOnReplay
+                 THE ORG'S OWN ROTATION RULE (C360ActionStaging, 2026-09-13),
+                 OFF by default. The deployed Apex re-issues the token on a
+                 replay of an UNTOUCHED row (Staged, token never consumed, never
+                 executed, same actor) and answers `replayed` and `tokenRotated`
+                 both true, so a page that lost the first answer can execute the
+                 plan the org already holds. Off by default because the
+                 relay-drop scenario predates the rule and asserts the client's
+                 derived-key fallback, which is still the path for a replay the
+                 org will NOT rotate: a different actor, or a row that has moved
+                 on. The write-door scenario turns it on, because a door that
+                 re-asks a key and is handed no token cannot file anything.
      settled     one row per ANSWER, `{ server, tool, at, ok }`, so a probe can
                  time the sixth slice landing without reading the glass
      livePatch    per-tool fields merged over the LIVE body, so a drive that
@@ -79,6 +103,12 @@
                    processingMs  how long the file sits at `processing`
                                  (4000 is the floor of the room's own range)
                    files         per-file clock, keyed by Boom file id
+                   rejects       per TOOL, how many of the next calls the
+                                 transport swallows (502), the file carrying on
+                                 spreading behind it. The 2026-09-15 shape: a
+                                 rejected `boom_await_file` says nothing at all
+                                 about the file, and the room must not read one
+                                 as a failure.
                  It answers the whole surface the cockpit uses on whichever
                  connector the page addresses it to: `boom_ensure_company`,
                  `boom_list_files`, `boom_create_upload`, `boom_upload_bytes`,
@@ -100,8 +130,39 @@
   var ACCOUNT = "001bb00001DLtRMAA1";
 
   var BACKUP_SERVER = "Salesforce Read Backup";
+  /* THE WRITE DOOR'S DISPLAY NAME. The page FINDS the door by the tools it
+     serves (app/src/channel/writeDoor.ts), so this spelling is only what the
+     published grant declares and what the health row falls back to; the drive
+     asserts on the name it resolves to, which is this one. */
+  var WRITE_DOOR_SERVER = "Customer 360 Write Door";
 
-  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, relayMs: 0, attempts: {}, calls: [], settled: [], livePatch: {}, accounts: [], boom: { mode: "ok", processingMs: 4000, files: {} }, version: null, failNext: {}, staging: { seq: 148, byKey: {}, rows: [], calls: [] } };
+  /** The governed writes the door carries, as the manifest declares them. */
+  var DOOR_WRITES = [
+    "stage_collateral_valuation", "execute_collateral_valuation",
+    "stage_service_request", "execute_service_request",
+    "stage_annual_review", "execute_annual_review",
+    "stage_new_facility", "execute_new_facility",
+    "stage_risk_rating_review", "execute_risk_rating_review",
+    "stage_covenant_review", "execute_covenant_review",
+    "stage_loan_modification", "execute_loan_modification",
+    "stage_renewal", "stage_relationship_intake", "execute_relationship_intake",
+    "complete_new_facility_detail",
+    "stage_amend_version", "execute_amend_version",
+    "stage_discard_version", "execute_discard_version",
+  ];
+
+  /** `stage_loan_modification` is `gw_StageLoanModification`, the Apex class the
+   *  gateway publishes. The page derives the same name the same way. */
+  function gwWriteName(tool) {
+    return "gw_" + tool.replace(/(^|_)([a-z0-9])/g, function (_m, _sep, c) { return c.toUpperCase(); });
+  }
+
+  /** And back again, so the door answers off the same table the org does. */
+  function doorTool(name) {
+    return name.replace(/^gw_/, "").replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+  }
+
+  window.__LANES = { mode: "ok", backupMode: "ok", backup: "granted", hangTools: [], latencyMs: 0, relayMs: 0, attempts: {}, calls: [], settled: [], livePatch: {}, accounts: [], boom: { mode: "ok", processingMs: 4000, files: {}, rejects: {} }, version: null, failNext: {}, writeDoor: "absent", rotateOnReplay: false, staging: { seq: 148, byKey: {}, rows: [], calls: [] } };
   window.__DRIVE_OUT = { errors: [] };
   window.addEventListener("error", function (e) {
     window.__DRIVE_OUT.errors.push(String((e && e.message) || e));
@@ -170,7 +231,7 @@
     led.calls.push({ tool: tool, key: key, at: Date.now() });
     if (led.byKey[key]) {
       led.byKey[key].replays += 1;
-      return { id: led.byKey[key].id, replayed: true };
+      return { id: led.byKey[key].id, replayed: true, rotated: window.__LANES.rotateOnReplay === true };
     }
     led.seq += 1;
     var id = "STG-" + String(led.seq).padStart(10, "0");
@@ -189,6 +250,14 @@
     led.byKey[key] = row;
     led.rows.push(row);
     return { id: id, replayed: false };
+  }
+
+  /** THE TOKEN A REPLAY COMES BACK WITH, which is the whole of what makes a
+   *  re-ask through either door worth making. See `rotateOnReplay` above:
+   *  withheld by default, minted afresh where the org's own rotation rule is
+   *  switched on. */
+  function replayToken(row) {
+    return row.replayed && !row.rotated ? null : "4f8ac21e-probe-token";
   }
 
   /** The trail, carrying whatever this page session has staged. A row filed by a
@@ -218,7 +287,11 @@
   function answer(server, tool, input) {
     var L = window.__LANES;
     var backup = server === BACKUP_SERVER;
-    var mode = backup ? (L.backupMode || "ok") : L.mode;
+    var door = server === WRITE_DOOR_SERVER;
+    /* `mode` IS THE SALESFORCE HOP'S. The backup has its own, and the door is a
+       hop of ours that is either there or not: a knob that took the door down
+       with Salesforce would make the fallback untestable. */
+    var mode = backup ? (L.backupMode || "ok") : door ? "ok" : L.mode;
     L.attempts[tool] = (L.attempts[tool] || 0) + 1;
     L.calls.push({ server: server, tool: tool, at: Date.now(), n: L.attempts[tool], mode: mode });
 
@@ -232,6 +305,12 @@
     // A connector the viewer never added is not a connector that is down. No
     // relay is paid: the runtime refuses this one without leaving the page.
     if (backup && L.backup === "absent") { settle(server, tool, false); return Promise.reject(NOT_CONNECTED); }
+    // Same for a write door the viewer never added: it is an OPTIONAL connector
+    // and its absence is the default, not a failure of anything.
+    if (door && L.writeDoor !== "granted") {
+      settle(server, tool, false);
+      return Promise.reject({ code: "server_not_connected", message: WRITE_DOOR_SERVER + " is not connected", retryable: false });
+    }
     // One named lane, shut on both doors, neither answering nor refusing.
     if ((L.hangTools || []).indexOf(unprefixed(tool)) !== -1) return new Promise(function () {});
     if (mode === "denied") return refuse(DENIED);
@@ -253,6 +332,15 @@
     // wall clock of its own hangs on forever.
     if (mode === "hang") return new Promise(function () {});
 
+    /* THE WRITE DOOR ANSWERS THE SAME BODIES (0.9.29). It forwards to
+       `invokeAction` untouched, so `gw_StageLoanModification` IS
+       `stage_loan_modification`: same ledger, same envelope, one row per key
+       whichever door files it. Reached AFTER the drop above, deliberately, since
+       `failNext` is the claude.ai relay losing an answer and this door does not
+       ride that relay. `gw_health` is left alone: it is the gateway's own, on
+       both endpoints, and it carries no Salesforce data. */
+    if (door && /^gw_[A-Z]/.test(tool)) tool = doorTool(tool);
+
     // The backup's own health tool carries no Salesforce data.
     if (tool === "gw_health") {
       return give({ payload: { ok: true, orgReachable: true, orgError: null, checkedAt: new Date().toISOString() } });
@@ -272,6 +360,19 @@
        `verified`: verification is an analyst's act in Boom's own page and no
        stub may claim one. */
     if (tool.indexOf("boom_") === 0) {
+      /* THE TRANSPORT DROPS THE ANSWER, AND BOOM CARRIES ON SPREADING.
+
+         The 2026-09-15 19:37 UTC shape, and it is NOT a refusal by Boom: the
+         file is in, `processing`, and it is the answer that never arrives. The
+         cockpit used to read that as a failed file and wrote "[object Object]"
+         on the row. The count is per tool so a drive can reject the WAIT
+         specifically and leave `boom_get_file` answering, which is the exact
+         asymmetry the room's fallback is built on. */
+      var boomRejects = (L.boom.rejects || {})[unprefixed(tool)];
+      if (boomRejects > 0) {
+        L.boom.rejects[unprefixed(tool)] = boomRejects - 1;
+        return refuse(UNAVAILABLE);
+      }
       return give({ payload: boomAnswer(tool, input || {}) });
     }
 
@@ -326,8 +427,9 @@
              have confirmed is the one thing A33.5.4 forbids. */
           stagingId: row.id,
           planHash: "9c41e08bf27a4d10",
-          decisionToken: row.replayed ? null : "4f8ac21e-probe-token",
+          decisionToken: replayToken(row),
           replayed: row.replayed,
+          tokenRotated: !!row.rotated,
           summary: "Probe plan.",
           /* THE STEP SET MIRRORS THE ORG'S OBJECTS. The page validates every plan
              against its transition allowlist, so a stub plan that omits an object
@@ -458,8 +560,9 @@
     var plan = {
       stagingId: row.id,
       planHash: "9c41e08bf27a4d10",
-      decisionToken: row.replayed ? null : "4f8ac21e-probe-token",
+      decisionToken: replayToken(row),
       replayed: row.replayed,
+      tokenRotated: !!row.rotated,
       summary: covenant
         ? "Assesses the covenants selected on this relationship."
         : "Files a valuation for each asset selected on this relationship.",
@@ -665,6 +768,92 @@
     return items;
   }
 
+
+  /* ------------------------------------------------- the plan's own steps
+
+     THE FROZEN CONTRACT RUNS EACH OBJECT IN ITS OWN WRITE STEP AND PROVES IT IN
+     `<stepId>_verify` IMMEDIATELY AFTER, and that pairing is the whole of what a
+     group is (app/src/actions/stageModel.ts). The stub answered a flat five-step
+     plan with one verification at the end, which was the 0.9.23 confirm gate's
+     shape: on the 0.9.29 stage it reads as ZERO groups, so the surface that says
+     what a discard deletes said nothing at all.
+
+     THE SHAPE HERE IS THE ORG'S OWN, off the live Sunbelt answer kept at
+     `app/src/__fixtures__/discard/stage-discard-version-stg168.json` (staging
+     STG-0000000168): one write + verify pair per object in the contract's delete
+     order, then the two closing verifications, then the trail row that is KEPT
+     and marked Withdrawn, then what the org merely observed. The counts, the
+     names and the parents are this book's, counted; nothing here is composed. */
+  var DISCARD_GROUPS = [
+    { id: "delete_chain", object: "LLC_BI__LoanRenewal__c", label: "Remove the renewal chain rows that keep the booked parents flagged" },
+    { id: "delete_pledges", object: "LLC_BI__Loan_Collateral2__c", label: "Remove the collateral pledges copied onto the version facilities" },
+    { id: "delete_covenant_junctions", object: "LLC_BI__Loan_Covenant__c", label: "Detach the covenants from the version facilities" },
+    { id: "delete_pricing_streams", object: "LLC_BI__Pricing_Stream__c", label: "Remove the pricing streams nCino cloned onto the version facilities" },
+    { id: "delete_members", object: "LLC_BI__Loan__c", label: "Remove the version facilities" },
+    { id: "delete_aggregates", object: "LLC_BI__Loan_Collateral_Aggregate__c", label: "Remove the collateral aggregate shells this version owns" },
+    { id: "delete_package", object: "LLC_BI__Product_Package__c", label: "Remove the version package" },
+  ];
+
+  /** The staged plan's steps, and the sentence each one reports once it has run. */
+  function discardPlan(spec, items, parents) {
+    var steps = [];
+    var counts = {};
+    items.forEach(function (i) { counts[i.object] = (counts[i.object] || 0) + 1; });
+    DISCARD_GROUPS.forEach(function (g) {
+      var n = counts[g.object] || 0;
+      steps.push({
+        id: g.id, type: "write", objectName: g.object, fields: ["Id"],
+        label: g.label + " (" + n + ")",
+        automationWoken: ["nCino managed delete handling on " + g.object],
+        verification: "SELECT COUNT() FROM " + g.object + " WHERE Id IN :planned",
+        detail: n === 0 ? "Re-query confirms 0. Nothing was there to remove." : "Re-query confirms all " + n + " gone.",
+      });
+      steps.push({
+        id: g.id + "_verify", type: "verification", objectName: g.object, fields: ["Id"],
+        label: "Confirm every " + g.object + " in this group is gone",
+        verification: "SELECT COUNT() FROM " + g.object + " WHERE Id IN :planned",
+        detail: n === 0 ? "Re-query confirms 0. Nothing was there to remove." : "Re-query confirms all " + n + " gone.",
+      });
+    });
+    /* THE CLOSING, in the org's order: the parents, the version itself, the
+       trail row that survives, and the shells the org only watched. */
+    steps.push({
+      id: "verify_parents", type: "verification", objectName: "LLC_BI__Loan__c",
+      label: "Confirm every booked parent reads hasRenewal false",
+      detail: (parents.length ? parents.join(", ") : "Every booked parent") + " reads hasRenewal false and can be forked again.",
+    });
+    steps.push({
+      id: "verify_version_gone", type: "verification", objectName: "LLC_BI__Product_Package__c",
+      label: "Confirm the version package id no longer resolves",
+      detail: "Version package " + spec.id + " no longer resolves. The version is gone.",
+    });
+    steps.push({
+      id: "withdraw_trail", type: "write", objectName: "cm_Action_Staging__c", fields: ["Id"],
+      label: "Mark the version's action trail rows Withdrawn (" + (counts["cm_Action_Staging__c"] || 0) + ")",
+      detail: "Staging a5Sbb00000MODSTG1 is kept on the trail and marked Withdrawn.",
+    });
+    steps.push({
+      id: "observe_aggregates", type: "observed_side_effect",
+      label: "Collateral aggregate shells left standing (0)",
+      automationWoken: ["LLC_BI__ColPledgesAutoUpdater"],
+      detail: "None was left standing.",
+    });
+    return steps;
+  }
+
+  /** What the org says beside the list: the count line the stage reads as its
+   *  lede, the parents it will free, and the trail row it keeps. */
+  function discardWarnings(items, parents) {
+    var kept = items.filter(function (i) { return i.object === "cm_Action_Staging__c"; }).length;
+    return [
+      "This action DELETES " + (items.length - kept) + " records. Nothing outside the list above is touched: the booked package, " +
+        "the booked facilities, the collateral assets and their ownership junctions, and the covenant records all stay exactly as they are.",
+      "After the discard, " + (parents.join(", ") || "every booked parent") + " will read hasRenewal false and be available to fork again. " +
+        "That is verified by re-query, not assumed.",
+      kept + " action trail row belonging to this version is KEPT and marked Withdrawn. The trail is the audit and is never deleted.",
+    ];
+  }
+
   function versionAnswer(tool, input) {
     vstate.requests.push({ tool: tool, input: input });
     var spec = versionSpec();
@@ -679,6 +868,7 @@
         return { ok: false, error: { code: "NOT_A_VERSION", message: "That package is not an unbooked version." } };
       }
       var items = discardInventory(spec, clones);
+      var parents = sourceMembers(body).map(function (f) { return f.name; });
       return {
         ok: true,
         result: {
@@ -686,16 +876,17 @@
           planHash: "a1b2c3d4e5f60718",
           decisionToken: "discard-probe-token",
           productPackageId: spec.id,
+          sourcePackageId: spec.source,
           summary: "Removes the unbooked version and its copies. The booked package is untouched.",
-          steps: [
-            { id: "d1", type: "write", label: "Delete the version chain rows", objectName: "LLC_BI__LoanRenewal__c" },
-            { id: "d2", type: "write", label: "Delete the copied pledges, junctions and pricing", objectName: "LLC_BI__Loan_Collateral2__c" },
-            { id: "d3", type: "write", label: "Delete the clone facilities", objectName: "LLC_BI__Loan__c" },
-            { id: "d4", type: "write", label: "Delete the version package", objectName: "LLC_BI__Product_Package__c" },
-            { id: "d5", type: "write", label: "Mark the staging rows Withdrawn", objectName: "cm_Action_Staging__c" },
-            { id: "v1", type: "verification", label: "Re-query every booked parent for hasRenewal false", dependsOn: ["d3"] },
-          ],
-          warnings: [],
+          steps: discardPlan(spec, items, parents).map(function (s) {
+            // THE STAGED PLAN CARRIES NO ANSWERS. The detail is what the run
+            // reports, and a plan that shipped it would be stating an outcome
+            // nobody has asked the org for yet.
+            var out = {}; for (var k in s) if (k !== "detail") out[k] = s[k];
+            out.state = "pending";
+            return out;
+          }),
+          warnings: discardWarnings(items, parents),
           items: items,
           itemCount: items.length,
         },
@@ -704,7 +895,11 @@
 
     if (tool === "execute_discard_version") {
       var gone = discardInventory(spec, clones);
+      var ranParents = sourceMembers(body).map(function (f) { return f.name; });
       vstate.discarded = true;
+      /* EVERY STATE AT ONCE, which is the contract: `execute_*` is one call that
+         returns every step settled, and the pace the banker watches is the
+         stage's own reveal, never a poll. */
       return {
         ok: true,
         result: {
@@ -713,14 +908,10 @@
           outcome: "The version package and its members were deleted; every booked parent reads hasRenewal false.",
           sourcePackageId: spec.source,
           items: gone,
-          steps: [
-            { id: "d1", type: "write", label: "Delete the version chain rows", state: "verified" },
-            { id: "d2", type: "write", label: "Delete the copied pledges, junctions and pricing", state: "verified" },
-            { id: "d3", type: "write", label: "Delete the clone facilities", state: "verified" },
-            { id: "d4", type: "write", label: "Delete the version package", state: "verified" },
-            { id: "d5", type: "write", label: "Mark the staging rows Withdrawn", state: "verified" },
-            { id: "v1", type: "verification", label: "Re-query every booked parent for hasRenewal false", state: "verified" },
-          ],
+          steps: discardPlan(spec, gone, ranParents).map(function (s) {
+            return { id: s.id, type: s.type, label: s.label, objectName: s.objectName,
+                     state: s.type === "observed_side_effect" ? "filed_unverified" : "verified", detail: s.detail };
+          }),
         },
       };
     }
@@ -1147,6 +1338,18 @@
       ];
       if (window.__LANES.backup !== "absent") {
         servers.splice(1, 0, { server: BACKUP_SERVER, authStatus: "connected", tools: [] });
+      }
+      /* THE WRITE DOOR PUBLISHES ITS TOOLS OR IT IS INVISIBLE. The page takes
+         whichever connector here serves a `gw_Stage...` and a `gw_Execute...`
+         (app/src/channel/writeDoor.ts) and calls only the pairs it lists, so a
+         door with an empty tool list would never be found and the drive would
+         never exercise the mechanism at all. */
+      if (window.__LANES.writeDoor === "granted") {
+        servers.push({
+          server: WRITE_DOOR_SERVER,
+          authStatus: "connected",
+          tools: DOOR_WRITES.map(gwWriteName).concat("gw_health").map(function (name) { return { name: name }; }),
+        });
       }
       return Promise.resolve({ servers: servers });
     },

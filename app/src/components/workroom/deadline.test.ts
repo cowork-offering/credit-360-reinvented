@@ -11,6 +11,7 @@ import {
   waitedFor,
   withDeadline,
 } from "./deadline";
+import { WRITE_DEADLINE_MS, WRITE_RETRY_ATTEMPTS, WRITE_RETRY_BUDGET_MS } from "../../channel/mcp";
 
 /* =============================================================================
    THE CLOCK, ON ITS OWN.
@@ -126,20 +127,33 @@ describe("withDeadline", () => {
 
 describe("the budgets", () => {
   it("are the five the rooms were specified with", () => {
-    expect(DEADLINES).toEqual({ stage: 25_000, execute: 45_000, read: 15_000, narrate: 40_000, steer: 30_000 });
+    expect(DEADLINES).toEqual({ stage: 32_000, execute: 45_000, read: 15_000, narrate: 40_000, steer: 30_000 });
+  });
+
+  /* 0.9.29. THE STAGE BUDGET IS NOT A ROUND NUMBER, IT IS AN ARITHMETIC. It has
+     to hold the seam's whole write ladder AND the one write-door attempt that
+     follows it, or the room gives up exactly where the founder's 502 left it and
+     the door is never knocked on. */
+  it("holds the write ladder plus one write-door attempt, at six seconds an attempt", () => {
+    const ATTEMPT_ALLOWANCE_MS = 6_000;
+    const ladderAndDoor = (WRITE_RETRY_ATTEMPTS + 1) * ATTEMPT_ALLOWANCE_MS + WRITE_RETRY_BUDGET_MS;
+    expect(ladderAndDoor).toBe(30_000);
+    expect(DEADLINES.stage).toBeGreaterThanOrEqual(ladderAndDoor);
+    // And the whole of it still fits inside the seam's ceiling on one attempt.
+    expect(ladderAndDoor).toBeLessThanOrEqual(WRITE_DEADLINE_MS);
   });
 });
 
 describe("what the room says", () => {
-  const expired = new DeadlineExpired("staging this plan", 25_000, "stage");
+  const expired = new DeadlineExpired("staging this plan", DEADLINES.stage, "stage");
 
   it("counts the wait in whole seconds", () => {
-    expect(waitedFor(expired)).toBe("25 seconds");
+    expect(waitedFor(expired)).toBe("32 seconds");
   });
 
   it("states the stage as written nothing, because staging writes nothing", () => {
     const said = stageDeadlineLine(expired, "staging this plan");
-    expect(said).toContain("25 seconds");
+    expect(said).toContain("32 seconds");
     expect(said).toContain("nothing has been filed");
   });
 

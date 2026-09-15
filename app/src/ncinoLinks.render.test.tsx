@@ -96,7 +96,7 @@ async function fileAPlan(instanceUrl?: string) {
   await settle();
   click(document.querySelector<HTMLButtonElement>(".wk-propose")!);
   await settle();
-  click(byText(/^Approve and file /));
+  click(byText(/^File \d+ change/));
   await settle();
   return { room, filed };
 }

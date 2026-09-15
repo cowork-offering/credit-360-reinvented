@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  BOOM_AWAIT_MISS_FALLBACK,
+  BOOM_AWAIT_SECONDS,
+  failureText,
+  FAILURE_TEXT_MAX,
+  NO_REASON_GIVEN,
+  stillProcessingLine,
   CAP_FILES_LINE,
   cardFacts,
   cardFootnote,
@@ -819,5 +825,350 @@ describe("the four lines the confirm carries", () => {
   it("has nothing to say where the read placed nothing", () => {
     expect(provisionalBrief(null)).toEqual([]);
     expect(provisionalBrief(read([]))).toEqual([]);
+  });
+});
+
+/* =============================================================================
+   THE DEFECT OF 2026-09-15 19:37 UTC (founder, Hartwell Precision Manufacturing
+   LLC, the first live upload ever made out of this room).
+
+   Three files went in. Boom took all three, registered the company under
+   001bb00001I7FPNAA3 and sat at `processing` on every one of them. The room
+   showed three rows reading "Failed" and, as the reason, "[object Object]".
+
+   TWO THINGS WERE WRONG AND THEY ARE PINNED SEPARATELY BELOW: the room could
+   not turn a rejection into words, and it read a rejection of the WAIT as a
+   verdict on the FILE.
+   ============================================================================= */
+
+describe("no rejection ever reaches the glass as a type name", () => {
+  it("takes an Error's message", () => {
+    expect(failureText(new Error("Boom could not read this file."))).toBe("Boom could not read this file.");
+  });
+
+  it("takes the message off the plain object every connector failure actually is", () => {
+    /* THE EXACT SHAPE `callTool` THROWS: a spread of its normalized failure,
+       which is an object literal and not an Error. `String()` of it is the
+       defect verbatim. */
+    const failure = {
+      code: "cancelled",
+      server: "Boom",
+      message: "timeout after 15000ms",
+      retryable: false,
+      fix: "Boom did not answer boom_await_file in 15s.",
+      timedOut: true,
+      attempts: 1,
+    };
+    expect(String(failure)).toBe("[object Object]");
+    expect(failureText(failure)).toBe("timeout after 15000ms");
+  });
+
+  it("falls back to the code where the envelope carried no message", () => {
+    expect(failureText({ code: "server_unavailable" })).toBe("server_unavailable");
+  });
+
+  it("takes a string as it is", () => {
+    expect(failureText("request failed (502)")).toBe("request failed (502)");
+  });
+
+  it("says so in words when there was no reason at all", () => {
+    expect(failureText(undefined)).toBe(NO_REASON_GIVEN);
+    expect(failureText(null)).toBe(NO_REASON_GIVEN);
+    expect(failureText({})).toBe(NO_REASON_GIVEN);
+  });
+
+  it("prints readable JSON rather than a type name for anything else", () => {
+    expect(failureText({ boomStatus: 404, detail: "Company Not Found" })).toBe(
+      '{"boomStatus":404,"detail":"Company Not Found"}',
+    );
+  });
+
+  it("fits on one row", () => {
+    const long = failureText(new Error("x".repeat(1_000)));
+    expect(long.length).toBe(FAILURE_TEXT_MAX);
+    expect(long.endsWith("…")).toBe(true);
+  });
+
+  it("never returns the defect itself, whatever it is handed", () => {
+    for (const thing of [new Error("e"), "s", { code: "c" }, { message: "m" }, {}, undefined, null, 7, [1, 2]]) {
+      expect(failureText(thing)).not.toBe("[object Object]");
+    }
+  });
+});
+
+describe("a wait that failed is not a file that failed", () => {
+  beforeEach(() => vi.useFakeTimers());
+
+  /** The rejection the relay actually hands the page: an object, not an Error. */
+  const relayTimeout = () => ({ code: "cancelled", message: "timeout after 15000ms", timedOut: true });
+
+  it("keeps the file processing when the wait rejects, and says it is still checking", async () => {
+    let waits = 0;
+    const engine = (live = liveEngineWith({
+      adapter: stubAdapter({
+        async awaitSettled(): Promise<BoomUploadResult> {
+          waits += 1;
+          throw relayTimeout();
+        },
+        async status(): Promise<BoomUploadResult> {
+          return { fileId: "boom1", companyId: "c1", fileGroupId: null, status: "processing" };
+        },
+      }),
+    }));
+    const drop = engine.drop([file("fy2025.pdf")]);
+    await vi.advanceTimersByTimeAsync(0);
+    await drop;
+
+    void engine.confirm();
+    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 4);
+    const s = engine.getState();
+    expect(waits).toBeGreaterThan(0);
+    // NOT failed, and not "[object Object]" either.
+    expect(s.rows[0].state).toBe("processing");
+    expect(s.rows[0].message).toBeNull();
+    expect(s.notice).toBe(stillProcessingLine("fy2025.pdf"));
+    expect(s.stage).toBe("sending");
+  });
+
+  it("falls back to the plain read once the blocking wait has rejected twice in a row", async () => {
+    const calls: Array<"wait" | "read"> = [];
+    let reads = 0;
+    const engine = (live = liveEngineWith({
+      adapter: stubAdapter({
+        async awaitSettled(): Promise<BoomUploadResult> {
+          calls.push("wait");
+          throw relayTimeout();
+        },
+        async status(): Promise<BoomUploadResult> {
+          calls.push("read");
+          reads += 1;
+          return reads < 2
+            ? { fileId: "boom1", companyId: "c1", fileGroupId: null, status: "processing" }
+            : {
+                fileId: "boom1",
+                companyId: "c1",
+                fileGroupId: null,
+                status: "completed",
+                financialStatements: [STATEMENT],
+              };
+        },
+      }),
+    }));
+    const drop = engine.drop([file("fy2025.pdf")]);
+    await vi.advanceTimersByTimeAsync(0);
+    await drop;
+
+    const run = engine.confirm();
+    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 8);
+    await run;
+
+    /* THE SHAPE, NOT A COUNT. The blocking wait is still the preferred call and
+       the room goes back to it the moment anything answers, so what is pinned is
+       that it is never asked more than `BOOM_AWAIT_MISS_FALLBACK` times without
+       a plain read in between. */
+    expect(calls).toContain("read");
+    let run_ = 0;
+    for (const c of calls) {
+      run_ = c === "wait" ? run_ + 1 : 0;
+      expect(run_).toBeLessThanOrEqual(BOOM_AWAIT_MISS_FALLBACK);
+    }
+    expect(calls.slice(0, BOOM_AWAIT_MISS_FALLBACK + 1)).toEqual(["wait", "wait", "read"]);
+    expect(engine.getState().rows[0].state).toBe("completed");
+    expect(engine.getState().stage).toBe("spread");
+    expect(engine.getState().statements).toHaveLength(1);
+  });
+
+  it("recovers the moment the transport does, and lands Boom's spread", async () => {
+    let waits = 0;
+    const engine = (live = liveEngineWith({
+      adapter: stubAdapter({
+        async awaitSettled(): Promise<BoomUploadResult> {
+          waits += 1;
+          if (waits === 1) throw relayTimeout();
+          return { fileId: "boom1", companyId: "c1", fileGroupId: null, status: "completed" };
+        },
+        async status(): Promise<BoomUploadResult> {
+          return {
+            fileId: "boom1",
+            companyId: "c1",
+            fileGroupId: null,
+            status: "completed",
+            financialStatements: [STATEMENT],
+          };
+        },
+      }),
+    }));
+    const drop = engine.drop([file("fy2025.pdf")]);
+    await vi.advanceTimersByTimeAsync(0);
+    await drop;
+
+    const run = engine.confirm();
+    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 6);
+    await run;
+    const s = engine.getState();
+    expect(s.rows[0].state).toBe("completed");
+    expect(s.rows[0].message).toBeNull();
+    expect(s.statements).toHaveLength(1);
+    expect(s.notice).toBeNull();
+  });
+
+  it("still calls a file failed when BOOM says failed, in Boom's own words", async () => {
+    const engine = (live = liveEngineWith({
+      adapter: stubAdapter({
+        async awaitSettled(): Promise<BoomUploadResult> {
+          return {
+            fileId: "boom1",
+            companyId: null,
+            fileGroupId: null,
+            status: "failed",
+            message: "Boom could not read this file.",
+          };
+        },
+      }),
+    }));
+    const drop = engine.drop([file("notes.pdf")]);
+    await vi.advanceTimersByTimeAsync(0);
+    await drop;
+    const run = engine.confirm();
+    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 2);
+    await run;
+    expect(engine.getState().rows[0].state).toBe("failed");
+    expect(engine.getState().rows[0].message).toBe("Boom could not read this file.");
+  });
+
+  it("still calls a file failed when the rung BEFORE a file id is refused, in the refusal's words", async () => {
+    const engine = (live = liveEngineWith({
+      adapter: stubAdapter({
+        async upload(): Promise<BoomUploadResult> {
+          throw { code: "bad_request", message: "boom_create_upload returned no file id" };
+        },
+      }),
+    }));
+    const drop = engine.drop([file("fy2025.pdf")]);
+    await vi.advanceTimersByTimeAsync(0);
+    await drop;
+    const run = engine.confirm();
+    await vi.advanceTimersByTimeAsync(0);
+    await run;
+    expect(engine.getState().rows[0].state).toBe("failed");
+    expect(engine.getState().rows[0].message).toBe("boom_create_upload returned no file id");
+  });
+
+  it("keeps the receipt of a file Boom still holds, and drops it only once Boom is done", async () => {
+    const remembered: string[] = [];
+    const forgotten: string[] = [];
+    let settled = false;
+    const engine = (live = liveEngineWith({
+      rememberFile: (h) => remembered.push(h.fileId),
+      forgetFile: (id) => forgotten.push(id),
+      adapter: stubAdapter({
+        async awaitSettled(): Promise<BoomUploadResult> {
+          if (!settled) throw { code: "server_unavailable", message: "request failed (502)" };
+          return { fileId: "boom1", companyId: null, fileGroupId: null, status: "completed" };
+        },
+        async status(): Promise<BoomUploadResult> {
+          return settled
+            ? { fileId: "boom1", companyId: null, fileGroupId: null, status: "completed", financialStatements: [STATEMENT] }
+            : { fileId: "boom1", companyId: null, fileGroupId: null, status: "processing" };
+        },
+      }),
+    }));
+    const drop = engine.drop([file("fy2025.pdf")]);
+    await vi.advanceTimersByTimeAsync(0);
+    await drop;
+
+    const run = engine.confirm();
+    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 4);
+    // Boom has the bytes and the wait is missing: the receipt must stand.
+    expect(remembered).toEqual(["boom1"]);
+    expect(forgotten).toEqual([]);
+
+    settled = true;
+    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 6);
+    await run;
+    expect(forgotten).toEqual(["boom1"]);
+  });
+});
+
+describe("several files in one plan", () => {
+  beforeEach(() => vi.useFakeTimers());
+
+  /* THE ROOM IS ONE PLAN AT A TIME BY DESIGN: `drop` refuses while the stage is
+     `sending`, so three files dropped together are ONE plan walked in order and
+     no two waits ever overlap. What the founder's run proved is that the
+     RECEIPTS were not per file, so the three ids trampled one another in the
+     session store (`spreadSession.ts`), and that is pinned in its own suite. */
+  it("gives every file its own row, its own Boom id and its own receipt", async () => {
+    const remembered: string[] = [];
+    const sent: string[] = [];
+    let n = 0;
+    const engine = (live = liveEngineWith({
+      readDroppedFile: async (f: File) => dropped(f.name, `sha-${f.name}`),
+      rememberFile: (h) => remembered.push(h.fileId),
+      adapter: stubAdapter({
+        async upload(req): Promise<BoomUploadResult> {
+          sent.push(req.file.name);
+          n += 1;
+          return { fileId: `boom${n}`, companyId: "c1", fileGroupId: null, status: "processing" };
+        },
+        async status(fileId): Promise<BoomUploadResult> {
+          return {
+            fileId,
+            companyId: "c1",
+            fileGroupId: null,
+            status: "completed",
+            financialStatements: [{ ...STATEMENT, id: `${fileId}-s1` }],
+          };
+        },
+      }),
+    }));
+
+    const drop = engine.drop([file("compiled.pdf"), file("company-prepared.pdf"), file("trial-balance.xlsx")]);
+    await vi.advanceTimersByTimeAsync(PRE_READ_BEAT_MS * 24);
+    await drop;
+
+    const run = engine.confirm();
+    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 12);
+    await run;
+
+    const s = engine.getState();
+    expect(sent).toEqual(["compiled.pdf", "company-prepared.pdf", "trial-balance.xlsx"]);
+    expect(s.rows.map((r) => r.boomFileId)).toEqual(["boom1", "boom2", "boom3"]);
+    expect(s.rows.every((r) => r.state === "completed")).toBe(true);
+    // One receipt per file, never one slot the next file overwrites.
+    expect(remembered).toEqual(["boom1", "boom2", "boom3"]);
+    expect(s.statements).toHaveLength(3);
+  });
+
+  it("holds the second drop back in one sentence rather than failing it", async () => {
+    const engine = (live = liveEngineWith({
+      adapter: stubAdapter({
+        async status(): Promise<BoomUploadResult> {
+          return { fileId: "boom1", companyId: "c1", fileGroupId: null, status: "processing" };
+        },
+      }),
+    }));
+    const drop = engine.drop([file("first.pdf")]);
+    await vi.advanceTimersByTimeAsync(0);
+    await drop;
+    void engine.confirm();
+    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS);
+
+    await engine.drop([file("second.pdf")]);
+    const s = engine.getState();
+    // The second file is not in the plan and is not a failure either: it is
+    // held, and the room says why in one line.
+    expect(s.cards.map((c) => c.name)).toEqual(["first.pdf"]);
+    expect(s.rows.every((r) => r.state !== "failed")).toBe(true);
+    expect(s.refusals.join(" ")).toContain("Drop the next files once it has finished with these");
+  });
+});
+
+describe("the wait is asked for less than every clock over it", () => {
+  it("stays under the server's own ceiling and under the room's stage budget", () => {
+    // The server blocks at most 25s by design; the room's per-call budget is
+    // DEADLINES.stage, 25s. Neither was ever the clock that fired.
+    expect(BOOM_AWAIT_SECONDS).toBeLessThan(25);
+    expect(BOOM_AWAIT_SECONDS * 1_000).toBeLessThan(25_000);
   });
 });

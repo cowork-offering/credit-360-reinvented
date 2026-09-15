@@ -213,6 +213,17 @@ export interface BoomUploadResult {
   validationUrl?: string | null;
 }
 
+/** One row of `boom_list_files`: what Boom holds for a borrower, without the
+ *  spread. Enough to rejoin a wait and no more. */
+export interface BoomFileListing {
+  fileId: string;
+  fileName: string;
+  status: BoomFileStatus;
+  fileGroupId: string | null;
+  /** ISO, Boom's own. Null where the row carried none. */
+  createdAt: string | null;
+}
+
 /** Boom's spread of one statement, as the cockpit's on-file `boom-spread.json` already carries it. */
 export interface BoomFinancialStatement {
   id: string;
@@ -284,6 +295,15 @@ export interface BoomAdapter {
   /** Optional: `boom_get_ratios` `support.lines` for one file, which is what
    *  lets the register say which line feeds which headline figure. */
   ratioSupport?(fileId: string, opts?: { signal?: AbortSignal }): Promise<BoomRatioSupportLine[]>;
+  /** Optional: every file Boom holds for this borrower (`boom_list_files`).
+   *
+   *  WHAT IT IS FOR, AND IT IS NOT THE LADDER'S OWN DEDUPE (that lives inside
+   *  `upload`). A room re-entered after the PAGE was reloaded holds no receipt
+   *  of its own: the handles in `spreadSession` are module memory and die with
+   *  the document. Boom's own list is then the only record that these bytes are
+   *  already in, and asking it is the difference between rejoining a wait and
+   *  sending the same file a second time. */
+  listFiles?(companyExternalId: string, opts?: { signal?: AbortSignal }): Promise<BoomFileListing[]>;
   /** Optional, when the server supports consolidation: one group id per plan. */
   createGroup?(companyExternalId: string): Promise<{ fileGroupId: string }>;
   /** Optional: the analyst verification page link ("Verify in Boom"). */

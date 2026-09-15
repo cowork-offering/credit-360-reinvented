@@ -500,7 +500,7 @@ describe("no move the banker makes is answered with silence", () => {
     // choosing for the banker — which is what the retired scene bar proved.
     expect(room.querySelector(".wk-propose")).toBeTruthy();
     await openPlan();
-    expect(byText(/^Approve and file /)).toBeTruthy();
+    expect(byText(/^File \d+ change/)).toBeTruthy();
   });
 
   it("answers a discard, because declining a change is a decision too", async () => {
@@ -636,7 +636,7 @@ describe("the closing beat", () => {
 
     expect(room.querySelectorAll(".wk-ent")).toHaveLength(4);
     await openPlan();
-    const approve = byText(/^Approve and file 4 changes$/);
+    const approve = byText(/^File 4 changes$/);
     expect(approve).toBeTruthy();
     click(approve);
     await settle();
@@ -669,7 +669,7 @@ describe("the closing beat", () => {
     for (const b of buttons().filter((x) => x.textContent === "Acknowledge")) click(b);
 
     await openPlan();
-    click(byText(/^Approve and submit 4 terms$/));
+    click(byText(/^Submit 4 terms$/));
     await settle();
     expect(room.querySelector(".wk-handoff")!.textContent).toContain("Submit for Approval");
     expect(room.querySelector(".wk-handoff")!.textContent).toContain("does not book the facility");
@@ -931,7 +931,7 @@ describe("a typed acknowledgment settles the check it is about", () => {
     const agentBubbles = [...room.querySelectorAll(".wk-agent .wk-bub")].map((n) => n.textContent ?? "");
     expect(agentBubbles.some((t) => /(That check is|Those \d+ checks are) acknowledged\./.test(t))).toBe(true);
     await openPlan();
-    expect(byText(/^Approve and file /)).toBeTruthy();
+    expect(byText(/^File \d+ change/)).toBeTruthy();
   });
 
   it("NEVER settles a confirm or a discard from a sentence", async () => {
@@ -981,7 +981,7 @@ describe("a failed execute is a sentence, and it closes the approval", () => {
     await settle();
 
     await openPlan();
-    click(byText(/^Approve and file /));
+    click(byText(/^File \d+ change/));
     await settle();
 
     expect(room.textContent).not.toContain("[object Object]");
@@ -995,7 +995,7 @@ describe("a failed execute is a sentence, and it closes the approval", () => {
     await settle();
 
     await openPlan();
-    click(byText(/^Approve and file /));
+    click(byText(/^File \d+ change/));
     await settle();
 
     const approve = room.querySelector<HTMLButtonElement>(".wk-approve")!;
@@ -1069,7 +1069,7 @@ describe("a filing whose answer was lost", () => {
     for (const b of buttons().filter((x) => x.textContent === "Acknowledge")) click(b);
     await settle();
     await openPlan();
-    click(byText(/^Approve and file /));
+    click(byText(/^File \d+ change/));
     await settle();
   }
 
@@ -1233,7 +1233,7 @@ describe("no connector is a state the room SHOWS, not a sentence it mumbles", ()
     expect(seen.executed).toBe(0);
     // And no flow card is left on the table pretending it has a plan.
     expect(room.querySelector(".wk-flowcard")).toBeNull();
-    expect(byText(/^Approve and file /)).toBeUndefined();
+    expect(byText(/^File \d+ change/)).toBeUndefined();
     // The manifest is untouched: nothing was written and nothing was dropped.
     expect(room.querySelectorAll(".wk-ent").length).toBeGreaterThan(0);
   });
@@ -1273,7 +1273,7 @@ describe("the executed commitment delta leaves the room", () => {
     for (const b of buttons().filter((x) => x.textContent === "Acknowledge")) click(b);
     await settle();
     await openPlan();
-    click(byText(/^Approve and file /));
+    click(byText(/^File \d+ change/));
     await settle();
 
     // The dossier landed, so the write is real — and the delta went out exactly

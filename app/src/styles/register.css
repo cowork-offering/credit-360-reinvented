@@ -353,9 +353,24 @@
   text-decoration: none;
   transition: all var(--dur-fast) var(--ease-out);
 }
-.rg-provlink:hover {
+.rg-provlink:hover:not(:disabled) {
   color: var(--brand);
   border-color: var(--accent-hairline);
+}
+/* THE CONTROL IS A BUTTON UNTIL BOOM HAS MINTED THE SESSION (row 61). It reads
+   as the same pill either way: what changes is whether a click asks Boom for
+   the page or opens it. */
+button.rg-provlink {
+  cursor: pointer;
+  font-family: inherit;
+}
+button.rg-provlink:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+/* Boom refused. Its own words, in place of the link and never beside it. */
+.rg-proverr {
+  color: var(--ink-muted);
 }
 
 /* ----------------------------------------------------------- compact mode

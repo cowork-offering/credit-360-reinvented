@@ -107,7 +107,7 @@ async function fileAPlan(bend?: (engine: WorkroomEngine) => WorkroomEngine) {
   /* WHAT THE GLASS LOOKS LIKE WHILE THE PLAN IS STILL OPEN: the rail is
      carrying the ledger and the card does not exist yet. */
   const staged = { sections: room.querySelectorAll(".rc-fl").length, rail: room.querySelectorAll(".wk-ent").length };
-  click(byText(/^Approve and file /));
+  click(byText(/^File \d+ change/));
   await settle();
   return { room, before, staged };
 }
