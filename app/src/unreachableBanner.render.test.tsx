@@ -74,12 +74,15 @@ const retryButton = () => [...container!.querySelectorAll("button")].find((b) =>
 
 describe("the unreachable banner", () => {
   /* WHAT THE BANNER SAYS CHANGED ON 2026-09-12 (founder, audit item A15). It
-     used to print `McpFailure.fix` — "Customer 360 is briefly unreachable...",
-     and on an authz failure "Add IDB Gateway in claude.ai Settings >
-     Connectors" — which is the OPERATOR's sentence on the banker's own landing.
+     used to print `McpFailure.fix`: "Customer 360 is briefly unreachable...",
+     and on an authz failure "Add Customer 360 in claude.ai Settings >
+     Connectors", which is the OPERATOR's sentence on the banker's own landing.
      The operator sentence keeps its surface (`HealthLine`); the band now says
-     what the tiles are standing on. Everything else these cases pin — the retry
-     budget, the freshness stamp, the gesture, the clearing — is unchanged. */
+     what the tiles are standing on. Everything else these cases pin, the retry
+     budget, the freshness stamp, the gesture, the clearing, is unchanged.
+
+     2026-09-15: IDB Gateway retired; the restate assist is session-door only,
+     so the sample connector named here is one the cockpit still addresses. */
   it("stays away while the retry runs, then names what the tiles show, the freshness and a gesture", async () => {
     vi.useFakeTimers();
     let good = true;

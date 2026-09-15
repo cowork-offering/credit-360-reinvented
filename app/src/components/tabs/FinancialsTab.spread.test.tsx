@@ -56,6 +56,13 @@ function render(bundle: BorrowerBundle): HTMLDivElement {
 }
 
 const text = (el: HTMLElement) => (el.textContent ?? "").replace(/\s+/g, " ");
+/** One line of the compact register, by the name Boom printed on it. */
+const registerRow = (el: HTMLElement, name: string): string =>
+  text(
+    [...el.querySelectorAll<HTMLElement>(".rg-t tbody tr")].find(
+      (r) => (r.querySelector(".rg-nm")?.textContent ?? "") === name,
+    )!,
+  );
 
 /** FY2026 as the stub hands it back: Boom's own output shape, built from the
  *  pre-read of the file the banker dropped. Figures continue Piedmont's own. */
@@ -128,11 +135,35 @@ describe("the published period shows in the Financials tab", () => {
     expect(text(el)).toContain("10.4% revenue vs prior period");
   });
 
-  it("moves the income statement's LTM column onto the new period", () => {
+  it("moves the register's newest column onto the new period", () => {
+    /* THE STATEMENT SURFACE IS THE REGISTER NOW (0.9.28), on every book whose
+       `spread.file` carries the raw statements. Piedmont's does, and a publish
+       merges the new period into it, so the newest column is the one the room
+       just spread and the one before it is the book's. Thousands, the
+       register's own scale. */
     const el = render(afterSpread("stub"));
-    const row = [...el.querySelectorAll<HTMLElement>("tr")].find((r) => text(r).startsWith("Revenue"))!;
-    expect(text(row)).toContain("$71.20M");
-    expect(text(row)).toContain("$64.49M");
+    expect(registerRow(el, "Net Sales")).toContain("71,200");
+    expect(registerRow(el, "Net Sales")).toContain("64,486");
+  });
+
+  it("draws the room's register in compact mode, not a second idea of a spread", () => {
+    const el = render(piedmont());
+    const register = el.querySelector<HTMLElement>(".rg")!;
+    expect(register.getAttribute("data-mode")).toBe("compact");
+    // The statement select, and no other control: the tab is a reading surface.
+    expect(register.querySelector("select.rg-sel")).not.toBeNull();
+    expect(register.querySelectorAll(".rg-chip, .rg-segb, .rg-tog")).toHaveLength(0);
+    // The three newest periods the book carries, with Variance % only: compact
+    // drops the absolute pair so the grid fits the tab's card (C5, 2026-09-15).
+    expect([...register.querySelectorAll("thead th.rg-v, thead th.rg-p")].map((n) => text(n as HTMLElement))).toEqual([
+      "✓FY2023",
+      "✓FY2024",
+      "✓FY2025",
+      "Variance %",
+    ]);
+    // And no footer: the tab carries its own source note under the pane.
+    expect(register.querySelector(".rg-prov")).toBeNull();
+    expect(el.querySelector(".dt")).toBeNull();
   });
 });
 

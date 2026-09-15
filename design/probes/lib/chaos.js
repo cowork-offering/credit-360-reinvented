@@ -233,27 +233,10 @@
     });
   }
 
-  function llmPayload(input) {
-    var prompt = String((input || {}).prompt || "");
-    var line = "";
-    try { line = (JSON.parse(prompt.slice(prompt.indexOf("{"))) || {}).line || ""; } catch (e) { line = prompt; }
-    var reply = {
-      type: "clarify",
-      text: "Which line do you mean? The relationship carries two.",
-      options: [
-        { label: "Revolving line, $15.0MM", say: "the revolving line of credit" },
-        { label: "Seasonal line, $2.5MM", say: "the seasonal line of credit" }
-      ]
-    };
-    void line;
-    return { payload: { statusCode: 200, body: JSON.stringify({ response: JSON.stringify(reply) }) } };
-  }
-
   function goodFor(tool, input) {
     if (/^stage_/.test(tool)) return stagePayload(input, tool);
     if (/^execute_/.test(tool)) return executePayload(input, tool);
     if (/ActionHistory/.test(tool)) return historyPayload();
-    if (/get_llm_response/.test(tool)) return llmPayload(input);
     var slice = baked(tool, input);
     if (slice) return readOk(slice);
     return ok({});

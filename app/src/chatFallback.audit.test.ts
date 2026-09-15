@@ -76,12 +76,17 @@ afterEach(() => {
 
    THE COMPOSER IS GATED ON THE CONNECTOR, NOT ON THE DESK.
 
-   `ChatPanel` computes `available = live || channel.available()`. Neither of
-   those two doors is the one the cockpit chat actually answers through: the
-   desk runs on the viewer's own session Claude and needs no connector at all.
-   So a view carrying a working session door and no IDB Gateway renders the
-   composer disabled and tells the banker to re-open the cockpit through the
-   agent, while the door that would have answered sits open beside it.        */
+   `ChatPanel` computed `available` from the connector and the legacy bridge.
+   Neither of those two doors is the one the cockpit chat actually answers
+   through: the desk runs on the viewer's own session Claude and needs no
+   connector at all. So a view carrying a working session door and no
+   completion connector renders the composer disabled and tells the banker to
+   re-open the cockpit through the agent, while the door that would have
+   answered sits open beside it.
+
+   2026-09-15: IDB Gateway retired; the restate assist is session-door only,
+   and the chat's connector rung went with it. The desk and the legacy bridge
+   are the two doors left.                                                    */
 
 describe("A1: the chat's own gate must count the door it answers through", () => {
   it("the session door is open while both doors the panel gates on are shut", async () => {

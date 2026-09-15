@@ -201,11 +201,11 @@ export function ActionsPanelBody() {
                       {failure?.id === action.id && (
                         /* WHAT THE ACTION IS STANDING ON, NOT HOW TO FIX THE
                            PLUMBING (A15, 2026-09-12). `McpFailure.fix` is the
-                           operator's sentence — "Add IDB Gateway in claude.ai
-                           Settings > Connectors" — and it was the only thing a
-                           banker read when an action did not go through. It
-                           stays on the operator surface (`HealthLine`); this row
-                           says what the actions are composed from. */
+                           operator's sentence, naming the connector to add in
+                           claude.ai Settings, and it was the only thing a banker
+                           read when an action did not go through. It stays on
+                           the operator surface (`HealthLine`); this row says
+                           what the actions are composed from. */
                         <span className="mt-1.5 block text-[11px] font-semibold" style={{ color: "var(--critical)" }}>
                           {ACTIONS_ON_LAST_GOOD}
                         </span>

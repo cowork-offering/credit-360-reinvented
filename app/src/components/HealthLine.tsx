@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fmtAsOf } from "../data/format";
+import { boomServer } from "../channel/boomLane";
 import { probeConnectorGrants, SERVERS } from "../channel/mcp";
 import { laneCalls, useLaneHealth, type LaneHealth } from "../channel/laneHealth";
 
@@ -39,34 +40,30 @@ import { laneCalls, useLaneHealth, type LaneHealth } from "../channel/laneHealth
 /** The lanes, in the order the cockpit depends on them, with the word a banker
  *  uses for each. Display names come from SERVERS so the line can never name a
  *  connector the calls do not address. */
-/* THE BOOM LANE HAS NO CONNECTOR OF ITS OWN YET (2026-09-12), so
-   `SERVERS.boom` is the SAME STRING as `SERVERS.gateway` and both name the IDB
-   Gateway. The rows below are keyed by connector display name and the render
-   keys on it too, so a second row for the same name would be the same lane
-   printed twice, with the same sentence and a duplicate React key. So while the
-   two names are equal there is ONE row and it carries the Boom label; when the
-   Boom connector lands and the names differ, the gateway goes back to reading
-   "Gateway" and Boom earns a row of its own. Compared as strings deliberately:
-   after the flip the two literal types no longer overlap. */
-const BOOM_VIA_GATEWAY = (SERVERS.boom as string) === (SERVERS.gateway as string);
-
-const LANES: ReadonlyArray<{ server: string; label: string }> = [
-  { server: SERVERS.customer360, label: "Salesforce" },
-  /* THE BACKUP EARNS ITS PLACE ON THE LINE OR IT IS NOT ON IT. A read lane
-     nobody has needed is not news, and naming it every session would spend the
-     one quiet sentence the chrome has on a connector that did nothing. So it
-     appears in exactly two states: it answered for Salesforce (the filter below
-     keeps any lane that has been called), or the viewer has not added it, which
-     is a connector to add and worth one word. */
-  { server: SERVERS.readBackup, label: "Backup" },
-  { server: SERVERS.gateway, label: BOOM_VIA_GATEWAY ? "Boom (via gateway)" : "Gateway" },
-  ...(BOOM_VIA_GATEWAY ? [] : [{ server: SERVERS.boom, label: "Boom" }]),
-  { server: SERVERS.m365, label: "Inbox" },
-  { server: SERVERS.experience, label: "nCino" },
-  { server: SERVERS.afs, label: "AFS" },
-];
-
-const SERVER_NAMES = LANES.map((l) => l.server);
+/* THE BOOM ROW NAMES THE CONNECTOR THAT WAS FOUND (0.9.28). Boom left the
+   gateway and is a connector of its own, addressed by whatever display name the
+   viewer gave it: the row is therefore built per render off `boomServer()`
+   rather than from a constant, so the moment the boot probe below discovers the
+   real spelling the line says it. Until it does, the row reads the fallback
+   ("Boom"), which is also what a call would be addressed to. The label is the
+   connector's own name so an operator reading this line and the connector list
+   in claude.ai sees one string, not two. */
+function lanes(): ReadonlyArray<{ server: string; label: string }> {
+  return [
+    { server: SERVERS.customer360, label: "Salesforce" },
+    /* THE BACKUP EARNS ITS PLACE ON THE LINE OR IT IS NOT ON IT. A read lane
+       nobody has needed is not news, and naming it every session would spend the
+       one quiet sentence the chrome has on a connector that did nothing. So it
+       appears in exactly two states: it answered for Salesforce (the filter below
+       keeps any lane that has been called), or the viewer has not added it, which
+       is a connector to add and worth one word. */
+    { server: SERVERS.readBackup, label: "Backup" },
+    { server: boomServer(), label: boomServer() },
+    { server: SERVERS.m365, label: "Inbox" },
+    { server: SERVERS.experience, label: "nCino" },
+    { server: SERVERS.afs, label: "AFS" },
+  ];
+}
 
 /** A round trip, in the units a banker reads without converting: under a
  *  second in milliseconds, past it in seconds to one decimal. */
@@ -126,7 +123,8 @@ function laneInk(lane: LaneHealth | undefined): string {
 }
 
 export function HealthLine() {
-  const lanes = useLaneHealth();
+  const health = useLaneHealth();
+  const LANES = lanes();
   /** The one lane whose history is showing, or null. One at a time: this is a
    *  status line, and two open panels is a console. */
   const [open, setOpen] = useState<string | null>(null);
@@ -135,12 +133,12 @@ export function HealthLine() {
      look identical from a failed call, and only `listTools()` can tell them
      apart before the first read. */
   useEffect(() => {
-    void probeConnectorGrants(SERVER_NAMES);
+    void probeConnectorGrants(LANES.map((l) => l.server));
   }, []);
 
   const now = Date.now();
   const shown = LANES.filter(({ server }) => {
-    const lane = lanes[server];
+    const lane = health[server];
     // A lane nobody has called and nobody granted has nothing to say. The two
     // writeback connectors sit unused for whole sessions; naming them idle
     // every time would make the line longer than it is useful.
@@ -149,7 +147,7 @@ export function HealthLine() {
 
   if (!shown.length) return null;
 
-  const everyLaneGone = shown.every((l) => lanes[l.server]?.grant === "unavailable");
+  const everyLaneGone = shown.every((l) => health[l.server]?.grant === "unavailable");
 
   return (
     /* NOT role="status". A live region would have the screen reader announce
@@ -164,7 +162,7 @@ export function HealthLine() {
         </span>
       ) : (
         shown.map(({ server, label }) => {
-          const lane = lanes[server];
+          const lane = health[server];
           const isOpen = open === server;
           return (
             <span key={server} className="hl-lane">

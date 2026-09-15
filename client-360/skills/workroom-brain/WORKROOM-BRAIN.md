@@ -1111,9 +1111,10 @@ Write path, for completeness. You NEVER call these; the room does, after the ban
 
 <!-- source: app/src/channel/mcp.ts TOOLS and SERVERS; knowledge/sf-build-v2/Customer360.mcpServerDefinition-meta.xml -->
 
-## 6.3 Boom, through the IDB Gateway door
+## 6.3 Boom, on its own connector
 
-Spreads and ratios. The org does not hold spread analysis; Boom does.
+Spreads and ratios. The org does not hold spread analysis; Boom does. Boom is its own MCP server as
+of 0.9.28, and the page finds it by the tools it serves rather than by its name.
 
 | Tool | Use it for |
 |---|---|

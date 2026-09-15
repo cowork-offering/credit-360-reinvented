@@ -151,7 +151,7 @@ doc_id:     cockpit
 surface the banker is standing on: `needsAction` relationships on the queue, `quiet` packaged
 relationships carrying no signal, `bookSize` for both together, and `byReason` counting each
 relationship ONCE under its loudest reason, so the buckets sum to `needsAction`. `line` is the
-exact sentence on the banker's screen — quote it rather than recomputing it, so the page and the
+exact sentence on the banker's screen, quote it rather than recomputing it, so the page and the
 session never disagree about the same afternoon. `COVENANT_OVERDUE` is a bucket, not a reason
 code: it is a `COVENANT_DUE` whose test is already past due, told apart because the ordering does.
 
@@ -234,7 +234,10 @@ calls the org as them. A secret written into a published artifact is a secret pu
 ## PREREQUISITE, before STEP 0 (REBUILD path): the viewer's connectors, by exact name
 
 The rendered page calls the viewer's own claude.ai connectors by display name: `Customer 360`,
-`IDB Gateway`, `Microsoft 365`, and, for the memo room's writeback, `Experience / nCino` and `AFS`.
+`Microsoft 365`, and, for the memo room's writeback, `Experience / nCino` and `AFS`.
+The Boom connector is the one exception: the page FINDS it, by asking `listTools()` which connector
+serves `boom_get_ratios` and `boom_get_spread`, so any spelling the viewer used works. `Boom` is the
+name it falls back to, the name the published grant declares, and what the health line prints.
 If the viewer's Customer 360 connector carries any other name,
 the page reports offline and every sync line fails even though this session's tools work. When
 the badge says offline or the sync reports every line unreachable, ask the viewer to check the
@@ -253,16 +256,16 @@ and no reason to make the banker wait for one.
 
 MCP servers connect lazily; at session start `customer360` often shows "still connecting". You MUST:
 
-1. Call **ToolSearch** with query `"Customer360Snapshot"` — ToolSearch WAITS for connecting servers.
+1. Call **ToolSearch** with query `"Customer360Snapshot"`, ToolSearch WAITS for connecting servers.
 2. If no match, wait and retry ToolSearch up to 3 more times (a Salesforce OAuth token refresh can
    take ~10–30s).
 3. Only if the server is terminally failed/unauthenticated after retries: **STOP** and tell the user
    to authenticate (`/mcp` → customer360 → Authenticate) or check the README config. Do NOT proceed.
 
-## HARD RULE — no fallback data sources (this overrides being helpful)
+## HARD RULE, no fallback data sources (this overrides being helpful)
 
 If the Customer360 MCP tools are NOT available (disconnected, still connecting, or shadowed by a
-stale plugin-bundled duplicate), **STOP and tell the user to fix the connection** — an error message
+stale plugin-bundled duplicate), **STOP and tell the user to fix the connection**, an error message
 IS the correct deliverable. Do NOT render from `ncino_deal_prep`, sObject SOQL, or any other source.
 
 Reason: those paths sum loan amounts, which double-counts nCino limit/sublimit structures (Piedmont:
@@ -308,17 +311,17 @@ discipline in `agents/credit-360.md`: stage, present the org's plan and warnings
 banker confirms in words, execute with the five-field payload, verify by re-query. See the ACTIONS
 section below for the routing.
 
-**Boom** — `boom_get_ratios` + `boom_get_spread` for the Financials tab.
+**Boom**: `boom_get_ratios` (by borrower) then `boom_get_spread` (on the file those ratios name)
+for the Financials tab, plus the upload ladder the Spreading room walks.
 
 **Doors, not connectors (fleet rule).** Bind to TOOL NAMES found via ToolSearch, never to a specific
-MCP server. The fleet is migrating onto the **IDB Gateway** (AgentCore): Boom already arrives through
-it (`boom-mcp-js` / `boom-mcp-py` targets — same `boom_get_spread`/`boom_get_ratios` tools, gateway
-prefix), and Credit Memo and the Customer360 Salesforce server will follow. Whichever door exposes the
-tool in this session is the right door; if BOTH a direct connector and the gateway expose the same
-tool, prefer the gateway. Never hardcode a server id.
+MCP server. Boom left the gateway in 0.9.28 and is its own server (`boom-mcp`), publishing
+`boom_get_ratios` / `boom_get_spread` UNPREFIXED; Credit Memo and the Customer360 Salesforce server
+may arrive through whichever relay the session carries. Whichever door exposes the tool in this
+session is the right door. Never hardcode a server id.
 
 **Every tool takes `List<Request>` and returns `List<Response>`.** For a single request read
-`response[0]`, never a bare object — `Customer360Portfolio` included.
+`response[0]`, never a bare object, `Customer360Portfolio` included.
 
 ---
 
@@ -345,7 +348,7 @@ of abandoned balances. Read straight, `bookTotals` says 354 percent utilisation 
 against $308M committed. Sum the figures you bake from the account rows you keep (see (b)); the
 published page does the same, so the two agree.
 
-`bookTotals.accountCount` spans **ALL** packaged accounts, not the truncated list — and in this org
+`bookTotals.accountCount` spans **ALL** packaged accounts, not the truncated list, and in this org
 that count is mostly legacy. Never state it as the size of the book.
 
 ### (b) Determine the worklist scope
@@ -359,13 +362,13 @@ against it: `tce > 0`, or `outstanding > 0`, or a `stage`, or a `riskRating`. An
 enough, so an approved package with nothing drawn stays and a graded relationship between facilities
 stays. Everything else is a leftover: not on the queue, not under "the rest of the book", not in the
 totals you bake, and not allowed to raise a signal. Apply the rule to `accounts[]` before anything
-else, and drop any signal row naming an account that did not survive it. Do NOT filter on names —
+else, and drop any signal row naming an account that did not survive it. Do NOT filter on names ,
 "Quantum" and "Vertex" are right this afternoon and wrong the first time somebody seeds a real
 Summit. `Customer360Portfolio` restricts its own signal block the same way (TCE > 0), so a signal
 naming a legacy account should no longer arrive at all; the page applies the rule regardless,
 because a read is not a promise.
 
-- **Cap at ~30 accounts** — beyond that the queue stops being a queue.
+- **Cap at ~30 accounts**, beyond that the queue stops being a queue.
 - **If the book is smaller than the cap, stage everything.** Always include the anchor.
 
 **THE PAGE RE-DECIDES THIS ON EVERY OPEN (2026-09-08).** What you bake here is the FIRST PAINT and
@@ -375,7 +378,7 @@ remainder. A relationship seeded into the org after this rebuild reaches the lan
 rebuild, and a relationship that came off the book leaves it.
 
 So stage a HONEST first paint and do not try to be clever about it: real accounts, real reasons,
-the anchor included. Never bake a relationship the org does not hold — the page drops every
+the anchor included. Never bake a relationship the org does not hold, the page drops every
 `_sample_only` row the moment the live read lands, and a fabricated row is a row the banker sees
 for as long as the connector is slow.
 
@@ -387,20 +390,24 @@ Everything ON THE BOOK that no reason fires for is QUIET: it keeps a row, under 
 that states its own count, because the queue is the work and the book is still the book. A packaged
 account that is not on the book is not quiet, it is absent.
 
-### (c) Stage details for ALL worklist accounts — BATCHED
+### (c) Stage details for ALL worklist accounts, BATCHED
 The six detail tools each accept an **inputs array**: `inputs: [{ accountId }, { accountId }, …]`.
 
 **Six calls total. Never a per-account loop.** One batched call each to `Customer360Snapshot`,
 `Customer360RelationshipGraph`, `Customer360Exposure`, `Customer360Covenants`,
 `Customer360Opportunities`, `Customer360StructuralSignals` (pass `maturityWindowDays: 270`).
 
-Responses come back positionally — zip each response array back to the accountId you sent at that index.
+Responses come back positionally: zip each response array back to the accountId you sent at that index.
 
 ### (d) Boom
-`boom_get_ratios` + `boom_get_spread` (direct connector or IDB Gateway `boom-mcp-*` target — see the
-doors rule above) for the anchor, and for worklist accounts where the file exists
-and the call is cheap. If either fails or no file exists, set that bundle's `boom` to `null` — **never
-fabricate**. The Financials tab renders an honest gap state.
+`boom_get_ratios` for the anchor, and for worklist accounts where the call is cheap. **It takes a
+BORROWER**: `salesforceRecordId` (the Salesforce Account id, which Boom stores as its own
+`externalUniqueId`) or `companyName`, and its answer names the file it was struck from in
+`support.fileId`. **`boom_get_spread` takes THAT file id and nothing else**, so the two run in
+sequence: reading any other file would stage a ratio set and a statement table struck from two
+different documents. A borrower Boom has never heard of answers `NOT_FOUND` with Boom's own words;
+set that bundle's `boom` to `null`, **never fabricate**. The Financials tab renders an honest gap
+state and says the borrower is not in Boom.
 
 **Stage BOTH results as the connector returned them**, `"boom": { "ratios": <boom_get_ratios
 result>, "spread": <boom_get_spread result> }`, and let the assembler shape them. Do NOT hand-write
@@ -410,40 +417,40 @@ payload" below for what it derives and why.
 **Drop `spread.file.downloadUrl` before staging.** It is a presigned S3 URL that expires in minutes,
 and a published artifact is not a place to put a credential.
 
-### (e) OPTIONAL — M365 client-request intake
+### (e) OPTIONAL, M365 client-request intake
 
 **Opportunistic by design: if M365 is not connected, SKIP THIS ENTIRE STEP SILENTLY.** No error, no
-warning, no gap chip, no mention in the render. A missing channel is **not** a data gap — the cockpit
+warning, no gap chip, no mention in the render. A missing channel is **not** a data gap, the cockpit
 renders exactly as it would have without this step. Never block, never wait, never fail on mail.
 
-1. **Detect.** ToolSearch for a Microsoft 365 / Outlook mail-search tool (names vary by connector —
+1. **Detect.** ToolSearch for a Microsoft 365 / Outlook mail-search tool (names vary by connector ,
    try `outlook email search`, `mail search`). **Not found ⇒ skip the step and proceed to (f).**
 2. **Search.** Recent inbound mail only (last ~30 days, cap ~25 results), querying **per staged
    worklist account name**. Entity resolution is **conservative**: attach a message to an account only
-   when the account name clearly appears. Ambiguous matches are **ignored** — you may mention them in
+   when the account name clearly appears. Ambiguous matches are **ignored**, you may mention them in
    your chat narration as unmatched, but they never reach the render.
-3. **Ingest genuine requests.** For each clear match that reads as a client *ask* — increase, renewal,
-   new facility, payoff, service change — judge **intent, not keywords**. Populate `requests[]` plus a
+3. **Ingest genuine requests.** For each clear match that reads as a client *ask*, increase, renewal,
+   new facility, payoff, service change, judge **intent, not keywords**. Populate `requests[]` plus a
    `REQUEST_RECEIVED` entry in that bundle's `activity[]`:
-   - `reference: { kind: "m365-message", id: <real message id>, webLink: <real link> }` — both real,
+   - `reference: { kind: "m365-message", id: <real message id>, webLink: <real link> }`, both real,
      both from the message. This is the one place a `webLink` is permitted.
    - `receivedAt` / `ts` = the message's **actual** timestamp. It must predate `meta.generatedAt`; if
      clock skew puts it later, clamp to `generatedAt` and say so in your narration.
    - `summary` = a faithful one-sentence restatement. `ask` amounts parsed from the email text
-     (DERIVED — the message is the citation).
+     (DERIVED, the message is the citation).
    - **No matching mail ⇒ no `requests[]`.** That is correct output, not a failure.
 4. **Conclude on it.** For each ingested request add an `ANALYSIS_CONCLUDED` entry computed from the
-   **staged** data — verdict and headroom measured against the ask (AGENT provenance) — with
+   **staged** data, verdict and headroom measured against the ask (AGENT provenance), with
    `detail.nextSteps` referencing real registry action ids. Same shape as the bundled sample scenario,
    but every figure from live data.
 5. **Failure = skip.** Any M365 error or timeout ⇒ abandon the step, render anyway, and note in your
    chat reply that mail intake was unavailable this run. The render never waits on mail.
 
-**In a live run the bundled sample scenarios are irrelevant** — you are rendering the real book, and
+**In a live run the bundled sample scenarios are irrelevant**: you are rendering the real book, and
 this intake is the **only** source of `requests[]`.
 
 ### (f) Compose `C360_DATA`
-Shape source of truth: **`app/src/data/contract.ts`**. Read it if unsure — it is authoritative and
+Shape source of truth: **`app/src/data/contract.ts`**. Read it if unsure, it is authoritative and
 carries the provenance map.
 
 ---
@@ -464,18 +471,18 @@ carries the provenance map.
     "bookTotals": { /* … */ },
     "signals":    { /* … */ }
   },
-  "borrowers": {                      // REQUIRED — one bundle per worklist account, INCLUDING the anchor
+  "borrowers": {                      // REQUIRED, one bundle per worklist account, INCLUDING the anchor
     "<accountId>": {
       "snapshot": {}, "graph": {}, "exposure": {}, "covenants": {},
       "opportunities": {}, "signals": {},          // raw tool responses, VERBATIM
       "boom": { "ratios": {}, "spread": {} },      // the two Boom results VERBATIM, or null
       "verdict": "…",                              // agent-composed, live figures only
       "anchors": [ { "label": "…", "value": "…", "sub": "…", "dir": null } ],
-      "activity": [ /* only from REAL sources — see below */ ],
-      "requests": [ /* only from REAL sources — see below */ ]
+      "activity": [ /* only from REAL sources, see below */ ],
+      "requests": [ /* only from REAL sources, see below */ ]
     }
   },
-  "worklist": {                       // optional — omit and let the client derive
+  "worklist": {                       // optional, omit and let the client derive
     "accountIds": [ "…" ],
     "reasons": { "<accountId>": [ "COVENANT_DUE" ] }
   },
@@ -571,7 +578,7 @@ why: every plan can be staged and read, and the confirm gesture will refuse to f
 carries no Salesforce user id for the signed-in identity. Never invent an id, never pass the display
 name, and never claim a write is available when it is not.
 
-### `activity[]` and `requests[]` — real sources only
+### `activity[]` and `requests[]`, real sources only
 
 `activity[]` is the account's audit trail (first tab). Entry shape:
 `{ id, ts, kind, title, summary?, reference?, detail? }`. Permitted `kind` values, generated from
@@ -582,7 +589,7 @@ name, and never claim a write is available when it is not.
 <!-- END GENERATED permitted-activity-kinds -->
 
 - Emit entries **only** where a real record backs them (a covenant evaluation date, a recorded
-  modification, a genuine inbound request). **Never synthesise history** to fill the timeline — the
+  modification, a genuine inbound request). **Never synthesise history** to fill the timeline, the
   empty state ("No recorded activity in this view") is the correct output for an account with none.
 - `detail.nextSteps[]` is `{ actionId, note? }` where `actionId` **must** match an id in
   `app/src/actions/registry.ts`, generated below. An id outside that set exits 1.
@@ -598,8 +605,8 @@ mirrors the registry. Do not edit by hand:
 <!-- END GENERATED permitted-action-ids -->
 
 ### Composition rules
-- Embed tool responses **verbatim** — field names unchanged, figures un-reshaped.
-- You compose **only** `verdict`, `anchors`, `activity[].detail` narrative fields, and chat replies —
+- Embed tool responses **verbatim**, field names unchanged, figures un-reshaped.
+- You compose **only** `verdict`, `anchors`, `activity[].detail` narrative fields, and chat replies ,
   always from live figures, citing nothing invented.
 
 ---
@@ -611,9 +618,9 @@ node <pluginRoot>/render/assemble-cockpit.mjs --data /tmp/c360-data.json --out /
 ```
 
 Resolve `<pluginRoot>` as the directory containing `.claude-plugin/` (also holds `assets/`,
-`render/`, `skills/`; in the source repo this is the `client-360/` folder). `--template` defaults to the committed template — do not pass it.
+`render/`, `skills/`; in the source repo this is the `client-360/` folder). `--template` defaults to the committed template, do not pass it.
 
-1. **Write the composed object to a temp JSON file.** ONLY the `C360_DATA` object — no
+1. **Write the composed object to a temp JSON file.** ONLY the `C360_DATA` object, no
    `window.C360_DATA =` wrapper, no `<script>` tag.
 2. **Run the command above.** Pass no other flags in a normal run.
 3. On success it prints one line: bytes written (code + data split), anchor, and accounts staged.
@@ -622,40 +629,40 @@ Resolve `<pluginRoot>` as the directory containing `.claude-plugin/` (also holds
 
 - **Staging coverage.** Every account required by the worklist (or by `portfolio.accounts` when
   `worklist` is absent) must have a bundle in `borrowers`. Missing coverage exits 1 and **names the
-  missing ids** — go back and fetch them. **Do not reach for `--allow-partial` in normal runs**; it
+  missing ids**, go back and fetch them. **Do not reach for `--allow-partial` in normal runs**; it
   exists only for a deliberate single-account render and produces a degraded artifact.
 - **`meta.generatedAt`** present and a valid ISO instant.
 - **`meta.userId`** present and shaped like a Salesforce user id (`005` plus 12 or 15 alphanumerics).
   Missing or misshapen exits 1 and names the field. `--no-approver` downgrades it to a warning and
   publishes a cockpit whose execute path is read-only: use it only when the id is genuinely
   unreadable, and tell the banker in the same reply.
-- **Structural integrity** — `borrowers` shape, anchor entry, key/`snapshot.accountId` match, worklist
+- **Structural integrity**, `borrowers` shape, anchor entry, key/`snapshot.accountId` match, worklist
   ids a subset of `borrowers`, no duplicate/malformed ids.
 - **Validation stage runs automatically** and is mandatory (below).
-- **Byte budget** — output is measured **before writing** and fails over 8 MiB (conservative vs the
+- **Byte budget**, output is measured **before writing** and fails over 8 MiB (conservative vs the
   ~16 MiB host cap). An oversized artifact never touches disk. Write is atomic.
-- **Data marker** — the injection point inside the prebuilt bundle is asserted to occur exactly once.
+- **Data marker**, the injection point inside the prebuilt bundle is asserted to occur exactly once.
   You never touch it; the assembler owns injection end to end.
 
 There is a validation-skip flag reserved for test fixtures; it is hard-restricted to `/tmp` outputs
 and **must never be used for anything a banker will see**.
 
 **On exit 1: read the error.** Every failure names exactly what is missing or malformed. Fix the data
-and re-run — never work around the check.
+and re-run, never work around the check.
 
 ### Validation stage (SR 11-7 effective challenge)
 
-Runs on the composed data **before injection**, across **every** bundle. Deterministic and LLM-free —
+Runs on the composed data **before injection**, across **every** bundle. Deterministic and LLM-free ,
 the model never touches these numbers. It adds:
 
-- **`covenantChallenge[]`** (per bundle) — each nCino covenant recomputed from that borrower's Boom
+- **`covenantChallenge[]`** (per bundle), each nCino covenant recomputed from that borrower's Boom
   spread over the latest period, beside the nCino actual. `status`: **corroborated** (within 15% and
   same compliance side), **diverges** (>15% off or opposite side → also sets `breachRiskFlag`), or
   **not-computable**.
-- **`dataQuality[]`** (top-level) + `meta.validation` — deterministic integrity findings across the
+- **`dataQuality[]`** (top-level) + `meta.validation`, deterministic integrity findings across the
   staged book, sorted critical → warn → info.
 
-**Standard vs contractual definitions — load-bearing caveat.** The Boom-implied value uses *standard*
+**Standard vs contractual definitions: load-bearing caveat.** The Boom-implied value uses *standard*
 ratio definitions; the bank's *contractual* ones are nCino-owned and can differ (add-backs, rolling
 averages, pro-forma adjustments). A `diverges` result is a **review flag for effective challenge,
 never a breach determination.** Never present divergence as a covenant breach.
@@ -694,19 +701,19 @@ A rebuild is slow by nature, so it is still split: do not make the banker watch 
 pipeline before anything appears.
 
 **Phase 1 (publish within the first ~15-20s):** after step (a) plus ONE batched detail call for the
-anchor account only, compose a minimal C360_DATA — `portfolio` verbatim, `borrowers` containing just
-the anchor bundle, `worklist` omitted — and assemble with `--allow-partial` (this is the ONE sanctioned
+anchor account only, compose a minimal C360_DATA, `portfolio` verbatim, `borrowers` containing just
+the anchor bundle, `worklist` omitted, and assemble with `--allow-partial` (this is the ONE sanctioned
 use of that flag: a deliberate degraded first paint). Publish it immediately. Unstaged rows render
 with their honest "not staged" state; the KPI band and anchor are fully live.
 
-**Phase 2:** continue the fetch sequence — (b) worklist scope, (c) full batched staging, (d) Boom,
-(e) M365 intake — then compose the FULL C360_DATA, assemble WITHOUT `--allow-partial`, and
+**Phase 2:** continue the fetch sequence, (b) worklist scope, (c) full batched staging, (d) Boom,
+(e) M365 intake, then compose the FULL C360_DATA, assemble WITHOUT `--allow-partial`, and
 `update_artifact` (full replace). Tell the user in your chat narration that the full book is loading
 between the phases. The artifact preserves their place across the replace.
 
 Skip phase 1 only when the user asked for a single account you can stage in one shot anyway.
 
-Publish the assembled file with the artifact tool **BY FILE PATH** (`create_artifact`) — never paste
+Publish the assembled file with the artifact tool **BY FILE PATH** (`create_artifact`), never paste
 HTML inline. Do NOT open a Chrome tab or call any other widget/HTML builder.
 
 ### CAPABILITIES: pass the manifest on EVERY publish (rebuild path)
@@ -726,9 +733,9 @@ artifact is published with a capabilities manifest, so every publish and every r
 
 That file is generated from the org's own `Customer360` McpServerDefinition plus
 `app/src/channel/mcp.ts`, and a release gate fails the build when it drifts
-(`node client-360/render/capabilities.mjs --check`). It declares five connectors by **display
-name** (`Customer 360` with 28 tools, `IDB Gateway` with 3, `Microsoft 365` with 1,
-`Experience / nCino` with 9 and `AFS` with 4), plus `sample`
+(`node client-360/render/capabilities.mjs --check`). It declares six connectors by **display
+name** (`Customer 360` with 32 tools, `Salesforce Read Backup` with 11, `Boom` with 10,
+`Microsoft 365` with 1, `Experience / nCino` with 9 and `AFS` with 4), plus `sample`
 (the room's Ask lane) and `db` (the intent store, which is also what makes the published page
 organization-internal).
 
@@ -745,8 +752,8 @@ the page says "the publisher forgot the manifest", so a missing grant looks exac
 cockpit. If a banker reports the cockpit is offline, check the publish call's `capabilities` first.
 
 **What the manifest asks of the banker.** Opening a cockpit published with it raises **two consent
-prompts, once each**: one for the connectors (Customer 360, IDB Gateway, Microsoft 365,
-Experience / nCino and AFS, listed together) and one for the database that holds the intent store. Answer both and the room is online;
+prompts, once each**: one for the connectors (Customer 360, Salesforce Read Backup, Boom,
+Microsoft 365, Experience / nCino and AFS, listed together) and one for the database that holds the intent store. Answer both and the room is online;
 answer neither and it reads offline exactly as it does with no manifest at all.
 
 **The grant is PER VIEWER.** Your consent is not the next banker's. Whoever opens the URL is asked
@@ -790,9 +797,9 @@ Every prompt the artifact sends ends with a context frame:
 <the ask> [account: Sterling Fabrication Co. · id: 001… · tab: Covenants · requestId: req-abc123]
 ```
 
-1. **Parse the frame** — account name, accountId, active tab, requestId.
-2. **Do the work** — re-fetch what changed (Customer360/Boom), answer, or run the action flow.
-3. **Re-assemble and replace** — rebuild `C360_DATA` with updated data *and* the extended thread.
+1. **Parse the frame**, account name, accountId, active tab, requestId.
+2. **Do the work**, re-fetch what changed (Customer360/Boom), answer, or run the action flow.
+3. **Re-assemble and replace**, rebuild `C360_DATA` with updated data *and* the extended thread.
 
 ### Chat thread schema
 
@@ -812,7 +819,7 @@ Every prompt the artifact sends ends with a context frame:
 
 - `role` is **`user` | `agent`** (never "assistant").
 - **Echo the incoming `requestId` back as the user message's `id`.** The client shows the user's
-  message locally the moment they send it and de-duplicates by id on the next replace — a different
+  message locally the moment they send it and de-duplicates by id on the next replace, a different
   id renders the message twice.
 - Text is **plain text only**. It is never parsed as HTML or Markdown.
 - Carry the whole thread forward on every replace; a re-render must never lose the conversation.
@@ -832,10 +839,10 @@ are well-formed instructions naming the account and id:
 | `Draft the credit memo for <name> (<id>).` | the credit-memo plugin, as a call-out. Never rebuilt here |
 | `Generate the spreading for <name> (<id>).` | the credit-memo plugin, as a call-out |
 | `Pull up the Boom spreads for <name> (<id>).` | `boom_get_spread` + `boom_get_ratios`, then a short prose read |
-| `Run a covenant review for <name> (<id>) — …` | the **`covenant-review`** skill |
+| `Run a covenant review for <name> (<id>), …` | the **`covenant-review`** skill |
 | `Re-value the pledged collateral for <name> (<id>) …` | the **`collateral-valuation`** skill |
-| `Start a loan modification for <name> (<id>) — …` | the **`client-request-to-action`** skill |
-| `Begin the renewal workflow for <name> (<id>) — …` | the **`relationship-actions`** skill, renewal workflow. **Stages only** |
+| `Start a loan modification for <name> (<id>), …` | the **`client-request-to-action`** skill |
+| `Begin the renewal workflow for <name> (<id>), …` | the **`relationship-actions`** skill, renewal workflow. **Stages only** |
 | `Run the annual credit review for <name> (<id>).` | the **`relationship-actions`** skill, annual review workflow |
 | `Review the risk rating for <name> (<id>) …` | the **`relationship-actions`** skill, risk rating workflow |
 | `Structure a new facility request for <name> (<id>).` | the **`relationship-actions`** skill, new facility workflow |
@@ -887,12 +894,12 @@ single worst failure mode in this skill.
 - **Never inject the JSON yourself.** The assembler owns the data slot and asserts it exactly once.
 - **Never rebuild the app** during a render run. The template is committed and current; `npm run
   build` in `app/` is a development step, not a render step.
-- **Never per-account loops** for the six detail tools — batch the inputs array (six calls total).
+- **Never per-account loops** for the six detail tools, batch the inputs array (six calls total).
 - **Never invent figures.** A number renders only if it traces to a tool-response field.
-- **Gap ≠ blank.** Missing data renders its provenance ("not in source system" / "not wired v1 —
+- **Gap ≠ blank.** Missing data renders its provenance ("not in source system" / "not wired v1 ,
   lives in X"). Each tool's `note` renders as a provenance caption.
-- **Never render PD, a composite health index, or a KYC "cleared" pill** — no source exists.
-- Where the org's truth IS the story, show the **real zero with provenance** — Piedmont: "$0 — no
+- **Never render PD, a composite health index, or a KYC "cleared" pill**, no source exists.
+- Where the org's truth IS the story, show the **real zero with provenance**, Piedmont: "$0, no
   deposit relationship on file" (0 Deposit records), never an invented wallet size.
 - Keep the Accenture engagement theme. No Connectry branding anywhere.
 
@@ -900,17 +907,17 @@ single worst failure mode in this skill.
 
 ## Gotchas
 
-- **`overdue` semantics** — `overdue: true` means **past due but still active**
+- **`overdue` semantics**, `overdue: true` means **past due but still active**
   (`daysUntilNextEvaluation` negative). Render escalated, not "upcoming".
-- **`utilizationPct` can be `null`** (Σtce = 0) → "—", never 0.
-- **`coverageRatio` can be `null`** (≠ 0) → "—", never 0 or a computed guess.
-- **Package-level rollups never sum loan amounts** — TCE/TBE/TOE/Outstanding come from rollup fields.
-- **Modern objects** — use the `Covenant2` / `Loan_Collateral2` generation field shapes.
-- **`Customer360SearchAccounts` has no `note` field** — no provenance caption for it.
+- **`utilizationPct` can be `null`** (Σtce = 0) → ",", never 0.
+- **`coverageRatio` can be `null`** (≠ 0) → ",", never 0 or a computed guess.
+- **Package-level rollups never sum loan amounts**, TCE/TBE/TOE/Outstanding come from rollup fields.
+- **Modern objects**, use the `Covenant2` / `Loan_Collateral2` generation field shapes.
+- **`Customer360SearchAccounts` has no `note` field**, no provenance caption for it.
 - **`Customer360StructuralSignals`** defaults `maturityWindowDays` to **270**; the renewal clock uses
   that window.
 - **Dates are ISO strings** (`YYYY-MM-DD`). All formatting is client-side.
-- **A closed facility is not booked exposure** — the client treats a facility as active only when
+- **A closed facility is not booked exposure**, the client treats a facility as active only when
   `status` is absent or "Active"; closed/paid-off ones are excluded from maturity signals and coverage
   math. Pass `status` through verbatim when the org carries it.
 

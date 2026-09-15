@@ -109,7 +109,7 @@ export function AppShell() {
      READ AT FIRE, NOT WATCHED: the timer is armed once at mount and reads the
      top row through a ref when it goes off. A dependency on `data` would re-arm
      the timer on every live patch and the warm-up would never fire at all. */
-  const warmup = { accountName: topRow?.name, afs: afsMapping((data.borrowers ?? {})[topRow?.accountId ?? ""]) };
+  const warmup = { accountId: topRow?.accountId, accountName: topRow?.name, afs: afsMapping((data.borrowers ?? {})[topRow?.accountId ?? ""]) };
   const warmupRef = useRef(warmup);
   warmupRef.current = warmup;
   useEffect(() => {

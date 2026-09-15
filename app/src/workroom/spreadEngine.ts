@@ -1,4 +1,5 @@
-import { DEADLINES, isDeadline, waitedFor, withDeadline } from "../components/workroom/deadline";
+import { BOOM_MAX_FILE_BYTES } from "../channel/boomUpload";
+import { isDeadline, waitedFor, withDeadline } from "../components/workroom/deadline";
 import { figuresFromSpread, type PostReadFigures } from "../spread/postRead";
 import { onFileBoomFigures } from "../spread/provisional";
 import {
@@ -14,6 +15,7 @@ import type { Boom } from "../data/contract";
 import type {
   BoomAdapter,
   BoomFinancialStatement,
+  BoomRatioSupportLine,
   BoomUploadRequest,
   BoomUploadResult,
   DroppedFile,
@@ -66,8 +68,11 @@ import type {
    Boom is asked to dedupe on (`File.externalUniqueId`).
    ============================================================================= */
 
-/** Per file. The artifact-to-connector bridge is fragile on large payloads. */
-export const MAX_FILE_BYTES = 5 * 1024 * 1024;
+/** Per file, and it is BOOM'S cap, not one this room chose. `boom_upload_bytes`
+ *  takes at most 3 MB of base64, and base64 costs four bytes for every three,
+ *  so the largest file that fits is this. One cap, one sentence, one place
+ *  (`channel/boomUpload.ts`). */
+export const MAX_FILE_BYTES = BOOM_MAX_FILE_BYTES;
 
 /** Per plan. Ten files is a full annual package and then some. */
 export const MAX_FILES = 10;
@@ -79,10 +84,26 @@ export const PRE_READ_BEAT_MS = 420;
 /** How often the room asks Boom where a file has got to. */
 export const POLL_EVERY_MS = 1_200;
 
-/** How long the room will watch one file settle before it says so out loud.
- *  The same budget a filing gets, for the same reason: past it the room is not
- *  learning anything by waiting in silence. */
-export const SETTLE_BUDGET_MS = DEADLINES.execute;
+/**
+ * HOW LONG THE ROOM WATCHES ONE FILE BEFORE IT SAYS SO OUT LOUD.
+ *
+ * TWO MINUTES, AND IT IS THE ROOM'S OWN CLOCK (founder decision D3, 2026-09-15).
+ * It used to be `DEADLINES.execute`, 45 seconds, which is the budget for ONE
+ * call that has said nothing at all: the wrong instrument entirely. Boom is not
+ * silent while it spreads, it is working, and it has been observed taking over
+ * six minutes on an 8 KB workbook. A 45-second stall line told a banker
+ * something was wrong when nothing was.
+ *
+ * The total-wait clock is therefore SEPARATE from the per-call deadline: each
+ * `boom_await_file` blocks at most 25 seconds by the server's own design, and
+ * this is how many of those the room spends before it stops and says so.
+ */
+export const BOOM_WAIT_BUDGET_MS = 120_000;
+
+/** Seconds handed to ONE `boom_await_file`. Under the server's 25-second
+ *  ceiling, so a call that reaches the ceiling is the server answering and not
+ *  the page's clock firing. */
+export const BOOM_AWAIT_SECONDS = 20;
 
 /* ------------------------------------------------------------------ shapes */
 
@@ -160,6 +181,8 @@ export interface LadderRow {
   message: string | null;
   /** The room stopped waiting. Boom still has the file. */
   stalled: boolean;
+  /** Boom already held these bytes, so nothing was sent a second time. */
+  reused?: boolean;
 }
 
 /** What the panel's tiles read. Null is a figure nothing supports yet. */
@@ -186,6 +209,16 @@ export interface SpreadState {
   stall: { fileId: string; name: string; line: string } | null;
   provisional: ProvisionalRead | null;
   statements: BoomFinancialStatement[];
+  /** Which read of the file the statements above are: Boom's analyst-adjusted
+   *  one (its own default, and what is published to the book) or the statement
+   *  as given. Changing it is a SERVER RE-READ, never a local filter. */
+  adjusted: boolean;
+  /** True where the lane behind this engine can serve that re-read. The basis
+   *  switch is not drawn at all where it cannot. */
+  adjustable: boolean;
+  /** `boom_get_ratios` `support.lines` for the spread on the glass: which line
+   *  fed which headline figure. Empty where the lane does not serve them. */
+  support: BoomRatioSupportLine[];
   /** Boom's own figures once it has spread, else the provisional read, else
    *  the last good ones on file. The panel never flashes empty. */
   figures: SpreadFigures;
@@ -228,6 +261,22 @@ export interface SpreadDeps {
   registerPreRead?(sha256: string, preRead: FilePreRead): void;
   /** STUB-ONLY: forget what the stub was told, on room teardown. */
   resetStub?(): void;
+  /** THE FILE HANDLE, ACROSS A SESSION (founder decision D3). Boom can take
+   *  longer than a banker will sit in one room, so the moment a file id exists
+   *  it is written down and a re-entry resumes the wait from `boom_get_file`
+   *  instead of sending the same bytes again. Absent on a lane that cannot
+   *  resume, which simply means the wait is not resumable. */
+  rememberFile?(handle: BoomFileHandle): void;
+  forgetFile?(fileId: string): void;
+}
+
+/** What has to survive a closed room for the wait to be picked back up. */
+export interface BoomFileHandle {
+  fileId: string;
+  companyId: string | null;
+  fileName: string;
+  /** When the room first sent it, so a resumed wait can say how long it has been. */
+  startedAt: number;
 }
 
 export interface SpreadEngineArgs {
@@ -247,6 +296,13 @@ export interface SpreadEngine {
   answer(askId: string, value: string): void;
   /** The banker confirmed the plan. Runs the ladder and the post-read. */
   confirm(): Promise<void>;
+  /** A file left with Boom earlier, picked back up. Reads where it got to and
+   *  waits again; nothing is sent. */
+  resume(handle: BoomFileHandle): Promise<void>;
+  /** Re-read the spread on the other basis. Resolves once Boom has answered and
+   *  the register has the figures the server holds; a lane that cannot re-read
+   *  does nothing. */
+  setAdjusted(next: boolean): Promise<void>;
   /** The stall's two doors. */
   keepWaiting(): void;
   leaveWithBoom(): void;
@@ -294,7 +350,8 @@ export const CAP_FILES_LINE =
   `This plan already holds ${MAX_FILES} files, which is the cap. File these, then drop the rest into a second plan.`;
 
 export const tooBigLine = (name: string, bytes: number): string =>
-  `${name} is ${mb(bytes)}. The cap for one file is 5 MB, so it stays out of this plan. Split it or drop a smaller export.`;
+  `${name} is ${mb(bytes)}. The page sends the bytes to Boom base64 encoded and Boom caps that at 3 MB, ` +
+  `so the cap for one file here is ${mb(MAX_FILE_BYTES)}. Split it or drop a smaller export.`;
 
 export const duplicateLine = (name: string): string =>
   `${name} is already in this plan, by content. Boom keys on the file's hash, so a second copy would not add a period.`;
@@ -305,15 +362,34 @@ export const unreadableLine = (name: string): string =>
 export const busyLine =
   "Boom has this plan. Drop the next files once it has finished with these.";
 
+/** THE FIRST BUDGET: a statement, not a question. Boom is working and the room
+ *  says so and carries on; putting two doors in front of a banker two minutes
+ *  into a spread that routinely takes six is an interruption, not guidance. */
+export const stillProcessingLine = (name: string): string =>
+  `Boom is still processing ${name}. I will keep checking.`;
+
+/** THE SECOND: the room stops watching and offers the two real doors. */
 export const stallLine = (name: string, waited: string): string =>
   `Boom is still spreading ${name}. I have waited ${waited} and stopped watching the call, not the file. ` +
   "I can keep waiting, or leave it with Boom and read the spread when you come back to it.";
+
+/** The file Boom already held. Said once, on the row, because a banker who
+ *  dropped the same file twice is owed the reason nothing new happened. */
+export const reusedLine = (name: string): string =>
+  `Boom already holds ${name} under the same content. I am reading that file rather than sending a second copy.`;
+
+/** The room reopened on a file Boom still has. */
+export const resumedLine = (name: string): string =>
+  `${name} is still with Boom from earlier. I am picking the wait back up rather than sending it again.`;
 
 export const leftWithBoomLine = (name: string): string =>
   `${name} is with Boom. The Financials refresh from Boom's own read when it lands.`;
 
 export const postReadDeadlineLine = (waited: string): string =>
   `The desk has not answered on what this changes in ${waited}, so I have stopped waiting on it. The spread itself is Boom's and it is unchanged.`;
+
+export const REREAD_FAILED =
+  "Boom did not answer the re-read, so the register is showing the figures it already had.";
 
 export const PROVISIONAL_NOTE =
   "Provisional, read in the browser before anything was sent. Boom's own spread replaces it.";
@@ -826,6 +902,12 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
     stall: null,
     provisional: null,
     statements: [],
+    /* BOOM'S OWN DEFAULT, stated rather than assumed: `boom_get_spread` reads
+       the analyst-adjusted figures unless told otherwise, so that is what the
+       ladder landed and what the register opens on. */
+    adjusted: true,
+    adjustable: Boolean(deps.adapter.readSpread),
+    support: [],
     figures: mergeFigures(null, null, onFile),
     figuresProvisional: true,
     newPeriod: onFileRead.period,
@@ -974,6 +1056,159 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
     });
   }
 
+  const row = (fileId: string, patch: Partial<LadderRow>) =>
+    set({ rows: state.rows.map((r) => (r.fileId === fileId ? { ...r, ...patch } : r)) });
+
+  /**
+   * Wait on one file until Boom has it somewhere terminal.
+   *
+   * THE SERVER OWNS THE BLOCKING (`boom_await_file`, 25 seconds by its own
+   * design) and this owns the TOTAL. Where an adapter offers no bounded wait
+   * the room polls `status` on its own clock instead, which is the same shape
+   * a beat slower.
+   *
+   * THE FIRST BUDGET IS A STATEMENT AND THE SECOND IS A QUESTION. Boom
+   * routinely takes longer than two minutes; a room that put two doors in
+   * front of a banker at the first one would be interrupting work that is
+   * going perfectly well. So the first expiry says the room is still checking
+   * and re-arms itself, and only the second stops and offers the doors.
+   */
+  async function watch(
+    fileId: string,
+    name: string,
+    first: BoomUploadResult,
+  ): Promise<BoomUploadResult | null> {
+    let latest = first;
+    const startedAt = Date.now();
+    let until = startedAt + BOOM_WAIT_BUDGET_MS;
+    let saidStillProcessing = false;
+    const waiting = () => latest.status === "processing" || latest.status === "waiting_for_upload";
+
+    while (!dead && waiting()) {
+      if (Date.now() >= until) {
+        if (!saidStillProcessing) {
+          saidStillProcessing = true;
+          set({ notice: stillProcessingLine(name) });
+          until = Date.now() + BOOM_WAIT_BUDGET_MS;
+        } else {
+          set({ notice: null, stall: { fileId, name, line: stallLine(name, minutesWaited(startedAt)) } });
+          if (!(await waitOnStall())) {
+            row(fileId, { stalled: true });
+            return null;
+          }
+          until = Date.now() + BOOM_WAIT_BUDGET_MS;
+        }
+      }
+      if (dead) return null;
+      try {
+        /* A FLOOR UNDER THE LOOP, WHATEVER THE ADAPTER DOES. The server's own
+           wait blocks for up to twenty seconds, so the pause is normally its.
+           An adapter that answers instantly - a fixture, a server that
+           short-circuits a settled file - would otherwise spin this loop as
+           fast as the event loop allows and hammer the connector for the whole
+           budget. The floor is paid only while the file is still moving. */
+        const askedAt = Date.now();
+        latest = deps.adapter.awaitSettled
+          ? await withDeadline(
+              (signal) => deps.adapter.awaitSettled!(latest.fileId, BOOM_AWAIT_SECONDS, { signal }),
+              "stage",
+              `${name} at Boom`,
+            )
+          : await withDeadline((signal) => deps.adapter.status(latest.fileId, { signal }), "read", `${name} at Boom`);
+        if (waiting() && Date.now() - askedAt < POLL_EVERY_MS) await sleep(POLL_EVERY_MS);
+      } catch (e) {
+        if (!isDeadline(e)) {
+          row(fileId, { state: "failed", message: messageOf(e) });
+          return null;
+        }
+        continue;
+      }
+      row(fileId, { state: uploadStateOf(latest.status), message: latest.message ?? null });
+    }
+    if (dead) return null;
+    // Boom's own words, verbatim, where the wait carried any. Boom has no
+    // structured failure reason (Q&A tracker #14), so there is nothing else
+    // to read and a second round trip would only confirm the rung.
+    if (latest.status === "failed") {
+      row(fileId, { state: "failed", message: latest.message ?? null });
+      return null;
+    }
+    /* THE WAIT CARRIES NO SPREAD. `boom_await_file` reports a rung and
+       nothing else, so the statements are read once, here, off the file that
+       has just become readable. */
+    try {
+      const full = await withDeadline(
+        (signal) => deps.adapter.status(latest.fileId, { signal }),
+        "read",
+        `${name} at Boom`,
+      );
+      row(fileId, { state: uploadStateOf(full.status), message: full.message ?? null });
+      set({ notice: null });
+      return full;
+    } catch (e) {
+      row(fileId, { state: "failed", message: messageOf(e) });
+      return null;
+    }
+  }
+
+  /** The spread is in: the panel, the figures and the post-read prose. Shared by
+   *  a confirmed plan and by a wait picked back up on re-entry. */
+  async function settleSpread(landed: BoomUploadResult[]): Promise<void> {
+  const statements = landed.flatMap((r) => r.financialStatements ?? []);
+  const validationUrl = landed.find((r) => r.validationUrl)?.validationUrl ?? null;
+  const validationStatus = statements.length
+    ? statements.every((s) => s.validationStatus === "validated")
+      ? ("validated" as const)
+      : ("not_validated" as const)
+    : null;
+  const after = figuresFromSpread(statements);
+  set({
+    stage: "spread",
+    stall: null,
+    statements,
+    validationUrl,
+    validationStatus,
+    figures: mergeFigures(after, state.provisional, onFile),
+    /* THE STUB'S SPREAD IS NOT BOOM'S. It is built from the pre-read, so the
+       panel keeps the provisional label until the live lane is behind the
+       adapter and has actually returned something. */
+    figuresProvisional: statements.length === 0 || deps.lane !== "live",
+    newPeriod: after?.period ?? state.provisional?.period ?? state.newPeriod,
+  });
+
+  /* WHICH LINE FED WHICH FIGURE. Boom names them on the ratio set struck from
+     this file, and the register marks the lines behind the headline ratios with
+     them. It is one read after the spread has landed, and the room shows the
+     grid with or without it: a lane that serves no support lines simply marks
+     nothing. */
+  const supportFile = landed.find((r) => r.financialStatements?.length)?.fileId;
+  if (supportFile && deps.adapter.ratioSupport) {
+    try {
+      set({ support: await deps.adapter.ratioSupport(supportFile) });
+    } catch {
+      // A marker is not a figure. Its absence costs the banker nothing.
+    }
+  }
+
+  try {
+    const lines = await withDeadline(
+      () =>
+        deps.postRead({
+          company: ctx.company,
+          before: args.onFileBoom,
+          after: statements,
+          covenants: ctx.covenants,
+          validationStatus: validationStatus ?? "not_validated",
+        }),
+      "narrate",
+      "what this changes",
+    );
+    set({ postRead: lines });
+  } catch (e) {
+    set({ notice: isDeadline(e) ? postReadDeadlineLine(waitedFor(e)) : null });
+  }
+  }
+
   async function runLadder(plan: SpreadPlan): Promise<void> {
     set({
       stage: "sending",
@@ -987,9 +1222,6 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
         stalled: false,
       })),
     });
-
-    const row = (fileId: string, patch: Partial<LadderRow>) =>
-      set({ rows: state.rows.map((r) => (r.fileId === fileId ? { ...r, ...patch } : r)) });
 
     const landed: BoomUploadResult[] = [];
 
@@ -1057,89 +1289,30 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
         result = { fileId: item.sha256, companyId: null, fileGroupId: null, status: "processing" };
       }
 
-      row(item.fileId, { state: uploadStateOf(result.status), boomFileId: result.fileId, message: result.message ?? null });
+      /* THE HANDLE GOES DOWN THE MOMENT THERE IS A FILE ID, not when the room
+         gives up waiting. A session can die at any point in the wait, and the
+         one thing that must survive it is the knowledge that these bytes are
+         already in Boom: without it a re-entry re-uploads a file Boom is still
+         spreading. Cleared when the file settles. */
+      deps.rememberFile?.({
+        fileId: result.fileId,
+        companyId: result.companyId,
+        fileName: result.fileName ?? item.name,
+        startedAt: Date.now(),
+      });
+      row(item.fileId, {
+        state: uploadStateOf(result.status),
+        boomFileId: result.fileId,
+        message: result.message ?? null,
+        reused: result.reused === true,
+      });
+      if (result.reused) refuse(reusedLine(item.name));
       const settled = await watch(item.fileId, item.name, result);
       if (settled) landed.push(settled);
+      deps.forgetFile?.(result.fileId);
     }
 
-    /** Ask Boom where the file is until it is somewhere terminal, or until the
-     *  room's own clock runs out and it says so. */
-    async function watch(
-      fileId: string,
-      name: string,
-      first: BoomUploadResult,
-    ): Promise<BoomUploadResult | null> {
-      let latest = first;
-      let until = Date.now() + SETTLE_BUDGET_MS;
-      while (!dead && latest.status === "processing") {
-        if (Date.now() >= until) {
-          set({ stall: { fileId, name, line: stallLine(name, `${Math.round(SETTLE_BUDGET_MS / 1000)} seconds`) } });
-          if (!(await waitOnStall())) {
-            row(fileId, { stalled: true });
-            return null;
-          }
-          until = Date.now() + SETTLE_BUDGET_MS;
-        }
-        await sleep(POLL_EVERY_MS);
-        if (dead) return null;
-        try {
-          latest = await withDeadline(
-            (signal) => deps.adapter.status(latest.fileId, { signal }),
-            "read",
-            `${name} at Boom`,
-          );
-        } catch (e) {
-          if (!isDeadline(e)) {
-            row(fileId, { state: "failed", message: messageOf(e) });
-            return null;
-          }
-          continue;
-        }
-        row(fileId, { state: uploadStateOf(latest.status), message: latest.message ?? null });
-      }
-      if (latest.status === "failed") return null;
-      return latest;
-    }
-
-    const statements = landed.flatMap((r) => r.financialStatements ?? []);
-    const validationUrl = landed.find((r) => r.validationUrl)?.validationUrl ?? null;
-    const validationStatus = statements.length
-      ? statements.every((s) => s.validationStatus === "validated")
-        ? ("validated" as const)
-        : ("not_validated" as const)
-      : null;
-    const after = figuresFromSpread(statements);
-    set({
-      stage: "spread",
-      stall: null,
-      statements,
-      validationUrl,
-      validationStatus,
-      figures: mergeFigures(after, state.provisional, onFile),
-      /* THE STUB'S SPREAD IS NOT BOOM'S. It is built from the pre-read, so the
-         panel keeps the provisional label until the live lane is behind the
-         adapter and has actually returned something. */
-      figuresProvisional: statements.length === 0 || deps.lane !== "live",
-      newPeriod: after?.period ?? state.provisional?.period ?? state.newPeriod,
-    });
-
-    try {
-      const lines = await withDeadline(
-        () =>
-          deps.postRead({
-            company: ctx.company,
-            before: args.onFileBoom,
-            after: statements,
-            covenants: ctx.covenants,
-            validationStatus: validationStatus ?? "not_validated",
-          }),
-        "narrate",
-        "what this changes",
-      );
-      set({ postRead: lines });
-    } catch (e) {
-      set({ notice: isDeadline(e) ? postReadDeadlineLine(waitedFor(e)) : null });
-    }
+    await settleSpread(landed);
   }
 
   function waitOnStall(): Promise<boolean> {
@@ -1230,6 +1403,77 @@ export function createSpreadEngine(args: SpreadEngineArgs): SpreadEngine {
       await runLadder(plan);
     },
 
+    /**
+     * PICK THE WAIT BACK UP, NEVER SEND AGAIN.
+     *
+     * The handle says Boom already holds these bytes, so the room reads where
+     * the file got to (`boom_get_file`, one call) and rejoins the wait from
+     * there. A file that has settled while the room was shut lands its spread
+     * on the first read and the banker walks straight into the Financials.
+     */
+    async resume(handle: BoomFileHandle) {
+      if (state.stage === "sending" || state.stage === "spread") return;
+      set({
+        stage: "sending",
+        notice: null,
+        refusals: [...state.refusals, resumedLine(handle.fileName)],
+        rows: [
+          {
+            fileId: handle.fileId,
+            name: handle.fileName,
+            state: "processing" as UploadState,
+            boomFileId: handle.fileId,
+            message: null,
+            stalled: false,
+          },
+        ],
+      });
+      let first: BoomUploadResult;
+      try {
+        first = await withDeadline(
+          (signal) => deps.adapter.status(handle.fileId, { signal }),
+          "read",
+          `${handle.fileName} at Boom`,
+        );
+      } catch (e) {
+        row(handle.fileId, { state: "failed", message: messageOf(e) });
+        deps.forgetFile?.(handle.fileId);
+        await settleSpread([]);
+        return;
+      }
+      row(handle.fileId, { state: uploadStateOf(first.status), message: first.message ?? null });
+      const settled = first.status === "processing" || first.status === "waiting_for_upload"
+        ? await watch(handle.fileId, handle.fileName, first)
+        : first.status === "failed"
+          ? null
+          : first;
+      deps.forgetFile?.(handle.fileId);
+      await settleSpread(settled ? [settled] : []);
+    },
+
+    /* THE BASIS IS A RE-READ (design 0.9.28). Boom holds both reads of the same
+       file and the register asks for one; deriving an as-given figure from an
+       adjusted one here would put a number on the glass no server ever sent.
+       THE ROOM'S TILES, TREND AND PROSE DO NOT MOVE WITH IT: they are the spread
+       that was FILED, which is Boom's adjusted read and what reached the book.
+       The switch inspects the source lines, and the control above the grid says
+       which basis is on screen. */
+    async setAdjusted(next: boolean): Promise<void> {
+      const reRead = deps.adapter.readSpread;
+      if (!reRead || next === state.adjusted) return;
+      const files = state.rows
+        .filter((r) => r.boomFileId && (r.state === "completed" || r.state === "verified"))
+        .map((r) => r.boomFileId as string);
+      if (!files.length) return;
+      try {
+        const reads = await Promise.all(files.map((id) => reRead(id, { adjusted: next })));
+        if (dead) return;
+        set({ adjusted: next, statements: reads.flat(), notice: null });
+      } catch {
+        set({ notice: REREAD_FAILED });
+      }
+    },
+
     keepWaiting() {
       stallDecision?.(true);
     },
@@ -1275,6 +1519,14 @@ function uploadStateOf(status: BoomUploadResult["status"]): UploadState {
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+/** How long the room has been waiting, in the unit a banker would say it in. */
+function minutesWaited(since: number): string {
+  const seconds = Math.max(1, Math.round((Date.now() - since) / 1000));
+  if (seconds < 90) return `${seconds} seconds`;
+  const minutes = Math.round(seconds / 60);
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
 /** The banker corrected the units. Every figure the pre-read placed moves with

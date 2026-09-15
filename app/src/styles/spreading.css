@@ -21,7 +21,8 @@
                  the ladder into the spread, in `.wk-sheet`'s own register
      .sp-plan    state, not a surface: the sheet is showing the plan
      .sp-ladder  state, not a surface: the sheet is showing Boom's rungs
-     .sp-fin     the live financials block: tiles, trend, statements
+     .sp-fin     the live financials block: tiles, trend, the register (`.rg`,
+                 styles/register.css)
      .sp-post    the post-read block
 
    MATERIAL SPLIT, HONOURED. Every surface below is CONTENT, so every surface
@@ -611,11 +612,6 @@
   color: var(--warning-prose);
   border-color: transparent;
 }
-.sp-verify {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--accent);
-}
 /* THE EXPLAIN AFFORDANCE, the panes' quiet pill (rule 27: an explanation is not
    a commit, so it is never violet). */
 .sp-explain {
@@ -630,9 +626,6 @@
   font-weight: 500;
   cursor: pointer;
   transition: all var(--dur-mid) var(--ease-out);
-}
-.sp-verify + .sp-explain {
-  margin-left: 0;
 }
 .sp-explain:hover {
   background: var(--quiet-fill-hover);
@@ -683,64 +676,6 @@
   margin: 10px 0 0;
   font-size: 12px;
   color: var(--ink-muted);
-}
-
-/* The statement tabs. The table is the one thing in this room wide enough to
-   need its own horizontal scroller, and it takes one rather than making the
-   room scroll sideways. */
-.sp-st-tabs {
-  display: flex;
-  gap: 6px;
-  border-bottom: 1px solid var(--divider-soft);
-}
-.sp-st-tab {
-  padding: 7px 12px;
-  border: 0;
-  background: none;
-  color: var(--ink-muted);
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-}
-.sp-st-tab.is-on {
-  color: var(--ink-strong);
-  border-bottom-color: var(--accent);
-}
-.sp-st-scroll {
-  overflow-x: auto;
-}
-.sp-st-t {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12.5px;
-}
-.sp-st-t th,
-.sp-st-t td {
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--row-divider);
-  text-align: left;
-  white-space: nowrap;
-}
-.sp-st-t th {
-  font-size: 10.5px;
-  letter-spacing: var(--tracking);
-  text-transform: uppercase;
-  color: var(--ink-label);
-  font-weight: 600;
-}
-.sp-st-t .r {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.sp-st-t .is-new {
-  background: var(--accent-wash);
-  color: var(--accent);
-}
-.sp-st-t tr[data-hierarchy="total"] td,
-.sp-st-t tr[data-hierarchy="subtotal"] td {
-  font-weight: 600;
-  color: var(--ink-strong);
 }
 
 /* ------------------------------------------------------------- the post-read */

@@ -545,7 +545,7 @@ const SCENARIOS = [
     id: "garbage-on-desk",
     room: "facility",
     bound: 35_000,
-    chaos: { rules: [{ match: "get_llm_response", mode: "garbage" }], sample: "garbage" },
+    chaos: { sample: "garbage" },
     expect: "A desk reply the parser cannot read degrades to the room's clarify, never to a stack.",
     async run(page, url, bound) {
       const errors = [];

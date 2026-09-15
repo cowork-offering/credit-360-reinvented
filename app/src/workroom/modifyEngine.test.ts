@@ -971,7 +971,7 @@ describe("parseIntent maps a sentence onto the catalog", () => {
     expect(result.reply).not.toContain("$15,000,000.00");
   });
 
-  it("lets the gateway RESTATE a line, and validates the restatement itself", async () => {
+  it("lets the assist RESTATE a line, and validates the restatement itself", async () => {
     const restate = vi.fn().mockResolvedValue("increase the line of credit - $15,000,000.00 to $20,000,000");
     const { engine } = engineOn({ restate });
     const result = await engine.parseIntent("give them another five on the operating line", context);

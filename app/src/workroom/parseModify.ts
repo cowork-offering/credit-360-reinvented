@@ -17,7 +17,7 @@ const FILEABLE_RATE = catalogField("loan.interestRate")!;
    cannot read comes back as a question naming what is missing, because a chip
    the banker did not mean is worse than a chip that never arrived.
 
-   IT STANDS ALONE. The gateway LLM is an optional assist in the engine above
+   IT STANDS ALONE. The vocabulary assist is optional in the engine above
    this, gated behind a deterministic miss, and whatever it returns is validated
    back through THIS module before it can become a chip. Nothing reaches the org
    that this file did not resolve against the field catalog and the real package.
@@ -2275,7 +2275,7 @@ export function parseAnswer(awaiting: Awaiting, text: string, ctx: ParseContext)
    matched against the INDEX's labels: a full-label hit with a readable value
    becomes a normal amendment through a synthetic catalog entry, and a hit
    without one becomes the question a colleague would ask, with the org's legal
-   values inside it. Below this tier sits the gateway assist; above it, the
+   values inside it. Below this tier sits the vocabulary assist; above it, the
    curated synonyms; underneath everything, the org re-validates at stage time
    whatever this file believed.                                                */
 

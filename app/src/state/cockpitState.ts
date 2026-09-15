@@ -113,7 +113,6 @@ export interface CockpitStateDoc {
 const LANES: ReadonlyArray<readonly [string, string]> = [
   ["Salesforce", SERVERS.customer360],
   ["Backup", SERVERS.readBackup],
-  ["Gateway", SERVERS.gateway],
   ["Inbox", SERVERS.m365],
   ["nCino", SERVERS.experience],
   ["AFS", SERVERS.afs],

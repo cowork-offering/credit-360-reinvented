@@ -1,0 +1,1754 @@
+{
+  "contractVersion": "1.0",
+  "_source": "BOOM-LIVE",
+  "_provenance": {
+    "system": "Boom",
+    "record": "file",
+    "ids": {
+      "fileId": "cf677dcc-594c-45b5-b47d-c92c0b2ee909",
+      "companyId": "70d9bd23-a4f7-46ab-92d8-9b784e034877"
+    },
+    "asOf": "2025-12-31"
+  },
+  "adjusted": true,
+  "spread": {
+    "id": "cf677dcc-594c-45b5-b47d-c92c0b2ee909",
+    "fileName": "Piedmont_Precision_Components_Financials_FY2023-2025.xlsx",
+    "externalUniqueId": "sfacct_001bb00001DLtRMAA1_Piedmont_Precision_Components_Financials_FY2023-2025.xlsx_1781204157649",
+    "companyId": "70d9bd23-a4f7-46ab-92d8-9b784e034877",
+    "fileGroupId": null,
+    "status": "verified",
+    "statementQuality": null,
+    "downloadUrl": "REDACTED: presigned S3 URL, never staged",
+    "wipTables": [],
+    "financialStatements": [
+      {
+        "id": "92c22a76-9e14-46ee-b046-01e290ab9b30",
+        "statementType": "cash_flow_statement",
+        "endDate": "2025-12-31",
+        "validationStatus": "validated",
+        "periods": [
+          {
+            "id": "30a85977-2082-4dfb-9f19-45a91de7d8f7",
+            "endDate": "2025-12-31",
+            "periodType": "annual"
+          },
+          {
+            "id": "7ebdc178-eb4c-43ba-9d39-e8ae2110e011",
+            "endDate": "2024-12-31",
+            "periodType": "annual"
+          },
+          {
+            "id": "c67fd913-8fa9-416c-a447-14388b5dfd0c",
+            "endDate": "2023-12-31",
+            "periodType": "annual"
+          }
+        ],
+        "aggregatedFinancials": [],
+        "lineItems": [
+          {
+            "id": "6b30224b-7277-4e58-853e-5d96210c6ce2",
+            "name": "Statement of Cash Flows [Abstract]",
+            "hierarchy": "header",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 0,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 0,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": 0
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": 0,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "6bc8355e-83f0-4f27-b651-fa495dcc11ff",
+            "name": "Cash Flows from Operating Activities",
+            "hierarchy": "header",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 0,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 0,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": 0
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": 0,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "27e8a7e2-3692-4f7e-beb3-863315c78222",
+            "name": "Net Income",
+            "hierarchy": "line_item",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 1390000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 1868000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": 2873000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 1390000,
+                "asAllowed": 1390000
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 1868000,
+                "asAllowed": 1868000
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": 2873000,
+                "asAllowed": 2873000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "d5380902-09f7-4f3d-82ed-01867a90c6d1",
+            "name": "Depreciation and Amortization",
+            "hierarchy": "line_item",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 2396000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 2189000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": 2009000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 2396000,
+                "asAllowed": 2396000
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 2189000,
+                "asAllowed": 2189000
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": 2009000,
+                "asAllowed": 2009000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "35ecf46a-d880-4f7b-8896-d0ce6512f312",
+            "name": "Changes in Operating Assets and Liabilities, Net",
+            "hierarchy": "line_item",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": -193000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 128000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": -105000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": -193000,
+                "asAllowed": -193000
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 128000,
+                "asAllowed": 128000
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": -105000,
+                "asAllowed": -105000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "835ad26b-5342-4c40-98ea-fc8fe8e78632",
+            "name": "Net Cash Provided by Operating Activities",
+            "hierarchy": "total",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 3593000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 4185000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": 4777000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 3593000,
+                "asAllowed": null
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 4185000,
+                "asAllowed": null
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": 4777000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "32e0c5e7-1eab-4ec8-a45f-16e72bc0da9b",
+            "name": "Cash Flows from Investing Activities",
+            "hierarchy": "header",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 0,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 0,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": 0
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": 0,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "626c4159-7b37-4b58-87a8-d8adba7cc3d9",
+            "name": "Purchases of Property and Equipment",
+            "hierarchy": "line_item",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": -5415000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": -2601000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": -2093000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": -5415000,
+                "asAllowed": -5415000
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": -2601000,
+                "asAllowed": -2601000
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": -2093000,
+                "asAllowed": -2093000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "84c415f9-d0da-4860-b7ad-31f260f02f99",
+            "name": "Net Cash Used in Investing Activities",
+            "hierarchy": "total",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": -5415000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": -2601000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": -2093000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": -5415000,
+                "asAllowed": null
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": -2601000,
+                "asAllowed": null
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": -2093000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "e2a4cb79-b1e3-49b3-a609-895115cd90b1",
+            "name": "Cash Flows from Financing Activities",
+            "hierarchy": "header",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 0,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 0,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": 0
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": 0,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "c8df0ee4-eb7f-4960-af46-aea1a83dea62",
+            "name": "Net Borrowings and Other Financing Activities",
+            "hierarchy": "line_item",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 2858000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": -784000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": -2393000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 2858000,
+                "asAllowed": 2858000
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": -784000,
+                "asAllowed": -784000
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": -2393000,
+                "asAllowed": -2393000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "8db7a810-4b96-466d-8279-cde208370baf",
+            "name": "Net Cash Provided by (Used in) Financing Activities",
+            "hierarchy": "total",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 2858000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": -784000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": -2393000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 2858000,
+                "asAllowed": null
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": -784000,
+                "asAllowed": null
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": -2393000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "87a36b24-dc3d-4d0b-9ecd-e9902d211d43",
+            "name": "Net Change in Cash",
+            "hierarchy": "total",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 1036000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 800000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": 291000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 1036000,
+                "asAllowed": null
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 800000,
+                "asAllowed": null
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": 291000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "20781b3b-8e32-4982-94b4-c891fb7751b0",
+            "name": "Cash, Beginning of Year",
+            "hierarchy": "line_item",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 3892000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 3092000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": 2801000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 3892000,
+                "asAllowed": 3892000
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 3092000,
+                "asAllowed": 3092000
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": 2801000,
+                "asAllowed": 2801000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "0a91e6e8-8085-40f5-9f74-a26f1f99449b",
+            "name": "Cash, End of Year",
+            "hierarchy": "total",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": 4928000,
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": 3892000,
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": 3092000
+            },
+            "adjustedPeriodValues": {
+              "30a85977-2082-4dfb-9f19-45a91de7d8f7": {
+                "asGiven": 4928000,
+                "asAllowed": null
+              },
+              "7ebdc178-eb4c-43ba-9d39-e8ae2110e011": {
+                "asGiven": 3892000,
+                "asAllowed": null
+              },
+              "c67fd913-8fa9-416c-a447-14388b5dfd0c": {
+                "asGiven": 3092000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          }
+        ],
+        "createdAt": "2026-06-11T19:02:19.160+00:00",
+        "createdBy": {
+          "id": "0e902d3e-1a32-468c-9893-4766609abd23",
+          "email": "noland.smith@accenture.com"
+        },
+        "validationStatusUpdatedAt": "2026-09-14T19:43:02.752+00:00",
+        "validationStatusUpdatedBy": {
+          "id": "0e902d3e-1a32-468c-9893-4766609abd23",
+          "email": "noland.smith@accenture.com"
+        }
+      },
+      {
+        "id": "91e674fe-eff6-4805-8937-87d63b0a0ec8",
+        "statementType": "income_statement",
+        "endDate": "2025-12-31",
+        "validationStatus": "validated",
+        "periods": [
+          {
+            "id": "baddc94b-f97e-4b37-8e63-6b4e46782e85",
+            "endDate": "2025-12-31",
+            "periodType": "annual"
+          },
+          {
+            "id": "dbf74286-1d6d-411f-bc6c-048ef66c322e",
+            "endDate": "2024-12-31",
+            "periodType": "annual"
+          },
+          {
+            "id": "21b9875f-0bd5-4979-bc2c-ce210b8c3348",
+            "endDate": "2023-12-31",
+            "periodType": "annual"
+          }
+        ],
+        "aggregatedFinancials": [
+          {
+            "accountCode": "net_sales_revenue",
+            "accountName": "Net Sales Revenue",
+            "periodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 64486000,
+                "asAllowed": 64486000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 59915000,
+                "asAllowed": 59915000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 56266000,
+                "asAllowed": 56266000
+              }
+            }
+          },
+          {
+            "accountCode": "cost_of_sales",
+            "accountName": "Cost of Sales",
+            "periodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 50422000,
+                "asAllowed": 50422000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 45371000,
+                "asAllowed": 45371000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 40829000,
+                "asAllowed": 40829000
+              }
+            }
+          },
+          {
+            "accountCode": "total_operating_expenses",
+            "accountName": "Total Operating Expenses",
+            "periodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 11226000,
+                "asAllowed": 11226000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 10989000,
+                "asAllowed": 10989000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 10752000,
+                "asAllowed": 10752000
+              }
+            }
+          },
+          {
+            "accountCode": "other_income",
+            "accountName": "Other Income",
+            "periodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 55000,
+                "asAllowed": 55000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": -45000,
+                "asAllowed": -45000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 71000,
+                "asAllowed": 71000
+              }
+            }
+          },
+          {
+            "accountCode": "current_income_tax",
+            "accountName": "Current Income Tax",
+            "periodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": -427000,
+                "asAllowed": -427000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": -623000,
+                "asAllowed": -623000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": -936000,
+                "asAllowed": -936000
+              }
+            }
+          },
+          {
+            "accountCode": "interest_expense",
+            "accountName": "Interest Expense",
+            "periodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": -1076000,
+                "asAllowed": -1076000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": -1019000,
+                "asAllowed": -1019000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": -947000,
+                "asAllowed": -947000
+              }
+            }
+          }
+        ],
+        "lineItems": [
+          {
+            "id": "8079ece8-5ea5-4928-bcc5-7eba23a0dd32",
+            "name": "Income Statement [Abstract]",
+            "hierarchy": "header",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": 0,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": 0,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": 0
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 0,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "3271ce79-f724-461a-8874-2c111fdd5cc7",
+            "name": "Net Sales",
+            "hierarchy": "line_item",
+            "accountCode": "net_sales_revenue",
+            "flipSign": false,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": 56266000,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": 64486000,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": 59915000
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 64486000,
+                "asAllowed": 64486000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 59915000,
+                "asAllowed": 59915000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 56266000,
+                "asAllowed": 56266000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "d88f686a-0652-4fcc-8233-218ccc2b6027",
+            "name": "Cost of Sales",
+            "hierarchy": "line_item",
+            "accountCode": "cost_of_sales",
+            "flipSign": false,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": 40829000,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": 50422000,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": 45371000
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 50422000,
+                "asAllowed": 50422000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 45371000,
+                "asAllowed": 45371000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 40829000,
+                "asAllowed": 40829000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "5f1ff696-19be-4f70-8c9c-d35a65a1e01d",
+            "name": "Gross Profit",
+            "hierarchy": "subtotal",
+            "accountCode": "gross_profit",
+            "flipSign": false,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": 15437000,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": 14064000,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": 14544000
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 14064000,
+                "asAllowed": null
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 14544000,
+                "asAllowed": null
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 15437000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "376bc663-ad36-457f-aa9f-caa2c00b9b91",
+            "name": "Operating Expenses",
+            "hierarchy": "line_item",
+            "accountCode": "total_operating_expenses",
+            "flipSign": false,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": 10752000,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": 11226000,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": 10989000
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 11226000,
+                "asAllowed": 11226000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 10989000,
+                "asAllowed": 10989000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 10752000,
+                "asAllowed": 10752000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "afbb49fb-6637-4ac7-a4a5-06a0e1d6e4fe",
+            "name": "Income from Operations",
+            "hierarchy": "subtotal",
+            "accountCode": "operating_profit",
+            "flipSign": false,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": 4685000,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": 2838000,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": 3555000
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 2838000,
+                "asAllowed": null
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 3555000,
+                "asAllowed": null
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 4685000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "7e06cb14-c718-4734-a054-2b8a41d08e1c",
+            "name": "Interest Expense",
+            "hierarchy": "line_item",
+            "accountCode": "interest_expense",
+            "flipSign": false,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": -947000,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": -1076000,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": -1019000
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": -1076000,
+                "asAllowed": -1076000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": -1019000,
+                "asAllowed": -1019000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": -947000,
+                "asAllowed": -947000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "677ca182-0976-45c4-b26a-115572b2982a",
+            "name": "Other Income (Expense), Net",
+            "hierarchy": "line_item",
+            "accountCode": "other_income",
+            "flipSign": false,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": 71000,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": 55000,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": -45000
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 55000,
+                "asAllowed": 55000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": -45000,
+                "asAllowed": -45000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 71000,
+                "asAllowed": 71000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "04d18228-cec6-4c73-8eca-fa7a31b6b96c",
+            "name": "Income before Income Taxes",
+            "hierarchy": "total",
+            "accountCode": "profit_before_taxes",
+            "flipSign": false,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": 3809000,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": 1817000,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": 2491000
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 1817000,
+                "asAllowed": null
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 2491000,
+                "asAllowed": null
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 3809000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "b301e03b-e8f2-45ad-877c-1b932c3caf5b",
+            "name": "Provision for Income Taxes",
+            "hierarchy": "line_item",
+            "accountCode": "current_income_tax",
+            "flipSign": true,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": 936000,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": 427000,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": 623000
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 427000,
+                "asAllowed": 427000
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 623000,
+                "asAllowed": 623000
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 936000,
+                "asAllowed": 936000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "6da3e3da-7196-47f6-8cb7-2faeca93d889",
+            "name": "Net Income",
+            "hierarchy": "total",
+            "accountCode": "net_income",
+            "flipSign": false,
+            "periodValues": {
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": 2873000,
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": 1390000,
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": 1868000
+            },
+            "adjustedPeriodValues": {
+              "baddc94b-f97e-4b37-8e63-6b4e46782e85": {
+                "asGiven": 1390000,
+                "asAllowed": null
+              },
+              "dbf74286-1d6d-411f-bc6c-048ef66c322e": {
+                "asGiven": 1868000,
+                "asAllowed": null
+              },
+              "21b9875f-0bd5-4979-bc2c-ce210b8c3348": {
+                "asGiven": 2873000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          }
+        ],
+        "createdAt": "2026-06-11T19:02:39.054+00:00",
+        "createdBy": {
+          "id": "0e902d3e-1a32-468c-9893-4766609abd23",
+          "email": "noland.smith@accenture.com"
+        },
+        "validationStatusUpdatedAt": "2026-09-14T19:42:56.731+00:00",
+        "validationStatusUpdatedBy": {
+          "id": "0e902d3e-1a32-468c-9893-4766609abd23",
+          "email": "noland.smith@accenture.com"
+        }
+      },
+      {
+        "id": "59bed56c-ec80-4721-afc7-a22ba0e8d189",
+        "statementType": "balance_sheet",
+        "endDate": "2025-12-31",
+        "validationStatus": "validated",
+        "periods": [
+          {
+            "id": "6ff80c35-a66c-4db4-9b5e-d4841fc64b00",
+            "endDate": "2025-12-31",
+            "periodType": "annual"
+          },
+          {
+            "id": "67de7e93-949a-4daa-8950-3363b8c3de0c",
+            "endDate": "2024-12-31",
+            "periodType": "annual"
+          },
+          {
+            "id": "5bef6b97-783c-4459-9fee-79055f90cdf1",
+            "endDate": "2023-12-31",
+            "periodType": "annual"
+          }
+        ],
+        "aggregatedFinancials": [
+          {
+            "accountCode": "cash_and_equivalents",
+            "accountName": "Cash and Cash Equivalents",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 4928000,
+                "asAllowed": 4928000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 3892000,
+                "asAllowed": 3892000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 3092000,
+                "asAllowed": 3092000
+              }
+            }
+          },
+          {
+            "accountCode": "accounts_receivable_trade",
+            "accountName": "Accounts Receivable - Trade",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 9162000,
+                "asAllowed": 9162000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 8427000,
+                "asAllowed": 8427000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 7662000,
+                "asAllowed": 7662000
+              }
+            }
+          },
+          {
+            "accountCode": "total_inventory",
+            "accountName": "Total Inventory",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 11965000,
+                "asAllowed": 11965000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 10995000,
+                "asAllowed": 10995000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 9916000,
+                "asAllowed": 9916000
+              }
+            }
+          },
+          {
+            "accountCode": "other_current_assets",
+            "accountName": "Other Current Assets",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 815000,
+                "asAllowed": 815000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 706000,
+                "asAllowed": 706000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 608000,
+                "asAllowed": 608000
+              }
+            }
+          },
+          {
+            "accountCode": "ppe_machinery",
+            "accountName": "Machinery",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 18459000,
+                "asAllowed": 18459000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 15643000,
+                "asAllowed": 15643000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 13768000,
+                "asAllowed": 13768000
+              }
+            }
+          },
+          {
+            "accountCode": "other_non_current_assets",
+            "accountName": "Other Long-Term Assets",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 1432000,
+                "asAllowed": 1432000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 454000,
+                "asAllowed": 454000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 1016000,
+                "asAllowed": 1016000
+              }
+            }
+          },
+          {
+            "accountCode": "accounts_payable_trade",
+            "accountName": "Accounts Payable - Trade",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 4786000,
+                "asAllowed": 4786000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 4414000,
+                "asAllowed": 4414000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 4004000,
+                "asAllowed": 4004000
+              }
+            }
+          },
+          {
+            "accountCode": "operating_current_liabilities",
+            "accountName": "Operating Current Liabilities",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 371000,
+                "asAllowed": 371000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 335000,
+                "asAllowed": 335000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 306000,
+                "asAllowed": 306000
+              }
+            }
+          },
+          {
+            "accountCode": "other_accruals",
+            "accountName": "Other Accruals",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 2604000,
+                "asAllowed": 2604000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 2407000,
+                "asAllowed": 2407000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 2213000,
+                "asAllowed": 2213000
+              }
+            }
+          },
+          {
+            "accountCode": "st_loans_payable_bank",
+            "accountName": "Short-Term Loans Payable - Bank",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 5674000,
+                "asAllowed": 5674000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 5218000,
+                "asAllowed": 5218000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 4916000,
+                "asAllowed": 4916000
+              }
+            }
+          },
+          {
+            "accountCode": "long_term_debt_bank",
+            "accountName": "Long-Term Debt - Bank",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 14456000,
+                "asAllowed": 14456000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 9969000,
+                "asAllowed": 9969000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 8957000,
+                "asAllowed": 8957000
+              }
+            }
+          },
+          {
+            "accountCode": "total_equity",
+            "accountName": "Total Equity",
+            "periodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 18870000,
+                "asAllowed": 18870000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 17774000,
+                "asAllowed": 17774000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 15666000,
+                "asAllowed": 15666000
+              }
+            }
+          }
+        ],
+        "lineItems": [
+          {
+            "id": "03f93efe-9e3c-4615-b17a-308da56035e5",
+            "name": "Statement of Financial Position [Abstract]",
+            "hierarchy": "header",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 0,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 0,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 0
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 0,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "63a69177-0e4b-423a-9d53-1f205860251d",
+            "name": "Assets",
+            "hierarchy": "header",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 0,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 0,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 0
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 0,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "711ccddf-d0c6-45b4-8e20-e8037fa6b4bd",
+            "name": "Cash and Cash Equivalents",
+            "hierarchy": "line_item",
+            "accountCode": "cash_and_equivalents",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 3092000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 3892000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 4928000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 4928000,
+                "asAllowed": 4928000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 3892000,
+                "asAllowed": 3892000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 3092000,
+                "asAllowed": 3092000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "06fabe2e-c042-40ac-965e-cd56247bdb4f",
+            "name": "Accounts Receivable, Net",
+            "hierarchy": "line_item",
+            "accountCode": "accounts_receivable_trade",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 7662000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 8427000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 9162000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 9162000,
+                "asAllowed": 9162000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 8427000,
+                "asAllowed": 8427000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 7662000,
+                "asAllowed": 7662000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "d8e744c3-fdeb-42c2-9048-5e9510721297",
+            "name": "Inventory",
+            "hierarchy": "line_item",
+            "accountCode": "total_inventory",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 9916000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 10995000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 11965000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 11965000,
+                "asAllowed": 11965000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 10995000,
+                "asAllowed": 10995000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 9916000,
+                "asAllowed": 9916000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "2948291c-5c58-40d9-91c5-cb54a892ac83",
+            "name": "Prepaid Expenses and Other Current Assets",
+            "hierarchy": "line_item",
+            "accountCode": "other_current_assets",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 608000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 706000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 815000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 815000,
+                "asAllowed": 815000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 706000,
+                "asAllowed": 706000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 608000,
+                "asAllowed": 608000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "1401682d-0298-4f51-99cb-9333bde9825b",
+            "name": "Total Current Assets",
+            "hierarchy": "subtotal",
+            "accountCode": "total_current_assets",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 21278000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 24020000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 26870000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 26870000,
+                "asAllowed": null
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 24020000,
+                "asAllowed": null
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 21278000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "84441adf-0c6f-4c3e-b639-64897bd5c791",
+            "name": "Property and Equipment, Net",
+            "hierarchy": "line_item",
+            "accountCode": "ppe_machinery",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 13768000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 15643000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 18459000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 18459000,
+                "asAllowed": 18459000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 15643000,
+                "asAllowed": 15643000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 13768000,
+                "asAllowed": 13768000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "53b032ae-e6e0-4165-bd3d-55cb32e1fdef",
+            "name": "Operating Lease ROU Assets and Other Assets",
+            "hierarchy": "line_item",
+            "accountCode": "other_non_current_assets",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 1016000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 454000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 1432000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 1432000,
+                "asAllowed": 1432000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 454000,
+                "asAllowed": 454000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 1016000,
+                "asAllowed": 1016000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "66c7504d-3952-4498-92ce-902ad6dc9b9a",
+            "name": "Total Assets",
+            "hierarchy": "total",
+            "accountCode": "total_assets",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 36062000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 40117000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 46761000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 46761000,
+                "asAllowed": null
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 40117000,
+                "asAllowed": null
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 36062000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "c53766ba-183d-42e4-91d0-5e9b03b5f084",
+            "name": "Liabilities and Stockholders' Equity",
+            "hierarchy": "header",
+            "accountCode": null,
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 0,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 0,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 0
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 0,
+                "asAllowed": null
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 0,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "3e62841f-bedd-445f-9dd5-c40e92c6a0d6",
+            "name": "Accounts Payable",
+            "hierarchy": "line_item",
+            "accountCode": "accounts_payable_trade",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 4004000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 4414000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 4786000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 4786000,
+                "asAllowed": 4786000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 4414000,
+                "asAllowed": 4414000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 4004000,
+                "asAllowed": 4004000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "a51106d5-a9e0-49ee-b70d-ea225b6ee8c9",
+            "name": "Line of Credit and Current Portion of Long-Term Debt",
+            "hierarchy": "line_item",
+            "accountCode": "st_loans_payable_bank",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 4916000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 5218000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 5674000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 5674000,
+                "asAllowed": 5674000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 5218000,
+                "asAllowed": 5218000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 4916000,
+                "asAllowed": 4916000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "9db23695-2be5-4b0c-a383-9a10c86f6b5e",
+            "name": "Accrued Expenses and Other Current Liabilities",
+            "hierarchy": "line_item",
+            "accountCode": "other_accruals",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 2213000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 2407000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 2604000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 2604000,
+                "asAllowed": 2604000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 2407000,
+                "asAllowed": 2407000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 2213000,
+                "asAllowed": 2213000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "5d71eeab-2a3b-4629-9bca-305381fcbc7a",
+            "name": "Total Current Liabilities",
+            "hierarchy": "subtotal",
+            "accountCode": "total_current_liabilities",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 11133000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 12039000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 13064000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 13064000,
+                "asAllowed": null
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 12039000,
+                "asAllowed": null
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 11133000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "91f6d7e3-86e0-402a-8c5e-4c67a6bb9566",
+            "name": "Long-Term Debt, Net of Current Portion",
+            "hierarchy": "line_item",
+            "accountCode": "long_term_debt_bank",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 8957000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 9969000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 14456000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 14456000,
+                "asAllowed": 14456000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 9969000,
+                "asAllowed": 9969000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 8957000,
+                "asAllowed": 8957000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "f6b7f502-8e9c-4ad2-90f0-67f244986f14",
+            "name": "Other Long-Term Liabilities",
+            "hierarchy": "line_item",
+            "accountCode": "operating_current_liabilities",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 306000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 335000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 371000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 371000,
+                "asAllowed": 371000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 335000,
+                "asAllowed": 335000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 306000,
+                "asAllowed": 306000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "42f1cba6-dffc-4356-bd17-005311e73e24",
+            "name": "Total Liabilities",
+            "hierarchy": "subtotal",
+            "accountCode": "total_liabilities",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 20396000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 22343000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 27891000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 27891000,
+                "asAllowed": null
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 22343000,
+                "asAllowed": null
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 20396000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "0038015d-4484-4c7d-98a7-2f5342d1bab3",
+            "name": "Total Stockholders' Equity",
+            "hierarchy": "line_item",
+            "accountCode": "total_equity",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 15666000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 17774000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 18870000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 18870000,
+                "asAllowed": 18870000
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 17774000,
+                "asAllowed": 17774000
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 15666000,
+                "asAllowed": 15666000
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          },
+          {
+            "id": "99922fc2-b574-43bb-8635-12137a90cae5",
+            "name": "Total Liabilities and Stockholders' Equity",
+            "hierarchy": "total",
+            "accountCode": "total_liabilities_and_equity",
+            "flipSign": false,
+            "periodValues": {
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": 36062000,
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": 40117000,
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": 46761000
+            },
+            "adjustedPeriodValues": {
+              "6ff80c35-a66c-4db4-9b5e-d4841fc64b00": {
+                "asGiven": 46761000,
+                "asAllowed": null
+              },
+              "67de7e93-949a-4daa-8950-3363b8c3de0c": {
+                "asGiven": 40117000,
+                "asAllowed": null
+              },
+              "5bef6b97-783c-4459-9fee-79055f90cdf1": {
+                "asGiven": 36062000,
+                "asAllowed": null
+              }
+            },
+            "promotedChildLineItemIds": null,
+            "childLineItems": []
+          }
+        ],
+        "createdAt": "2026-06-11T19:02:33.458+00:00",
+        "createdBy": {
+          "id": "0e902d3e-1a32-468c-9893-4766609abd23",
+          "email": "noland.smith@accenture.com"
+        },
+        "validationStatusUpdatedAt": "2026-09-14T19:42:49.258+00:00",
+        "validationStatusUpdatedBy": {
+          "id": "0e902d3e-1a32-468c-9893-4766609abd23",
+          "email": "noland.smith@accenture.com"
+        }
+      }
+    ],
+    "createdAt": "2026-06-11T18:55:57.863+00:00",
+    "createdBy": {
+      "id": "edc19657-4e50-55e1-bf2a-e8702c69d6f4",
+      "email": "system"
+    }
+  }
+}

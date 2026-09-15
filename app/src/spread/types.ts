@@ -199,6 +199,13 @@ export interface BoomUploadResult {
   companyId: string | null;
   fileGroupId: string | null;
   status: BoomFileStatus;
+  /** Boom's own name for the file, where the answer carries one. It is what the
+   *  room persists with the handle so a resumed wait can name the file. */
+  fileName?: string;
+  /** TRUE where the ladder found the same bytes already in Boom and did not
+   *  reserve a second file. The room SAYS so: a banker who dropped a file twice
+   *  is owed the reason nothing new happened. */
+  reused?: boolean;
   /** Boom's own words on failure; shown verbatim. (Boom has no structured reason yet: Q&A tracker #14.) */
   message?: string;
   financialStatements?: BoomFinancialStatement[];
@@ -224,8 +231,30 @@ export interface BoomFinancialStatement {
     adjustedPeriodValues?: Record<string, { asGiven: number | null; asAllowed: number | null }>;
     childLineItems?: Array<unknown>;
   }>;
-  /** Rolled up to account-code level: what ratios are computed from. */
-  aggregatedFinancials?: Array<{ accountCode: string; accountName: string; periodValues: Record<string, number | null> }>;
+  /** Rolled up to account-code level: what Boom's own ratio layer is computed
+   *  from. PER PERIOD IT IS A PAIR, not a number (observed live 2026-09-15):
+   *  the figure as the statement gave it and the figure as the analyst allowed
+   *  it. Nothing in the cockpit reads these values: every figure on the glass
+   *  comes off `lineItems`, which Boom keys by plain number, so this is carried
+   *  for provenance and typed as the server actually sends it. */
+  aggregatedFinancials?: Array<{
+    accountCode: string;
+    accountName: string;
+    periodValues: Record<string, { asGiven: number | null; asAllowed: number | null }>;
+  }>;
+}
+
+/** One line of `boom_get_ratios` `support.lines`: which spread line fed which
+ *  headline figure, and how Boom found it. The register names the figure beside
+ *  the line and never prints its value. */
+export interface BoomRatioSupportLine {
+  figure: string;
+  statement: string;
+  accountCode: string | null;
+  name: string;
+  period: string;
+  value: number | null;
+  method: string;
 }
 
 /** THE ADAPTER: what the COCKPIT expects from Noland's read + write Boom MCP server, as
@@ -238,8 +267,23 @@ export interface BoomAdapter {
   /** One tool call: send the file (base64) for this relationship; returns Boom's file id + status,
    *  and the spread itself when the server answers synchronously. */
   upload(req: BoomUploadRequest, opts?: { signal?: AbortSignal }): Promise<BoomUploadResult>;
-  /** One tool call: the file's current status + spread; the room polls it, bounded by its settle discipline. */
+  /** The file's current status, and Boom's own spread once the file is readable.
+   *  Two calls on the live lane (`boom_get_file`, then `boom_get_spread`), which
+   *  is an implementation detail the room never sees. */
   status(fileId: string, opts?: { signal?: AbortSignal }): Promise<BoomUploadResult>;
+  /** Optional: ONE bounded blocking wait, the server's own (`boom_await_file`,
+   *  25s ceiling). The room spends its longer budget in repeated calls to this
+   *  and falls back to polling `status` where an adapter offers none. */
+  awaitSettled?(fileId: string, maxSeconds: number, opts?: { signal?: AbortSignal }): Promise<BoomUploadResult>;
+  /** Optional: Boom's spread of one file, read again on the basis asked for
+   *  (`boom_get_spread` `adjusted`). THE BASIS IS A RE-READ, NEVER A FILTER: no
+   *  surface in the cockpit derives an as-given figure from an adjusted one.
+   *  Absent on an adapter with no second read to give, and then the register
+   *  offers no basis switch at all. */
+  readSpread?(fileId: string, opts?: { adjusted?: boolean; signal?: AbortSignal }): Promise<BoomFinancialStatement[]>;
+  /** Optional: `boom_get_ratios` `support.lines` for one file, which is what
+   *  lets the register say which line feeds which headline figure. */
+  ratioSupport?(fileId: string, opts?: { signal?: AbortSignal }): Promise<BoomRatioSupportLine[]>;
   /** Optional, when the server supports consolidation: one group id per plan. */
   createGroup?(companyExternalId: string): Promise<{ fileGroupId: string }>;
   /** Optional: the analyst verification page link ("Verify in Boom"). */

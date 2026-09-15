@@ -1,7 +1,6 @@
 import { buildBrainTools } from "./brainTools";
 import { budgetPrompt } from "./doctrine";
 import { rungFor, type RungChoice } from "./ladder";
-import { callTool, mcpAvailable, SERVERS, TOOLS, unwrapLlm } from "./mcp";
 import { CONTEXT_DROP_ORDER } from "./relationshipContext";
 import { askSessionJson, sampleAvailable } from "./sampleDoor";
 
@@ -13,13 +12,12 @@ import { askSessionJson, sampleAvailable } from "./sampleDoor";
    module existed. What routes here is what the fast lane cannot claim — every
    question the guard catches, and every line the parser hands back unparsed.
 
-   THE TRANSPORT IS THE ASSIST'S OWN. `askCopilot` (channel/cockpitTools.ts)
-   reaches the session's completion door through `window.claude.mcp` — the
-   PROVEN live channel — and that is the one arm on this bridge that can carry a
-   REPLY back. The legacy `window.sendPrompt` arm in channel/adapter.ts is
+   THE TRANSPORT IS THE SESSION DOOR (channel/sampleDoor.ts), and as of
+   2026-09-15 it is the only one: the viewer's own Claude, which carries a REPLY
+   back. The legacy `window.sendPrompt` arm in channel/adapter.ts is
    fire-and-forget by construction: it hands a prompt over and resolves, and
    nothing ever comes back to parse. A lane built on it could only ever hang or
-   lie, so this module treats "no mcp capability" as NO BRAIN LANE and says so
+   lie, so this module treats "no session door" as NO BRAIN LANE and says so
    (see `brainReachable`). That is the channel-none doctrine applied to the
    second lane.
 
@@ -905,16 +903,17 @@ export function timeoutFor(choice: RungChoice): number {
 /**
  * IS THERE A BRAIN LANE AT ALL.
  *
- * TWO DOORS NOW. The SESSION door (`window.claude.use("sample")`) is the one
- * the recorded decision names: the viewer's own Claude, their identity, their
- * connectors, zero infrastructure. The gateway completion door is the rung
- * below it, kept only as the fallback while the latency gate is unproven.
+ * ONE DOOR (2026-09-15). The SESSION door (`window.claude.use("sample")`) is
+ * the one the recorded decision names: the viewer's own Claude, their identity,
+ * their connectors, zero infrastructure. The gateway completion beneath it is
+ * retired, so this counts the door `doorFor` actually tries and the two can no
+ * longer disagree.
  *
- * With NEITHER the room keeps the fast lane and the existing loud notice, and a
+ * WITHOUT IT the room keeps the fast lane and the existing loud notice, and a
  * routed line gets {@link NOT_CONNECTED_CLARIFY} rather than a hang.
  */
 export function brainReachable(): boolean {
-  return sampleAvailable() || mcpAvailable();
+  return sampleAvailable();
 }
 
 /* ------------------------------------------------------- the doctrine, inline
@@ -998,57 +997,39 @@ export interface BrainAskDeps {
    * Forwarded to the session door and fired at most once, on the first token.
    * The reply itself is JSON and must never be rendered from a partial, so this
    * carries no text: it is the one honest beat a room can put between "reading"
-   * and "writing" in a silence that runs to 150 seconds at rung 3. The gateway
-   * rung does not stream and simply never fires it.
+   * and "writing" in a silence that runs to 150 seconds at rung 3.
    */
   onFirstToken?: () => void;
 }
 
-/** The gateway completion door, verbatim as `askCopilot` unwraps it. It is the
- *  rung BELOW the session door now: kept while the latency gate is unproven,
- *  carrying the same inlined doctrine, and invested in no further. */
-async function sendThroughBridge(prompt: string, signal?: AbortSignal): Promise<string> {
-  const res = await callTool(SERVERS.gateway, TOOLS.llm, { prompt }, { read: true, signal });
-  return unwrapLlm(res.payload).text;
-}
-
 /**
- * THE SESSION DOOR FIRST, THE GATEWAY BENEATH IT.
+ * THE SESSION DOOR, AND NOTHING BENEATH IT (2026-09-15).
  *
- * `sample` is the recorded decision and the correct door. Every way it can fail
- * — null capability, a declined consent, a rate limit, a refusal, a transport
- * fault — means one thing here: take the next rung down. The banker is never
- * shown which door answered, and never shown that one did not.
+ * IDB Gateway retired; the rooms ask the banker's own Claude or they say they
+ * could not. `sample` was always the recorded decision and the correct door,
+ * and the gateway completion under it was the rung kept while the latency gate
+ * was unproven. Every way the door can fail, a null capability, a declined
+ * consent, a rate limit, a refusal, a transport fault, now means one thing:
+ * say so and let the caller degrade. The banker is never shown which door
+ * answered, and the caller turns a failure into a clarify the room can draw.
  *
  * TOOLS RIDE ONLY AT RUNG 3, and only where the room named an anchor. That is
  * the whole of what keeps a 30 to 90 second round trip rare.
  */
 function doorFor(envelope: BrainEnvelope, deps: BrainAskDeps, choice: RungChoice) {
   return async (prompt: string, signal?: AbortSignal): Promise<string> => {
-    if (sampleAvailable()) {
-      try {
-        return await askSessionJson(prompt, {
-          kind: "reply",
-          tier: choice.tier,
-          rung: choice.rung,
-          signal,
-          onFirstToken: deps.onFirstToken,
-          tools:
-            choice.rung === 3 && deps.anchor
-              ? buildBrainTools({ anchor: deps.anchor, reads: envelope.reads })
-              : undefined,
-        });
-      } catch {
-        // Absence, never an error on the glass. The gateway is the next rung.
-      }
-    }
-    /* ONLY WHERE THE RUNG BELOW EXISTS (founder 2026-09-12, the fallback
-       audit). `brainReachable` is satisfied by EITHER door, so a view with a
-       session door and no connector reached this line, called a gateway that is
-       not in the view, and the rejection surfaced to the banker as a malformed
-       reply. There is no second rung here; say so and let the caller degrade. */
-    if (!mcpAvailable()) throw new Error("no door answered");
-    return sendThroughBridge(prompt, signal);
+    if (!sampleAvailable()) throw new Error("no door answered");
+    return askSessionJson(prompt, {
+      kind: "reply",
+      tier: choice.tier,
+      rung: choice.rung,
+      signal,
+      onFirstToken: deps.onFirstToken,
+      tools:
+        choice.rung === 3 && deps.anchor
+          ? buildBrainTools({ anchor: deps.anchor, reads: envelope.reads })
+          : undefined,
+    });
   };
 }
 

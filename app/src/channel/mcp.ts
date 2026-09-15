@@ -12,6 +12,7 @@
    the page. `describeFailure()` below is the one place that mapping lives.
    ============================================================================= */
 
+import { BOOM_FALLBACK_NAME, boomServer, noteBoomServers } from "./boomLane";
 import { noteLaneAttempt, noteLaneFailure, noteLaneGrant, noteLaneSuccess, noteNoBridge } from "./laneHealth";
 
 /* ---------------------------------------------------------------- ambient */
@@ -93,13 +94,11 @@ export function mcpAvailable(): boolean {
 /** Connector DISPLAY NAMES — the `server` argument. Never a connector id. */
 export const SERVERS = {
   customer360: "Customer 360",
-  gateway: "IDB Gateway",
   /* THE RELAY-INDEPENDENT READ LANE (2026-09-06). A separately hosted connector
      serving the same ten Customer 360 reads from the same org through a second
      hop, for the two hours on 2026-09-03 when the first one was shut. READS
      ONLY: writes stay on Customer 360, where the acting identity is the
-     banker's own and not a service credential. `gateway` above is already taken
-     by "IDB Gateway", which is a different connector entirely. */
+     banker's own and not a service credential. */
   readBackup: "Salesforce Read Backup",
   m365: "Microsoft 365",
   /* THE MEMO ROOM'S TWO WRITEBACK CONNECTORS (2026-09-04). The Experience
@@ -110,15 +109,15 @@ export const SERVERS = {
      never an id, and a differently named connector is invisible to the page. */
   experience: "Experience / nCino",
   afs: "AFS",
-  /* THE BOOM LANE (2026-09-12). Noland is revamping Boom into its OWN read +
-     write MCP server, and until that connector exists there is nothing for the
-     viewer to add: the two Boom reads the cockpit already makes run through
-     "IDB Gateway", so the upload lane is addressed to the same door and this
-     alias is deliberately the SAME STRING as `gateway` above. When the Boom
-     connector lands the flip is this one line (`boom: "Boom"`), and with it the
-     health line stops saying "via gateway" on its own. Nothing else moves:
-     every Boom call in the cockpit is already addressed to `SERVERS.boom`. */
-  boom: "IDB Gateway",
+  /* THE BOOM LANE (0.9.28, 2026-09-15). Boom is its own read + write MCP server
+     now (`boom-mcp`), so the lane left the gateway and this string is no longer
+     the gateway's. IT IS A FALLBACK, NOT AN ADDRESS: the viewer names the
+     connector when they add it in claude.ai and the page cannot know the
+     spelling, so every Boom call goes to `boomServer()` in channel/boomLane.ts,
+     which is whichever connector `listTools()` says serves `boom_get_ratios`
+     and `boom_get_spread`. This name is what the lane is called before that
+     answers, and where the runtime cannot enumerate servers at all. */
+  boom: BOOM_FALLBACK_NAME,
 } as const;
 
 /** Upstream tool names exactly as `listTools()` returns them.
@@ -155,9 +154,13 @@ export const TOOLS = {
      Until it does, `readCatalog` returns null and every chip set falls back to
      the shell's mirror, which is where they have been since the room shipped. */
   catalog: "Customer360Catalog",
-  boomRatios: "boom-mcp-js___boom_get_ratios",
-  boomSpread: "boom-mcp-js___boom_get_spread",
-  llm: "idb-bg-api-target-get-llm-response-staging___get_llm_response",
+  /* THE TWO BOOM READS, UNPREFIXED (0.9.28). They used to carry the gateway's
+     `boom-mcp-js___` prefix because the gateway relayed them; Boom's own server
+     publishes them under their own names. Their ARGUMENTS moved with them:
+     `boom_get_ratios` takes a borrower (salesforceRecordId, or companyName) and
+     `boom_get_spread` takes the FILE id the ratio set names, never a company. */
+  boomRatios: "boom_get_ratios",
+  boomSpread: "boom_get_spread",
   mailSearch: "outlook_email_search",
   // WP5 write tools, deployed 2026-07-26. stage_* performs ZERO domain DML;
   // every org write is behind the token-gated execute_*.
@@ -223,19 +226,26 @@ export const TOOLS = {
   afsRevolverUtilization: "revolver_utilization",
   afsCreateWorkpackage: "create_workpackage",
   /* ------------------------------------------------------------------------
-     THE BOOM UPLOAD SURFACE (2026-09-12). EXPECTED, NOT YET OBSERVED: these
-     four names are what the cockpit ASKS Noland's Boom MCP server for, written
-     down here so the contract handed to him is a file and not a conversation.
-     Nothing calls them today; `BOOM_UPLOAD_LANE` in channel/boomUpload.ts is
-     "stub", and that module is the one place the names and the argument
-     mapping live. When the real server publishes its tools, these strings and
-     that mapping are the whole amendment.
+     THE BOOM UPLOAD SURFACE (0.9.28, OBSERVED live 2026-09-15 on `boom-mcp`).
+     There is no single upload tool: a file reaches Boom by a four-call ladder,
+     and the wait is a bounded blocking read of its own. `channel/boomUpload.ts`
+     is the one place these are sequenced and their arguments built.
      ---------------------------------------------------------------------- */
-  boomUpload: "boom_upload_statement",
-  boomUploadStatus: "boom_upload_status",
-  boomCreateFileGroup: "boom_create_file_group",
-  boomValidationSession: "boom_validation_session",
+  boomEnsureCompany: "boom_ensure_company",
+  boomListFiles: "boom_list_files",
+  boomCreateUpload: "boom_create_upload",
+  boomUploadBytes: "boom_upload_bytes",
+  boomProcessFile: "boom_process_file",
+  /** Blocks at most 25s by the server's design; the room's own budget is longer
+   *  and is spent in repeated calls to this. */
+  boomAwaitFile: "boom_await_file",
+  boomGetFile: "boom_get_file",
+  boomOpenVerification: "boom_open_verification",
 } as const;
+
+/** A CONNECTOR SERVING BOTH OF THESE IS BOOM (0.9.28). Discovery, not a name:
+ *  see channel/boomLane.ts for why the display name cannot be hard-wired. */
+export const BOOM_SIGNATURE_TOOLS: readonly string[] = [TOOLS.boomRatios, TOOLS.boomSpread];
 
 /** The six per-account detail tools, in the order the app stages them. */
 export const DETAIL_TOOLS = [
@@ -326,7 +336,7 @@ function fixCopy(code: McpErrorCode, server: string, tool: string): string {
       // Blaming "your organisation's policy" alarmed bankers and sent them
       // hunting a non-existent IT ticket, so the copy names the real cause and
       // the real fix.
-      return "The workspace paused AI chat for this page session. That is a platform safety limit, not the Gateway and not your bank's policy. Reload the cockpit to continue; your place is kept.";
+      return "The workspace paused AI chat for this page session. That is a platform safety limit, not a connector and not your bank's policy. Reload the cockpit to continue; your place is kept.";
     case "approval_required":
       return `${tool} needs per-call approval, which artifacts don't support yet.`;
     case "tool_error":
@@ -750,6 +760,17 @@ export function failedAttempts(failure: unknown): number {
  *  stand. Anything else that appears in the list counts as granted. */
 const UNUSABLE_AUTH = new Set(["not_connected", "needs_reauth", "unauthenticated", "disconnected"]);
 
+/** The viewer's connectors and the tools each one serves, off the ACQUIRED
+ *  namespace. Undefined where this view has no bridge or the runtime cannot
+ *  enumerate: both are states, neither is an error. */
+export async function listConnectorServers(): Promise<
+  Array<{ server: string; authStatus: string; tools: Array<{ name: string }> }> | undefined
+> {
+  const api = mcp();
+  if (!api || typeof api.listTools !== "function") return undefined;
+  return (await api.listTools())?.servers;
+}
+
 export async function probeConnectorGrants(servers: readonly string[]): Promise<void> {
   const api = mcp();
   if (!api || typeof api.listTools !== "function") {
@@ -758,8 +779,14 @@ export async function probeConnectorGrants(servers: readonly string[]): Promise<
   }
   try {
     const res = await api.listTools();
+    /* DISCOVERY RIDES THIS ROUND TRIP (0.9.28). The Boom connector is addressed
+       by whatever display name the viewer gave it, and this answer is the only
+       place the page can learn it. Noted BEFORE the grants below, so the Boom
+       lane's grant is filed under the name its calls will actually carry. */
+    noteBoomServers(res?.servers, BOOM_SIGNATURE_TOOLS);
     const seen = new Map((res?.servers ?? []).map((s) => [s.server, String(s.authStatus ?? "")]));
-    for (const server of servers) {
+    for (const requested of servers) {
+      const server = requested === SERVERS.boom ? boomServer() : requested;
       const status = seen.get(server);
       noteLaneGrant(server, status !== undefined && !UNUSABLE_AUTH.has(status));
     }
@@ -981,38 +1008,6 @@ export function unwrapInvocable<T = Record<string, unknown>>(payload: unknown, e
 /** Convenience for the single-input case. */
 export function unwrapInvocableOne<T = Record<string, unknown>>(payload: unknown): InvocableSlot<T> {
   return unwrapInvocable<T>(payload, 1)[0];
-}
-
-export interface LlmAnswer {
-  text: string;
-  model?: string;
-  costUsd?: number;
-}
-
-/**
- * get_llm_response returns { statusCode, headers, body: "<JSON STRING>" }.
- * The body must be JSON.parsed; `.response` is markdown TEXT which we render
- * as plain text (A13 — never as HTML/Markdown).
- */
-export function unwrapLlm(payload: unknown): LlmAnswer {
-  const env = (payload ?? {}) as { statusCode?: number; body?: unknown };
-  const raw = env.body;
-  let parsed: unknown = raw;
-  if (typeof raw === "string") {
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      // A non-JSON body is still an answer — surface the text rather than fail.
-      return { text: raw };
-    }
-  }
-  const b = (parsed ?? {}) as { response?: unknown; model?: unknown; cost_usd?: unknown };
-  const text = typeof b.response === "string" ? b.response : typeof parsed === "string" ? parsed : "";
-  return {
-    text,
-    model: typeof b.model === "string" ? b.model : undefined,
-    costUsd: typeof b.cost_usd === "number" ? b.cost_usd : undefined,
-  };
 }
 
 /** outlook_email_search returns a list; [] is an honest "no matches". */

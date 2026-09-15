@@ -1,0 +1,193 @@
+{
+  "contractVersion": "1.0",
+  "_source": "BOOM-LIVE",
+  "_provenance": {
+    "system": "Boom",
+    "record": "file",
+    "ids": {
+      "fileId": "cf677dcc-594c-45b5-b47d-c92c0b2ee909",
+      "externalUniqueId": "001bb00001DLtRMAA1"
+    },
+    "asOf": "2025-12-31"
+  },
+  "company": "Piedmont Precision Components, Inc.",
+  "method": "derived-local",
+  "adjusted": true,
+  "raw": {
+    "revenue": 64486000,
+    "revenuePrior": 59915000,
+    "grossProfit": 14064000,
+    "operatingIncome": 2838000,
+    "ebitda": 5234000,
+    "totalDebt": 20130000,
+    "leverage": 3.8460068781047,
+    "interestCoverage": 2.637546468401487,
+    "revenueYoY": 0.07629141283484937,
+    "grossMargin": 0.2180938498278696,
+    "ebitdaMargin": 0.08116490401017275
+  },
+  "ratios": [
+    {
+      "label": "Revenue",
+      "value": "$64.5M",
+      "sub": "7.6% YoY",
+      "status": "neutral"
+    },
+    {
+      "label": "Gross Margin",
+      "value": "21.8%",
+      "status": "neutral"
+    },
+    {
+      "label": "EBITDA",
+      "value": "$5.2M",
+      "sub": "8.1% margin",
+      "status": "neutral"
+    },
+    {
+      "label": "Total Leverage",
+      "value": "3.85x",
+      "status": "neutral"
+    },
+    {
+      "label": "Interest Coverage",
+      "value": "2.64x",
+      "status": "neutral"
+    },
+    {
+      "label": "Total Debt",
+      "value": "$20.1M",
+      "status": "neutral"
+    }
+  ],
+  "metrics": [
+    {
+      "label": "Revenue",
+      "value": "$64.5M",
+      "status": "neutral"
+    },
+    {
+      "label": "Leverage",
+      "value": "3.85x",
+      "status": "neutral"
+    },
+    {
+      "label": "Int. Coverage",
+      "value": "2.64x",
+      "status": "neutral"
+    },
+    {
+      "label": "EBITDA margin",
+      "value": "8.1%",
+      "status": "neutral"
+    }
+  ],
+  "support": {
+    "fileId": "cf677dcc-594c-45b5-b47d-c92c0b2ee909",
+    "periodEnd": "2025-12-31",
+    "lines": [
+      {
+        "figure": "revenue",
+        "statement": "income_statement",
+        "accountCode": "net_sales_revenue",
+        "name": "Net Sales",
+        "period": "2025-12-31",
+        "value": 64486000,
+        "method": "accountCode"
+      },
+      {
+        "figure": "revenuePrior",
+        "statement": "income_statement",
+        "accountCode": "net_sales_revenue",
+        "name": "Net Sales",
+        "period": "2024-12-31",
+        "value": 59915000,
+        "method": "accountCode"
+      },
+      {
+        "figure": "costOfSales",
+        "statement": "income_statement",
+        "accountCode": "cost_of_sales",
+        "name": "Cost of Sales",
+        "period": "2025-12-31",
+        "value": 50422000,
+        "method": "accountCode"
+      },
+      {
+        "figure": "interestExpense",
+        "statement": "income_statement",
+        "accountCode": "interest_expense",
+        "name": "Interest Expense",
+        "period": "2025-12-31",
+        "value": -1076000,
+        "method": "accountCode"
+      },
+      {
+        "figure": "depreciationAmortization",
+        "statement": "cash_flow_statement",
+        "accountCode": null,
+        "name": "Depreciation and Amortization",
+        "period": "2025-12-31",
+        "value": 2396000,
+        "method": "name"
+      },
+      {
+        "figure": "grossProfit",
+        "statement": "income_statement",
+        "accountCode": "gross_profit",
+        "name": "Gross Profit",
+        "period": "2025-12-31",
+        "value": 14064000,
+        "method": "accountCode"
+      },
+      {
+        "figure": "operatingExpenses",
+        "statement": "income_statement",
+        "accountCode": "total_operating_expenses",
+        "name": "Operating Expenses",
+        "period": "2025-12-31",
+        "value": 11226000,
+        "method": "accountCode"
+      },
+      {
+        "figure": "operatingIncome",
+        "statement": "income_statement",
+        "accountCode": "operating_profit",
+        "name": "Income from Operations",
+        "period": "2025-12-31",
+        "value": 2838000,
+        "method": "accountCode"
+      },
+      {
+        "figure": "totalDebt",
+        "statement": "balance_sheet",
+        "accountCode": "st_loans_payable_bank",
+        "name": "Line of Credit and Current Portion of Long-Term Debt",
+        "period": "2025-12-31",
+        "value": 5674000,
+        "method": "accountCode"
+      },
+      {
+        "figure": "totalDebt",
+        "statement": "balance_sheet",
+        "accountCode": "long_term_debt_bank",
+        "name": "Long-Term Debt, Net of Current Portion",
+        "period": "2025-12-31",
+        "value": 14456000,
+        "method": "accountCode"
+      }
+    ],
+    "method": {
+      "revenue": "accountCode",
+      "revenuePrior": "accountCode",
+      "costOfSales": "accountCode",
+      "interestExpense": "accountCode",
+      "depreciationAmortization": "name",
+      "grossProfit": "accountCode",
+      "operatingExpenses": "accountCode",
+      "operatingIncome": "accountCode",
+      "ebitda": "derived(operatingIncome + depreciationAmortization)",
+      "totalDebt": "sum(accountCode)"
+    }
+  }
+}

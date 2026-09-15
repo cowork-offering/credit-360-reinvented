@@ -8,9 +8,9 @@
    boot, and that call does NOT make the host ask the viewer for anything: the
    per-connector prompt fires on the first real `callTool` against each server.
    Those first calls are scattered across the whole flow: Customer 360 on the
-   landing, IDB Gateway when a room asks Boom for ratios, Microsoft 365 on the
-   first Sync, Experience / nCino and AFS deep inside the memo room. So the
-   banker is interrupted four separate times, each one in the middle of work.
+   landing, Boom when a room asks for ratios, Microsoft 365 on the first Sync,
+   Experience / nCino and AFS deep inside the memo room. So the banker is
+   interrupted four separate times, each one in the middle of work.
 
    WHAT THIS DOES. Once per page session, AFTER the worklist has painted, it
    fires ONE cheap read at every connector the cockpit is configured to use and
@@ -36,6 +36,7 @@
    ============================================================================= */
 
 import type { AfsCoordinates } from "../data/contract";
+import { boomBorrowerArgs, boomConnector } from "./boom";
 import { callTool, mcpAvailable, SERVERS, TOOLS, type CallOptions } from "./mcp";
 import { GATEWAY_HEALTH_TOOL, GATEWAY_SERVER } from "./gateway/lane";
 import { laneOf } from "./laneHealth";
@@ -64,8 +65,10 @@ export const GRANT_WARMUP_DEADLINE_MS = 60_000;
 export const WARMUP_MAIL_QUERY = "zz";
 
 export interface WarmupOptions {
-  /** The relationship the worklist opens on. Boom is keyed by company name, so
-   *  with no name there is nothing to ask it for. */
+  /** The relationship the worklist opens on. Boom stores the Salesforce record
+   *  id as its own `externalUniqueId`, so this is the join it is asked by; the
+   *  name is the fallback for a view that carries no id. */
+  accountId?: string | null;
   accountName?: string | null;
   /** That relationship's AFS servicing key, when it carries one. AFS tools
    *  DEFAULT their key to a real and different borrower's obligation, so the
@@ -116,18 +119,23 @@ export async function warmConnectorGrants(opts: WarmupOptions = {}): Promise<voi
     reads.push(call(GATEWAY_SERVER, GATEWAY_HEALTH_TOOL, {}, warm));
   }
 
-  /* IDB GATEWAY, through the Boom read the spreading surfaces make anyway, on
-     the relationship at the top of the worklist. Cached exactly as
+  /* BOOM, through the read the spreading surfaces make anyway, on the
+     relationship at the top of the worklist. Two things happen here and both
+     matter: the viewer's consent prompt for the Boom connector is spent now
+     rather than mid-flow, and `boomServer()` learns which connector Boom
+     actually is (channel/boomLane.ts) before any room asks. Cached exactly as
      `refreshBoom` caches it, so a room that asks inside the window is served
-     rather than charged twice. */
-  if (opts.accountName) {
+     rather than charged twice. The borrower is named by RECORD ID where the
+     warm-up has one: that is the join Boom itself stores. */
+  if (opts.accountId || opts.accountName) {
+    // Awaited, not raced: the lane has to be NAMED before it can be warmed, and
+    // the answer is memoised, so the boot probe has usually already paid for it.
+    const boom = await boomConnector();
     reads.push(
-      call(
-        SERVERS.boom,
-        TOOLS.boomRatios,
-        { company: opts.accountName },
-        { ...warm, cache: { staleTime: 30_000 } },
-      ),
+      call(boom, TOOLS.boomRatios, boomBorrowerArgs({ accountId: opts.accountId, company: opts.accountName }), {
+        ...warm,
+        cache: { staleTime: 30_000 },
+      }),
     );
   }
 

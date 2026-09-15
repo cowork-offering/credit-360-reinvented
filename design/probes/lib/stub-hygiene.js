@@ -7,10 +7,9 @@
    still refuses to simulate.
 
    1. window.claude.mcp        outlook_email_search answers nothing (this drive
-                               is about the thread, not the mailbox); the
-                               gateway completion tool answers a contract-valid
-                               clarify; stage_/execute_ THROW, because nothing
-                               here may reach a write path.
+                               is about the thread, not the mailbox);
+                               stage_/execute_ THROW, because nothing here may
+                               reach a write path.
    2. window.claude.use("db")  a fake store holding ONE pending intent with four
                                lines, so the intent lane, the feed and the fed
                                marker are exercised end to end.

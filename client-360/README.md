@@ -67,7 +67,7 @@ Settings > Connectors before the first render, named exactly:
 |---|---|---|
 | `Customer 360` | The Salesforce-hosted Customer360 MCP server (custom connector, the org's External Client App consumer key AND secret, per viewer) | 28 |
 | `Salesforce Read Backup` | **Optional but recommended.** A second hop serving the same ten Customer 360 READS, so the cockpit still shows live figures when the artifact-to-connector relay drops its Salesforce session; reads only, every write stays on `Customer 360` | 11 |
-| `IDB Gateway` | Boom spreads and ratios | 3 |
+| `Boom` | The Boom MCP server: spreads, ratios and the statement upload behind the Financials tab and the Spreading room. **The page finds this connector by the tools it serves** (`boom_get_ratios` and `boom_get_spread`), not by its name, so any spelling works; `Boom` is what the published grant declares and what the health line falls back to | 10 |
 | `Microsoft 365` | Inbox sweep | 1 |
 | `Experience / nCino` | The credit-memo writeback and ledger: narrative sections, the nFORMS memo document, the approval submit, the notice, the decision and audit trail, and the deterministic covenant grade | 9 |
 | `AFS` | Servicing: loan summary, payment history, revolver utilisation, and the workpackage the memo room stages at the end of a publish | 4 |

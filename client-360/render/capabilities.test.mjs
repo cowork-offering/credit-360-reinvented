@@ -48,10 +48,37 @@ test("the read backup mirrors the org's ten reads, and carries its own health to
   }
 });
 
-test("the gateway and mail grants are the tool names the page itself calls", () => {
+test("the Boom and mail grants are the tool names the page itself calls", () => {
+  // CHANGED 0.9.28: the two Boom reads left the gateway with the lane itself.
+  // They are unprefixed now, and they sit beside the upload ladder on Boom's own
+  // connector.
+  // 2026-09-15: IDB Gateway retired; the restate assist is session-door only, so
+  // the one tool the gateway answered is not granted by anything any more.
   const caps = committed();
-  assert.deepEqual(serverEntry(caps, SERVERS.gateway).tools, channelToolNames(["boomRatios", "boomSpread", "llm"]));
+  assert.deepEqual(
+    serverEntry(caps, SERVERS.boom).tools,
+    channelToolNames([
+      "boomRatios",
+      "boomSpread",
+      "boomEnsureCompany",
+      "boomListFiles",
+      "boomCreateUpload",
+      "boomUploadBytes",
+      "boomProcessFile",
+      "boomAwaitFile",
+      "boomGetFile",
+      "boomOpenVerification",
+    ])
+  );
   assert.deepEqual(serverEntry(caps, SERVERS.m365).tools, channelToolNames(["mailSearch"]));
+});
+
+test("neither Boom read carries the old relay prefix any more", () => {
+  // The prefix was the gateway relaying Boom; Boom's own server publishes them
+  // under their own names, and a prefixed name would be refused upstream.
+  for (const tool of serverEntry(committed(), SERVERS.boom).tools) {
+    assert.ok(!tool.includes("___"), `${tool} still carries a relay prefix`);
+  }
 });
 
 test("the memo writeback grants are the tool names the page itself calls", () => {
@@ -80,10 +107,13 @@ test("the memo writeback grants are the tool names the page itself calls", () =>
 });
 
 test("all six connectors are declared, by display name", () => {
+  // 2026-09-15: IDB Gateway retired; the restate assist is session-door only,
+  // so the grant that used to sit third is gone and nothing replaced it.
   assert.deepEqual(
     committed().mcp.servers.map((s) => s.server),
-    [SERVERS.customer360, SERVERS.readBackup, SERVERS.gateway, SERVERS.m365, SERVERS.experience, SERVERS.afs]
+    [SERVERS.customer360, SERVERS.readBackup, SERVERS.boom, SERVERS.m365, SERVERS.experience, SERVERS.afs]
   );
+  assert.ok(!committed().mcp.servers.some((s) => s.server === "IDB Gateway"));
 });
 
 test("sample and db are declared, and nothing else is", () => {

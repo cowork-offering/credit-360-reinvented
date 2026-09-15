@@ -1,0 +1,15 @@
+{
+  "contractVersion": "1.0",
+  "_source": "BOOM-LIVE",
+  "_provenance": {
+    "system": "Boom",
+    "record": "file",
+    "ids": {
+      "fileId": "cf677dcc-594c-45b5-b47d-c92c0b2ee909"
+    },
+    "asOf": "2026-09-15T00:02:07.139Z"
+  },
+  "fileId": "cf677dcc-594c-45b5-b47d-c92c0b2ee909",
+  "status": "verified",
+  "done": true
+}

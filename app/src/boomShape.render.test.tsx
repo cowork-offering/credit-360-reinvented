@@ -110,12 +110,18 @@ describe("EBITDA belongs to one period and no other", () => {
     expect(ebitda?.priorFy).toBeUndefined();
   });
 
-  it("renders the missing prior year as a gap, not a zero", () => {
+  it("prints EBITDA once, on the ratio card, and never as a zero", () => {
+    /* RESTATED FOR THE REGISTER (0.9.28). Piedmont carries the raw
+       `spread.file`, so the statement surface is the register and the register
+       draws Boom's own lines: Boom's income statement has no EBITDA line at
+       all. The derived figure therefore appears exactly once, on Key ratios,
+       and the prior year it has no support for is not printed anywhere. */
     const el = render(piedmont());
-    const row = [...el.querySelectorAll<HTMLElement>("tr")].find((r) => text(r).startsWith("EBITDA"))!;
-    expect(text(row)).toContain("$5.23M");
-    expect(text(row)).toContain("—");
-    expect(text(row)).not.toContain("$0");
+    expect(el.querySelector(".rg")).not.toBeNull();
+    expect(rowFor(el, "EBITDA")).toBeTruthy();
+    expect(text(rowFor(el, "EBITDA")!)).toContain("$5.23M");
+    expect([...el.querySelectorAll(".rg-t tbody .rg-nm")].map((n) => n.textContent)).not.toContain("EBITDA");
+    expect(text(el)).not.toContain("$0");
   });
 });
 

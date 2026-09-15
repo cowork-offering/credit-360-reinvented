@@ -9,7 +9,7 @@
 //
 //   Customer 360         <- the org's own McpServerDefinition, via tool-names.mjs (org order, all of them)
 //   Salesforce Read Backup <- the same manifest's ten reads, gw_-prefixed, plus the backup's own health tool
-//   IDB Gateway       <- app/src/channel/mcp.ts TOOLS.boomRatios / boomSpread / llm
+//   Boom              <- app/src/channel/mcp.ts, the two reads and the upload ladder
 //   Microsoft 365     <- app/src/channel/mcp.ts TOOLS.mailSearch
 //   Experience / nCino <- app/src/channel/mcp.ts, the memo writeback and ledger tools
 //   AFS               <- app/src/channel/mcp.ts, the servicing reads and create_workpackage
@@ -39,7 +39,18 @@ export const CHANNEL_PATH = join(REPO_ROOT, "app", "src", "channel", "mcp.ts");
 export const SERVERS = {
   customer360: "Customer 360",
   readBackup: "Salesforce Read Backup",
-  gateway: "IDB Gateway",
+  /* THE BOOM CONNECTOR, UNDER ITS FALLBACK NAME (0.9.28).
+     THE ONE LIMIT ON DISCOVERY, written down where it bites. The page resolves
+     the Boom connector at run time by asking `listTools()` which server serves
+     `boom_get_ratios` and `boom_get_spread` (app/src/channel/boomLane.ts),
+     because a viewer names a connector when they add it. But THIS manifest
+     gates by display name: a tool called on a server the declaration does not
+     name is refused `not_in_manifest` before it leaves the page. So the grant is
+     declared under the fallback spelling, and a viewer who added Boom under some
+     other name gets that refusal with its own operator sentence rather than a
+     silent lane. Adding speculative spellings here would spend a consent prompt
+     per guess, which is worse. */
+  boom: "Boom",
   m365: "Microsoft 365",
   experience: "Experience / nCino",
   afs: "AFS",
@@ -61,7 +72,20 @@ export const READ_BACKUP_TOOLS = (manifestPath) =>
     .concat("gw_health");
 
 /** `TOOLS` keys in app/src/channel/mcp.ts, by the server that answers them. */
-const GATEWAY_KEYS = ["boomRatios", "boomSpread", "llm"];
+/** Boom: the two reads the Financials tab and the memo stand on, then the upload
+ *  ladder and the wait the Spreading room walks, in the order it walks them. */
+const BOOM_KEYS = [
+  "boomRatios",
+  "boomSpread",
+  "boomEnsureCompany",
+  "boomListFiles",
+  "boomCreateUpload",
+  "boomUploadBytes",
+  "boomProcessFile",
+  "boomAwaitFile",
+  "boomGetFile",
+  "boomOpenVerification",
+];
 const M365_KEYS = ["mailSearch"];
 /** The memo room's writeback, in the order the publish sequence fires them,
  *  then the two the room reads from. */
@@ -129,7 +153,7 @@ export function buildCapabilities({ manifestPath = MANIFEST_PATH, channelPath = 
       servers: [
         { server: SERVERS.customer360, tools: manifestToolNames(manifestPath) },
         { server: SERVERS.readBackup, tools: READ_BACKUP_TOOLS(manifestPath) },
-        { server: SERVERS.gateway, tools: channelToolNames(GATEWAY_KEYS, channelPath) },
+        { server: SERVERS.boom, tools: channelToolNames(BOOM_KEYS, channelPath) },
         { server: SERVERS.m365, tools: channelToolNames(M365_KEYS, channelPath) },
         { server: SERVERS.experience, tools: channelToolNames(EXPERIENCE_KEYS, channelPath) },
         { server: SERVERS.afs, tools: channelToolNames(AFS_KEYS, channelPath) },

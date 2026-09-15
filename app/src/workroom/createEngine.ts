@@ -30,7 +30,7 @@ import {
   type WorkroomEngine,
   type WorkroomSuggestion,
 } from "./engine";
-import { gatewayRestate, type Restate } from "./gatewayRestate";
+import { restateAssist, type Restate } from "./restateAssist";
 import { WorkroomRefusalError } from "./modifyEngine";
 import { NEW_PACKAGE, NEW_PACKAGE_CHOICE, vocabularyFor } from "./modes";
 import {
@@ -774,7 +774,12 @@ export function createCreateEngine(args: {
     const direct = toResult(parsed, deltaSeq);
     if (direct) return settle(direct, awaiting !== null);
 
-    if (deps.restate && deps.available()) {
+    /* THE ASSIST GATES ON ITSELF (2026-09-15). It used to be gated on the
+       connector, which is the door it no longer uses: IDB Gateway retired and
+       the restate assist is session-door only, so a view carrying the session
+       door and no connector would have skipped the assist it could have had.
+       The assist returns null where its own door is shut. */
+    if (deps.restate) {
       const restated = await deps.restate(text, [...CREATE_PRODUCTS, "facility", "amount", "term", "purpose", "guarantor"]);
       if (restated) {
         const second = toResult(parseCreate(restated, { household: household(), relationship }), deltaSeq);
@@ -1188,5 +1193,5 @@ const defaultDeps: Required<Omit<CreateEngineDeps, "restate">> & Pick<CreateEngi
   settle: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   available: mcpAvailable,
   newKey: newRequestId,
-  restate: gatewayRestate,
+  restate: restateAssist,
 };

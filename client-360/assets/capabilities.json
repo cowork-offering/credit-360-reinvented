@@ -31,7 +31,11 @@
           "stage_relationship_intake",
           "execute_relationship_intake",
           "Customer360Catalog",
-          "complete_new_facility_detail"
+          "complete_new_facility_detail",
+          "stage_amend_version",
+          "execute_amend_version",
+          "stage_discard_version",
+          "execute_discard_version"
         ]
       },
       {
@@ -51,11 +55,18 @@
         ]
       },
       {
-        "server": "IDB Gateway",
+        "server": "Boom",
         "tools": [
-          "boom-mcp-js___boom_get_ratios",
-          "boom-mcp-js___boom_get_spread",
-          "idb-bg-api-target-get-llm-response-staging___get_llm_response"
+          "boom_get_ratios",
+          "boom_get_spread",
+          "boom_ensure_company",
+          "boom_list_files",
+          "boom_create_upload",
+          "boom_upload_bytes",
+          "boom_process_file",
+          "boom_await_file",
+          "boom_get_file",
+          "boom_open_verification"
         ]
       },
       {

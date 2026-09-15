@@ -25,7 +25,7 @@ import {
   type WorkroomSuggestion,
 } from "./engine";
 import { catalogField, chainFor, type CatalogField } from "./fieldCatalog";
-import { gatewayRestate, type Restate } from "./gatewayRestate";
+import { restateAssist, type Restate } from "./restateAssist";
 import { WorkroomRefusalError } from "./modifyEngine";
 import { vocabularyFor } from "./modes";
 import {
@@ -936,7 +936,12 @@ export function createRenewEngine(args: {
       return settle(direct);
     }
 
-    if (deps.restate && deps.available()) {
+    /* THE ASSIST GATES ON ITSELF (2026-09-15). It used to be gated on the
+       connector, which is the door it no longer uses: IDB Gateway retired and
+       the restate assist is session-door only, so a view carrying the session
+       door and no connector would have skipped the assist it could have had.
+       The assist returns null where its own door is shut. */
+    if (deps.restate) {
       const words = [...new Set(members.map((f) => facilityProduct(f, relationship)))].concat("renew", "maturity date", "interest rate", "covenant", "pledge", "guarantor");
       const restated = await deps.restate(text, words);
       if (restated) {
@@ -1321,5 +1326,5 @@ const defaultDeps: Required<Omit<RenewEngineDeps, "restate">> & Pick<RenewEngine
   stage: (payload) => stageAction("renewal", payload),
   available: mcpAvailable,
   newKey: newRequestId,
-  restate: gatewayRestate,
+  restate: restateAssist,
 };

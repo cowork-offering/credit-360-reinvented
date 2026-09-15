@@ -15,8 +15,7 @@ import { MODEL_FAILED_NOTE, preReadFile, type RelationshipSpreadContext } from "
 import { provisionalRead } from "./spread/provisional";
 import { postRead } from "./spread/postRead";
 import {
-  BOOM_UPLOAD_LANE,
-  boomAdapter,
+  stubBoomAdapter,
   registerPreRead,
   resetStubBoom,
   STUB_FAILURE_MESSAGE,
@@ -142,8 +141,12 @@ function deps(over: Partial<SpreadDeps> = {}): SpreadDeps {
     preReadFile: (doc, ctx) => preReadFile(doc, ctx, { ask: EMPTY_DOOR, available: () => true }),
     provisionalRead,
     postRead: (args) => postRead(args, { available: () => false }),
-    adapter: boomAdapter(),
-    lane: BOOM_UPLOAD_LANE,
+    /* PINNED TO THE STUB LANE (0.9.28). `BOOM_UPLOAD_LANE` is "live" now,
+       and what these cases are about is the ROOM's flow over a file's own
+       numbers, with no connector in the path at all. The live lane is driven
+       against Boom's own answers in spreadLiveLane.e2e.test.ts. */
+    adapter: stubBoomAdapter(),
+    lane: "stub" as const,
     registerPreRead,
     resetStub: resetStubBoom,
     ...over,

@@ -26,6 +26,8 @@ import type { Connection, Covenant, Facility, LegalEntity } from "../data/contra
 import { fmtMoney } from "../data/format";
 import { aggregateInvolvements, involvementRole } from "../data/graphAggregate";
 import { classifyCovenant } from "../domain/covenantStatus";
+import { isBoomNotFound, readBoom, type BoomReads } from "./boom";
+import { normaliseBoom } from "../../../client-360/render/boom-normalise.mjs";
 import { callTool, SERVERS, TOOLS, unwrapInvocableOne } from "./mcp";
 import type { SampleTool, SampleToolContext } from "./sampleDoor";
 
@@ -38,6 +40,11 @@ import type { SampleTool, SampleToolContext } from "./sampleDoor";
  */
 export const READ_DOORS: ReadonlySet<string> = new Set<string>([
   TOOLS.boomRatios,
+  /* THE SPREAD THE RATIOS WERE STRUCK FROM (0.9.28). Boom's own server takes a
+     FILE id here, and the only file this tool can name is the one the ratio set
+     just reported, so the second read cannot be pointed anywhere the first was
+     not. A read, like its sibling. */
+  TOOLS.boomSpread,
   TOOLS.graph,
   /* THE COUNTERPARTY'S OWN BOOK (2026-09-12, golden rule 1). Both are READS and
      both are already the cockpit's own doors for the anchor; what is new is the
@@ -113,10 +120,30 @@ export function buildBrainTools(args: BrainToolsArgs): SampleTool[] {
       "Current financial ratios (revenue, EBITDA, margin, total leverage, interest coverage) from the latest Boom spread. Use ONLY if the banker asks for figures more recent than the pricing and covenant actuals already in your context, which almost always answer the question for free. Costs the banker 30 to 90 seconds.",
     heldAlready: () => Boolean(reads?.covenants?.length || reads?.pricing?.length),
     execute: async (_input: Record<string, unknown>, context: SampleToolContext) => {
-      const company = args.anchor.company;
-      if (!company) return "No company is bound to this room, so the Boom door cannot be opened.";
-      const payload = await readDoor(call, SERVERS.boom, TOOLS.boomRatios, { company }, context.signal);
-      return shapeRatios(payload);
+      const { accountId, company } = args.anchor;
+      if (!accountId && !company) return "No borrower is bound to this room, so the Boom door cannot be opened.";
+      try {
+        const reads = await readBoom(
+          { accountId, company },
+          {
+            // The fence still stands: every tool `readBoom` reaches for passes
+            // through the same allow-list as a direct read.
+            call: async (server, tool, input, options) => {
+              assertReadDoor(tool);
+              const res = await call(server, tool, input, { read: true, signal: options?.signal });
+              // The brain's own seam answers with the payload alone; the raw
+              // result is what the envelope reader falls back to and there is
+              // none here.
+              return { ...res, raw: {} };
+            },
+            signal: context.signal,
+          },
+        );
+        return shapeRatios(reads);
+      } catch (e) {
+        if (isBoomNotFound(e)) return `Boom holds no spread for this borrower. ${e.message}`;
+        throw e;
+      }
     },
   };
 
@@ -265,10 +292,19 @@ function shapeConnectedBook(
   };
 }
 
-function shapeRatios(payload: unknown): unknown {
-  const p = (payload ?? {}) as { ratios?: Record<string, unknown> };
-  const ratios = (p.ratios ?? p) as Record<string, unknown>;
-  const pick = ["revenue", "ebitda", "ebitdaMargin", "totalLeverage", "interestCoverage"];
+/**
+ * The five figures a banker asked for, off Boom's own answer.
+ *
+ * THROUGH THE ONE SEAM (`client-360/render/boom-normalise.mjs`). Boom emits its
+ * ratio set as `raw` (margins as FRACTIONS) beside a display array of labelled
+ * cards, and the cockpit's display shape is derived from `raw` in exactly one
+ * place. Picking keys off the payload by hand here is how the model would be
+ * handed 0.0812 for a margin the tab beside it prints as 8.1%.
+ */
+function shapeRatios(reads: BoomReads): unknown {
+  const boom = normaliseBoom({ ratios: reads.ratios });
+  const ratios = (boom?.ratios ?? {}) as Record<string, unknown>;
+  const pick = ["revenue", "ebitda", "ebitdaMargin", "totalLeverage", "interestCoverage", "asOf"];
   const out: Record<string, unknown> = {};
   for (const key of pick) if (ratios[key] !== undefined && ratios[key] !== null) out[key] = ratios[key];
   if (!Object.keys(out).length) return "The Boom door answered, but it carried no ratio figures.";

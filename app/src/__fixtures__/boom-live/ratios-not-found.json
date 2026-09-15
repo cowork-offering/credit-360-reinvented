@@ -1,0 +1,5 @@
+{
+  "code": "NOT_FOUND",
+  "message": "Boom GET /companies/external-id/001bb00001I7FPNAA3 returned 404 Not Found: Company Not Found",
+  "boomStatus": 404
+}

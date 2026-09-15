@@ -119,7 +119,12 @@ describe("what each lane state says", () => {
 
 describe("the line itself", () => {
   it("renders nothing at all until a lane has something to say", async () => {
-    installBridge([SERVERS.customer360, SERVERS.readBackup, SERVERS.gateway, SERVERS.m365, SERVERS.experience, SERVERS.afs]);
+    // 0.9.28: Boom is a connector of its own, so it is one of the six a
+    // granted view carries. A lane missing from the list is "not granted",
+    // which IS something to say, and the line would rightly appear.
+    // 2026-09-15: IDB Gateway retired; the restate assist is session-door only,
+    // so the Gateway row left the line with the connector.
+    installBridge([SERVERS.customer360, SERVERS.readBackup, SERVERS.boom, SERVERS.m365, SERVERS.experience, SERVERS.afs]);
     mount();
     await act(async () => {});
     expect(container!.querySelector(".health-line")).toBeNull();
@@ -153,7 +158,7 @@ describe("the line itself", () => {
     // The one state an unused backup is worth a word in: with Customer 360 down
     // and no second door granted, the page is on stored documents and the fix
     // is a connector, not a wait.
-    installBridge([SERVERS.customer360, SERVERS.gateway, SERVERS.m365, SERVERS.experience, SERVERS.afs]);
+    installBridge([SERVERS.customer360, SERVERS.boom, SERVERS.m365, SERVERS.experience, SERVERS.afs]);
     act(() => noteLaneStale(SERVERS.customer360, AT));
     mount();
     await act(async () => {});

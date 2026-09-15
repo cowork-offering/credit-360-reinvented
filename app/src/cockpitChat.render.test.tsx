@@ -24,7 +24,6 @@ __skipBootForTests();
 const hooks = vi.hoisted(() => ({
   desk: [] as Array<{ question: string; thread?: ReadonlyArray<{ who: string; text: string }> }>,
   deskAnswer: { ok: true },
-  copilot: [] as string[],
 }));
 
 vi.mock("./channel/deskAsk", async (orig) => ({
@@ -34,14 +33,6 @@ vi.mock("./channel/deskAsk", async (orig) => ({
     hooks.desk.push({ question: args.question, thread: args.thread });
     if (!hooks.deskAnswer.ok) throw new Error("the door refused");
     return `The relationship carries $18M committed. (${hooks.desk.length})`;
-  },
-}));
-
-vi.mock("./channel/cockpitTools", async (orig) => ({
-  ...((await orig()) as object),
-  askCopilot: async (args: { question: string }) => {
-    hooks.copilot.push(args.question);
-    throw { code: "tool_error", message: "no", retryable: true, fix: "The desk refused that read.", retract: false };
   },
 }));
 
@@ -122,9 +113,9 @@ afterEach(() => {
   root = null;
   container = null;
   hooks.desk.length = 0;
-  hooks.copilot.length = 0;
   hooks.deskAnswer.ok = true;
   delete (window as unknown as { claude?: unknown }).claude;
+  delete (window as unknown as { sendPrompt?: unknown }).sendPrompt;
 });
 
 describe("mergeMessages: one exchange, one bubble", () => {
@@ -186,21 +177,31 @@ describe("the panel answers once (golden rule 5)", () => {
 
 describe("Ask again repeats the ask, never the banker", () => {
   it("asks a second time and leaves one banker bubble", async () => {
-    // The desk door refuses, so the ask falls through to the copilot path,
-    // which is the one that raises the error note the retry sits in.
+    /* 2026-09-15: IDB Gateway retired; the restate assist is session-door only,
+       and the chat's connector rung went with it. The desk refuses and the ask
+       falls to the legacy bridge, which is the rung that raises the error note
+       the retry sits in. The bridge is installed here because it is the only
+       door left beneath the desk. */
     hooks.deskAnswer.ok = false;
     await mount(base);
+    // The bridge is the channel only where the connector namespace is not: the
+    // adapter reports itself as "mcp" while that is in the view, and `request`
+    // refuses that namespace by construction.
+    delete (window as unknown as { claude?: unknown }).claude;
+    (window as unknown as { sendPrompt?: () => Promise<void> }).sendPrompt = async () => {
+      throw new Error("the bridge refused");
+    };
     await ask(QUESTION);
 
     /* CHANGED 2026-09-12 (founder, the fallback audit). The note used to print
-       `McpFailure.fix`, which names the IDB Gateway and claude.ai connector
+       `McpFailure.fix`, which names a connector and claude.ai connector
        settings: plumbing, addressed to an administrator, handed to a banker
        with no next step in it. The chat now says its own sentence; the
        connector diagnosis stays on HealthLine. */
     expect(container!.textContent).toContain(CHAT_ASK_FAILED);
     expect(container!.textContent).not.toMatch(/gateway|connector|claude\.ai/i);
     expect(bubbles().filter((t) => t === QUESTION).length).toBe(1);
-    expect(hooks.copilot.length).toBe(1);
+    expect(hooks.desk.length).toBe(1);
 
     const retry = [...container!.querySelectorAll("button")].find((b) => b.textContent === "Ask again")!;
     await act(async () => {
@@ -208,7 +209,6 @@ describe("Ask again repeats the ask, never the banker", () => {
     });
 
     // The ask went again; the banker's own bubble did not.
-    expect(hooks.copilot.length).toBe(2);
     expect(bubbles().filter((t) => t === QUESTION).length).toBe(1);
 
     // And the retried question is not sent twice over: it is the ask, so it is

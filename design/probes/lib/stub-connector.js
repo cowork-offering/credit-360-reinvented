@@ -194,41 +194,6 @@
           })); }, 1800);
         });
       }
-      /* THE BRAIN LANE'S OWN DOOR. The room routes a question it cannot answer
-         over the artifact<->session bridge, which is the gateway completion
-         tool, and hard-validates the reply against the three contract shapes.
-         The stand-in answers IN CONTRACT so the lane's rendering can be shot;
-         it invents nothing the pack does not already publish as its worked
-         example. Same rule as everything else here: probe harness only, never
-         bundled, and the app itself still refuses to simulate. */
-      if (/get_llm_response/.test(tool)) {
-        var prompt = String((input || {}).prompt || "");
-        var line = "";
-        try { line = (JSON.parse(prompt.slice(prompt.indexOf("{"))) || {}).line || ""; } catch (e) { line = prompt; }
-        var reply = /borrower|who|structure|part(y|ies)|guarantor/i.test(line)
-          ? {
-              type: "read-card",
-              topic: "involvements",
-              title: "Borrowing structure on the Hartwell package",
-              rows: [
-                { icon: "borrower", label: "Hartwell Precision Manufacturing LLC", value: "Borrower", sub: "all 6 facilities . Operating Company . 100%" },
-                { icon: "guarantor", label: "Hartwell Industrial Holdings LLC", value: "Guarantor", sub: "all 6 . unlimited . EPC" },
-                { icon: "guarantor", label: "James Hartwell", value: "Guarantor", sub: "all 6 . unlimited . individual" },
-                { icon: "warn", label: "Elena Hartwell", value: "Limited Guarantor", sub: "HW1001 capped $5.0MM . HW1003 capped $4.0MM" },
-                { icon: "facility", label: "Hartwell Logistics LLC", value: "Related Entity", sub: "HW1003 construction only" }
-              ],
-              followUp: "Who should be added, and on which facility?"
-            }
-          : {
-              type: "clarify",
-              text: "Which line do you mean? The relationship carries two.",
-              options: [
-                { label: "Revolving line, $15.0MM", say: "the revolving line of credit" },
-                { label: "Seasonal line, $2.5MM", say: "the seasonal line of credit" }
-              ]
-            };
-        return Promise.resolve({ payload: { statusCode: 200, body: JSON.stringify({ response: JSON.stringify(reply) }) } });
-      }
       /* THE STAGING RECORD THE SHEET CONFIRMS AGAINST. The room reads this once
          behind the sheet to turn "pending" into a settled figure; a stand-in org
          that stayed silent would shoot every surface with the unconfirmed line

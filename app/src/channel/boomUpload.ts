@@ -9,30 +9,31 @@
 
    TWO ADAPTERS, ONE INTERFACE (`BoomAdapter` in spread/types.ts):
 
-     LIVE   four MCP tool calls to Noland's read + write Boom MCP server,
-            addressed by connector DISPLAY NAME through the viewer's own grant,
-            exactly like every other lane here. The server owns company upsert,
-            presigned upload, the process trigger and polling; none of that
-            appears in this file or anywhere in the cockpit.
-     STUB   the adapter that is ACTIVE today, because the Boom connector does not
-            exist yet. It walks Boom's real ladder with realistic timing and
-            answers with a Boom-shaped spread BUILT FROM THE PRE-READ of the
-            file the banker actually dropped, so the room shows that file's own
-            numbers rather than a fixture. Every statement it returns is
-            `not_validated`, carries no validation URL and is labelled
-            provisional in words. IT NEVER RETURNS `verified`: verification is
-            an analyst's act inside Boom and the cockpit may not imply one.
-
-   WHEN THE REAL SERVER LANDS, the amendment is the mapping block below plus one
-   constant. Nothing else in the cockpit changes.
+     LIVE   the ladder below against Noland's Boom MCP server (`boom-mcp`),
+            addressed by the connector DISPLAY NAME the viewer gave it, which
+            `channel/boomLane.ts` discovers. The server owns company upsert,
+            the reserved file, the process trigger and the wait; none of Boom's
+            own REST surface appears in this file or anywhere in the cockpit.
+            THIS IS THE ACTIVE LANE (`BOOM_UPLOAD_LANE`).
+     STUB   the lane that stood in while the Boom connector did not exist. It
+            walks the same ladder with realistic timing and answers with a
+            Boom-shaped spread BUILT FROM THE PRE-READ of the file the banker
+            actually dropped. Every statement it returns is `not_validated`,
+            carries no validation URL and is labelled provisional in words. IT
+            NEVER RETURNS `verified`: verification is an analyst's act inside
+            Boom and the cockpit may not imply one. Kept because the flip is one
+            constant and a server outage is not a reason to lose the room.
    ============================================================================= */
 
-import { callTool, describeFailure, SERVERS, TOOLS, unwrapJson, type CallOptions, type McpOk } from "./mcp";
+import { callTool, describeFailure, TOOLS, type CallOptions, type McpOk } from "./mcp";
+import { boomServer } from "./boomLane";
+import { boomConnector, readBoomAnswer } from "./boom";
 import { mapLineCodes } from "../spread/lineMap";
 import type {
   BoomAdapter,
   BoomFileStatus,
   BoomFinancialStatement,
+  BoomRatioSupportLine,
   BoomUploadRequest,
   BoomUploadResult,
   FilePreRead,
@@ -40,97 +41,115 @@ import type {
 } from "../spread/types";
 
 /* =============================================================================
-   THE MAPPING NOLAND'S SERVER AMENDS
+   THE LADDER, AND WHAT IS OBSERVED OF IT
    -----------------------------------------------------------------------------
-   Everything the cockpit assumes about the Boom connector is in this one block:
-   four tool names and four argument shapes. They are written against what we
-   EXPECT and have not been observed on a live connector, because there is not
-   one yet. This block IS the contract handed to Noland.
+   There is NO single upload tool. A file reaches Boom by four calls, and the
+   wait is a bounded blocking read of its own (founder decision D2, 2026-09-15):
 
-     boom_upload_statement    the file goes in, Boom's file id comes back
-       in   { company: { externalUniqueId, name, fullAddress? },
-              file: { name, mime, base64, sha256 },
-              externalUniqueId,           // the sha256: a re-drop is the same file
-              statementQuality,           // cpa_audited | cpa_reviewed | cpa_compiled | internal
-              fileGroupId? }
-       out  { fileId, companyId, fileGroupId, status, message?,
-              financialStatements?, validationUrl? }   // BoomUploadResult
+     boom_ensure_company  { name, salesforceRecordId, fullAddress? }
+                          idempotent: the borrower Boom already holds comes back
+     boom_list_files      { salesforceRecordId }  ->  { files: [ File, … ] }
+                          asked BEFORE a new upload is reserved, so a re-drop of
+                          the same file resolves to the file Boom already has
+     boom_create_upload   { fileName, salesforceRecordId, externalUniqueId }
+                          `externalUniqueId` is the sha256: the reservation is
+                          idempotent on the bytes
+     boom_upload_bytes    { fileId, contentBase64, fileName }   3 MB of base64
+     boom_process_file    { fileId }
 
-     boom_upload_status       the same shape, for one file already sent
-       in   { fileId }
-       out  BoomUploadResult
+   and then, until the file is somewhere terminal:
 
-     boom_create_file_group   one consolidated group per plan (optional)
-       in   { companyExternalUniqueId }
-       out  { fileGroupId }
+     boom_await_file      { fileId, maxSeconds<=25 }  ->  { fileId, status, done }
+     boom_get_file        { fileId }                  ->  { file: File }
+     boom_get_spread      { fileId }                  ->  { spread: { … } }
 
-     boom_validation_session  the analyst's verification page (optional)
-       in   { fileId }
-       out  { url, expiresAt }
-
-   `status` is Boom's own File.status ladder, unchanged:
+   Boom's own File.status ladder is unchanged:
      waiting_for_upload -> processing -> failed | completed -> verified
+   and BOTH `completed` and `verified` are ready: `verified` only adds that an
+   analyst has signed the spread off in Boom's own page.
 
-   IDEMPOTENCY IS THE SERVER'S TO KEEP. `externalUniqueId` is the file's sha256,
-   so the same bytes sent twice must resolve to the same Boom file and must
-   never produce a second period. The cockpit relies on that and does not
-   de-duplicate on its own.
+   WHAT IS OBSERVED AND WHAT IS NOT. The reads were taken off the live server on
+   2026-09-15 and their answers are saved verbatim under `src/__fixtures__/
+   boom-live/`; the unit tests run on those and not on a shape anybody typed.
+   The four WRITE rungs are NOT observed, deliberately: the founder tests uploads
+   himself against his own org. So every one of them is read defensively: a file
+   id is taken from `file.id`, `fileId` or `id`, whichever the server puts it in,
+   and a rung the server does not name defaults to the rung the ladder is on.
 
-   WHAT TO CHANGE WHEN THE REAL SERVER LANDS
-     1. `SERVERS.boom` in channel/mcp.ts: "IDB Gateway" -> the Boom connector's
-        display name, spelled exactly as the viewer's connector list spells it.
-        The health line stops saying "via gateway" on its own.
-     2. The four names in `TOOLS` (channel/mcp.ts) if his server spells them
-        differently. Nothing outside that object holds a Boom tool name.
-     3. The four `…Args` functions below if his argument names differ. Keep the
-        cockpit-side shapes (`BoomUploadRequest`) intact: the room, the pre-read
-        and the tests are all written against them.
-     4. `readResult` below if his envelope differs from a plain JSON object.
-        Anything the platform can put a result in is already handled by
-        `unwrapJson`; a Salesforce-style invocable envelope is not, and would
-        need `unwrapInvocableOne` instead.
-     5. `BOOM_UPLOAD_LANE` to "live".
-     6. Run the probe's Boom lane (design/probes/lib/stub-lanes.js) against the
-        real names to confirm the wire shapes before shipping.
+   FILE GROUPS ARE SKIPPED (decision D4). Boom refuses them on this org ("File
+   groups require files-only mode") and a single-file spread needs none, so the
+   live adapter implements no `createGroup`; the optional method stays on the
+   interface so the step can return without the room changing.
    ============================================================================= */
 
+/** Boom caps `boom_upload_bytes` at 3 MB OF BASE64, which is the encoded size. */
+export const BOOM_BASE64_CAP_BYTES = 3 * 1024 * 1024;
+
+/** The largest FILE that fits inside that cap, since base64 costs four bytes
+ *  for every three. The room refuses anything larger before a byte is read. */
+export const BOOM_MAX_FILE_BYTES = Math.floor(BOOM_BASE64_CAP_BYTES / 4) * 3;
+
 const BOOM_TOOLS = {
-  upload: TOOLS.boomUpload,
-  status: TOOLS.boomUploadStatus,
-  createGroup: TOOLS.boomCreateFileGroup,
-  validationSession: TOOLS.boomValidationSession,
+  ensureCompany: TOOLS.boomEnsureCompany,
+  listFiles: TOOLS.boomListFiles,
+  createUpload: TOOLS.boomCreateUpload,
+  uploadBytes: TOOLS.boomUploadBytes,
+  processFile: TOOLS.boomProcessFile,
+  awaitFile: TOOLS.boomAwaitFile,
+  getFile: TOOLS.boomGetFile,
+  getSpread: TOOLS.boomSpread,
+  getRatios: TOOLS.boomRatios,
+  openVerification: TOOLS.boomOpenVerification,
 } as const;
 
-/** The upload call's arguments, from the cockpit's own request shape. */
-export function uploadArgs(req: BoomUploadRequest): Record<string, unknown> {
+/* ------------------------------------------------------- the argument shapes */
+
+/** The borrower, as Boom stores it: the Salesforce Account id is Boom's own
+ *  `externalUniqueId`, so the same borrower never forks. */
+export function ensureCompanyArgs(req: BoomUploadRequest): Record<string, unknown> {
   return {
-    company: {
-      externalUniqueId: req.company.externalUniqueId,
-      name: req.company.name,
-      ...(req.company.fullAddress ? { fullAddress: req.company.fullAddress } : {}),
-    },
-    file: { name: req.file.name, mime: req.file.mime, base64: req.file.base64, sha256: req.file.sha256 },
+    name: req.company.name,
+    salesforceRecordId: req.company.externalUniqueId,
+    ...(req.company.fullAddress ? { fullAddress: req.company.fullAddress } : {}),
+  };
+}
+
+export const listFilesArgs = (salesforceRecordId: string): Record<string, unknown> => ({ salesforceRecordId });
+
+/** The reservation. `externalUniqueId` is the FILE's sha256, so reserving the
+ *  same bytes twice is one reservation on Boom's side as well as on ours. */
+export function createUploadArgs(req: BoomUploadRequest): Record<string, unknown> {
+  return {
+    fileName: req.file.name,
+    salesforceRecordId: req.company.externalUniqueId,
     externalUniqueId: req.externalUniqueId,
-    statementQuality: req.statementQuality,
     ...(req.fileGroupId ? { fileGroupId: req.fileGroupId } : {}),
   };
 }
 
-export const statusArgs = (fileId: string): Record<string, unknown> => ({ fileId });
-export const createGroupArgs = (companyExternalUniqueId: string): Record<string, unknown> => ({ companyExternalUniqueId });
-export const validationSessionArgs = (fileId: string): Record<string, unknown> => ({ fileId });
+export const uploadBytesArgs = (fileId: string, req: BoomUploadRequest): Record<string, unknown> => ({
+  fileId,
+  contentBase64: req.file.base64,
+  fileName: req.file.name,
+});
+
+export const fileArgs = (fileId: string): Record<string, unknown> => ({ fileId });
+/** The spread read on an explicit basis. Boom defaults `adjusted` to true, and
+ *  the cockpit says which basis it asked for rather than leaning on a default. */
+export const spreadArgs = (fileId: string, adjusted: boolean): Record<string, unknown> => ({ fileId, adjusted });
+export const awaitArgs = (fileId: string, maxSeconds: number): Record<string, unknown> => ({ fileId, maxSeconds });
 
 /* ---------------------------------------------------------------- the lane */
 
 /**
  * WHICH ADAPTER IS ACTIVE.
  *
- * "stub" until Noland's Boom connector exists. This is the flip, and it is
- * deliberately a constant and not a runtime setting: a cockpit that could be
+ * "live" since 0.9.28: Boom's connector exists. Deliberately a constant and not
+ * a runtime setting, for the same reason it always was: a cockpit that could be
  * talked into its stub by anything other than a code change is a cockpit that
  * can show a provisional spread while claiming a connector answered.
  */
-export const BOOM_UPLOAD_LANE: "stub" | "live" = "stub";
+export const BOOM_UPLOAD_LANE: "stub" | "live" = "live";
 
 /**
  * How long the stub spends in `processing`, milliseconds, inclusive range.
@@ -159,89 +178,195 @@ export type BoomToolCall = (
 
 const LADDER: readonly BoomFileStatus[] = ["waiting_for_upload", "processing", "failed", "completed", "verified"];
 
-/** Boom's answer, read off whatever the platform wrapped it in. */
-function readResult(res: McpOk<unknown>, tool: string, fallbackFileId?: string): BoomUploadResult {
-  const body = unwrapJson<Record<string, unknown>>(res);
-  if (!body) {
-    throw describeFailure({ code: "transform_error", message: `${tool} returned no object` }, SERVERS.boom, tool);
-  }
-  const fileId = typeof body.fileId === "string" ? body.fileId : typeof body.id === "string" ? body.id : fallbackFileId;
-  if (!fileId) {
-    throw describeFailure({ code: "transform_error", message: `${tool} returned no file id` }, SERVERS.boom, tool);
-  }
-  const status = body.status as BoomFileStatus | undefined;
-  if (!status || !LADDER.includes(status)) {
+/** Boom's statuses that mean the file is somewhere terminal and readable. */
+export const BOOM_READY: ReadonlySet<BoomFileStatus> = new Set<BoomFileStatus>(["completed", "verified"]);
+
+const asString = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
+
+/** The file id, wherever this rung's answer carries it. The four write rungs are
+ *  unobserved, so all three spellings the server's own reads use are accepted
+ *  rather than one being guessed at. */
+function fileIdOf(body: Record<string, unknown> | undefined, fallback?: string): string | undefined {
+  if (!body) return fallback;
+  const file = body.file as Record<string, unknown> | undefined;
+  return (
+    asString(body.fileId) ??
+    asString(file && typeof file === "object" ? file.id : undefined) ??
+    asString(body.id) ??
+    fallback
+  );
+}
+
+/** A rung the server named, or nothing. An unknown word is a refusal, never a
+ *  guess: a status the cockpit invented would move a banker's file on the glass. */
+function statusOf(body: Record<string, unknown> | undefined, tool: string): BoomFileStatus | undefined {
+  const raw = asString(body?.status);
+  if (raw === undefined) return undefined;
+  if (!LADDER.includes(raw as BoomFileStatus)) {
     throw describeFailure(
-      { code: "transform_error", message: `${tool} returned an unknown status: ${String(body.status)}` },
-      SERVERS.boom,
+      { code: "transform_error", message: `${tool} returned an unknown status: ${raw}` },
+      boomServer(),
       tool,
     );
   }
-  return {
-    fileId,
-    companyId: typeof body.companyId === "string" ? body.companyId : null,
-    fileGroupId: typeof body.fileGroupId === "string" ? body.fileGroupId : null,
-    status,
-    // BOOM'S OWN WORDS, VERBATIM. Boom has no structured failure reason (Q&A
-    // tracker #14), so whatever the server says is what the banker reads.
-    ...(typeof body.message === "string" ? { message: body.message } : {}),
-    ...(Array.isArray(body.financialStatements)
-      ? { financialStatements: body.financialStatements as BoomFinancialStatement[] }
-      : {}),
-    ...(typeof body.validationUrl === "string" ? { validationUrl: body.validationUrl } : {}),
-  };
+  return raw as BoomFileStatus;
+}
+
+function transformError(tool: string, message: string): never {
+  throw describeFailure({ code: "transform_error", message }, boomServer(), tool);
 }
 
 /**
  * The adapter that calls Noland's server.
  *
- * THE UPLOAD IS A WRITE and carries the write discipline: the longer deadline,
- * and NO automatic retry. A rejected upload is not proof the file did not
- * reach Boom, and re-sending it is the banker's gesture. (The sha256 travels as
- * `externalUniqueId` so a deliberate re-send is the same file to Boom, but that
- * is the server's guarantee to keep and not a licence for the page to retry.)
- * The status read is a READ and gets the read policy: three attempts, the
- * shorter deadline, which is what makes a poll survive an idle MCP session.
+ * THE FOUR UPLOAD RUNGS ARE WRITES and carry the write discipline: the longer
+ * deadline, and NO automatic retry. A rejected upload is not proof the file did
+ * not reach Boom, and re-sending it is the banker's gesture. The status read,
+ * the wait and the spread read are READS and get the read policy: three
+ * attempts and the shorter deadline, which is what makes a poll survive an idle
+ * MCP session.
  *
  * Transport failures reject with the normalized `McpFailure` every other lane
- * throws, already recorded against the lane health line by `callTool`. A
- * failure BOOM ITSELF reports is not a transport failure: it comes back as a
- * result with `status: "failed"` and Boom's own message.
+ * throws, already recorded against the lane health line by `callTool`. A failure
+ * BOOM ITSELF reports is not a transport failure: it comes back as a result with
+ * `status: "failed"` and Boom's own message.
  */
 export function liveBoomAdapter(call: BoomToolCall = callTool): BoomAdapter {
+  const write = (signal?: AbortSignal): CallOptions => ({ signal });
+  const read = (signal?: AbortSignal): CallOptions => ({ read: true, signal });
+
+  /** One rung's body, envelope already off it. */
+  const body = async (tool: string, args: unknown, options: CallOptions, key?: string) => {
+    const res = await call(boomServer(), tool, args, options);
+    return readBoomAnswer<Record<string, unknown>>(res, key)?.body;
+  };
+
+  /** The file Boom already holds for these bytes, or nothing.
+   *
+   *  IDEMPOTENCY IS KEPT ON BOTH SIDES. `boom_create_upload` is idempotent on
+   *  the sha256 it is handed, and this asks first anyway: a re-drop that found a
+   *  file already processing must not reserve a second one, and the room says in
+   *  words that it is reusing it. A `failed` file is NOT reused: that is a file
+   *  the banker is deliberately sending again. */
+  async function existingFile(req: BoomUploadRequest, signal?: AbortSignal): Promise<BoomUploadResult | null> {
+    const listed = await body(BOOM_TOOLS.listFiles, listFilesArgs(req.company.externalUniqueId), read(signal));
+    const files = Array.isArray(listed?.files) ? (listed.files as Array<Record<string, unknown>>) : [];
+    for (const file of files) {
+      if (asString(file.fileName) !== req.file.name) continue;
+      const status = asString(file.status);
+      if (!status || status === "failed" || !LADDER.includes(status as BoomFileStatus)) continue;
+      const id = asString(file.id);
+      if (!id) continue;
+      return {
+        fileId: id,
+        companyId: null,
+        fileGroupId: asString(file.fileGroupId) ?? null,
+        status: status as BoomFileStatus,
+        reused: true,
+      };
+    }
+    return null;
+  }
+
   return {
     async upload(req: BoomUploadRequest, opts?: { signal?: AbortSignal }): Promise<BoomUploadResult> {
-      const res = await call(SERVERS.boom, BOOM_TOOLS.upload, uploadArgs(req), { signal: opts?.signal });
-      return readResult(res, BOOM_TOOLS.upload);
+      const signal = opts?.signal;
+      if (req.file.base64.length > BOOM_BASE64_CAP_BYTES) {
+        transformError(BOOM_TOOLS.uploadBytes, `the encoded file is ${req.file.base64.length} bytes, past Boom's ${BOOM_BASE64_CAP_BYTES}-byte cap`);
+      }
+      // The connector name is wanted before the first call, not after it.
+      await boomConnector();
+
+      const ensured = await body(BOOM_TOOLS.ensureCompany, ensureCompanyArgs(req), write(signal));
+      const companyId =
+        asString(ensured?.companyId) ??
+        asString((ensured?.company as Record<string, unknown> | undefined)?.id) ??
+        asString(ensured?.id) ??
+        null;
+
+      const already = await existingFile(req, signal);
+      if (already) return { ...already, companyId: already.companyId ?? companyId };
+
+      const reserved = await body(BOOM_TOOLS.createUpload, createUploadArgs(req), write(signal));
+      const fileId = fileIdOf(reserved);
+      if (!fileId) transformError(BOOM_TOOLS.createUpload, `${BOOM_TOOLS.createUpload} returned no file id`);
+
+      await body(BOOM_TOOLS.uploadBytes, uploadBytesArgs(fileId, req), write(signal));
+      const processing = await body(BOOM_TOOLS.processFile, fileArgs(fileId), write(signal));
+
+      return {
+        fileId,
+        companyId,
+        fileGroupId: asString(reserved?.fileGroupId) ?? req.fileGroupId ?? null,
+        // The rung the server named, or the rung the ladder is on: the bytes are
+        // in and processing has been asked for.
+        status: statusOf(processing, BOOM_TOOLS.processFile) ?? "processing",
+      };
     },
+
+    /** Where the file has got to, with Boom's own spread once it is readable. */
     async status(fileId: string, opts?: { signal?: AbortSignal }): Promise<BoomUploadResult> {
-      const res = await call(SERVERS.boom, BOOM_TOOLS.status, statusArgs(fileId), { read: true, signal: opts?.signal });
-      return readResult(res, BOOM_TOOLS.status, fileId);
+      const signal = opts?.signal;
+      const file = await body(BOOM_TOOLS.getFile, fileArgs(fileId), read(signal), "file");
+      if (!file) transformError(BOOM_TOOLS.getFile, `${BOOM_TOOLS.getFile} returned no file`);
+      const status = statusOf({ status: file.status }, BOOM_TOOLS.getFile);
+      if (!status) transformError(BOOM_TOOLS.getFile, `${BOOM_TOOLS.getFile} returned no status`);
+
+      const result: BoomUploadResult = {
+        fileId: asString(file.id) ?? fileId,
+        companyId: null,
+        fileGroupId: asString(file.fileGroupId) ?? null,
+        status,
+        fileName: asString(file.fileName),
+      };
+      if (!BOOM_READY.has(status)) return result;
+
+      const spread = await body(BOOM_TOOLS.getSpread, fileArgs(fileId), read(signal), "spread");
+      const statements = Array.isArray(spread?.financialStatements)
+        ? (spread.financialStatements as BoomFinancialStatement[])
+        : [];
+      return { ...result, fileGroupId: asString(spread?.fileGroupId) ?? result.fileGroupId, financialStatements: statements };
     },
-    async createGroup(companyExternalId: string): Promise<{ fileGroupId: string }> {
-      const res = await call(SERVERS.boom, BOOM_TOOLS.createGroup, createGroupArgs(companyExternalId));
-      const body = unwrapJson<Record<string, unknown>>(res);
-      const id = typeof body?.fileGroupId === "string" ? body.fileGroupId : typeof body?.id === "string" ? body.id : undefined;
-      if (!id) {
-        throw describeFailure(
-          { code: "transform_error", message: `${BOOM_TOOLS.createGroup} returned no group id` },
-          SERVERS.boom,
-          BOOM_TOOLS.createGroup,
-        );
-      }
-      return { fileGroupId: id };
+
+    /** ONE BOUNDED WAIT. The server blocks at most 25 seconds by its own design,
+     *  so waiting longer than that is the ROOM's business (`spreadEngine.ts`),
+     *  not a longer argument here. */
+    async awaitSettled(fileId: string, maxSeconds: number, opts?: { signal?: AbortSignal }): Promise<BoomUploadResult> {
+      const waited = await body(BOOM_TOOLS.awaitFile, awaitArgs(fileId, maxSeconds), read(opts?.signal));
+      const status = statusOf(waited, BOOM_TOOLS.awaitFile);
+      if (!status) transformError(BOOM_TOOLS.awaitFile, `${BOOM_TOOLS.awaitFile} returned no status`);
+      return { fileId: fileIdOf(waited, fileId)!, companyId: null, fileGroupId: null, status };
     },
+
+    /** THE SAME FILE, ON THE OTHER BASIS. Boom holds both reads and the register
+     *  asks for one; nothing here derives an as-given figure from an adjusted
+     *  one, which is the whole reason this is a call and not a filter. */
+    async readSpread(fileId: string, opts?: { adjusted?: boolean; signal?: AbortSignal }): Promise<BoomFinancialStatement[]> {
+      const spread = await body(
+        BOOM_TOOLS.getSpread,
+        spreadArgs(fileId, opts?.adjusted ?? true),
+        read(opts?.signal),
+        "spread",
+      );
+      return Array.isArray(spread?.financialStatements) ? (spread.financialStatements as BoomFinancialStatement[]) : [];
+    },
+
+    /** WHICH LINE FED WHICH FIGURE, Boom's own answer. Asked by FILE, so the
+     *  support lines belong to the spread on the glass and not to whatever file
+     *  the borrower's latest ratio set happens to name. */
+    async ratioSupport(fileId: string, opts?: { signal?: AbortSignal }): Promise<BoomRatioSupportLine[]> {
+      const ratios = await body(BOOM_TOOLS.getRatios, { fileId }, read(opts?.signal));
+      const support = ratios?.support as { lines?: unknown } | undefined;
+      return Array.isArray(support?.lines) ? (support.lines as BoomRatioSupportLine[]) : [];
+    },
+
     async validationSession(fileId: string): Promise<{ url: string; expiresAt: string }> {
-      const res = await call(SERVERS.boom, BOOM_TOOLS.validationSession, validationSessionArgs(fileId));
-      const body = unwrapJson<Record<string, unknown>>(res);
-      if (typeof body?.url !== "string" || typeof body?.expiresAt !== "string") {
-        throw describeFailure(
-          { code: "transform_error", message: `${BOOM_TOOLS.validationSession} returned no session` },
-          SERVERS.boom,
-          BOOM_TOOLS.validationSession,
-        );
-      }
-      return { url: body.url, expiresAt: body.expiresAt };
+      const opened = await body(BOOM_TOOLS.openVerification, fileArgs(fileId), read());
+      const url = asString(opened?.url) ?? asString((opened?.session as Record<string, unknown> | undefined)?.url);
+      const expiresAt =
+        asString(opened?.expiresAt) ?? asString((opened?.session as Record<string, unknown> | undefined)?.expiresAt);
+      if (!url || !expiresAt) transformError(BOOM_TOOLS.openVerification, `${BOOM_TOOLS.openVerification} returned no session`);
+      return { url, expiresAt };
     },
   };
 }
@@ -379,18 +504,23 @@ export function statementsFromPreRead(fileId: string, preRead: FilePreRead): Boo
       periodValues: valuesOf(line),
     }));
 
-    const rolled = new Map<string, { accountCode: string; accountName: string; periodValues: Record<string, number | null> }>();
+    /* BOOM'S OWN ROLL-UP SHAPE: a pair per period, as given and as allowed. The
+       stand-in has no analyst adjustment to report, so the two are the same
+       figure; what matters is that the shape is Boom's and not a second one. */
+    type Rolled = NonNullable<BoomFinancialStatement["aggregatedFinancials"]>[number];
+    const rolled = new Map<string, Rolled>();
     for (const item of lineItems) {
       if (!item.accountCode) continue;
-      const row = rolled.get(item.accountCode) ?? {
+      const row: Rolled = rolled.get(item.accountCode) ?? {
         accountCode: item.accountCode,
         accountName: item.name,
-        periodValues: Object.fromEntries(periods.map((p) => [p.id, null])) as Record<string, number | null>,
+        periodValues: Object.fromEntries(periods.map((p) => [p.id, { asGiven: null, asAllowed: null }])),
       };
       for (const p of periods) {
         const v = item.periodValues[p.id];
         if (typeof v !== "number") continue;
-        row.periodValues[p.id] = (row.periodValues[p.id] ?? 0) + v;
+        const sum = (row.periodValues[p.id].asGiven ?? 0) + v;
+        row.periodValues[p.id] = { asGiven: sum, asAllowed: sum };
       }
       rolled.set(item.accountCode, row);
     }
@@ -452,7 +582,10 @@ function stubResult(file: StubFile, status: BoomFileStatus, extra: Partial<BoomU
  *
  * `validationSession` is deliberately ABSENT: there is no Boom page to send an
  * analyst to, and an optional method that is missing is how the room learns it
- * cannot offer "Verify in Boom" yet.
+ * cannot offer "Verify in Boom" yet. `readSpread` and `ratioSupport` are absent
+ * for the same reason: the stand-in holds one read of the file and no ratio
+ * support at all, so the register offers no basis switch and marks no line as
+ * feeding a headline figure rather than inventing either.
  */
 export function stubBoomAdapter(): BoomAdapter {
   return {

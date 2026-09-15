@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from "react";
 
+import type { BoomFileHandle } from "../../workroom/spreadEngine";
+
 /* =============================================================================
    THE SPREADING ROOM'S SESSION.
 
@@ -18,6 +20,15 @@ import { useSyncExternalStore } from "react";
    CLOSING DROPS THE FILES. A session that survived the close would carry a
    half-answered plan into the next relationship, and the bytes are the
    banker's, not the room's.
+
+   ONE THING DOES SURVIVE THE CLOSE (0.9.28, founder decision D3): the handle of
+   a file already IN BOOM. Boom has been observed taking over six minutes on an
+   8 KB workbook, which is longer than a banker will sit in one room, and the
+   bytes are gone the moment the room shuts. Without the handle a re-entry would
+   send the same file again and Boom would spread it twice. So the fileId, the
+   company and the name are kept, per relationship, for exactly as long as the
+   file is unsettled: the room resumes from `boom_get_file` and sends nothing.
+   It is deliberately NOT the bytes and NOT the plan; it is a receipt.
    ============================================================================= */
 
 export interface SpreadSession {
@@ -36,6 +47,35 @@ function emit() {
 export function openSpreadingRoom(context: { accountId: string; accountName: string }): void {
   session = { accountId: context.accountId, accountName: context.accountName };
   emit();
+}
+
+/* ------------------------------------------------------- the file receipts */
+
+/** Per relationship, the file Boom is still working on. */
+const pending = new Map<string, BoomFileHandle>();
+
+/** Boom has these bytes. Written the moment a file id exists, not when the room
+ *  gives up waiting: a session can die anywhere in between. */
+export function rememberBoomFile(accountId: string, handle: BoomFileHandle): void {
+  pending.set(accountId, handle);
+  emit();
+}
+
+/** The file settled, or the banker walked away from it deliberately. */
+export function forgetBoomFile(accountId: string, fileId: string): void {
+  if (pending.get(accountId)?.fileId !== fileId) return;
+  pending.delete(accountId);
+  emit();
+}
+
+/** The file this relationship left with Boom, or none. */
+export function pendingBoomFile(accountId: string): BoomFileHandle | null {
+  return pending.get(accountId) ?? null;
+}
+
+/** Tests. */
+export function resetBoomFiles(): void {
+  pending.clear();
 }
 
 export function closeSpreadingRoom(): void {

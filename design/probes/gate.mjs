@@ -91,8 +91,16 @@ async function driveSpread(kind) {
     }
   }
   if (json) {
-    if (!json.panel?.hasProvisional) findings.push("the room panel does not mark the period provisional");
-    if (!json.financialsTab?.hasProvisional) findings.push("the Financials tab does not mark the period provisional");
+    /* CHANGED 0.9.28, WITH THE LANE ITSELF. These two rows used to REQUIRE the
+       word "provisional" on the panel and on the Financials tab, because the
+       spread on stage was the browser's own read of the banker's file and the
+       Boom connector did not exist. It does now: the spread the room publishes
+       came back from Boom, so the provisional word would be a lie about the
+       book and the assertion is the other way round. What the gate checks is
+       unchanged in kind: that the glass says exactly what happened. */
+    if (json.panel?.hasProvisional) findings.push("the room panel calls Boom's own spread provisional");
+    if (json.saysStub) findings.push("the room names a stub while the live lane is on");
+    if (!json.financialsTab?.periods?.length) findings.push("the Financials tab carries no period after the spread");
     if (json.iris) findings.push("the forbidden word reached the glass");
     if (json.emDash) findings.push("em dash in the spreading room");
     for (const e of json.pageErrors ?? []) findings.push(`page error: ${e}`);

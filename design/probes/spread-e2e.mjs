@@ -153,11 +153,16 @@ const hadAct = await clickTab("Activity");
 await page.waitForTimeout(800);
 const actTab = (await page.textContent("#view-account").catch(() => "")) || "";
 const calls = await page.evaluate(() => (window.__LANES?.calls || []).map((c) => c.tool || c));
-const boomCalls = calls.filter((c) => /boom_upload|boom_create|boom_validation/.test(String(c)));
+const boomCalls = calls.filter((c) => /^boom_/.test(String(c)));
 
 const out = {
   timings: t, dropVisibleOnOpen: dropVisible, asks, planSummary, cardText: cardText.slice(0, 400),
+  /* THE LANE IS LIVE (0.9.28), so the WORD THE GATE LOOKS FOR FLIPPED. A spread
+     the connector returned is Boom's: the panel must NOT call it provisional and
+     the room must not name a stub anywhere. `hasProvisional` is still reported
+     because the stub lane can be flipped back and this is how that reads. */
   panel: { hasProvisional: /Provisional/.test(finText), saysVerified: /\bVerified\b|Validated in Boom/.test(finText), tiles: finText.slice(0, 300) },
+  saysStub: /\(stub/.test(roomText + finText),
   postRead: proseText.slice(0, 1800),
   financialsTab: { found: hadFin, badgePeriod, hasProvisional: /Provisional, Boom verification pending/.test(finTab), periods: (finTab.match(/FY20\d\d/g) || []).filter((v, i, a) => a.indexOf(v) === i) },
   activity: { found: hadAct, mentionsStub: /Boom \(stub, provisional\)/.test(actTab) },

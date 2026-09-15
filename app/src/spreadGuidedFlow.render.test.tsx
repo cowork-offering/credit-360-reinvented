@@ -7,7 +7,7 @@ import { PRE_READ_BEAT_MS, type SpreadDeps } from "./workroom/spreadEngine";
 import type { RelationshipSpreadContext } from "./spread/preRead";
 import { provisionalRead } from "./spread/provisional";
 import { postReadFacts } from "./spread/postRead";
-import { boomAdapter, BOOM_UPLOAD_LANE, registerPreRead, resetStubBoom } from "./channel/boomUpload";
+import { registerPreRead, resetStubBoom, stubBoomAdapter } from "./channel/boomUpload";
 import type { DroppedFile, ExtractedDocument, FilePreRead } from "./spread/types";
 
 /* =============================================================================
@@ -101,8 +101,12 @@ function deps(): SpreadDeps {
     preReadFile: async () => PRE_READ,
     provisionalRead,
     postRead: async (a) => postReadFacts(a),
-    adapter: boomAdapter(),
-    lane: BOOM_UPLOAD_LANE,
+    /* PINNED TO THE STUB LANE (0.9.28). `BOOM_UPLOAD_LANE` is "live" now,
+       and what these cases are about is the ROOM's flow over a file's own
+       numbers, with no connector in the path at all. The live lane is driven
+       against Boom's own answers in spreadLiveLane.e2e.test.ts. */
+    adapter: stubBoomAdapter(),
+    lane: "stub" as const,
     registerPreRead,
     resetStub: resetStubBoom,
   };
@@ -182,7 +186,7 @@ describe("the column reads in one order", () => {
     expect(room.querySelector(".sp-fin")).toBeNull();
     expect(room.querySelector(".sp-tiles")).toBeNull();
     expect(room.querySelector(".sp-trend")).toBeNull();
-    expect(room.querySelector(".sp-st")).toBeNull();
+    expect(room.querySelector(".rg")).toBeNull();
     // What the file reads as is INSIDE the plan, in four lines at most.
     const brief = room.querySelectorAll(".sp-brief p");
     expect(brief.length).toBeGreaterThan(0);
@@ -366,22 +370,31 @@ describe("the panel lands when the spread does", () => {
     expect(room.querySelector(".sp-trend-new")?.getAttribute("data-provisional-period")).toBe("FY2025");
   });
 
-  it("opens the tiles, the statement tabs and the post-read only now", async () => {
+  it("opens the tiles, the register and the post-read only now", async () => {
     const room = await spread();
     expect(room.querySelectorAll(".sp-tile")).toHaveLength(5);
-    expect(room.querySelector(".sp-st-tabs")).toBeTruthy();
+    expect(room.querySelector(".rg .rg-sel")).toBeTruthy();
     expect(room.querySelector(".sp-post")).toBeTruthy();
   });
 
-  it("marks the new period's own column in the statement table", async () => {
+  it("marks the new period's own column in the register", async () => {
     /* The match was `endDate === newPeriod`, which compared "2025-12-31" with
        "FY2025" and was therefore never true: the column the banker opened this
-       room for was never marked. Fixed 2026-09-13. */
+       room for was never marked. Fixed 2026-09-13; the register carries the
+       same convention, on the fiscal label the grid prints. */
     const room = await spread();
-    const head = [...room.querySelectorAll(".sp-st-t thead th")];
+    const head = [...room.querySelectorAll(".rg-t thead th.rg-v")];
     const marked = head.filter((n) => n.classList.contains("is-new"));
     expect(marked).toHaveLength(1);
-    expect(marked[0].textContent).toBe("2025-12-31");
+    expect(marked[0].textContent).toContain("FY2025");
+  });
+
+  it("offers no basis switch on a lane that cannot re-read the file", async () => {
+    /* The stand-in holds one read of the file. A switch that had to filter
+       locally to answer would put a figure on the glass no server sent. */
+    const room = await spread();
+    expect(room.querySelector(".rg-adj")).toBeNull();
+    expect(room.querySelectorAll(".rg-feeds")).toHaveLength(0);
   });
 
   it("offers the Explain affordance the Financials tab offers, on a grounded question", async () => {

@@ -73,17 +73,24 @@
                  and history reads no longer carry the version at all, and after
                  `execute_amend_version` the facilities read carries the new
                  figure.
-     boom        THE BOOM UPLOAD LANE (2026-09-12), the stand-in for Noland's
-                 read + write Boom MCP server, which does not exist yet:
+     boom        THE BOOM LANE (2026-09-12; re-cut to the LIVE wire 2026-09-15),
+                 the stand-in for Noland's Boom MCP server:
                    mode          "ok" | "failed", what the file ends as
                    processingMs  how long the file sits at `processing`
                                  (4000 is the floor of the room's own range)
                    files         per-file clock, keyed by Boom file id
-                 It answers `boom_upload_statement`, `boom_upload_status`,
-                 `boom_create_file_group` and `boom_validation_session` on
-                 whichever connector the page addresses them to, which is
-                 "IDB Gateway" until `SERVERS.boom` is flipped to the Boom
-                 connector's own name. Boom's ladder, unchanged:
+                 It answers the whole surface the cockpit uses on whichever
+                 connector the page addresses it to: `boom_ensure_company`,
+                 `boom_list_files`, `boom_create_upload`, `boom_upload_bytes`,
+                 `boom_process_file`, `boom_await_file`, `boom_get_file`,
+                 `boom_get_spread`, `boom_get_ratios` and
+                 `boom_open_verification`.
+                 EVERY ANSWER CARRIES THE LIVE ENVELOPE, verbatim in shape:
+                 `contractVersion`, `_source: "BOOM-STUB"`, `_provenance` and
+                 the body under its own key where the live one has one
+                 (`{file:{}}`, `{spread:{}}`). That is the whole point of this
+                 block: the drive exercises the same parser the live server
+                 hits. Boom's ladder, unchanged:
                  waiting_for_upload -> processing -> failed | completed.
 
    NOTHING HERE SHIPS. The artifact's own build fails closed on simulation
@@ -253,19 +260,18 @@
 
     /* ------------------------------------------------------------- boom
 
-       THE UPLOAD LANE, standing in for Noland's Boom MCP server. The four tool
-       names and the argument names are the ones the cockpit's adapter sends
-       (app/src/channel/boomUpload.ts, "THE MAPPING NOLAND'S SERVER AMENDS"), so
-       a drive here exercises the wire contract itself and not a paraphrase of
-       it. The answers are Boom's own output shapes: a file id and a rung on
-       `boom_upload_statement`, the same object with `financialStatements` once
-       the file has been processing for `processingMs`.
+       THE BOOM SERVER, standing in for `boom-mcp`. The tool names, the argument
+       names and the ANSWER ENVELOPES are the live server's, read off it on
+       2026-09-15 and saved verbatim under app/src/__fixtures__/boom-live/, so a
+       drive here exercises the wire contract itself and not a paraphrase of it.
 
        IDEMPOTENT, because Boom is: the file id is derived from the sha256 the
        cockpit sends as `externalUniqueId`, so the same bytes twice are one
-       file, one clock and one set of periods. NEVER `verified`: verification is
-       an analyst's act in Boom's own page and no stub may claim one. */
-    if (tool.indexOf("boom_upload") === 0 || tool.indexOf("boom_create") === 0 || tool.indexOf("boom_validation") === 0) {
+       file, one clock and one set of periods, and `boom_list_files` reports the
+       file already taken so the adapter never reserves a second. NEVER
+       `verified`: verification is an analyst's act in Boom's own page and no
+       stub may claim one. */
+    if (tool.indexOf("boom_") === 0) {
       return give({ payload: boomAnswer(tool, input || {}) });
     }
 
@@ -820,25 +826,79 @@
     };
   }
 
+  /* THE RATIO SET THE LIVE SERVER STRUCK FROM THIS FILE (boom_get_ratios `raw`,
+     read 2026-09-15). Verbatim, because the cockpit passes it through verbatim. */
+  var BOOM_RAW_RATIOS = {
+    revenue: 64486000,
+    revenuePrior: 59915000,
+    grossProfit: 14064000,
+    operatingIncome: 2838000,
+    ebitda: 5234000,
+    totalDebt: 20130000,
+    leverage: 3.8460068781047,
+    interestCoverage: 2.637546468401487,
+    revenueYoY: 0.07629141283484937,
+    grossMargin: 0.2180938498278696,
+    ebitdaMargin: 0.08116490401017275,
+  };
+
+  /** `support.lines`: which spread line fed which figure, the live server's own
+   *  shape. The stub spreads ONE income statement, so these are the lines that
+   *  statement carries and no others: no balance sheet means no debt lines and
+   *  no cash flow means no D and A. */
+  function boomSupportLines(fileId) {
+    if (!fileId) return [];
+    var line = function (figure, code, name, period, value) {
+      return {
+        figure: figure,
+        statement: "income_statement",
+        accountCode: code,
+        name: name,
+        period: period,
+        value: value,
+        method: "accountCode",
+      };
+    };
+    return [
+      line("revenue", "net_sales_revenue", "Net Sales", "2025-12-31", 64486000),
+      line("revenuePrior", "net_sales_revenue", "Net Sales", "2024-12-31", 59915000),
+      line("costOfSales", "cost_of_sales", "Cost of Sales", "2025-12-31", 50422000),
+      line("grossProfit", "gross_profit", "Gross Profit", "2025-12-31", 14064000),
+      line("operatingExpenses", "total_operating_expenses", "Operating Expenses", "2025-12-31", 11226000),
+      line("operatingIncome", "operating_profit", "Income from Operations", "2025-12-31", 2838000),
+      line("interestExpense", "interest_expense", "Interest Expense", "2025-12-31", -1076000),
+    ];
+  }
+
   function boomStatements(fileId) {
     var lines = [
-      boomLine(fileId + "-l1", "Net Sales", "net_sales_revenue", "line_item", 59915000, 56266000, 64486000),
-      boomLine(fileId + "-l2", "Cost of Sales", "cost_of_sales", "line_item", 45371000, 40829000, 50422000),
-      boomLine(fileId + "-l3", "Gross Profit", "gross_profit", "subtotal", 14544000, 15437000, 14064000),
-      boomLine(fileId + "-l4", "Operating Expenses", "operating_expenses", "line_item", 10989000, 10752000, 11226000),
-      boomLine(fileId + "-l5", "Income from Operations", "operating_profit", "subtotal", 3555000, 4685000, 2838000),
-      boomLine(fileId + "-l6", "Interest Expense", "interest_expense", "line_item", -1019000, -947000, -1076000),
-      boomLine(fileId + "-l7", "Net Income", "net_income", "total", 1868000, 2873000, 1390000),
+      boomLine(fileId + "-l1", "Net Sales", "net_sales_revenue", "line_item", 56266000, 59915000, 64486000),
+      boomLine(fileId + "-l2", "Cost of Sales", "cost_of_sales", "line_item", 40829000, 45371000, 50422000),
+      boomLine(fileId + "-l3", "Gross Profit", "gross_profit", "subtotal", 15437000, 14544000, 14064000),
+      boomLine(fileId + "-l4", "Operating Expenses", "total_operating_expenses", "line_item", 10752000, 10989000, 11226000),
+      boomLine(fileId + "-l5", "Income from Operations", "operating_profit", "subtotal", 4685000, 3555000, 2838000),
+      boomLine(fileId + "-l6", "Interest Expense", "interest_expense", "line_item", -947000, -1019000, -1076000),
+      boomLine(fileId + "-l7", "Net Income", "net_income", "total", 2873000, 1868000, 1390000),
     ];
     return [{
       id: fileId + "-s1",
       statementType: "income_statement",
       endDate: "2025-12-31",
+      /* NOT `validated`, ever. The live server DOES return `validated` on a file
+         an analyst signed off in Boom's own page, and that is exactly why no
+         stub may: a freshly processed file is `completed` and `not_validated`,
+         which is the state this block simulates. */
       validationStatus: "not_validated",
       periods: BOOM_PERIODS,
       lineItems: lines,
+      /* BOOM'S OWN ROLL-UP SHAPE: a pair per period, as given and as the
+         analyst allowed (observed live 2026-09-15), never a bare number. */
       aggregatedFinancials: lines.map(function (l) {
-        return { accountCode: l.accountCode, accountName: l.name, periodValues: l.periodValues };
+        var values = {};
+        Object.keys(l.periodValues).forEach(function (id) {
+          values[id] = { asGiven: l.periodValues[id], asAllowed: l.periodValues[id] };
+        });
+        return { accountCode: l.accountCode, accountName: l.name, periodValues: values };
       }),
     }];
   }
@@ -850,46 +910,202 @@
     return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20, 32);
   }
 
+  /** THE LIVE ENVELOPE, shape for shape. `_source` names the stub so nothing
+   *  downstream can mistake this for Boom's own read. */
+  function boomEnvelope(record, ids, asOf, body) {
+    var out = {
+      contractVersion: "1.0",
+      _source: "BOOM-STUB",
+      _provenance: { system: "Boom", record: record, ids: ids || {}, asOf: asOf || new Date().toISOString() },
+    };
+    Object.keys(body || {}).forEach(function (k) { out[k] = body[k]; });
+    return out;
+  }
+
+  /** The stub's own File row, in the live shape. */
+  function boomFileRow(id, file) {
+    return {
+      id: id,
+      fileName: file.fileName,
+      status: boomStatusOf(file),
+      statementQuality: null,
+      fileGroupId: file.fileGroupId,
+      periodEnds: boomStatusOf(file) === "completed" ? ["2025-12-31", "2024-12-31", "2023-12-31"] : [],
+      createdAt: new Date(file.startedAt).toISOString(),
+      downloadUrl: null,
+    };
+  }
+
+  /** Where one file has got to on Boom's ladder, by the clock. */
+  function boomStatusOf(file) {
+    var B = window.__LANES.boom;
+    if (Date.now() - file.startedAt < (B.processingMs || 0)) return "processing";
+    return B.mode === "failed" ? "failed" : "completed";
+  }
+
+  var BOOM_FAILURE_MESSAGE = "Boom could not read this file. Nothing in it could be placed on a statement.";
+
   function boomAnswer(tool, input) {
     var B = window.__LANES.boom;
-    if (tool === "boom_create_file_group") {
-      return { fileGroupId: boomFileId("f11e" + (input.companyExternalUniqueId || "")) };
+    var id;
+
+    if (tool === "boom_ensure_company") {
+      return boomEnvelope("company", { externalUniqueId: input.salesforceRecordId || null }, null, {
+        company: {
+          id: boomFileId("c0" + (input.salesforceRecordId || "")),
+          name: input.name || null,
+          externalUniqueId: input.salesforceRecordId || null,
+        },
+      });
     }
-    if (tool === "boom_validation_session") {
-      return {
+
+    if (tool === "boom_list_files") {
+      var rows = Object.keys(B.files).map(function (fid) { return boomFileRow(fid, B.files[fid]); });
+      return boomEnvelope("file-list", { externalUniqueId: input.salesforceRecordId || null }, null, { files: rows });
+    }
+
+    if (tool === "boom_create_upload") {
+      // A re-drop does not restart the clock and does not make a second file:
+      // the reservation is keyed on the sha256 the cockpit sends.
+      id = boomFileId(input.externalUniqueId);
+      if (!B.files[id]) {
+        B.files[id] = { startedAt: Date.now(), fileGroupId: input.fileGroupId || null, fileName: input.fileName, bytesIn: false };
+      }
+      return boomEnvelope("file", { fileId: id }, null, { file: boomFileRow(id, B.files[id]) });
+    }
+
+    if (tool === "boom_upload_bytes") {
+      var taking = B.files[input.fileId];
+      if (taking) taking.bytesIn = true;
+      return boomEnvelope("file", { fileId: input.fileId }, null, { fileId: input.fileId, bytes: (input.contentBase64 || "").length });
+    }
+
+    if (tool === "boom_process_file") {
+      var starting = B.files[input.fileId];
+      if (starting) starting.startedAt = starting.startedAt || Date.now();
+      return boomEnvelope("file", { fileId: input.fileId }, null, {
+        fileId: input.fileId,
+        status: starting ? boomStatusOf(starting) : "processing",
+      });
+    }
+
+    if (tool === "boom_await_file") {
+      /* THE SERVER BLOCKS, AND SO DOES THIS, up to the seconds it was asked for
+         or until the file settles, whichever comes first. A stub that answered
+         instantly would let the room spin its whole budget in one tick and the
+         wait would never be exercised at all. */
+      var awaited = B.files[input.fileId];
+      var ceiling = Math.min(Number(input.maxSeconds) || 20, 25) * 1000;
+      var deadline = Date.now() + ceiling;
+      return new Promise(function (resolve) {
+        var tick = setInterval(function () {
+          var state = awaited ? boomStatusOf(awaited) : "failed";
+          if (state !== "processing" || Date.now() >= deadline) {
+            clearInterval(tick);
+            resolve(
+              boomEnvelope("file", { fileId: input.fileId }, null, {
+                fileId: input.fileId,
+                status: state,
+                done: state !== "processing",
+              }),
+            );
+          }
+        }, 50);
+      });
+    }
+
+    if (tool === "boom_open_verification") {
+      return boomEnvelope("file", { fileId: input.fileId }, null, {
         url: "https://app.boom.build/file-validation/" + input.fileId + "#token=bvs_probe",
         expiresAt: new Date(Date.now() + 3600000).toISOString(),
-      };
+      });
     }
-    if (tool === "boom_upload_statement") {
-      var id = boomFileId((input.file || {}).sha256 || input.externalUniqueId);
-      // A re-drop does not restart the clock and does not make a second file.
-      if (!B.files[id]) B.files[id] = { startedAt: Date.now(), fileGroupId: input.fileGroupId || null };
-      return {
-        fileId: id,
-        companyId: boomFileId("c0" + ((input.company || {}).externalUniqueId || "")),
-        fileGroupId: B.files[id].fileGroupId,
-        status: "processing",
-      };
+
+    if (tool === "boom_get_spread") {
+      var spreadOf = B.files[input.fileId];
+      if (!spreadOf || boomStatusOf(spreadOf) !== "completed") {
+        return { code: "NOT_FOUND", message: "Boom has no readable spread for that file.", boomStatus: 404 };
+      }
+      return boomEnvelope("file", { fileId: input.fileId }, "2025-12-31", {
+        /* THE BASIS THE CALLER ASKED FOR, echoed. The stand-in holds one read of
+           the file, so the figures do not move with it; what this proves is that
+           the room ASKS the server rather than filtering what it already has. */
+        adjusted: input.adjusted !== false,
+        spread: {
+          id: input.fileId,
+          fileName: spreadOf.fileName,
+          externalUniqueId: input.fileId,
+          companyId: null,
+          fileGroupId: spreadOf.fileGroupId,
+          status: "completed",
+          statementQuality: null,
+          downloadUrl: null,
+          wipTables: [],
+          financialStatements: boomStatements(input.fileId),
+        },
+      });
     }
-    // boom_upload_status
+
+    if (tool === "boom_get_ratios") {
+      /* BY FILE, WHERE THE CALLER NAMED ONE. The live tool takes a file id OR a
+         borrower, and the room asks by file: the ratio support lines beside a
+         spread on the glass belong to THAT file. */
+      if (input.fileId) {
+        if (!B.files[input.fileId]) {
+          return { code: "NOT_FOUND", message: "Boom has no ratio set for that file.", boomStatus: 404 };
+        }
+        return boomEnvelope("file", { fileId: input.fileId }, "2025-12-31", {
+          company: "Piedmont Precision Components, Inc.",
+          method: "derived-local",
+          adjusted: input.adjusted !== false,
+          raw: BOOM_RAW_RATIOS,
+          ratios: [],
+          metrics: [],
+          support: {
+            fileId: input.fileId,
+            periodEnd: "2025-12-31",
+            lines: boomSupportLines(input.fileId),
+            method: {},
+          },
+        });
+      }
+      /* ONLY THE BORROWER BOOM ACTUALLY HOLDS. On the founder's own org three
+         companies are linked and Piedmont is the one this bundle carries;
+         Hartwell, Kingsley and the rest are genuinely NOT IN BOOM and the live
+         server answers them 404. A stub that handed Piedmont's ratios to every
+         relationship would put one borrower's figures on another's tab, which is
+         the worst thing this lane could teach the cockpit to do. */
+      if ((input.salesforceRecordId || input.externalUniqueId || ACCOUNT) !== ACCOUNT) {
+        return {
+          code: "NOT_FOUND",
+          message: "Boom GET /companies/external-id/" + (input.salesforceRecordId || input.externalUniqueId) + " returned 404 Not Found: Company Not Found",
+          boomStatus: 404,
+        };
+      }
+      return boomEnvelope("file", { externalUniqueId: input.salesforceRecordId || null }, "2025-12-31", {
+        company: "Piedmont Precision Components, Inc.",
+        method: "derived-local",
+        adjusted: true,
+        raw: BOOM_RAW_RATIOS,
+        ratios: [],
+        metrics: [],
+        support: {
+          fileId: Object.keys(B.files)[0] || null,
+          periodEnd: "2025-12-31",
+          lines: boomSupportLines(Object.keys(B.files)[0] || null),
+          method: {},
+        },
+      });
+    }
+
+    // boom_get_file
     var file = B.files[input.fileId];
     if (!file) {
-      return { fileId: input.fileId, companyId: null, fileGroupId: null, status: "failed", message: "Boom has no file with that id." };
+      return { code: "NOT_FOUND", message: "Boom has no file with that id.", boomStatus: 404 };
     }
-    var base = { fileId: input.fileId, companyId: null, fileGroupId: file.fileGroupId, validationUrl: null };
-    if (Date.now() - file.startedAt < (B.processingMs || 0)) {
-      base.status = "processing";
-      return base;
-    }
-    if (B.mode === "failed") {
-      base.status = "failed";
-      base.message = "Boom could not read this file. Nothing in it could be placed on a statement.";
-      return base;
-    }
-    base.status = "completed";
-    base.financialStatements = boomStatements(input.fileId);
-    return base;
+    var row = boomFileRow(input.fileId, file);
+    if (row.status === "failed") row.message = BOOM_FAILURE_MESSAGE;
+    return boomEnvelope("file", { fileId: input.fileId }, null, { file: row });
   }
 
   var mcp = {
@@ -907,12 +1123,27 @@
     listTools: function () {
       var servers = [
         { server: "Customer 360", authStatus: "connected", tools: [] },
-        { server: "IDB Gateway", authStatus: "connected", tools: [] },
-        /* THE BOOM CONNECTOR, published here already so the day `SERVERS.boom`
-           stops being the gateway's name the drives need no change. The page
-           only asks about the lanes it addresses, so an extra one is invisible
-           until the cockpit names it. */
-        { server: "Boom", authStatus: "connected", tools: [] },
+        /* THE BOOM CONNECTOR, AND ITS TOOL LIST. The cockpit no longer knows
+           Boom's display name: it takes whichever server here serves BOTH
+           `boom_get_ratios` and `boom_get_spread` (app/src/channel/boomLane.ts).
+           So this entry has to publish them, or discovery would fall back and
+           the drives would never exercise the mechanism at all. */
+        {
+          server: "Boom",
+          authStatus: "connected",
+          tools: [
+            { name: "boom_get_ratios" },
+            { name: "boom_get_spread" },
+            { name: "boom_get_file" },
+            { name: "boom_list_files" },
+            { name: "boom_ensure_company" },
+            { name: "boom_create_upload" },
+            { name: "boom_upload_bytes" },
+            { name: "boom_process_file" },
+            { name: "boom_await_file" },
+            { name: "boom_open_verification" },
+          ],
+        },
       ];
       if (window.__LANES.backup !== "absent") {
         servers.splice(1, 0, { server: BACKUP_SERVER, authStatus: "connected", tools: [] });

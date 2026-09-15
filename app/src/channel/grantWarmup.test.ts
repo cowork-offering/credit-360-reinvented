@@ -85,11 +85,20 @@ describe("every configured connector is asked once, at the start", () => {
     expect(mail[2]).toEqual({ query: WARMUP_MAIL_QUERY });
   });
 
+  /* RESTATED 0.9.28. Boom's own server takes a BORROWER on `boom_get_ratios`,
+     named by the Salesforce record id it stores as `externalUniqueId`, and the
+     company name only where the view carries no id. The old `{ company }` was
+     the gateway relay's argument and the live server refuses it. */
   it("keys the Boom read to the relationship the worklist opened on", async () => {
     const call = spy();
+    await warmConnectorGrants({ accountId: "001bb00001DLtRMAA1", accountName: ACCOUNT, call: asCall(call), grantOf: () => "granted" });
+    expect(call.mock.calls.find((c) => c[1] === TOOLS.boomRatios)![2]).toEqual({ salesforceRecordId: "001bb00001DLtRMAA1" });
+  });
+
+  it("falls back to the borrower's name where the worklist row carries no id", async () => {
+    const call = spy();
     await warmConnectorGrants({ accountName: ACCOUNT, call: asCall(call), grantOf: () => "granted" });
-    const boom = call.mock.calls.find((c) => c[1] === TOOLS.boomRatios)!;
-    expect(boom[2]).toEqual({ company: ACCOUNT });
+    expect(call.mock.calls.find((c) => c[1] === TOOLS.boomRatios)![2]).toEqual({ companyName: ACCOUNT });
   });
 });
 

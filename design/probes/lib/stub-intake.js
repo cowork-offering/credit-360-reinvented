@@ -699,11 +699,6 @@
         return Promise.reject(new Error("probe: only the intake pair is open in this drive"));
       }
       if (tool === "outlook_email_search") return Promise.resolve({ payload: {} });
-      if (/get_llm_response/.test(tool)) {
-        return Promise.resolve({
-          payload: { statusCode: 200, body: JSON.stringify({ response: JSON.stringify({ type: "clarify", text: "Say that again.", options: [] }) }) },
-        });
-      }
       return Promise.resolve({ payload: { content: [{ isSuccess: true, outputValues: { ok: true, result: {} } }] } });
     },
     watchTool: function () {

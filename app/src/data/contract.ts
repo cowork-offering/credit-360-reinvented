@@ -1,11 +1,11 @@
 /* =============================================================================
-   C360_DATA contract — the single source of shape truth for the cockpit.
+   C360_DATA contract, the single source of shape truth for the cockpit.
    Field names mirror the Customer360*.cls @InvocableVariable members (the JSON
    keys the Salesforce-hosted MCP emits), per MAPPING.md §1.
 
    SYNC DUTY: render/assemble-cockpit.mjs duplicates the load-bearing checks
    (meta.anchorAccountId, portfolio.accounts, borrowers coverage) as plain JS.
-   Keep the two in sync by hand — if you add a required field here, mirror the
+   Keep the two in sync by hand: if you add a required field here, mirror the
    guard there.
    ============================================================================= */
 
@@ -20,22 +20,24 @@ import type {
 export type Id = string;
 
 /* =============================================================================
-   PROVENANCE (SPEC §12 A26.1) — every rendered figure traces to a source.
+   PROVENANCE (SPEC §12 A26.1), every rendered figure traces to a source.
 
    HARD RULE: components render numbers/dates/statuses ONLY from C360_DATA or a
    pure derivation listed below. No invented literals, no placeholder
-   percentages, no decorative counts. A field with no source renders "—".
+   percentages, no decorative counts. A field with no source renders ",".
 
    Sources:
-     NCINO   — Salesforce/nCino via the Customer360* Apex @InvocableMethod tools
-     BOOM    — Boom MCP (boom_get_spread / boom_get_ratios)
-     AGENT   — agent-COMPOSED narrative/content (prose, anchor chips, chat). NOT
+     NCINO: Salesforce/nCino via the Customer360* Apex @InvocableMethod tools
+     BOOM: the Boom MCP server (boom_get_ratios by borrower, then
+               boom_get_spread on the file those ratios name), through whichever
+               connector the viewer added it as (channel/boomLane.ts)
+     AGENT: agent-COMPOSED narrative/content (prose, anchor chips, chat). NOT
                integration-sourced: it is model-written text about the figures.
-               Never conflate with NCINO — doing so would let generated prose
+               Never conflate with NCINO: doing so would let generated prose
                inherit the source-system guarantee.
-     DERIVED — computed from the above; formula recorded (client-side or assembler)
-     PENDING — real field, integration not wired yet (Snowflake); render "—"
-     GAP     — not modelled in the source org at all; render an honest gap chip
+     DERIVED: computed from the above; formula recorded (client-side or assembler)
+     PENDING: real field, integration not wired yet (Snowflake); render "—"
+     GAP: not modelled in the source org at all; render an honest gap chip
    ============================================================================= */
 
 export type ProvenanceKind = "NCINO" | "BOOM" | "AGENT" | "DERIVED" | "PENDING" | "GAP";
@@ -65,53 +67,53 @@ export const SIGNAL_WINDOW_DAYS = 180;
 
 /** Keyed by dotted path into C360_DATA (or a `display.*` derived concept). */
 export const PROVENANCE = {
-  "portfolio.accounts[]": { kind: "NCINO", source: "Customer360Portfolio — accounts[]" },
-  "portfolio.accounts[].naicsCode": { kind: "NCINO", source: "Customer360Portfolio — NAICS industry code" },
-  "portfolio.bookTotals": { kind: "NCINO", source: "Customer360Portfolio — package-level rollups" },
-  "portfolio.signals.covenantsDueSoon": { kind: "NCINO", source: `Customer360Portfolio — ${SIGNAL_WINDOW_DAYS}d window, accounts carrying exposure only` },
-  "portfolio.signals.maturitiesSoon": { kind: "NCINO", source: `Customer360Portfolio — ${SIGNAL_WINDOW_DAYS}d window, accounts carrying exposure only` },
+  "portfolio.accounts[]": { kind: "NCINO", source: "Customer360Portfolio, accounts[]" },
+  "portfolio.accounts[].naicsCode": { kind: "NCINO", source: "Customer360Portfolio, NAICS industry code" },
+  "portfolio.bookTotals": { kind: "NCINO", source: "Customer360Portfolio, package-level rollups" },
+  "portfolio.signals.covenantsDueSoon": { kind: "NCINO", source: `Customer360Portfolio, ${SIGNAL_WINDOW_DAYS}d window, accounts carrying exposure only` },
+  "portfolio.signals.maturitiesSoon": { kind: "NCINO", source: `Customer360Portfolio, ${SIGNAL_WINDOW_DAYS}d window, accounts carrying exposure only` },
   "portfolio.signals.breachedCount": { kind: "NCINO", source: "Customer360Portfolio" },
 
-  "borrower.snapshot": { kind: "NCINO", source: "Customer360Snapshot — LLC_BI__Product_Package__c" },
-  "borrower.snapshot.primaryRiskRating": { kind: "NCINO", source: "Customer360Snapshot — nCino risk grade" },
-  "borrower.snapshot.computedRiskRating": { kind: "NCINO", source: "Customer360Snapshot — the org's computed grade. Rendered only when staged; the cockpit derives no grade of its own" },
-  "borrower.exposure.facilities[]": { kind: "NCINO", source: "Customer360Exposure — LLC_BI__Loan__c" },
+  "borrower.snapshot": { kind: "NCINO", source: "Customer360Snapshot, LLC_BI__Product_Package__c" },
+  "borrower.snapshot.primaryRiskRating": { kind: "NCINO", source: "Customer360Snapshot, nCino risk grade" },
+  "borrower.snapshot.computedRiskRating": { kind: "NCINO", source: "Customer360Snapshot, the org's computed grade. Rendered only when staged; the cockpit derives no grade of its own" },
+  "borrower.exposure.facilities[]": { kind: "NCINO", source: "Customer360Exposure, LLC_BI__Loan__c" },
   "borrower.snapshot.afs": { kind: "GAP", source: "The AFS servicing key (bank/obligor/obligation) for this borrower. Not modelled in nCino: it travels with the relationship or it is absent, and absent renders the servicing gap marker rather than the AFS sample loan" },
-  "borrower.exposure.facilities[].collateral[]": { kind: "NCINO", source: "Customer360Exposure — LLC_BI__Loan_Collateral2__c" },
-  "borrower.exposure.facilities[].collateral[].collateralId": { kind: "NCINO", source: "Customer360Exposure — LLC_BI__Collateral__c record id from the pledge junction. The only valid anchor for a valuation write; absent means the id was not staged and the action is blocked" },
-  "borrower.exposure.facilities[].totalLendableValue": { kind: "NCINO", source: "Customer360Exposure — the facility's PLEDGED SHARE, Σ LLC_BI__Amount_Pledged__c over the included pledges. NOT the summed whole-collateral lendable, which double-counts a cross-pledged asset. Null when no pledged share is recorded" },
-  "borrower.exposure.facilities[].totalPledgedValue": { kind: "NCINO", source: "Customer360Exposure — unambiguous alias of totalLendableValue under its current meaning" },
-  "borrower.exposure.facilities[].coverageNote": { kind: "NCINO", source: "Customer360Exposure — the org's own reason a coverage ratio is null. Rendered VERBATIM; this is what replaced a blank coverage state" },
-  "borrower.exposure.facilities[].collateral[].amountPledged": { kind: "NCINO", source: "Customer360Exposure — LLC_BI__Amount_Pledged__c, this facility's share of the collateral" },
-  "borrower.exposure.facilities[].collateral[].advanceRateSource": { kind: "NCINO", source: "Customer360Exposure — which source set the advance rate: pledge override, auto-applied, or collateral type default" },
-  "borrower.covenants.covenants[]": { kind: "NCINO", source: "Customer360Covenants — LLC_BI__Covenant2__c" },
-  "borrower.exposure.facilities[].collateral[].collateralName": { kind: "NCINO", source: "Customer360Exposure — the collateral's autonumber name" },
-  "borrower.exposure.facilities[].collateral[].collateralDescription": { kind: "NCINO", source: "Customer360Exposure — friendly description, additive; absent falls back to the autonumber name" },
-  "borrower.covenants.covenants[].attachedLoans": { kind: "NCINO", source: "Customer360Covenants — loans this covenant is attached to. Empty means account-level; ABSENT means the read predates the field and the cockpit groups nothing" },
-  "borrower.covenants.covenants[].complianceId": { kind: "NCINO", source: "Customer360Covenants — LLC_BI__Covenant_Compliance__c record id. Context for the assessment, not its anchor: stage_covenant_review is anchored on the product package and resolves the row itself (WS0.5, 2026-08-22)" },
-  "borrower.covenants.covenants[].latestComplianceStatus": { kind: "NCINO", source: "Customer360Covenants — LLC_BI__Status__c on the latest compliance row: Compliant, Exception, In Progress, Pending or Waived. Only a Pending row advances the covenant schedule when it moves to a complete status" },
-  "borrower.covenants.covenants[].reasonForException": { kind: "NCINO", source: "Customer360Covenants — LLC_BI__Reason_for_Exception__c on that row: Breached or Overdue. The org's own answer to whether an Exception is a failed test or an undelivered document, read rather than inferred" },
-  "borrower.graph.connections[]": { kind: "NCINO", source: "Customer360RelationshipGraph — LLC_BI__Connection__c" },
-  "borrower.graph.legalEntities[]": { kind: "NCINO", source: "Customer360RelationshipGraph — LLC_BI__Legal_Entities__c" },
-  "borrower.opportunities.opportunities[]": { kind: "NCINO", source: "Customer360Opportunities — open Opportunity" },
+  "borrower.exposure.facilities[].collateral[]": { kind: "NCINO", source: "Customer360Exposure, LLC_BI__Loan_Collateral2__c" },
+  "borrower.exposure.facilities[].collateral[].collateralId": { kind: "NCINO", source: "Customer360Exposure, LLC_BI__Collateral__c record id from the pledge junction. The only valid anchor for a valuation write; absent means the id was not staged and the action is blocked" },
+  "borrower.exposure.facilities[].totalLendableValue": { kind: "NCINO", source: "Customer360Exposure, the facility's PLEDGED SHARE, Σ LLC_BI__Amount_Pledged__c over the included pledges. NOT the summed whole-collateral lendable, which double-counts a cross-pledged asset. Null when no pledged share is recorded" },
+  "borrower.exposure.facilities[].totalPledgedValue": { kind: "NCINO", source: "Customer360Exposure, unambiguous alias of totalLendableValue under its current meaning" },
+  "borrower.exposure.facilities[].coverageNote": { kind: "NCINO", source: "Customer360Exposure, the org's own reason a coverage ratio is null. Rendered VERBATIM; this is what replaced a blank coverage state" },
+  "borrower.exposure.facilities[].collateral[].amountPledged": { kind: "NCINO", source: "Customer360Exposure, LLC_BI__Amount_Pledged__c, this facility's share of the collateral" },
+  "borrower.exposure.facilities[].collateral[].advanceRateSource": { kind: "NCINO", source: "Customer360Exposure, which source set the advance rate: pledge override, auto-applied, or collateral type default" },
+  "borrower.covenants.covenants[]": { kind: "NCINO", source: "Customer360Covenants, LLC_BI__Covenant2__c" },
+  "borrower.exposure.facilities[].collateral[].collateralName": { kind: "NCINO", source: "Customer360Exposure, the collateral's autonumber name" },
+  "borrower.exposure.facilities[].collateral[].collateralDescription": { kind: "NCINO", source: "Customer360Exposure, friendly description, additive; absent falls back to the autonumber name" },
+  "borrower.covenants.covenants[].attachedLoans": { kind: "NCINO", source: "Customer360Covenants, loans this covenant is attached to. Empty means account-level; ABSENT means the read predates the field and the cockpit groups nothing" },
+  "borrower.covenants.covenants[].complianceId": { kind: "NCINO", source: "Customer360Covenants, LLC_BI__Covenant_Compliance__c record id. Context for the assessment, not its anchor: stage_covenant_review is anchored on the product package and resolves the row itself (WS0.5, 2026-08-22)" },
+  "borrower.covenants.covenants[].latestComplianceStatus": { kind: "NCINO", source: "Customer360Covenants, LLC_BI__Status__c on the latest compliance row: Compliant, Exception, In Progress, Pending or Waived. Only a Pending row advances the covenant schedule when it moves to a complete status" },
+  "borrower.covenants.covenants[].reasonForException": { kind: "NCINO", source: "Customer360Covenants, LLC_BI__Reason_for_Exception__c on that row: Breached or Overdue. The org's own answer to whether an Exception is a failed test or an undelivered document, read rather than inferred" },
+  "borrower.graph.connections[]": { kind: "NCINO", source: "Customer360RelationshipGraph, LLC_BI__Connection__c" },
+  "borrower.graph.legalEntities[]": { kind: "NCINO", source: "Customer360RelationshipGraph, LLC_BI__Legal_Entities__c" },
+  "borrower.opportunities.opportunities[]": { kind: "NCINO", source: "Customer360Opportunities, open Opportunity" },
   "borrower.signals": { kind: "NCINO", source: "Customer360StructuralSignals" },
 
   // --- activity / audit trail (A30.2) ------------------------------------
   "borrower.activity[]": { kind: "NCINO", source: "Recorded relationship events (covenant evaluations, facility modifications, render/audit)" },
   "display.sessionActivity": { kind: "DERIVED", source: "ACTION_TRIGGERED entries minted locally when the banker fires a registry action (A31.3). Session-local, never persisted as history, dropped on fresh data injection" },
   "borrower.activity[].ts": { kind: "NCINO", source: "Event timestamp as recorded; rendered relative to meta.generatedAt" },
-  "borrower.activity[].reference": { kind: "NCINO", source: "Source citation (message/record id). webLink absent until the M365 intake exists — rendered as plain text, never a fabricated link" },
+  "borrower.activity[].reference": { kind: "NCINO", source: "Source citation (message/record id). webLink absent until the M365 intake exists, rendered as plain text, never a fabricated link" },
   "borrower.requests[]": { kind: "NCINO", source: "Inbound client requests (A29 seam); live intake pending M365/Graph" },
   "borrower.collateralValuations[]": { kind: "NCINO", source: "LLC_BI__Collateral_Valuation__c, the LATEST row per asset. A SIDE READ: Customer360Exposure returns no valuation fields, so these are transcribed from the live REST read of 2026-09-02 in knowledge/research/collateral-valuation-20260902.md §5. No valuation figure is carried; the money the read prints is the asset's own collateralValue. Absent on a bundle means no read looked, never that the asset was never valued" },
 
   "borrower.boom.ratios": { kind: "BOOM", source: "boom_get_ratios" },
-  "borrower.boom.ratios.ebitda": { kind: "BOOM", source: "boom_get_ratios — spread EBITDA" },
-  "borrower.boom.ratios.ebitdaMargin": { kind: "BOOM", source: "boom_get_ratios — EBITDA ÷ revenue" },
-  "borrower.boom.ratios.totalLeverage": { kind: "BOOM", source: "boom_get_ratios — debt ÷ EBITDA" },
+  "borrower.boom.ratios.ebitda": { kind: "BOOM", source: "boom_get_ratios, spread EBITDA" },
+  "borrower.boom.ratios.ebitdaMargin": { kind: "BOOM", source: "boom_get_ratios, EBITDA ÷ revenue" },
+  "borrower.boom.ratios.totalLeverage": { kind: "BOOM", source: "boom_get_ratios, debt ÷ EBITDA" },
   "borrower.boom.ratios.interestCoverage": { kind: "BOOM", source: "boom_get_ratios, operating profit ÷ interest expense, NOT EBITDA ÷ interest expense: Boom's own snapshot strikes 2,838,000 ÷ 1,076,000 and publishes 2.637546468401487 for a period whose EBITDA is 5,234,000. Restruck on the spread by spread/publishSpread.ts when a drop lands the newest period; the definition and the proof live in spread/coverage.ts" },
   "borrower.boom.ratios.asOf": { kind: "BOOM", source: "boom_get_ratios: the period those ratios were computed for. EBITDA is bound to it and to no other period" },
   "borrower.boom.ratios.raw": { kind: "BOOM", source: "boom_get_ratios: `raw` verbatim, the numeric contract (margins as FRACTIONS). The display fields beside it are DERIVED from this by client-360/render/boom-normalise.mjs" },
-  "borrower.boom.spread.sourceFile": { kind: "BOOM", source: "boom_get_spread — originating workbook filename" },
+  "borrower.boom.spread.sourceFile": { kind: "BOOM", source: "boom_get_spread, originating workbook filename" },
   "borrower.boom.spread.file": { kind: "BOOM", source: "boom_get_spread: `file` verbatim (financialStatements[] by accountCode, periodValues by period id). The covenant challenge recomputes from this; the presigned downloadUrl is never staged" },
   "borrower.boom.spread.periods[]": { kind: "DERIVED", source: "boom-normalise.mjs: one row per spread period end date; ebitda/margin ONLY on the ratios.asOf period, because the chart carries no D&A" },
   "borrower.boom.spread.lineItems[]": { kind: "DERIVED", source: "boom-normalise.mjs: LTM vs prior FY over the two latest spread periods; expense lines absolute, EBITDA from ratios.raw with a null prior year" },
@@ -120,37 +122,37 @@ export const PROVENANCE = {
   // --- rendered narrative / anchor chrome (F2) -------------------------------
   "borrower.verdict": { kind: "AGENT", source: "Agent-composed prose over live Customer360* figures. Rendered verbatim; never generated in-app and never source-guaranteed" },
   "borrower.anchors[]": { kind: "AGENT", source: "Agent-composed anchor chips (label/value/sub/dir) summarising live figures; rendered verbatim" },
-  "borrower.snapshot.primaryStage": { kind: "NCINO", source: "Customer360Snapshot — package stage" },
-  "borrower.snapshot.productPackageId": { kind: "NCINO", source: "Customer360Snapshot — the deal container, anchor for the A33.3.6 deep link" },
-  "borrower.snapshot.packageStage": { kind: "NCINO", source: "Customer360Snapshot — managed LLC_BI__Stage__c, the authoritative package stage (A33.3.7)" },
-  "borrower.snapshot.localCreditStage": { kind: "NCINO", source: "Customer360Snapshot — local cm_Credit_Stage__c. NOT an authority; read only to raise a DQ finding on disagreement" },
-  "display.packageStageDq": { kind: "DERIVED", source: "A33.3.7 — flags when cm_Credit_Stage__c disagrees with the managed LLC_BI__Stage__c" },
-  "borrower.snapshot.note": { kind: "NCINO", source: "Customer360Snapshot — tool note" },
-  "meta.userId": { kind: "NCINO", source: "Assembler — UserInfo.getUserId() of the connector identity. The only accepted approverUserId on execute_*; absent means the confirm gesture fails closed rather than sending a name the org will refuse" },
-  "borrower.exposure.totalCommitted": { kind: "NCINO", source: "Customer360Exposure — Σ facility commitments" },
-  "borrower.exposure.totalOutstanding": { kind: "NCINO", source: "Customer360Exposure — Σ drawn" },
-  "borrower.exposure.totalAvailable": { kind: "NCINO", source: "Customer360Exposure — Σ available" },
-  "borrower.exposure.coverageRatio": { kind: "NCINO", source: "Customer360Exposure — RELATIONSHIP coverage over the distinct collateral, deduped by collateral id. Nullable; absent renders 'not computed', never a client-side substitute" },
-  "borrower.exposure.coverageShortfall": { kind: "NCINO", source: "Customer360Exposure — org-computed relationship shortfall flag" },
-  "borrower.exposure.totalUniqueCollateralLendableValue": { kind: "NCINO", source: "Customer360Exposure — lendable value of the DISTINCT collateral, the relationship coverage numerator" },
-  "borrower.exposure.uniqueCollateralCount": { kind: "NCINO", source: "Customer360Exposure — how many distinct collateral records that numerator spans" },
-  "borrower.exposure.facilities[].coverageRatio": { kind: "NCINO", source: "Customer360Exposure — org-computed per-facility coverage; nullable, renders '—'" },
-  "borrower.exposure.facilities[].coverageShortfall": { kind: "NCINO", source: "Customer360Exposure — org-computed shortfall flag; drives the facility status chip" },
-  "borrower.exposure.facilities[].status": { kind: "NCINO", source: "Customer360Exposure — lifecycle status; absent ⇒ treated active (F6)" },
-  "borrower.exposure.facilities[].productPackageId": { kind: "NCINO", source: "Customer360Exposure — LLC_BI__Product_Package__c on the loan. Required to anchor a modification or renewal on the SAME package as the facility; absent blocks staging" },
-  "borrower.exposure.facilities[].stage": { kind: "NCINO", source: "Customer360Exposure — LLC_BI__Stage__c, the nCino loan stage. Gates modification and renewal, which the org accepts only against a Booked facility. Additive output; absent means not staged in this view and the action fails closed" },
-  "borrower.exposure.facilities[].loanCovenants[]": { kind: "NCINO", source: "Customer360Exposure — LLC_BI__Loan_Covenant__c junction rows; an empty array is a fact, not a gap" },
-  "borrower.exposure.facilities[].riskGrade": { kind: "NCINO", source: "Customer360Exposure — per-facility risk grade" },
-  "borrower.exposure.facilities[].interestRate": { kind: "NCINO", source: "Customer360Exposure — note rate" },
-  "borrower.exposure.facilities[].maturityDate": { kind: "NCINO", source: "Customer360Exposure — facility maturity" },
-  "borrower.covenants.covenants[].lastEvaluationStatus": { kind: "NCINO", source: "Customer360Covenants — nCino evaluation as of lastEvaluationDate" },
-  "borrower.covenants.covenants[].breached": { kind: "NCINO", source: "Customer360Covenants — breach flag" },
-  "borrower.signals.maturityWatch[]": { kind: "NCINO", source: "Customer360StructuralSignals — maturity watch window" },
-  "borrower.signals.modifications[]": { kind: "NCINO", source: "Customer360StructuralSignals — loan modifications" },
-  "borrower.signals.modificationClusterFlag": { kind: "NCINO", source: "Customer360StructuralSignals — server-set cluster flag" },
-  "borrower.signals.guarantorSignals[]": { kind: "NCINO", source: "Customer360StructuralSignals — guarantor distress" },
-  "borrower.signals.renewals[]": { kind: "NCINO", source: "Customer360StructuralSignals — in-flight renewals" },
-  "meta.generatedAt": { kind: "DERIVED", source: "Assembler-stamped at render time — the deterministic clock for all time derivation (A10)" },
+  "borrower.snapshot.primaryStage": { kind: "NCINO", source: "Customer360Snapshot, package stage" },
+  "borrower.snapshot.productPackageId": { kind: "NCINO", source: "Customer360Snapshot, the deal container, anchor for the A33.3.6 deep link" },
+  "borrower.snapshot.packageStage": { kind: "NCINO", source: "Customer360Snapshot, managed LLC_BI__Stage__c, the authoritative package stage (A33.3.7)" },
+  "borrower.snapshot.localCreditStage": { kind: "NCINO", source: "Customer360Snapshot, local cm_Credit_Stage__c. NOT an authority; read only to raise a DQ finding on disagreement" },
+  "display.packageStageDq": { kind: "DERIVED", source: "A33.3.7, flags when cm_Credit_Stage__c disagrees with the managed LLC_BI__Stage__c" },
+  "borrower.snapshot.note": { kind: "NCINO", source: "Customer360Snapshot, tool note" },
+  "meta.userId": { kind: "NCINO", source: "Assembler, UserInfo.getUserId() of the connector identity. The only accepted approverUserId on execute_*; absent means the confirm gesture fails closed rather than sending a name the org will refuse" },
+  "borrower.exposure.totalCommitted": { kind: "NCINO", source: "Customer360Exposure, Σ facility commitments" },
+  "borrower.exposure.totalOutstanding": { kind: "NCINO", source: "Customer360Exposure, Σ drawn" },
+  "borrower.exposure.totalAvailable": { kind: "NCINO", source: "Customer360Exposure, Σ available" },
+  "borrower.exposure.coverageRatio": { kind: "NCINO", source: "Customer360Exposure, RELATIONSHIP coverage over the distinct collateral, deduped by collateral id. Nullable; absent renders 'not computed', never a client-side substitute" },
+  "borrower.exposure.coverageShortfall": { kind: "NCINO", source: "Customer360Exposure, org-computed relationship shortfall flag" },
+  "borrower.exposure.totalUniqueCollateralLendableValue": { kind: "NCINO", source: "Customer360Exposure, lendable value of the DISTINCT collateral, the relationship coverage numerator" },
+  "borrower.exposure.uniqueCollateralCount": { kind: "NCINO", source: "Customer360Exposure, how many distinct collateral records that numerator spans" },
+  "borrower.exposure.facilities[].coverageRatio": { kind: "NCINO", source: "Customer360Exposure, org-computed per-facility coverage; nullable, renders ','" },
+  "borrower.exposure.facilities[].coverageShortfall": { kind: "NCINO", source: "Customer360Exposure, org-computed shortfall flag; drives the facility status chip" },
+  "borrower.exposure.facilities[].status": { kind: "NCINO", source: "Customer360Exposure, lifecycle status; absent ⇒ treated active (F6)" },
+  "borrower.exposure.facilities[].productPackageId": { kind: "NCINO", source: "Customer360Exposure, LLC_BI__Product_Package__c on the loan. Required to anchor a modification or renewal on the SAME package as the facility; absent blocks staging" },
+  "borrower.exposure.facilities[].stage": { kind: "NCINO", source: "Customer360Exposure, LLC_BI__Stage__c, the nCino loan stage. Gates modification and renewal, which the org accepts only against a Booked facility. Additive output; absent means not staged in this view and the action fails closed" },
+  "borrower.exposure.facilities[].loanCovenants[]": { kind: "NCINO", source: "Customer360Exposure, LLC_BI__Loan_Covenant__c junction rows; an empty array is a fact, not a gap" },
+  "borrower.exposure.facilities[].riskGrade": { kind: "NCINO", source: "Customer360Exposure, per-facility risk grade" },
+  "borrower.exposure.facilities[].interestRate": { kind: "NCINO", source: "Customer360Exposure, note rate" },
+  "borrower.exposure.facilities[].maturityDate": { kind: "NCINO", source: "Customer360Exposure, facility maturity" },
+  "borrower.covenants.covenants[].lastEvaluationStatus": { kind: "NCINO", source: "Customer360Covenants, nCino evaluation as of lastEvaluationDate" },
+  "borrower.covenants.covenants[].breached": { kind: "NCINO", source: "Customer360Covenants, breach flag" },
+  "borrower.signals.maturityWatch[]": { kind: "NCINO", source: "Customer360StructuralSignals, maturity watch window" },
+  "borrower.signals.modifications[]": { kind: "NCINO", source: "Customer360StructuralSignals, loan modifications" },
+  "borrower.signals.modificationClusterFlag": { kind: "NCINO", source: "Customer360StructuralSignals, server-set cluster flag" },
+  "borrower.signals.guarantorSignals[]": { kind: "NCINO", source: "Customer360StructuralSignals, guarantor distress" },
+  "borrower.signals.renewals[]": { kind: "NCINO", source: "Customer360StructuralSignals, in-flight renewals" },
+  "meta.generatedAt": { kind: "DERIVED", source: "Assembler-stamped at render time, the deterministic clock for all time derivation (A10)" },
   "meta.instanceUrl": { kind: "NCINO", source: "Session org Lightning host, supplied by the assembler for the A33.3.6 deep link. Never hardcoded, never reconstructed from an org id" },
   "meta.user": { kind: "NCINO", source: "Session user, rendered in the nav" },
   "aiPanel.threads[]": { kind: "AGENT", source: "Agent-authored chat history (A12); plain text, rendered verbatim (A13)" },
@@ -158,44 +160,44 @@ export const PROVENANCE = {
   "borrower.activity[].detail.headroom": { kind: "AGENT", source: "Agent-composed capacity read supporting the verdict" },
   "borrower.activity[].detail.risks": { kind: "AGENT", source: "Agent-composed risk list on the concluded analysis" },
   "borrower.activity[].detail.body": { kind: "AGENT", source: "Agent-composed narrative body of the entry" },
-  "display.actionHistory": { kind: "NCINO", source: "Customer360ActionHistory — the durable action trail, newest first. Survives a reload; supersedes the session echo for the same stagingId" },
-  "display.activity.executed": { kind: "DERIVED", source: "A30 — minted from the execute_* response when the banker confirms a plan. Session-local, actor is the signed-in user, carries the created record id and the stagingId for audit" },
+  "display.actionHistory": { kind: "NCINO", source: "Customer360ActionHistory, the durable action trail, newest first. Survives a reload; supersedes the session echo for the same stagingId" },
+  "display.activity.executed": { kind: "DERIVED", source: "A30, minted from the execute_* response when the banker confirms a plan. Session-local, actor is the signed-in user, carries the created record id and the stagingId for audit" },
   "borrower.activity[].detail.nextSteps": { kind: "AGENT", source: "Agent-selected registry action ids (A30.4). Shared state: feeds the detail popup, the chat chips and the actions panel" },
 
   // --- derived --------------------------------------------------------------
-  "borrower.covenantChallenge[]": { kind: "DERIVED", source: "Assembler validateC360 — recomputes each covenant from the Boom spread and compares to the nCino evaluation (SR 11-7 effective challenge). Inputs: BOOM + NCINO" },
-  "worklist.reasons": { kind: "DERIVED", source: "data/worklist.ts — thresholds vs meta.generatedAt (A10)" },
-  "display.suggestionTrigger": { kind: "DERIVED", source: "actions/suggestionEngine.ts — deterministic Tier 1 math over staged figures against a bank-policy threshold (A33.2)" },
-  "display.panelPrefill": { kind: "DERIVED", source: "actions/schemas.ts — panel field values mapped from staged records; per-field provenance carried on the field itself (A33.1.3)" },
+  "borrower.covenantChallenge[]": { kind: "DERIVED", source: "Assembler validateC360, recomputes each covenant from the Boom spread and compares to the nCino evaluation (SR 11-7 effective challenge). Inputs: BOOM + NCINO" },
+  "worklist.reasons": { kind: "DERIVED", source: "data/worklist.ts, thresholds vs meta.generatedAt (A10)" },
+  "display.suggestionTrigger": { kind: "DERIVED", source: "actions/suggestionEngine.ts, deterministic Tier 1 math over staged figures against a bank-policy threshold (A33.2)" },
+  "display.panelPrefill": { kind: "DERIVED", source: "actions/schemas.ts, panel field values mapped from staged records; per-field provenance carried on the field itself (A33.1.3)" },
   "borrower.activity[].detail.ask": { kind: "DERIVED", source: "Parsed from the source client message (from/to amounts, facility)" },
   "display.clientRequestReason": { kind: "DERIVED", source: "CLIENT_REQUEST fires when the bundle carries a REQUEST_RECEIVED activity entry or a requests[] entry" },
   "display.activityRelativeTime": { kind: "DERIVED", source: "activity[].ts − meta.generatedAt, whole UTC days" },
-  "display.gradeTone": { kind: "DERIVED", source: "data/finance.ts — grade <=4 green, <=6 amber, else red" },
-  "display.covenantDirection": { kind: "DERIVED", source: "data/finance.ts — cap/floor keyword heuristic, else compliant-sign fallback" },
+  "display.gradeTone": { kind: "DERIVED", source: "data/finance.ts, grade <=4 green, <=6 amber, else red" },
+  "display.covenantDirection": { kind: "DERIVED", source: "data/finance.ts, cap/floor keyword heuristic, else compliant-sign fallback" },
   "display.covenantTone": {
     kind: "DERIVED",
-    source: "domain/covenantStatus.ts — Reason for Exception on the compliance row, then the Breached flag, the status string and the measured value vs threshold -> compliant|breach|exception|waived|pending|unknown",
+    source: "domain/covenantStatus.ts, Reason for Exception on the compliance row, then the Breached flag, the status string and the measured value vs threshold -> compliant|breach|exception|waived|pending|unknown",
   },
   "display.aggregateCoverageStatus": { kind: "DERIVED", source: "exposure.coverageShortfall when the read carries it, else coverage < 1.0 -> Under-covered; null -> Not computed by the source" },
-  "display.facilityShortfallCount": { kind: "DERIVED", source: "count of active facilities with coverageShortfall true — a relationship can clear its floor while individual facilities do not" },
+  "display.facilityShortfallCount": { kind: "DERIVED", source: "count of active facilities with coverageShortfall true, a relationship can clear its floor while individual facilities do not" },
   "display.drawnPct": { kind: "DERIVED", source: "exposure.totalOutstanding ÷ totalCommitted" },
-  "display.totalLendable": { kind: "NCINO", source: "exposure.totalUniqueCollateralLendableValue — read, not summed. Σ over pledges or facilities is the double count and is no longer computed anywhere" },
-  "display.ewsTimeline": { kind: "DERIVED", source: "SignalsTab — modifications + guarantorSignals + renewals + breached covenants, severity-ranked" },
+  "display.totalLendable": { kind: "NCINO", source: "exposure.totalUniqueCollateralLendableValue, read, not summed. Σ over pledges or facilities is the double count and is no longer computed anywhere" },
+  "display.ewsTimeline": { kind: "DERIVED", source: "SignalsTab, modifications + guarantorSignals + renewals + breached covenants, severity-ranked" },
   "display.renewalClockPct": { kind: "DERIVED", source: "1 − daysUntilMaturity ÷ 270 (watch window)" },
   "display.bookConcentration": { kind: "DERIVED", source: "Σ tce grouped by portfolio.accounts[].industry" },
-  "display.covenantCushion": { kind: "DERIVED", source: "data/finance.ts — floor: actual−threshold; cap: threshold−actual" },
-  "display.coverageRatio": { kind: "NCINO", source: "exposure.coverageRatio — org-computed over the distinct collateral. The cockpit no longer derives a relationship ratio of its own" },
-  "display.utilizationPct": { kind: "DERIVED", source: "Σ outstanding ÷ Σ tce over the accounts ON THE BOOK (book/livePortfolio.ts) — never the org's bookTotals, which spans every packaged account including the ones carrying no exposure" },
+  "display.covenantCushion": { kind: "DERIVED", source: "data/finance.ts, floor: actual−threshold; cap: threshold−actual" },
+  "display.coverageRatio": { kind: "NCINO", source: "exposure.coverageRatio, org-computed over the distinct collateral. The cockpit no longer derives a relationship ratio of its own" },
+  "display.utilizationPct": { kind: "DERIVED", source: "Σ outstanding ÷ Σ tce over the accounts ON THE BOOK (book/livePortfolio.ts), never the org's bookTotals, which spans every packaged account including the ones carrying no exposure" },
   "display.incomeStatementChange": { kind: "DERIVED", source: "(lineItem.ltm − lineItem.priorFy) ÷ |priorFy|" },
   "display.nextTestDays": { kind: "DERIVED", source: "earliest covenant nextEvaluationDate − meta.generatedAt (UTC days)" },
   "display.maturityDays": { kind: "DERIVED", source: "earliest facility maturityDate − meta.generatedAt (UTC days)" },
 
-  "borrower.pd": { kind: "PENDING", source: "Snowflake — PD, last-rated date, rating migration" },
+  "borrower.pd": { kind: "PENDING", source: "Snowflake, PD, last-rated date, rating migration" },
   "borrower.decisionLedger": { kind: "PENDING", source: "deal workspace / experience-mcp (recall_decisions)" },
 
-  "borrower.deposits": { kind: "GAP", source: "No Deposit records in the source org — never size a wallet" },
-  "borrower.kycScreening": { kind: "GAP", source: "KYC/OFAC/PEP not modelled in the org — never assert clearance" },
-  "worklist.lastModified": { kind: "GAP", source: "Not in the contract — renders '—' until Apex provides it (A11)" },
+  "borrower.deposits": { kind: "GAP", source: "No Deposit records in the source org, never size a wallet" },
+  "borrower.kycScreening": { kind: "GAP", source: "KYC/OFAC/PEP not modelled in the org, never assert clearance" },
+  "worklist.lastModified": { kind: "GAP", source: "Not in the contract, renders ',' until Apex provides it (A11)" },
 } as const satisfies Record<string, ProvenanceEntry>;
 
 export type ProvenanceKey = keyof typeof PROVENANCE;
@@ -204,12 +206,12 @@ export type ProvenanceKey = keyof typeof PROVENANCE;
  *  present in `worklist`; otherwise derived client-side (see data/worklist.ts). */
 export type ReasonCode =
   /** A29/A30: an inbound client request is waiting on this relationship. Ranks
-   *  above every risk signal — a human is actively waiting for an answer. */
+   *  above every risk signal, a human is actively waiting for an answer. */
   | "CLIENT_REQUEST"
   | "COVENANT_BREACH"
   /** An administrative Exception is recorded in nCino with nothing measured
    *  against the threshold. It needs a document or an evaluation, NOT a credit
-   *  decision — so it is a reason of its own and never says "breach"
+   *  decision, so it is a reason of its own and never says "breach"
    *  (domain/covenantStatus.ts). */
   | "COVENANT_EXCEPTION"
   | "COVENANT_DUE"
@@ -222,12 +224,12 @@ export interface Meta {
   anchorAccountId: Id;
   /** REQUIRED (A10 + Codex F5). The deterministic clock for ALL time-based
    *  derivation. Must be a valid ISO instant; the assembler enforces validity.
-   *  There is no fallback chain — without it, time reasons do not run. */
+   *  There is no fallback chain, without it, time reasons do not run. */
   generatedAt: string;
   dateISO?: string;
   orgAlias?: string;
   orgLabel?: string;
-  /** A33.3.6 — the session org's Lightning host, used to build the deep link to
+  /** A33.3.6, the session org's Lightning host, used to build the deep link to
    *  the Product Package. NEVER hardcoded and never reconstructed from an org id
    *  or a guessed my.salesforce.com host. Absent means the link renders as a
    *  disabled chip with the record id as selectable text. */
@@ -268,7 +270,7 @@ export interface AccountRow {
    *  Present only on a relationship the snapshot never baked and this session
    *  opened by name; absent on every baked row, which is why nothing about the
    *  baked book changes when it exists. The page's own clock, on a live gesture
-   *  — never a figure derived from the data (A10 governs the latter). */
+   * , never a figure derived from the data (A10 governs the latter). */
   liveReadAt?: number;
   _sample_only?: boolean;
 }
@@ -314,7 +316,7 @@ export interface Snapshot {
   accountId: Id;
   /** The deal container. Anchor for the A33.3.6 deep link. */
   productPackageId?: string;
-  /** A33.3.7 — the MANAGED package stage field. This is the authority.
+  /** A33.3.7, the MANAGED package stage field. This is the authority.
    *  Display-only; the credit lifecycle a banker means is the LOAN stage. */
   packageStage?: string;
   /** The LOCAL field. NOT an authority and never read as one. Rendered only to
@@ -376,7 +378,7 @@ export interface Covenant {
    * `LLC_BI__Status__c` on that latest compliance row: Compliant, Exception,
    * In Progress, Pending or Waived. DISTINCT from `covenantStatus`, which is
    * the covenant-level field, and it is the one that decides whether an
-   * assessment would advance the schedule — only a Pending row does.
+   * assessment would advance the schedule, only a Pending row does.
    */
   latestComplianceStatus?: string;
   /**
@@ -426,7 +428,7 @@ export interface Collateral {
    */
   advanceRateSource?: string;
   /** The COLLATERAL's whole lendable value, repeated on every pledge of a
-   *  cross-pledged asset. Never summed across pledges — that is the double
+   *  cross-pledged asset. Never summed across pledges, that is the double
    *  count (NCINO-FUNCTIONAL-VALIDATION §2.6). */
   currentLendableValue?: number;
   /**
@@ -445,7 +447,7 @@ export interface Collateral {
  *
  * A SIDE READ, AND SAID TO BE ONE. `Customer360Exposure` returns collateralId,
  * name, description, amountPledged, lendable value and advanceRateSource, and
- * NO dates at all — `data/observed-exposure-envelopes.json` is the verbatim
+ * NO dates at all, `data/observed-exposure-envelopes.json` is the verbatim
  * capture that proves it, and the coverage suite fails the moment a valuation
  * field appears inside a facility's pledge rows. So the valuation clock rides
  * BESIDE the exposure block rather than inside it, and the bundles that carry
@@ -461,17 +463,17 @@ export interface CollateralValuationRow {
   collateralId: Id;
   /** The org's `CV-` autonumber. */
   valuationName?: string;
-  /** `LLC_BI__Valuation_Date__c` — the date the figure was struck. */
+  /** `LLC_BI__Valuation_Date__c`, the date the figure was struck. */
   valuationDate?: string;
-  /** `LLC_BI__Type__c` — the basis. Fair market, orderly liquidation and book
+  /** `LLC_BI__Type__c`, the basis. Fair market, orderly liquidation and book
    *  value are three different numbers for one asset, so the basis travels. */
   valuationType?: string;
-  /** `LLC_BI__Source__c` — where the number came from. */
+  /** `LLC_BI__Source__c`, where the number came from. */
   valuationSource?: string;
-  /** `LLC_BI__Valuation_Frequency__c` — the revaluation cycle, in the org's own
+  /** `LLC_BI__Valuation_Frequency__c`, the revaluation cycle, in the org's own
    *  words. The next date is derived from it only where the org stores none. */
   valuationFrequency?: string;
-  /** `LLC_BI__Next_Revaluation_Due_Date__c` — the org's own next date. */
+  /** `LLC_BI__Next_Revaluation_Due_Date__c`, the org's own next date. */
   nextRevaluationDue?: string;
 }
 
@@ -515,7 +517,7 @@ export interface Facility {
   interestRate?: number;
   /**
    * The facility's PLEDGED SHARE of its collateral (Σ `amountPledged` over the
-   * included pledges) — NOT the summed whole-collateral lendable, which every
+   * included pledges), NOT the summed whole-collateral lendable, which every
    * pledge of a cross-pledged asset repeats.
    *
    * NULL, not zero, when the org records no pledged share. The two are
@@ -528,7 +530,7 @@ export interface Facility {
   coverageRatio?: number | null;
   coverageShortfall?: boolean;
   /**
-   * WHY `coverageRatio` is null, in the org's own words — "all 3 collateral
+   * WHY `coverageRatio` is null, in the org's own words, "all 3 collateral
    * pledges on this facility are flagged Excluded or Abundance-of-Caution", "no
    * collateral is pledged to this facility", "this facility carries no
    * outstanding balance to cover".
@@ -655,7 +657,7 @@ export interface CovenantChallenge {
 }
 
 /** A recorded loan modification. Date is read from the first present of these
- *  keys (source field name varies) — see readModDate() in worklist.ts. */
+ *  keys (source field name varies), see readModDate() in worklist.ts. */
 export interface ModificationEntry {
   date?: string;
   modifiedDate?: string;
@@ -678,7 +680,7 @@ export interface StructuralSignals {
 /* =============================================================================
    ACTIVITY / AUDIT TRAIL (SPEC §12 A30.2)
 
-   CONTRACT COORDINATION NOTE — read before changing:
+   CONTRACT COORDINATION NOTE: read before changing:
    `detail.nextSteps[].actionId` MUST reference an id in src/actions/registry.ts
    (ACTIONS[].id). The data producer reads those ids from the registry; the app
    resolves them back through it, availability-gated. An unknown actionId is
@@ -688,14 +690,14 @@ export interface StructuralSignals {
    FACILITY_MODIFIED, RENDER_AUDIT) are NCINO/DERIVED. The verdict, brief and
    nextSteps on ANALYSIS_CONCLUDED / REQUEST_RECEIVED are AGENT-composed. A
    request's `ask` is DERIVED from the source message. Absent activity renders
-   an honest empty state — never invented history.
+   an honest empty state, never invented history.
    ============================================================================= */
 
 export type ActivityKind =
-  /** A31.3 — the banker triggered a registry action. Session-local until the
+  /** A31.3, the banker triggered a registry action. Session-local until the
    *  v2 write/audit path persists it; never fabricated as historical. */
   | "ACTION_TRIGGERED"
-  /** A30 — the banker confirmed a plan and the org executed it. Session-local
+  /** A30, the banker confirmed a plan and the org executed it. Session-local
    *  on the same terms as ACTION_TRIGGERED: an attempted write belongs in the
    *  trail whether it landed or not, so the failure kind is logged too. */
   | "ACTION_EXECUTED"
@@ -717,7 +719,7 @@ export interface NextStep {
 }
 
 /** Citation for an activity entry. Until the M365 intake exists `webLink` is
- *  ABSENT and the UI renders the id as plain text — never a fake link (A29). */
+ *  ABSENT and the UI renders the id as plain text, never a fake link (A29). */
 export interface ActivityReference {
   id?: string;
   label?: string;
@@ -725,12 +727,12 @@ export interface ActivityReference {
   kind?: string;
   /** Optional display source label. */
   source?: string;
-  /** Absent until the M365 intake exists — never render a fabricated link. */
+  /** Absent until the M365 intake exists, never render a fabricated link. */
   webLink?: string;
 }
 
 /** The commercial ask carried by a client request (DERIVED from the message).
- *  Field names match the producer's emitted shape — do not rename without
+ *  Field names match the producer's emitted shape, do not rename without
  *  coordinating: the data agent writes these keys. */
 export interface RequestAsk {
   /** e.g. "facility_increase". */
@@ -799,7 +801,7 @@ export interface ActionHistoryRow {
   createdDate?: string;
   resultRecordId?: string;
   /** The org's name for the created record. Null on an unexecuted row (nothing
-   *  was created) AND on a completed row whose read-back failed — two different
+   *  was created) AND on a completed row whose read-back failed, two different
    *  facts, told apart by `status`. */
   resultRecordName?: string;
   accountId?: string;
@@ -828,7 +830,7 @@ export interface ActivityDetail {
   /** Headroom / capacity read supporting the verdict (AGENT). */
   headroom?: string;
   risks?: string[];
-  /** SHARED STATE (A30.4) — one source feeding the popup, the chat chips and
+  /** SHARED STATE (A30.4), one source feeding the popup, the chat chips and
    *  the actions panel. Never duplicate these as prose. */
   nextSteps?: NextStep[];
   /** Links a request to the analysis that concluded on it. */
@@ -845,7 +847,7 @@ export interface ActivityEntry {
   /** Who caused it. "You" for session-local ACTION_TRIGGERED entries (A31.3). */
   actor?: string;
   /** True for entries minted live in this session (never baked data). These are
-   *  dropped on a fresh data injection — acceptable until the v2 audit path
+   *  dropped on a fresh data injection, acceptable until the v2 audit path
    *  persists them server-side. */
   sessionLocal?: boolean;
   /** Read back from the org's own action trail, not minted in this session.
@@ -856,7 +858,7 @@ export interface ActivityEntry {
   detail?: ActivityDetail;
 }
 
-/** A29 seam — an inbound client request on the relationship. May be present
+/** A29 seam, an inbound client request on the relationship. May be present
  *  without a matching activity entry; both drive the CLIENT_REQUEST reason. */
 export interface ClientRequest {
   id: string;
@@ -896,7 +898,7 @@ export interface BorrowerBundle {
      */
     coverageRatio?: number | null;
     coverageShortfall?: boolean;
-    /** Lendable value of the DISTINCT collateral — the coverage numerator. */
+    /** Lendable value of the DISTINCT collateral, the coverage numerator. */
     totalUniqueCollateralLendableValue?: number;
     /** How many distinct collateral records that numerator spans. */
     uniqueCollateralCount?: number;
@@ -928,7 +930,7 @@ export interface BorrowerBundle {
  * workspace and the founder got a blank profile.
  *
  * The producer's shape is not ours to police, but the cockpit's job is to
- * render what it can and show an honest gap for the rest — never to crash. So
+ * render what it can and show an honest gap for the rest, never to crash. So
  * anything that is not a well-formed chip is simply not a chip: the strip
  * renders the ones that are, or renders nothing.
  */
@@ -951,7 +953,7 @@ export interface AiMessage {
   id: string;
   /** A12 vocabulary: the agent side is "agent", never "assistant" (F7). */
   role: "user" | "agent";
-  /** PLAIN TEXT only — never rendered as HTML/Markdown (A13). */
+  /** PLAIN TEXT only, never rendered as HTML/Markdown (A13). */
   text: string;
   /** ISO timestamp (A12 field name is `ts`). */
   ts?: string;

@@ -1,5 +1,5 @@
 import { newRequestId } from "../channel/adapter";
-import { mcpAvailable, SERVERS, TOOLS, callTool, unwrapLlm } from "../channel/mcp";
+import { mcpAvailable } from "../channel/mcp";
 import { sampleAvailable, askSession } from "../channel/sampleDoor";
 import {
   executeAction,
@@ -86,8 +86,8 @@ import type {
                    collateral, signals, the client's ask. No fixture.
      suggest     — moves derived from that read, spent as they are taken.
      parseIntent — the deterministic parser over the indexed field catalog. The
-                   gateway LLM may RESTATE a line into the catalog's vocabulary;
-                   it never authors a delta, and its restatement goes back
+                   vocabulary assist may RESTATE a line into the catalog's
+                   words; it never authors a delta, and its restatement goes back
                    through the same parser before anything can become a chip.
      stagePlan   — ORDERED (W1). Step 1 is the credit-action clone through the
                    existing stage_loan_modification wrapper; the org's own steps
@@ -126,7 +126,7 @@ export class WorkroomRefusalError extends Error {
   }
 }
 
-/** How long the gateway assist may hold the conversation open. Past this the
+/** How long the vocabulary assist may hold the conversation open. Past this the
  *  deterministic miss is the answer, because a room with nothing on screen is
  *  worse than a room that says it could not read the line. */
 const RESTATE_TIMEOUT_MS = 12_000;
@@ -923,48 +923,35 @@ const defaultDeps: Required<Omit<ModifyEngineDeps, "restate">> & Pick<ModifyEngi
   available: mcpAvailable,
   newKey: newRequestId,
   today: () => new Date().toISOString().slice(0, 10),
+  /* SESSION DOOR ONLY (2026-09-15). IDB Gateway retired; the restate assist is
+     session-door only, here as in workroom/restateAssist.ts. There is no rung
+     below the banker's own Claude now, so a phrasing the deterministic parser
+     missed can no longer raise a connector consent prompt mid-modification.
+
+     BOUNDED, because an assist that never answers is silence and silence is the
+     one thing this room may not do. Without the bound a slow door holds the
+     conversation open indefinitely with nothing on screen, which is a
+     wired-only failure the headless run cannot reach and the live one did.
+
+     ONE call, lean payload, and the answer is a SENTENCE rather than a
+     structure: a restatement goes back through the deterministic parser
+     anyway, so a wrong restatement is a wrong sentence, never a wrong write. */
   restate: async (line, vocabulary) => {
-    // ONE call, lean payload, and the answer is a SENTENCE rather than a
-    // structure: the artifact-to-connector bridge burns on machine-shaped
-    // payloads (structured tripped at ask 2, prose lasted 15), and a
-    // restatement goes back through the deterministic parser anyway.
+    if (!sampleAvailable()) return null;
     const prompt =
       "Rewrite this banker instruction using only these amendment words, keeping every number, name and date exactly as written. " +
       "Reply with the rewritten instruction and nothing else. If it is not an amendment to a loan or a package, reply NONE.\n" +
       `Words: ${vocabulary.join(", ")}\nInstruction: ${line}`;
-    const clean = (t: string): string | null => (!t || /^none$/i.test(t) ? null : t);
-    // THE SESSION DOOR FIRST (the recorded decision, channel/sampleDoor.ts): the
-    // banker's own Claude, fast and needing NO connector. Where it is in the view
-    // and answers, the gateway beneath it is never reached — which is why the
-    // assist is quick and why a phrasing the deterministic parser missed no
-    // longer raises an IDB Gateway consent prompt mid-modification.
-    if (sampleAvailable()) {
-      try {
-        const text = await Promise.race([
-          askSession(prompt, { tier: "quick" }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("the session did not answer in time")), RESTATE_TIMEOUT_MS)),
-        ]);
-        return clean(text.trim());
-      } catch {
-        // Absence, never an error on the glass: take the next rung down.
-      }
-    }
     try {
-      // A GATEWAY THAT NEVER ANSWERS IS SILENCE, and silence is the one thing
-      // this room may not do. The deterministic parse has already missed, so
-      // this call is the assist and not the answer: it gets a bounded slice of
-      // the banker's attention and then the honest miss is returned. Without
-      // the bound a read retry can hold the conversation open indefinitely with
-      // nothing on screen, which is a wired-only failure the headless run cannot
-      // reach and the live one did.
-      const res = await Promise.race([
-        callTool(SERVERS.gateway, TOOLS.llm, { prompt }, { read: true }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("the gateway did not answer in time")), RESTATE_TIMEOUT_MS)),
+      const text = await Promise.race([
+        askSession(prompt, { tier: "quick" }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("the session did not answer in time")), RESTATE_TIMEOUT_MS)),
       ]);
-      return clean(unwrapLlm(res.payload).text.trim());
+      const trimmed = text.trim();
+      return !trimmed || /^none$/i.test(trimmed) ? null : trimmed;
     } catch {
-      // A gateway that is down is not a parse failure the banker should read as
-      // one: the deterministic path already answered, and this was the assist.
+      // Absence, never an error on the glass: the deterministic path already
+      // answered, and this was the assist.
       return null;
     }
   },
@@ -1903,8 +1890,13 @@ export function createModifyEngine(args: {
 
     // THE ASSIST, and its whole job is vocabulary. It restates the line in the
     // catalog's words and the deterministic parser reads THAT; nothing the
-    // gateway says becomes a chip without passing the same validation.
-    if (deps.restate && deps.available()) {
+    // assist says becomes a chip without passing the same validation.
+    /* THE ASSIST GATES ON ITSELF (2026-09-15). It used to be gated on the
+       connector, which is the door it no longer uses: IDB Gateway retired and
+       the restate assist is session-door only, so a view carrying the session
+       door and no connector would have skipped the assist it could have had.
+       The assist returns null where its own door is shut. */
+    if (deps.restate) {
       const words = [...new Set(brief().members.map((m) => m.short))].concat(
         "commitment",
         "interest rate",
@@ -1919,10 +1911,10 @@ export function createModifyEngine(args: {
       if (restated) {
         /* THE ASSIST MAY ANSWER, NEVER ASK (D3, orchestrator drive 2026-09-13).
            A restatement that only raises a QUESTION has not read the banker's
-           line: the words in the question are the gateway's, not theirs, so the
+           line: the words in the question are the assist's, not theirs, so the
            room ends up asking about a sentence nobody said. On the drive that
            put one identical question up for "7.25%", "asdf", "keep it" and "no
-           change" alike, because a gateway answering with commentary restates
+           change" alike, because an assist answering with commentary restates
            every line as the same commentary. Only amendments are taken; every
            other outcome falls through to the room's own honest miss. */
         const second = parseModify(restated, parseContext());

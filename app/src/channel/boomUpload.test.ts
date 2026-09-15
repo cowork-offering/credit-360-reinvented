@@ -4,27 +4,58 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 import {
+  awaitArgs,
+  BOOM_BASE64_CAP_BYTES,
+  BOOM_MAX_FILE_BYTES,
+  BOOM_READY,
   BOOM_UPLOAD_LANE,
   boomAdapter,
-  createGroupArgs,
+  createUploadArgs,
+  ensureCompanyArgs,
+  fileArgs,
   hierarchyFor,
+  listFilesArgs,
   liveBoomAdapter,
   registerPreRead,
   resetStubBoom,
   SPREAD_STUB_PROCESSING_MS,
   statementsFromPreRead,
-  statusArgs,
   stubBoomAdapter,
   stubBoomId,
   stubProcessingMs,
   STUB_FAILURE_MESSAGE,
   STUB_POISON_SHA256,
   STUB_PROVISIONAL_MESSAGE,
-  uploadArgs,
-  validationSessionArgs,
+  uploadBytesArgs,
   type BoomToolCall,
 } from "./boomUpload";
-import { SERVERS, TOOLS, type McpOk } from "./mcp";
+import { isBoomNotFound, readBoom, readBoomAnswer } from "./boom";
+import {
+  BOOM_FALLBACK_NAME,
+  boomServer,
+  discoverBoomServer,
+  noteBoomServers,
+  resetBoomServer,
+} from "./boomLane";
+import { BOOM_SIGNATURE_TOOLS, SERVERS, TOOLS, type McpOk } from "./mcp";
+import { normaliseBoom } from "../../../client-360/render/boom-normalise.mjs";
+import { interestCoverageAt } from "../spread/coverage";
+import { isProvisionalPeriod, publishSpread } from "../spread/publishSpread";
+
+/* THE LIVE SERVER'S OWN ANSWERS, saved verbatim on 2026-09-15. */
+import AWAIT from "../__fixtures__/boom-live/await-piedmont.json";
+import FILE from "../__fixtures__/boom-live/file-piedmont.json";
+import FILE_PROCESSING from "../__fixtures__/boom-live/file-processing.json";
+import FILES from "../__fixtures__/boom-live/files-piedmont.json";
+import NOT_FOUND from "../__fixtures__/boom-live/ratios-not-found.json";
+import RATIOS from "../__fixtures__/boom-live/ratios-piedmont.json";
+import SPREAD from "../__fixtures__/boom-live/spread-piedmont.json";
+
+/** A fixture, in the shape `callTool` resolves with. */
+const payload = (body: unknown): McpOk<unknown> => ({ payload: body, raw: {} });
+
+/** The name Boom holds the Piedmont workbook under, off the live file list. */
+const PIEDMONT_FILE_NAME = "Piedmont_Precision_Components_Financials_FY2023-2025.xlsx";
 import { __resetLaneHealthForTests, laneOf, noteLaneSuccess } from "./laneHealth";
 import { HealthLine } from "../components/HealthLine";
 import type { BoomUploadRequest, FilePreRead } from "../spread/types";
@@ -98,151 +129,378 @@ beforeEach(() => {
 
 afterEach(() => {
   resetStubBoom();
+  resetBoomServer();
   __resetLaneHealthForTests();
   vi.useRealTimers();
   delete (window as unknown as { claude?: unknown }).claude;
 });
 
-/* ------------------------------------------------------------ the contract */
+/* ------------------------------------------------------------ the contract
 
-describe("the contract handed to Noland", () => {
-  it("names the four tools the cockpit will ask for", () => {
-    expect(TOOLS.boomUpload).toBe("boom_upload_statement");
-    expect(TOOLS.boomUploadStatus).toBe("boom_upload_status");
-    expect(TOOLS.boomCreateFileGroup).toBe("boom_create_file_group");
-    expect(TOOLS.boomValidationSession).toBe("boom_validation_session");
+   THE FIXTURES ARE THE REAL SERVER'S OWN ANSWERS. `src/__fixtures__/boom-live/`
+   holds what `boom-mcp` returned on 2026-09-15, saved verbatim (the presigned
+   downloadUrl redacted, because that is never staged): the Piedmont spread, its
+   ratio set, the file rows for a verified and a processing file, the file list,
+   the bounded wait's answer and Boom's own 404. Every assertion below runs on
+   those, so a shape nobody typed is what the adapter is proved against.        */
+
+describe("the contract the live server publishes", () => {
+  it("names the ladder the cockpit walks, and the reads beside it", () => {
+    expect(TOOLS.boomEnsureCompany).toBe("boom_ensure_company");
+    expect(TOOLS.boomListFiles).toBe("boom_list_files");
+    expect(TOOLS.boomCreateUpload).toBe("boom_create_upload");
+    expect(TOOLS.boomUploadBytes).toBe("boom_upload_bytes");
+    expect(TOOLS.boomProcessFile).toBe("boom_process_file");
+    expect(TOOLS.boomAwaitFile).toBe("boom_await_file");
+    expect(TOOLS.boomGetFile).toBe("boom_get_file");
+    expect(TOOLS.boomOpenVerification).toBe("boom_open_verification");
   });
 
-  it("addresses Boom at the gateway until Boom has a connector of its own", () => {
-    // The flip is one line in mcp.ts. Until it happens the two Boom reads and
-    // the upload lane share a door, which is what the health line says.
-    expect(SERVERS.boom).toBe(SERVERS.gateway);
+  it("carries neither Boom read on the old relay prefix any more", () => {
+    // 0.9.28: Boom's own server publishes them under their own names.
+    // 2026-09-15: IDB Gateway retired; the restate assist is session-door only,
+    // so there is no relay connector left to tell Boom apart from.
+    expect(TOOLS.boomRatios).toBe("boom_get_ratios");
+    expect(TOOLS.boomSpread).toBe("boom_get_spread");
+    expect(Object.values(SERVERS)).not.toContain("IDB Gateway");
   });
 
-  it("sends the file, the company and the sha256 as the file's external id", () => {
-    const args = uploadArgs(request());
-    expect(args).toEqual({
-      company: { externalUniqueId: "001bb00001DLtRMAA1", name: "Piedmont Precision Components, Inc." },
-      file: {
-        name: "Piedmont_FY2025.xlsx",
-        mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        base64: "UEsDBA==",
-        sha256: SHA,
-      },
-      externalUniqueId: SHA,
-      statementQuality: "cpa_audited",
+  it("keys every call the way the server's own schema does", () => {
+    expect(ensureCompanyArgs(request())).toEqual({
+      name: "Piedmont Precision Components, Inc.",
+      salesforceRecordId: "001bb00001DLtRMAA1",
     });
+    expect(ensureCompanyArgs(request({ company: { externalUniqueId: "001", name: "P", fullAddress: "1 Mill Road" } }))).toEqual({
+      name: "P",
+      salesforceRecordId: "001",
+      fullAddress: "1 Mill Road",
+    });
+    expect(listFilesArgs("001")).toEqual({ salesforceRecordId: "001" });
+    expect(createUploadArgs(request())).toEqual({
+      fileName: "Piedmont_FY2025.xlsx",
+      salesforceRecordId: "001bb00001DLtRMAA1",
+      externalUniqueId: SHA,
+    });
+    expect(createUploadArgs(request({ fileGroupId: "g-1" })).fileGroupId).toBe("g-1");
+    expect(uploadBytesArgs("f-1", request())).toEqual({
+      fileId: "f-1",
+      contentBase64: "UEsDBA==",
+      fileName: "Piedmont_FY2025.xlsx",
+    });
+    expect(fileArgs("f-1")).toEqual({ fileId: "f-1" });
+    expect(awaitArgs("f-1", 20)).toEqual({ fileId: "f-1", maxSeconds: 20 });
   });
 
-  it("carries the address and the file group only when the plan has them", () => {
-    const bare = uploadArgs(request());
-    expect(bare).not.toHaveProperty("fileGroupId");
-    expect((bare.company as Record<string, unknown>).fullAddress).toBeUndefined();
-    const full = uploadArgs(
-      request({
-        company: { externalUniqueId: "001", name: "Piedmont", fullAddress: "1 Mill Road, Greensboro NC" },
-        fileGroupId: "g-1",
-      }),
-    );
-    expect((full.company as Record<string, unknown>).fullAddress).toBe("1 Mill Road, Greensboro NC");
-    expect(full.fileGroupId).toBe("g-1");
+  it("caps the file at what fits inside Boom's 3 MB of base64", () => {
+    expect(BOOM_BASE64_CAP_BYTES).toBe(3 * 1024 * 1024);
+    // Base64 costs four bytes for every three, so the file cap is three quarters.
+    expect(BOOM_MAX_FILE_BYTES).toBe(2_359_296);
+    expect(Math.ceil(BOOM_MAX_FILE_BYTES / 3) * 4).toBeLessThanOrEqual(BOOM_BASE64_CAP_BYTES);
   });
 
-  it("keys the other three calls the way the message says", () => {
-    expect(statusArgs("file-1")).toEqual({ fileId: "file-1" });
-    expect(createGroupArgs("001")).toEqual({ companyExternalUniqueId: "001" });
-    expect(validationSessionArgs("file-1")).toEqual({ fileId: "file-1" });
+  it("treats completed and verified alike as readable", () => {
+    // `verified` only adds that an analyst signed the spread off in Boom.
+    expect([...BOOM_READY].sort()).toEqual(["completed", "verified"]);
+  });
+});
+
+/* ------------------------------------------------------- the envelope */
+
+describe("the envelope, on the server's own answers", () => {
+  it("reads the file body out of its wrapper, with the source stamp", () => {
+    const read = readBoomAnswer<Record<string, unknown>>(payload(FILE), "file")!;
+    expect(read.envelope.source).toBe("BOOM-LIVE");
+    expect(read.envelope.contractVersion).toBe("1.0");
+    expect(read.body.id).toBe("cf677dcc-594c-45b5-b47d-c92c0b2ee909");
+    expect(read.body.status).toBe("verified");
+  });
+
+  it("reads the spread body out of its wrapper, and the period it describes", () => {
+    const read = readBoomAnswer<Record<string, unknown>>(payload(SPREAD), "spread")!;
+    expect(read.envelope.asOf).toBe("2025-12-31");
+    expect((read.body.financialStatements as unknown[]).length).toBe(3);
+  });
+
+  it("turns Boom's own 404 into a state, not a transport failure", () => {
+    // Hartwell is genuinely not in Boom on the founder's org, and this is what
+    // the server says about it.
+    let thrown: unknown;
+    try {
+      readBoomAnswer(payload(NOT_FOUND));
+    } catch (e) {
+      thrown = e;
+    }
+    expect(isBoomNotFound(thrown)).toBe(true);
+    expect((thrown as { message: string }).message).toMatch(/Company Not Found/);
+  });
+});
+
+/* --------------------------------------------------------- the discovery */
+
+describe("finding the Boom connector", () => {
+  afterEach(() => resetBoomServer());
+
+  it("takes the server that serves both Boom reads, whatever it is called", () => {
+    expect(
+      noteBoomServers(
+        [
+          { server: "Customer 360", tools: [{ name: "Customer360Snapshot" }] },
+          { server: "Spreading", tools: [{ name: "boom_get_ratios" }, { name: "boom_get_spread" }] },
+        ],
+        BOOM_SIGNATURE_TOOLS,
+      ),
+    ).toBe("Spreading");
+    expect(boomServer()).toBe("Spreading");
+  });
+
+  it("falls back to the name the manifest declares when nothing matches", () => {
+    // Half the signature is not Boom: a server serving one read could be any
+    // relay, and addressing the upload ladder at it would be a guess.
+    expect(noteBoomServers([{ server: "Half", tools: [{ name: "boom_get_ratios" }] }], BOOM_SIGNATURE_TOOLS)).toBeNull();
+    expect(boomServer()).toBe(BOOM_FALLBACK_NAME);
+    expect(BOOM_FALLBACK_NAME).toBe("Boom");
+  });
+
+  it("asks the runtime once, however many surfaces ask it", async () => {
+    const list = vi.fn().mockResolvedValue([{ server: "Boom MCP", tools: BOOM_SIGNATURE_TOOLS.map((name) => ({ name })) }]);
+    const [a, b] = await Promise.all([
+      discoverBoomServer(list, BOOM_SIGNATURE_TOOLS),
+      discoverBoomServer(list, BOOM_SIGNATURE_TOOLS),
+    ]);
+    expect([a, b]).toEqual(["Boom MCP", "Boom MCP"]);
+    expect(list).toHaveBeenCalledTimes(1);
+  });
+
+  it("says the fallback where the runtime cannot enumerate servers at all", async () => {
+    await expect(discoverBoomServer(async () => undefined, BOOM_SIGNATURE_TOOLS)).resolves.toBe(BOOM_FALLBACK_NAME);
   });
 });
 
 /* ----------------------------------------------------------- the live lane */
 
-/** A connector that records what it was asked and answers what it is told. */
-function fakeCall(answer: (tool: string) => unknown, thrown?: unknown) {
+/** A connector that records what it was asked and answers per tool. */
+function fakeCall(answers: Record<string, unknown>, thrown?: unknown) {
   const calls: Array<{ server: string; tool: string; input: unknown; options: unknown }> = [];
   const call: BoomToolCall = async (server, tool, input, options) => {
     calls.push({ server, tool, input, options });
     if (thrown) throw thrown;
-    return { payload: answer(tool), raw: {} } as McpOk<unknown>;
+    return { payload: answers[tool] ?? envelope({}), raw: {} } as McpOk<unknown>;
   };
-  return { call, calls };
+  return { call, calls, tools: () => calls.map((c) => c.tool) };
 }
 
+/** The server's own envelope around a body. */
+const envelope = (body: Record<string, unknown>) => ({
+  contractVersion: "1.0",
+  _source: "BOOM-LIVE",
+  _provenance: { system: "Boom", record: "file", ids: {}, asOf: "2025-12-31" },
+  ...body,
+});
+
+/** Every rung answering the way the live server does, with no file on file. */
+const LADDER_ANSWERS = {
+  boom_ensure_company: envelope({ company: { id: "70d9bd23-a4f7-46ab-92d8-9b784e034877" } }),
+  boom_list_files: envelope({ files: [] }),
+  boom_create_upload: envelope({ file: { id: "new-file-1", fileName: "Piedmont_FY2025.xlsx", status: "waiting_for_upload" } }),
+  boom_upload_bytes: envelope({ fileId: "new-file-1" }),
+  boom_process_file: envelope({ fileId: "new-file-1", status: "processing" }),
+};
+
 describe("the live adapter", () => {
-  const completed = {
-    fileId: "8b941a16-e697-4fea-8ff5-3bcc1e29e442",
-    companyId: "c-1",
-    fileGroupId: null,
-    status: "completed",
-    message: "Spread complete.",
-    financialStatements: [],
-    validationUrl: "https://app.boom.build/file-validation/8b941a16#token=bvs_x",
-  };
+  beforeEach(() => {
+    resetBoomServer();
+    (window as unknown as { claude?: unknown }).claude = {
+      mcp: { callTool: vi.fn(), watchTool: vi.fn(), listTools: async () => ({ servers: [] }), invalidate: async () => {} },
+    };
+  });
+  afterEach(() => resetBoomServer());
 
-  it("calls the Boom connector by display name, with the mapped arguments", async () => {
-    const { call, calls } = fakeCall(() => completed);
+  it("walks the four rungs in order, with the server's own argument names", async () => {
+    const { call, calls, tools } = fakeCall(LADDER_ANSWERS);
     const res = await liveBoomAdapter(call).upload(request());
-    expect(calls[0].server).toBe(SERVERS.boom);
-    expect(calls[0].tool).toBe("boom_upload_statement");
-    expect(calls[0].input).toEqual(uploadArgs(request()));
-    expect(res.fileId).toBe(completed.fileId);
-    expect(res.validationUrl).toBe(completed.validationUrl);
+    expect(tools()).toEqual([
+      "boom_ensure_company",
+      "boom_list_files",
+      "boom_create_upload",
+      "boom_upload_bytes",
+      "boom_process_file",
+    ]);
+    expect(calls.every((c) => c.server === SERVERS.boom)).toBe(true);
+    expect(calls[0].input).toEqual(ensureCompanyArgs(request()));
+    expect(calls[2].input).toEqual(createUploadArgs(request()));
+    expect(calls[3].input).toEqual(uploadBytesArgs("new-file-1", request()));
+    expect(res).toMatchObject({ fileId: "new-file-1", companyId: "70d9bd23-a4f7-46ab-92d8-9b784e034877", status: "processing" });
   });
 
-  it("sends the upload as a WRITE: no read policy, so nothing auto-retries it", async () => {
+  it("sends the write rungs as WRITES, so nothing auto-retries them", async () => {
     // A rejected upload is not proof the file never reached Boom.
-    const { call, calls } = fakeCall(() => completed);
+    const { call, calls } = fakeCall(LADDER_ANSWERS);
     await liveBoomAdapter(call).upload(request());
-    expect((calls[0].options as { read?: boolean }).read).toBeUndefined();
+    const write = calls.filter((c) => c.tool !== "boom_list_files");
+    expect(write.every((c) => (c.options as { read?: boolean }).read === undefined)).toBe(true);
+    expect((calls.find((c) => c.tool === "boom_list_files")!.options as { read?: boolean }).read).toBe(true);
   });
 
-  it("polls status as a READ, so an idle connector session re-handshakes", async () => {
-    const { call, calls } = fakeCall(() => ({ ...completed, status: "processing" }));
-    const res = await liveBoomAdapter(call).status("file-1");
-    expect(calls[0].tool).toBe("boom_upload_status");
-    expect(calls[0].input).toEqual({ fileId: "file-1" });
-    expect((calls[0].options as { read?: boolean }).read).toBe(true);
+  it("reuses the file Boom already holds rather than reserving a second", async () => {
+    const { call, tools } = fakeCall({ ...LADDER_ANSWERS, boom_list_files: FILES });
+    const res = await liveBoomAdapter(call).upload(request({ file: { ...request().file, name: PIEDMONT_FILE_NAME } }));
+    expect(tools()).toEqual(["boom_ensure_company", "boom_list_files"]);
+    expect(res.reused).toBe(true);
+    // The VERIFIED file, not the one still processing and not a second upload.
+    expect(res.fileId).toBe("cf677dcc-594c-45b5-b47d-c92c0b2ee909");
+    expect(res.status).toBe("verified");
+  });
+
+  it("does not reuse a file Boom failed on: that drop is a deliberate re-send", async () => {
+    const failed = { ...FILES, files: [{ ...FILES.files[4], status: "failed" }] };
+    const { call, tools } = fakeCall({ ...LADDER_ANSWERS, boom_list_files: failed });
+    await liveBoomAdapter(call).upload(request({ file: { ...request().file, name: PIEDMONT_FILE_NAME } }));
+    expect(tools()).toContain("boom_create_upload");
+  });
+
+  it("refuses a file past Boom's base64 cap in one sentence, before it sends anything", async () => {
+    const { call, calls } = fakeCall(LADDER_ANSWERS);
+    const oversize = request({ file: { ...request().file, base64: "A".repeat(BOOM_BASE64_CAP_BYTES + 1) } });
+    await expect(liveBoomAdapter(call).upload(oversize)).rejects.toMatchObject({ code: "transform_error" });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("reads the file, then Boom's own spread once the file is readable", async () => {
+    const { call, tools } = fakeCall({ boom_get_file: payload(FILE).payload, boom_get_spread: payload(SPREAD).payload });
+    const res = await liveBoomAdapter(call).status("cf677dcc-594c-45b5-b47d-c92c0b2ee909");
+    expect(tools()).toEqual(["boom_get_file", "boom_get_spread"]);
+    expect(res.status).toBe("verified");
+    expect(res.fileName).toBe("Piedmont_Precision_Components_Financials_FY2023-2025.xlsx");
+    expect(res.financialStatements).toHaveLength(3);
+  });
+
+  it("does not read a spread out of a file that is still processing", async () => {
+    const { call, tools } = fakeCall({ boom_get_file: payload(FILE_PROCESSING).payload });
+    const res = await liveBoomAdapter(call).status("d6a2ecc3-5321-47c3-8615-a2879d629108");
+    expect(tools()).toEqual(["boom_get_file"]);
     expect(res.status).toBe("processing");
+    expect(res.financialStatements).toBeUndefined();
   });
 
-  it("shows Boom's own words verbatim on a failure Boom reports", async () => {
-    const { call } = fakeCall(() => ({ fileId: "f", status: "failed", message: "Unsupported file type: .pages" }));
-    const res = await liveBoomAdapter(call).status("f");
-    expect(res.status).toBe("failed");
-    expect(res.message).toBe("Unsupported file type: .pages");
+  it("reads the bounded wait's own answer, and asks for no more seconds than the server takes", async () => {
+    const { call, calls } = fakeCall({ boom_await_file: payload(AWAIT).payload });
+    const res = await liveBoomAdapter(call).awaitSettled!("cf677dcc-594c-45b5-b47d-c92c0b2ee909", 20);
+    expect(calls[0].input).toEqual({ fileId: "cf677dcc-594c-45b5-b47d-c92c0b2ee909", maxSeconds: 20 });
+    expect((calls[0].options as { read?: boolean }).read).toBe(true);
+    expect(res.status).toBe("verified");
   });
 
-  it("refuses to invent a fileId or a rung it was not given", async () => {
-    await expect(liveBoomAdapter(fakeCall(() => "fine").call).upload(request())).rejects.toMatchObject({ code: "transform_error" });
+  it("refuses to invent a file id or a rung it was not given", async () => {
     await expect(
-      liveBoomAdapter(fakeCall(() => ({ fileId: "f", status: "spread" })).call).status("f"),
+      liveBoomAdapter(fakeCall({ ...LADDER_ANSWERS, boom_create_upload: envelope({}) }).call).upload(request()),
     ).rejects.toMatchObject({ code: "transform_error" });
     await expect(
-      liveBoomAdapter(fakeCall(() => ({ status: "completed" })).call).upload(request()),
+      liveBoomAdapter(fakeCall({ boom_get_file: envelope({ file: { id: "f", status: "spread" } }) }).call).status("f"),
     ).rejects.toMatchObject({ code: "transform_error" });
-  });
-
-  it("falls back to the polled fileId when the answer omits it", async () => {
-    const { call } = fakeCall(() => ({ status: "processing" }));
-    expect((await liveBoomAdapter(call).status("file-9")).fileId).toBe("file-9");
-  });
-
-  it("reads the group id and the validation session off their own answers", async () => {
-    const group = fakeCall(() => ({ fileGroupId: "grp-7" }));
-    expect(await liveBoomAdapter(group.call).createGroup!("001")).toEqual({ fileGroupId: "grp-7" });
-    const session = fakeCall(() => ({ url: "https://app.boom.build/x#token=y", expiresAt: "2026-09-12T13:00:00.000Z" }));
-    expect(await liveBoomAdapter(session.call).validationSession!("f")).toEqual({
-      url: "https://app.boom.build/x#token=y",
-      expiresAt: "2026-09-12T13:00:00.000Z",
-    });
-    await expect(liveBoomAdapter(fakeCall(() => ({})).call).validationSession!("f")).rejects.toMatchObject({
+    await expect(liveBoomAdapter(fakeCall({ boom_get_file: envelope({}) }).call).status("f")).rejects.toMatchObject({
       code: "transform_error",
     });
   });
 
+  it("reads the verification session off its own answer", async () => {
+    const session = fakeCall({
+      boom_open_verification: envelope({ url: "https://app.boom.build/x#token=y", expiresAt: "2026-09-15T13:00:00.000Z" }),
+    });
+    expect(await liveBoomAdapter(session.call).validationSession!("f")).toEqual({
+      url: "https://app.boom.build/x#token=y",
+      expiresAt: "2026-09-15T13:00:00.000Z",
+    });
+    await expect(liveBoomAdapter(fakeCall({}).call).validationSession!("f")).rejects.toMatchObject({
+      code: "transform_error",
+    });
+  });
+
+  it("offers no file group at all: Boom refuses them on this org", async () => {
+    // Decision D4. The seam stays on the interface so the step can return.
+    expect(liveBoomAdapter(fakeCall({}).call).createGroup).toBeUndefined();
+  });
+
   it("surfaces a transport failure exactly as every other lane does", async () => {
-    const { call } = fakeCall(() => ({}), { code: "needs_reauth", message: "session expired", retract: true });
+    const { call } = fakeCall({}, { code: "needs_reauth", message: "session expired", retract: true });
     await expect(liveBoomAdapter(call).upload(request())).rejects.toMatchObject({ code: "needs_reauth" });
+  });
+});
+
+/* ------------------------------------------------ the two reads, end to end */
+
+describe("readBoom", () => {
+  beforeEach(() => resetBoomServer());
+  afterEach(() => resetBoomServer());
+
+  it("asks by Salesforce record id, then reads the spread of the file the ratios name", async () => {
+    const { call, calls } = fakeCall({ boom_get_ratios: payload(RATIOS).payload, boom_get_spread: payload(SPREAD).payload });
+    const reads = await readBoom({ accountId: "001bb00001DLtRMAA1", company: "Piedmont" }, { call });
+    expect(calls[0].input).toEqual({ salesforceRecordId: "001bb00001DLtRMAA1" });
+    expect(calls[1].input).toEqual({ fileId: "cf677dcc-594c-45b5-b47d-c92c0b2ee909" });
+    expect(reads.source).toBe("BOOM-LIVE");
+    // The period the ratios describe rides onto the object the normaliser reads,
+    // which is what binds EBITDA to one period and to no other.
+    expect(reads.ratios?.asOf).toBe("2025-12-31");
+    expect(reads.spread?.file.id).toBe("cf677dcc-594c-45b5-b47d-c92c0b2ee909");
+  });
+
+  it("falls back to the company name where the view carries no record id", async () => {
+    const { call, calls } = fakeCall({ boom_get_ratios: payload(RATIOS).payload, boom_get_spread: payload(SPREAD).payload });
+    await readBoom({ company: "Piedmont" }, { call });
+    expect(calls[0].input).toEqual({ companyName: "Piedmont" });
+  });
+
+  it("degrades honestly on a borrower Boom has never heard of", async () => {
+    const { call } = fakeCall({ boom_get_ratios: payload(NOT_FOUND).payload });
+    await expect(readBoom({ accountId: "001bb00001I7FPNAA3" }, { call })).rejects.toSatisfy(isBoomNotFound);
+  });
+
+  it("keeps the ratio card where the spread read fails", async () => {
+    // The spread is the second half. A borrower whose ratios answered still has
+    // a ratio card, and the book's own statement table stands.
+    const { call } = fakeCall({ boom_get_ratios: payload(RATIOS).payload });
+    const reads = await readBoom({ accountId: "001bb00001DLtRMAA1" }, { call });
+    expect(reads.ratios).toBeTruthy();
+    expect(reads.spread).toBeUndefined();
+  });
+
+  it("refuses to ask Boom about nobody", async () => {
+    await expect(readBoom({}, { call: fakeCall({}).call })).rejects.toSatisfy(isBoomNotFound);
+  });
+});
+
+/* ------------------------------------ the server's ratios and ours, on Piedmont */
+
+describe("the cockpit's coverage definition against the server's own", () => {
+  it("strikes the same interest coverage off the live spread, to the digit", () => {
+    // The whole raw-verbatim contract rests on this: the cockpit does not
+    // recompute Boom's ratios, and where it restrikes one it must agree.
+    const statements = SPREAD.spread.financialStatements as unknown as Parameters<typeof interestCoverageAt>[0];
+    expect(interestCoverageAt(statements, "2025-12-31")).toBe(RATIOS.raw.interestCoverage);
+    expect(RATIOS.raw.interestCoverage).toBe(2.637546468401487);
+  });
+
+  it("normalises the live spread into the shape the Financials tab reads", () => {
+    const boom = normaliseBoom({ ratios: { ...RATIOS, asOf: "2025-12-31" }, spread: { file: SPREAD.spread } })!;
+    expect(boom.ratios?.totalLeverage).toBe(3.8460068781047);
+    // Boom emits margins as fractions; the tab prints percentages.
+    expect(boom.ratios?.ebitdaMargin).toBeCloseTo(8.1164904, 6);
+    expect(boom.spread?.periods?.map((p) => p.period)).toEqual(["FY2023", "FY2024", "FY2025"]);
+    expect(boom.spread?.periods?.at(-1)?.revenue).toBe(64486000);
+    // EBITDA belongs to the ratios' own period and to no other: the chart has
+    // no depreciation row to derive a prior year from.
+    expect(boom.spread?.periods?.at(0)?.ebitda).toBeUndefined();
+    expect(boom.spread?.periods?.at(-1)?.ebitda).toBe(5234000);
+  });
+
+  it("publishes the live spread onto the book with no provisional word on it", () => {
+    const next = publishSpread({
+      onFile: null,
+      statements: SPREAD.spread.financialStatements as unknown as Parameters<typeof publishSpread>[0]["statements"],
+      provenance: "boom",
+    })!;
+    expect(next.spread?.periods?.map((p) => p.period)).toEqual(["FY2023", "FY2024", "FY2025"]);
+    expect(next.spread?.periods?.some(isProvisionalPeriod)).toBe(false);
   });
 });
 
@@ -265,9 +523,12 @@ describe("the live adapter through the real call seam", () => {
     return calls;
   }
 
+  beforeEach(() => resetBoomServer());
+
   it("records the Boom lane as live when the connector answers", async () => {
-    installMcp(async () => ({ payload: { fileId: "f", status: "processing" } }));
+    installMcp(async (_s, tool) => ({ payload: LADDER_ANSWERS[tool as keyof typeof LADDER_ANSWERS] ?? {} }));
     await liveBoomAdapter().upload(request());
+    // The runtime lists no server, so the lane is the fallback name.
     expect(laneOf(SERVERS.boom)?.state).toBe("live");
   });
 
@@ -280,7 +541,7 @@ describe("the live adapter through the real call seam", () => {
     expect(laneOf(SERVERS.boom)?.grant).toBe("not-granted");
   });
 
-  it("stops waiting on an upload that never answers, and stamps it ambiguous", async () => {
+  it("stops waiting on an upload rung that never answers, and stamps it ambiguous", async () => {
     // A write that runs out its clock may still have run. Nothing may retry it.
     vi.useFakeTimers();
     installMcp(() => new Promise(() => {}));
@@ -294,8 +555,11 @@ describe("the live adapter through the real call seam", () => {
 /* ----------------------------------------------------------- the stub lane */
 
 describe("the stub adapter", () => {
-  it("is the active lane today", () => {
-    expect(BOOM_UPLOAD_LANE).toBe("stub");
+  it("is no longer the active lane, and is still here for the day it is", () => {
+    // 0.9.28: Boom's connector exists, so the live adapter ships. The stub is
+    // kept because the flip is one constant and an outage is not a reason to
+    // lose the room.
+    expect(BOOM_UPLOAD_LANE).toBe("live");
     // The room asks for the adapter, never for a particular implementation.
     expect(typeof boomAdapter().upload).toBe("function");
     expect(typeof boomAdapter().status).toBe("function");
@@ -500,9 +764,11 @@ describe("pre-read to BoomFinancialStatement", () => {
 
   it("rolls the placed lines up by account code, and leaves the unplaced ones out", () => {
     const rows = Object.fromEntries((statement.aggregatedFinancials ?? []).map((r) => [r.accountCode, r]));
-    expect(rows.net_sales_revenue.periodValues["file-1-s1-p3"]).toBe(64486000);
+    // BOOM'S OWN PAIR SHAPE (observed live 2026-09-15): as given, as allowed.
+    // The stand-in has no analyst adjustment to report, so the two agree.
+    expect(rows.net_sales_revenue.periodValues["file-1-s1-p3"]).toEqual({ asGiven: 64486000, asAllowed: 64486000 });
     expect(rows.net_sales_revenue.accountName).toBe("Net Sales");
-    expect(rows.interest_expense.periodValues["file-1-s1-p2"]).toBe(-947000);
+    expect(rows.interest_expense.periodValues["file-1-s1-p2"]).toEqual({ asGiven: -947000, asAllowed: -947000 });
     // Seven of the eight lines carry a code; the eighth rolls up nowhere.
     expect(Object.keys(rows)).toHaveLength(7);
   });
@@ -560,18 +826,20 @@ describe("the Boom row on the health line", () => {
     container = null;
   });
 
-  it("reads 'Boom (via gateway)' on ONE row, because the two names are one lane", async () => {
+  it("carries a row of its own, named for the connector that was found", async () => {
     (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     (window as unknown as { claude?: unknown }).claude = {
       mcp: {
         callTool: vi.fn(),
         watchTool: vi.fn().mockReturnValue(() => {}),
-        listTools: vi.fn().mockResolvedValue({ servers: [{ server: SERVERS.gateway, authStatus: "connected", tools: [] }] }),
+        listTools: vi.fn().mockResolvedValue({
+          servers: [{ server: "Boom MCP", authStatus: "connected", tools: BOOM_SIGNATURE_TOOLS.map((name) => ({ name })) }],
+        }),
         invalidate: vi.fn(),
       },
     };
     // The lane has answered, so it has something to say and earns its row.
-    act(() => noteLaneSuccess(SERVERS.boom, Date.UTC(2026, 8, 12, 12, 0, 0)));
+    act(() => noteLaneSuccess("Boom MCP", Date.UTC(2026, 8, 15, 12, 0, 0)));
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -579,10 +847,14 @@ describe("the Boom row on the health line", () => {
     act(() => root!.render(createElement(HealthLine)));
     await act(async () => {});
 
+    /* RESTATED 0.9.28. The row used to read "Boom (via gateway)" because
+       `SERVERS.boom` was the gateway's own display name and one connector
+       carried both lanes. Boom is its own server now, discovered off
+       `listTools()`, and the row is named for whatever the viewer called it. */
     const rows = [...container.querySelectorAll<HTMLElement>(".hl-lane-btn")].filter(
-      (b) => b.getAttribute("data-lane") === SERVERS.gateway,
+      (b) => b.getAttribute("data-lane") === "Boom MCP",
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].textContent).toMatch(/^Boom \(via gateway\) live/);
+    expect(rows[0].textContent).toMatch(/^Boom MCP live/);
   });
 });

@@ -1,0 +1,77 @@
+{
+  "contractVersion": "1.0",
+  "_source": "BOOM-LIVE",
+  "_provenance": {
+    "system": "Boom",
+    "record": "file-list",
+    "ids": {
+      "companyId": null,
+      "externalUniqueId": "001bb00001DLtRMAA1"
+    },
+    "asOf": "2026-09-14T23:56:29.918Z"
+  },
+  "files": [
+    {
+      "id": "f8c8bd3b-255a-4a37-81bd-ad0829b7c87b",
+      "fileName": "Piedmont Precision Components 10k.pdf",
+      "status": "waiting_for_upload",
+      "statementQuality": null,
+      "fileGroupId": null,
+      "periodEnds": [],
+      "createdAt": "2026-05-11T19:07:19.932+00:00"
+    },
+    {
+      "id": "78b4bae4-2aeb-4570-924e-97582544b10e",
+      "fileName": "Piedmont Precision Components 10k.pdf",
+      "status": "waiting_for_upload",
+      "statementQuality": null,
+      "fileGroupId": null,
+      "periodEnds": [],
+      "createdAt": "2026-05-11T19:43:44.987+00:00"
+    },
+    {
+      "id": "f17f6915-5c56-421f-8e60-afb72037a534",
+      "fileName": "AIRI-FY2024-10K.pdf",
+      "status": "waiting_for_upload",
+      "statementQuality": null,
+      "fileGroupId": null,
+      "periodEnds": [],
+      "createdAt": "2026-06-02T00:24:36.567+00:00"
+    },
+    {
+      "id": "d6a2ecc3-5321-47c3-8615-a2879d629108",
+      "fileName": "e2e-1789413233824-Piedmont_Precision_Components_Financials_FY2023-2025.xlsx",
+      "status": "processing",
+      "statementQuality": null,
+      "fileGroupId": null,
+      "periodEnds": [],
+      "createdAt": "2026-09-14T19:13:53.941+00:00"
+    },
+    {
+      "id": "cf677dcc-594c-45b5-b47d-c92c0b2ee909",
+      "fileName": "Piedmont_Precision_Components_Financials_FY2023-2025.xlsx",
+      "status": "verified",
+      "statementQuality": null,
+      "fileGroupId": null,
+      "periodEnds": [
+        "2025-12-31",
+        "2024-12-31",
+        "2023-12-31"
+      ],
+      "createdAt": "2026-06-11T18:55:57.863+00:00"
+    },
+    {
+      "id": "8b941a16-e697-4fea-8ff5-3bcc1e29e442",
+      "fileName": "Piedmont_Precision_Components_Financials_FY2023-2025.xlsx",
+      "status": "completed",
+      "statementQuality": null,
+      "fileGroupId": null,
+      "periodEnds": [
+        "2025-12-31",
+        "2024-12-31",
+        "2023-12-31"
+      ],
+      "createdAt": "2026-06-08T04:57:46.889+00:00"
+    }
+  ]
+}

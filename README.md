@@ -28,7 +28,7 @@ Added in claude.ai under Settings > Connectors, by each viewer, under their own 
 |---|---|---|---|---|
 | `Customer 360` | required | Every relationship read and every governed nCino write, run as the signed-in banker. 28 tools | `https://api.salesforce.com/platform/mcp/v1/sandbox/custom/Customer360` | OAuth, the org's External Client App consumer key and secret, per viewer |
 | `Salesforce Read Backup` | optional | A second hop serving the same ten Customer 360 reads, so live figures survive a dropped relay session. Reads only. 11 tools | `https://banksy.claudeeshannon.com/sf-read-backup-c70d4163d3/mcp` | none, demo-grade |
-| `IDB Gateway` | required | Boom spreads and ratios behind the Financials tab, plus the gateway's own LLM call. 3 tools | provided by the engagement team | provided by the engagement team |
+| `Boom` | required | Boom spreads, ratios and the statement upload: the Financials tab, the Spreading room, the memo's Boom graph and the covenant challenge. 10 tools. The page finds it by the tools it serves rather than by its name, so any spelling works; this is the one the grant declares | provided by the engagement team | provided by the engagement team |
 | `Microsoft 365` | required | The banker's inbox, where a client request enters the cockpit. 1 tool | first-party claude.ai connector, no URL to enter | the viewer's own Microsoft work account |
 | `Experience / nCino` | required | The credit memo writeback and ledger: narrative sections, the nFORMS memo document, the approval submit, the notice, the decision and audit trail. 9 tools | provided by the engagement team | provided by the engagement team |
 | `AFS` | required | Servicing reads (loan summary, payment history, revolver utilisation), the servicing workpackage, and the rating and PD source. 4 tools | provided by the engagement team | provided by the engagement team |
@@ -102,8 +102,10 @@ Every write follows one discipline, with no exceptions and no fast path:
   server, per-user OAuth, 28 tools (10 reads, 8 stage/execute write pairs, a second-hop completion
   tool and one stage-only renewal). Package-level rollups exist only in these tools and are never
   derived by summing loans.
-- **Boom** through `IDB Gateway`: spreads and ratios, the spreading system of record behind the
-  Financials tab.
+- **Boom** through its own connector: spreads, ratios and the statement upload, the spreading system
+  of record behind the Financials tab and the Spreading room. The room registers the borrower,
+  reserves a file, sends the bytes, asks Boom to process them and waits on Boom's own bounded wait;
+  the spread it publishes is Boom's, and Boom's ratios are carried verbatim.
 - **AFS** for servicing (loan summary, payment history, revolver utilisation, the workpackage), and
   as the rating and PD source.
 - **Microsoft 365** for the inbox.

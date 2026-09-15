@@ -14,7 +14,8 @@ import { BugCopyButton } from "../BugCopyButton";
 import { Portal } from "../Portal";
 import { odoRoll } from "../Odometer";
 import { RoomBoundary } from "./RoomBoundary";
-import { closeSpreadingRoom, useSpreadingRoom } from "./spreadSession";
+import { SpreadRegister } from "./register/SpreadRegister";
+import { closeSpreadingRoom, forgetBoomFile, pendingBoomFile, rememberBoomFile, useSpreadingRoom } from "./spreadSession";
 import { openMemoRoom } from "../memo/memoSession";
 import { startPacer } from "../../channel/streamPacer";
 import { prefersReducedMotion } from "../../data/motion";
@@ -36,7 +37,7 @@ import {
   type SpreadStage,
   type SpreadState,
 } from "../../workroom/spreadEngine";
-import type { BoomFinancialStatement, StatementType, UploadState } from "../../spread/types";
+import type { UploadState } from "../../spread/types";
 import type { Boom, BoomPeriod, BorrowerBundle } from "../../data/contract";
 /* THE TWO SIBLING MODULES, IN ONE IMPORT BLOCK. The two reads around the spread
    come from `spread/`; the transport comes from the one adapter in
@@ -103,8 +104,11 @@ const DRAFT_MEMO = "Draft the credit memo";
 const backTo = (company: string): string => `Back to ${company}`;
 const PLAN_NOTE =
   "When you confirm, these files go to Boom. Boom spreads them and stays the record of the spread; the financials here refresh from its own read.";
+/* THE STAND-IN SAYS SO, WHENEVER IT IS THE ONE ANSWERING (0.9.28). The lane is
+   live by default now; this sentence is what the room says on the day somebody
+   flips it back, and it must never read as though Boom had spread the file. */
 const STUB_NOTE =
-  "Boom's server is not connected yet, so this spread is provisional until it is.";
+  "The Boom lane is on its stand-in, so this spread is the browser's own read and stays provisional.";
 const PROVISIONAL_HEAD = "What the file reads as, before it goes";
 const CONFIRM = "Confirm and spread";
 const LEAVE = "Leave it for now";
@@ -113,9 +117,6 @@ const LEAVE_WITH_BOOM = "Leave it with Boom";
 const FIN_HEAD = "Financials";
 const FIN_EXPLAIN =
   "Explain these financials: revenue trend, leverage, coverage, and which covenant tests move.";
-const VERIFY = "Verify in Boom";
-const NOT_VALIDATED = "Not validated in Boom";
-const VALIDATED = "Validated in Boom";
 const PROVISIONAL_BADGE = "Provisional";
 const POST_HEAD = "What this changes";
 const NO_STATEMENTS =
@@ -147,12 +148,6 @@ const RUNG_WORD: Record<UploadState, string> = {
 };
 
 const RUNGS: UploadState[] = ["pending", "sending", "processing", "completed", "verified"];
-
-const TAB_WORD: Partial<Record<StatementType, string>> = {
-  income_statement: "Income statement",
-  balance_sheet: "Balance sheet",
-  cash_flow_statement: "Cash flow",
-};
 
 /* ---------------------------------------------------------------- the tiles */
 
@@ -317,7 +312,7 @@ export function SpreadingRoom({
 }: SpreadingRoomProps) {
   const engineRef = useRef<SpreadEngine | null>(null);
   if (!engineRef.current) {
-    engineRef.current = createSpreadEngine({ ctx, deps: deps ?? liveDeps(), onFileBoom });
+    engineRef.current = createSpreadEngine({ ctx, deps: deps ?? liveDeps(ctx.accountId), onFileBoom });
   }
   const engine = engineRef.current;
   const lane = deps?.lane ?? BOOM_UPLOAD_LANE;
@@ -328,6 +323,16 @@ export function SpreadingRoom({
   const said = useRef<Set<SpreadRoomEvent["phase"]>>(new Set());
 
   useEffect(() => () => engine.dispose(), [engine]);
+
+  /* A FILE LEFT WITH BOOM IS PICKED BACK UP ON THE WAY IN (decision D3). The
+     room opens on its drop zone as always; where this relationship has a file
+     Boom is still working on, the wait rejoins it instead and nothing is sent.
+     Once, on mount: the handle is cleared by the engine when the file settles. */
+  useEffect(() => {
+    const handle = pendingBoomFile(ctx.accountId);
+    if (handle) void engine.resume(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine]);
 
   /* THE TWO MOMENTS THE COCKPIT CARES ABOUT: the plan left, and Boom settled
      it. Both are read off the engine's own state rather than fired from inside
@@ -623,18 +628,14 @@ export function SpreadingRoom({
                   <section className="wk-sheet-sec sp-fin" data-block="financials" aria-label={FIN_HEAD}>
                     <div className="sp-fin-head">
                       <div className="wk-sheet-k">{FIN_HEAD}</div>
-                      {state.figuresProvisional ? (
-                        <span className="sp-badge is-prov">{PROVISIONAL_BADGE}</span>
-                      ) : (
-                        <span className={`sp-badge${state.validationStatus === "validated" ? " is-ok" : ""}`}>
-                          {state.validationStatus === "validated" ? VALIDATED : NOT_VALIDATED}
-                        </span>
-                      )}
-                      {state.validationUrl && (
-                        <a className="sp-verify" href={state.validationUrl} target="_blank" rel="noopener noreferrer">
-                          {VERIFY}
-                        </a>
-                      )}
+                      {/* THE VALIDATION IS THE REGISTER'S, PER STATEMENT (0.9.28).
+                          A file-level "Validated in Boom" beside a register that
+                          says it statement by statement, over a link the
+                          register's own footer carries, is the same fact three
+                          times. What stays here is the word about the FIGURES:
+                          provisional is about the tiles, which are the browser's
+                          own read until Boom answers. */}
+                      {state.figuresProvisional && <span className="sp-badge is-prov">{PROVISIONAL_BADGE}</span>}
                       {onExplain && (
                         <button
                           type="button"
@@ -654,7 +655,26 @@ export function SpreadingRoom({
                     <SpreadTrend points={points} provisional={state.figuresProvisional} />
                     {state.figuresProvisional && <p className="sp-note">{PROVISIONAL_NOTE}</p>}
                     {state.statements.length ? (
-                      <SpreadStatements statements={state.statements} newPeriod={state.newPeriod} />
+                      <SpreadRegister
+                        statements={state.statements}
+                        support={state.support}
+                        mode="room"
+                        adjusted={state.adjusted}
+                        onAdjustedChange={
+                          state.adjustable ? (next) => void engine.setAdjusted(next) : undefined
+                        }
+                        newPeriodEnd={state.newPeriod}
+                        verificationUrl={state.validationUrl}
+                        provenance={{
+                          /* ONE FILE, NAMED; several, and the period and the
+                             system carry the citation instead of a list. */
+                          fileName: state.rows.length === 1 ? state.rows[0].name : null,
+                          /* The footer already opens "Spread by Boom", so the
+                             live lane's own word would be Boom twice. What is
+                             worth saying is when the answer is NOT Boom's. */
+                          source: lane === "live" ? null : boomSystemWord(lane),
+                        }}
+                      />
                     ) : (
                       <p className="sp-note">{NO_STATEMENTS}</p>
                     )}
@@ -780,79 +800,11 @@ function SpreadLadderRow({ row }: { row: LadderRow }) {
   );
 }
 
-/** THE IS / BS / CF TABS, the Financials tab's table in the room's register.
- *  The new period is the last column and it is marked, because the whole reason
- *  a banker opens this is to see what the new one did. */
-function SpreadStatements({
-  statements,
-  newPeriod,
-}: {
-  statements: BoomFinancialStatement[];
-  newPeriod: string | null;
-}) {
-  const tabs = statements.filter((s) => TAB_WORD[s.statementType]);
-  const [at, setAt] = useState(0);
-  const active = tabs[Math.min(at, tabs.length - 1)];
-  if (!active) return null;
-  const periods = active.periods ?? [];
-  /* THE NEW COLUMN IS MATCHED ON ITS FISCAL LABEL, not on the raw end date
-     (fixed 2026-09-13). `newPeriod` is "FY2025" and a period's `endDate` is
-     "2025-12-31", so the equality that was supposed to highlight the column the
-     banker opened this room for could never be true and the column was never
-     marked. The label is derived the way `figuresFromSpread` derives it. */
-  const isNew = (endDate: string | null | undefined): boolean =>
-    Boolean(endDate) && (endDate === newPeriod || `FY${String(endDate).slice(0, 4)}` === newPeriod);
-  return (
-    <div className="sp-st">
-      <div className="sp-st-tabs" role="tablist">
-        {tabs.map((s, i) => (
-          <button
-            key={s.id}
-            type="button"
-            role="tab"
-            aria-selected={i === at}
-            className={`sp-st-tab${i === at ? " is-on" : ""}`}
-            onClick={() => setAt(i)}
-          >
-            {TAB_WORD[s.statementType]}
-          </button>
-        ))}
-      </div>
-      <div className="sp-st-scroll">
-        <table className="sp-st-t num">
-          <thead>
-            <tr>
-              <th>Line</th>
-              {periods.map((p) => (
-                <th key={p.id} className={`r${isNew(p.endDate) ? " is-new" : ""}`}>
-                  {p.endDate ?? ""}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(active.lineItems ?? []).map((l) => (
-              <tr key={l.id} data-hierarchy={l.hierarchy}>
-                <td>{l.name}</td>
-                {periods.map((p) => (
-                  <td key={p.id} className={`r${isNew(p.endDate) ? " is-new" : ""}`}>
-                    {fmtMoney(l.periodValues?.[p.id] ?? null)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------ the host */
 
 /** The live dependency set. One place, so the swap to S2 and S3 is the import
  *  block at the top of this file and nothing else. */
-function liveDeps(): SpreadDeps {
+function liveDeps(accountId: string): SpreadDeps {
   return {
     readDroppedFile,
     extractDocument,
@@ -863,6 +815,8 @@ function liveDeps(): SpreadDeps {
     lane: BOOM_UPLOAD_LANE,
     registerPreRead,
     resetStub: resetStubBoom,
+    rememberFile: (handle) => rememberBoomFile(accountId, handle),
+    forgetFile: (fileId) => forgetBoomFile(accountId, fileId),
   };
 }
 

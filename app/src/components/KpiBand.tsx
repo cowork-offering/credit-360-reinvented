@@ -285,12 +285,12 @@ export function KpiBand() {
             <span style={{ color: live.failure.retract ? "var(--critical)" : "var(--warning)" }}>
               {/* WHAT THE BAND IS SHOWING, NOT HOW TO FIX THE PLUMBING (A15,
                   2026-09-12). `McpFailure.fix` is written for whoever wired the
-                  connector — "Add IDB Gateway in claude.ai Settings >
-                  Connectors" — and it sat on the banker's own landing, over
-                  figures that were still perfectly readable. The operator
-                  sentence belongs on the operator surface and stays there
-                  (`HealthLine`); this one says what the tiles are standing on.
-                  The raw code below still names the layer for a screenshot. */}
+                  connector, naming it and the claude.ai connector settings, and
+                  it sat on the banker's own landing, over figures that were
+                  still perfectly readable. The operator sentence belongs on the
+                  operator surface and stays there (`HealthLine`); this one says
+                  what the tiles are standing on. The raw code below still names
+                  the layer for a screenshot. */}
               {BAND_ON_LAST_GOOD}
               {/* Freshness comes off the served result's cache stamp, never a
                   clock read here: it says when the figures on screen were true,

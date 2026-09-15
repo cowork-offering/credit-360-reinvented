@@ -1,7 +1,16 @@
+import { useEffect, useRef, useState } from "react";
+
+import { normaliseBoom } from "../../../../client-360/render/boom-normalise.mjs";
+import { isBoomNotFound, readBoom } from "../../channel/boom";
+import { boomServer } from "../../channel/boomLane";
+import { mcpAvailable } from "../../channel/mcp";
 import type { BorrowerBundle, Covenant } from "../../data/contract";
 import { fmtMoney, fmtPct } from "../../data/format";
 import { fmtRatio } from "../../data/finance";
 import { isProvisionalPeriod } from "../../spread/publishSpread";
+import type { BoomFinancialStatement } from "../../spread/types";
+import { SpreadRegister } from "../workroom/register/SpreadRegister";
+import { useApp } from "../../state/appState";
 import { EmptyPane, Fig, Note, Pane, PaneCard, SecHead, Status, type StatusTone } from "./paneKit";
 
 const EXPLAIN =
@@ -57,14 +66,110 @@ function ratioTone(
   return Math.abs(threshVal - val) < 0.4 ? "warn" : "good";
 }
 
+/* =============================================================================
+   THE TAB READS BOOM WHEN IT OPENS (0.9.28).
+
+   Boom is a connector of its own now, so there is nothing to wait for: the tab
+   asks it for this borrower on the way in and the figures are the server's. What
+   it must NEVER do is turn that into noise. Three outcomes, three states:
+
+     ANSWERED      the spread and the ratios land on the book through the one
+                   normaliser, and the caption names what answered (`_source`).
+     NOT IN BOOM   Boom holds no company under this borrower's Salesforce id.
+                   That is a fact about the book, not a failure: it is said
+                   plainly, with the one thing that changes it. Hartwell is
+                   exactly this case on the founder's own org.
+     NO ANSWER     a connector that is briefly down, or was never added. The tab
+                   keeps whatever the book already held and says nothing: last
+                   good is the cockpit's whole doctrine and an error toast over
+                   readable figures is the named anti-pattern.
+
+   ONCE PER RELATIONSHIP. The read is cached 30 seconds at the seam anyway, and
+   a tab that re-asked on every render would spend the viewer's connector budget
+   on a figure that has not moved.
+   ============================================================================= */
+
+type BoomState = { phase: "idle" | "reading" | "answered" } | { phase: "absent"; message: string };
+
+function useBoomOnOpen(bundle: BorrowerBundle): { state: BoomState; source?: string } {
+  const { dispatch } = useApp();
+  const accountId = bundle.snapshot?.accountId ?? null;
+  const company = bundle.snapshot?.name ?? null;
+  const [state, setState] = useState<BoomState>({ phase: "idle" });
+  const [source, setSource] = useState<string | undefined>(undefined);
+  const asked = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!accountId || !mcpAvailable() || asked.current === accountId) return;
+    asked.current = accountId;
+    let live = true;
+    setState({ phase: "reading" });
+    void (async () => {
+      try {
+        const reads = await readBoom({ accountId, company });
+        if (!live) return;
+        /* THROUGH THE ONE SEAM. The connector hands back its own envelopes and
+           `boom-normalise.mjs` is the only place the display fields are derived
+           from them; merging the raw payloads onto the bundle by hand is how the
+           tab once read Boom's display CARDS array as if it were the ratios. */
+        const merged = normaliseBoom({
+          ...(bundle.boom ?? {}),
+          ...(reads.ratios ? { ratios: reads.ratios } : {}),
+          ...(reads.spread ? { spread: reads.spread } : {}),
+        });
+        setSource(reads.source);
+        setState({ phase: "answered" });
+        if (merged) dispatch({ type: "PATCH_BUNDLE", accountId, patch: { boom: merged }, storedAt: reads.storedAt });
+      } catch (e) {
+        if (!live) return;
+        if (isBoomNotFound(e)) setState({ phase: "absent", message: e.message });
+        // Anything else is a lane that did not answer. The book stands.
+        else setState({ phase: "idle" });
+      }
+    })();
+    return () => {
+      live = false;
+    };
+    // The relationship is the only thing that re-asks. `bundle.boom` changing is
+    // this effect's own result landing, and depending on it would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+
+  return { state, source };
+}
+
+/** What answered, where it was not Boom's own live read. The server stamps every
+ *  answer `_source`, and a figure read out of a fixture says so on the glass. */
+const sourceWord = (source: string | undefined): string | null =>
+  !source || source === "BOOM-LIVE" ? null : `Source stamp: ${source}`;
+
+/** LAST GOOD, AND SAID SO. A relationship the book carries figures for and Boom
+ *  has no company for is not an empty tab: the figures stand, because emptying a
+ *  pane a banker is reading is the one thing this cockpit never does. What
+ *  changes is that the caption stops implying Boom answered for them. */
+const ABSENT_NOTE = "Boom holds no company for this borrower, so these figures are the ones already on the book.";
+
 export function FinancialsTab({ bundle }: { bundle: BorrowerBundle }) {
+  const { state: boomState, source } = useBoomOnOpen(bundle);
   const boom = bundle.boom;
   if (!boom || (!boom.spread && !boom.ratios)) {
     return (
       <Pane id="financials">
         <PaneCard>
           <SecHead kicker="Financials" sub="Boom spreading" explain={EXPLAIN} />
-          <EmptyPane title="Boom spread not fetched this session" body="Ask for the spread and it fills in." />
+          {boomState.phase === "absent" ? (
+            <EmptyPane
+              title="This borrower is not in Boom"
+              body={`${boomState.message} Drop its statements into the Spreading room and Boom will hold the spread from then on.`}
+            />
+          ) : boomState.phase === "reading" ? (
+            <EmptyPane title="Reading Boom" body={`Asking ${boomServer()} for this borrower's spread.`} />
+          ) : (
+            <EmptyPane
+              title="No Boom spread on this relationship"
+              body="Drop its statements into the Spreading room, or add the Boom connector in claude.ai Settings if it is missing."
+            />
+          )}
         </PaneCard>
       </Pane>
     );
@@ -76,6 +181,14 @@ export function FinancialsTab({ bundle }: { bundle: BorrowerBundle }) {
   const covs = bundle.covenants?.covenants ?? [];
   const levCov = findLeverage(covs);
   const items = spread.lineItems ?? [];
+  /* THE RAW STATEMENTS, WHERE THE BOOK CARRIES THEM. `spread.file` is
+     `boom_get_spread` verbatim, so it holds every line, every period and the
+     account code each line was mapped to; `spread.lineItems` beside it is the
+     assembler's LTM-vs-prior extract and is all an older baked book carries.
+     The register draws the first, and the extract stays for the rest (four of
+     the five baked borrowers today). */
+  const statements =
+    (spread.file as { financialStatements?: BoomFinancialStatement[] } | undefined)?.financialStatements ?? [];
 
   const revenues = periods.map((p) => p.revenue ?? 0);
   const scale = Math.max(0, ...revenues) * SCALE_HEADROOM;
@@ -241,9 +354,20 @@ export function FinancialsTab({ bundle }: { bundle: BorrowerBundle }) {
           </div>
         </PaneCard>
 
-        {items.length > 0 && (
+        {statements.length > 0 ? (
           /* Beside Key ratios in one row (founder, 2026-09-03): a full-width
              statement left a bare column to the right of the ratios card. */
+          <PaneCard>
+            <div className="kicker" style={{ marginBottom: 12 }}>
+              Boom statements
+            </div>
+            {/* THE ROOM'S OWN REGISTER, COMPACT: one register language across
+                the cockpit rather than a second idea of what a spread looks
+                like. Adjusted is Boom's default read and the tab offers no
+                switch, because the tab has no file to re-read against. */}
+            <SpreadRegister statements={statements} mode="compact" adjusted />
+          </PaneCard>
+        ) : items.length > 0 ? (
           <PaneCard>
             <div className="kicker" style={{ marginBottom: 12 }}>
               Income statement · LTM vs prior year
@@ -287,11 +411,20 @@ export function FinancialsTab({ bundle }: { bundle: BorrowerBundle }) {
               </tbody>
             </table>
           </PaneCard>
-        )}
+        ) : null}
         </div>
       </div>
 
-      <Note note={boom.note ?? (spread.sourceFile ? `Source: Boom spreading · ${spread.sourceFile}` : "Source: Boom spreading")} />
+      <Note
+        note={[
+          boomState.phase === "absent"
+            ? ABSENT_NOTE
+            : boom.note ?? (spread.sourceFile ? `Source: Boom spreading · ${spread.sourceFile}` : "Source: Boom spreading"),
+          sourceWord(source),
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      />
     </Pane>
   );
 }

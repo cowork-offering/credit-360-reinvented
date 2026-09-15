@@ -1,4 +1,4 @@
 {
-  "_comment": "INTENTIONALLY EMPTY, same doctrine as credit-memo-reinvented. The data layer is USER-LEVEL CONNECTORS, never plugin-bundled servers: the Customer 360 Salesforce MCP server (org-hosted McpServerDefinition, per-user OAuth), Microsoft 365 (outlook_email_search), the IDB Gateway (Boom financials) all appear in the Cowork/Claude connectors panel. Keeps deployment endpoints and credentials out of this repository (marketplace governance rule). Registration is an environment prerequisite, not a plugin concern: see RUNBOOK.md section 2.",
+  "_comment": "INTENTIONALLY EMPTY, same doctrine as credit-memo-reinvented. The data layer is USER-LEVEL CONNECTORS, never plugin-bundled servers: the Customer 360 Salesforce MCP server (org-hosted McpServerDefinition, per-user OAuth), Boom (spreads, ratios and the statement upload), Microsoft 365 (outlook_email_search), Experience / nCino and AFS all appear in the Cowork/Claude connectors panel. Keeps deployment endpoints and credentials out of this repository (marketplace governance rule). Registration is an environment prerequisite, not a plugin concern: see RUNBOOK.md section 2.",
   "mcpServers": {}
 }

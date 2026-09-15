@@ -1,0 +1,417 @@
+/* =============================================================================
+   THE STATEMENT REGISTER (components/workroom/register/SpreadRegister.tsx).
+
+   GLASS REGISTER ONLY. Every colour here is a cockpit token; the one thing this
+   file introduced is the account-code chip family, and those live in tokens.css
+   beside the other chip families rather than here. The sheet's own material
+   (.wk-sheet) carries the surface; the register is what sits on it.
+
+   SPREADSHEET DENSITY, Noland's. Compact rows, a row-number gutter, 100 px
+   period columns, and the first two columns pinned while the periods scroll
+   under them. The tab's compact mode drops the gutter and the chip and pins the
+   line name in their place (see "compact mode" at the foot of this file). THE SHEET SCROLLS, NEVER THE PAGE: .rg-scroll owns the overflow,
+   which is the same contract .sp-st-scroll already holds in this room.
+   ============================================================================= */
+
+.rg {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------- the controls
+   The room's own pills. A control is chrome, so it is quiet until it is on. */
+.rg-ctl {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rg-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.rg-pick {
+  display: inline-flex;
+  position: relative;
+}
+/* The select is styled to the glass rather than left as a platform control: a
+   native chrome in a glass row is the one thing that reads as unfinished. */
+.rg-sel {
+  appearance: none;
+  padding: 6px 26px 6px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%2380818d' stroke-width='1.4' stroke-linecap='round'/></svg>")
+      no-repeat right 10px center / 9px 6px,
+    var(--surface-raised);
+  color: var(--ink-strong);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rg-sel:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.rg-chips,
+.rg-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.rg-seg {
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-raised);
+}
+.rg-adj {
+  margin-left: auto;
+}
+.rg .wk-opt {
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+.rg-seg .rg-segb {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  padding: 6px 12px;
+}
+.rg-seg .rg-segb + .rg-segb {
+  border-left: 1px solid var(--border);
+}
+.rg .wk-opt[aria-pressed="true"] {
+  background: var(--accent-wash);
+  border-color: var(--accent-hairline);
+  color: var(--ink-strong);
+}
+.rg-seg .rg-segb[aria-pressed="true"] {
+  border-left-color: var(--border);
+}
+/* A period the banker dropped is OUT, and it says so by going quiet rather than
+   by disappearing: the chip is how it comes back. */
+.rg-chip[aria-pressed="false"] {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+}
+
+/* ----------------------------------------------------------- the header line */
+.rg-line {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+.rg-sep {
+  color: var(--crumb-sep);
+}
+
+/* ------------------------------------------------------------------ the grid */
+.rg-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-top: 1px solid var(--row-divider);
+}
+.rg-t {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.rg-cg {
+  width: 34px;
+}
+.rg-cc {
+  width: 168px;
+}
+.rg-ci {
+  min-width: 200px;
+}
+.rg-cv {
+  width: 100px;
+}
+.rg-cp {
+  width: 84px;
+}
+.rg-t th,
+.rg-t td {
+  padding: 5px 9px;
+  white-space: nowrap;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--row-divider);
+  text-align: left;
+}
+.rg-t thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-raised);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+.rg-t tbody td {
+  color: var(--ink-body);
+}
+.rg-t tbody tr:hover td {
+  background: var(--wash-2);
+}
+.rg-v,
+.rg-p {
+  text-align: right;
+}
+.rg-t th.rg-v,
+.rg-t th.rg-p {
+  text-align: right;
+}
+.rg-g {
+  text-align: right;
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+/* THE FIRST TWO COLUMNS ARE PINNED. The gutter and the account code are the
+   row's identity, and a banker reading the third period across should not lose
+   which line they are on. They need an opaque ground or the scrolled figures
+   read straight through them. */
+.rg-t th.rg-g,
+.rg-t td.rg-g {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-raised);
+  /* PINNED AT THE WIDTH IT IS PINNED TO. The colgroup width is a hint an auto
+     table is free to shrink, and a gutter that rendered narrower than the 34 px
+     the account code is offset by left a strip of scrolled figures showing
+     between the two pinned columns (seen at the tab's compact width,
+     2026-09-15). The minimum is what makes the pair one solid edge. */
+  min-width: 34px;
+}
+.rg-t th.rg-c,
+.rg-t td.rg-c {
+  position: sticky;
+  left: 34px;
+  z-index: 1;
+  background: var(--surface-raised);
+  box-shadow: 1px 0 0 var(--row-divider);
+}
+.rg-t thead th.rg-g,
+.rg-t thead th.rg-c {
+  z-index: 3;
+}
+
+/* hierarchy by WEIGHT, never by colour */
+.rg-sect td {
+  background: var(--wash-2);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+.rg-sect:hover td {
+  background: var(--wash-2);
+}
+.rg-t tr[data-hierarchy="subtotal"] td {
+  font-weight: 600;
+  color: var(--ink-strong);
+  border-top: 1px solid var(--row-divider);
+}
+.rg-t tr[data-hierarchy="total"] td {
+  font-weight: 700;
+  color: var(--ink-strong);
+  border-top: 1px solid var(--border-strong);
+}
+.rg-t tr[data-hierarchy="line_item"] .rg-i {
+  padding-left: 18px;
+}
+/* A NEGATIVE IS INK AND A MINUS. Never red, never a parenthesis: status colour
+   is reserved for state, and a bracket is a convention this cockpit does not
+   ask a banker to decode. */
+.rg-v.is-neg {
+  color: var(--ink-muted);
+}
+.rg-var {
+  color: var(--ink-muted);
+}
+/* The column a fresh upload added, in the room's own is-new register. */
+.rg-t .is-new {
+  background: var(--accent-wash);
+}
+.rg-t thead th.is-new {
+  color: var(--accent);
+}
+
+/* the per-period coverage mark: filled where every line on the statement carries
+   a figure for that period, hollow where one does not. It is COVERAGE and not
+   validation, which is the statement-level badge on the line above. */
+.rg-tick {
+  margin-right: 5px;
+  font-size: 9px;
+  color: var(--ink-faint);
+}
+.rg-tick.is-on {
+  color: var(--ink-muted);
+}
+
+/* the mapped-account-code chip: the abbreviation, then the code Boom used */
+.rg-c {
+  overflow: hidden;
+}
+.rg-cat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 140px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  line-height: 1.5;
+}
+.rg-cat-a {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 8.5px;
+  letter-spacing: 0.02em;
+}
+.rg-cat-l {
+  font-size: 10.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rg-cat--ca { background: var(--cat-ca-bg); color: var(--cat-ca-ink); }
+.rg-cat--cl { background: var(--cat-cl-bg); color: var(--cat-cl-ink); }
+.rg-cat--lta { background: var(--cat-lta-bg); color: var(--cat-lta-ink); }
+.rg-cat--ltl { background: var(--cat-ltl-bg); color: var(--cat-ltl-ink); }
+.rg-cat--eq { background: var(--cat-eq-bg); color: var(--cat-eq-ink); }
+.rg-cat--rev { background: var(--cat-rev-bg); color: var(--cat-rev-ink); }
+.rg-cat--exp { background: var(--cat-exp-bg); color: var(--cat-exp-ink); }
+.rg-cat--tot { background: var(--cat-tot-bg); color: var(--cat-tot-ink); }
+.rg-cat--none {
+  background: var(--cat-none-bg);
+  color: var(--cat-none-ink);
+  border: 1px dashed var(--border);
+}
+/* Boom placed no account code on a line it should have placed one on. FLAGGED,
+   never corrected: the register reports what Boom read. */
+.rg-flag {
+  margin-left: 5px;
+  font-weight: 700;
+  color: var(--warning);
+}
+.rg-feeds {
+  margin-left: 8px;
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+
+/* --------------------------------------------------------- provenance footer
+   Citation as UI: the file, the period, the system, the method. No figure from
+   the tiles is repeated here. */
+.rg-prov {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.rg-prov b {
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.rg-provlink {
+  margin-left: auto;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-hairline);
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: var(--glass-rim);
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.rg-provlink:hover {
+  color: var(--brand);
+  border-color: var(--accent-hairline);
+}
+
+/* ----------------------------------------------------------- compact mode
+   The tab's register: the statement select, the line name, three periods and
+   Variance %. No footer, because the tab carries its own source note.
+
+   THE TAB IS THE SUMMARY AND THE ROOM IS THE AUDIT (founder, 2026-09-15). The
+   gutter and the account-code chip are dropped in the markup rather than hidden
+   here, because a column that is only display:none still reserves nothing and
+   still has to be read by a screen reader. What is left is the line, the three
+   newest periods and the percentage, which is what fits the tab's 506 px card
+   with nothing to scroll.
+
+   THE LINE NAME IS THE PINNED COLUMN HERE, the way the gutter and the chip are
+   in the room: on a narrower card the periods scroll under it and the banker
+   never loses which line they are reading. */
+.rg[data-mode="compact"] .rg-t {
+  font-size: 11.5px;
+}
+.rg[data-mode="compact"] .rg-t th,
+.rg[data-mode="compact"] .rg-t td {
+  padding: 4px 8px;
+}
+/* The room's 200 px floor is what made the grid wider than the card. Here the
+   name wraps instead, so the column gives way to the figures. */
+.rg[data-mode="compact"] .rg-ci {
+  min-width: 0;
+}
+.rg[data-mode="compact"] .rg-t td.rg-i {
+  white-space: normal;
+}
+.rg[data-mode="compact"] .rg-t th.rg-i,
+.rg[data-mode="compact"] .rg-t td.rg-i {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-raised);
+  box-shadow: 1px 0 0 var(--row-divider);
+}
+.rg[data-mode="compact"] .rg-t thead th.rg-i {
+  z-index: 3;
+}
+.rg[data-mode="compact"] .rg-cv {
+  width: 64px;
+}
+.rg[data-mode="compact"] .rg-cp {
+  width: 76px;
+}
+/* The mis-map flag, at summary size: the room prints the chip and the "!", the
+   tab keeps only the mark that something is outside Boom's aggregate. */
+.rg-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+  vertical-align: middle;
+}

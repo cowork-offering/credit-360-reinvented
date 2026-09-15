@@ -81,11 +81,16 @@ describe("the list is exactly three, each narrow", () => {
 });
 
 describe("the write fence is absolute", () => {
-  it("allows exactly the four read doors, and every one of them is a read", () => {
+  it("allows exactly the five read doors, and every one of them is a read", () => {
     // The two the relationship's own tools open, and the two `connectedPartyBook`
     // points at a counterparty the anchored graph already connects. Nothing is
     // added here without the fence being re-argued.
-    expect([...READ_DOORS].sort()).toEqual([TOOLS.boomRatios, TOOLS.graph, TOOLS.exposure, TOOLS.covenants].sort());
+    // 0.9.28 added `boom_get_spread`: Boom's own server takes a FILE id there,
+    // and the only file the ratios tool can name is the one the ratio set just
+    // reported, so the second read cannot be pointed anywhere the first was not.
+    expect([...READ_DOORS].sort()).toEqual(
+      [TOOLS.boomRatios, TOOLS.boomSpread, TOOLS.graph, TOOLS.exposure, TOOLS.covenants].sort(),
+    );
   });
 
   it("admits no stage or execute door to the allow-list", () => {
@@ -128,23 +133,46 @@ describe("the write fence is absolute", () => {
 });
 
 describe("currentBoomRatios", () => {
-  it("reads the gateway ratios door for the bound company", async () => {
-    const call = stub({ ratios: { totalLeverage: 2.8, interestCoverage: 6.1, ebitda: 9_400_000 } });
+  /* RESTATED 0.9.28. Boom is its own connector, addressed by the display name
+     discovery found rather than by the gateway's, and its ratio tool takes the
+     BORROWER: the Salesforce record id, which is the join Boom itself stores.
+     The figures are read through `boom-normalise.mjs` rather than picked off the
+     payload, because Boom emits margins as fractions and the tab beside the
+     model prints percentages. */
+  it("reads the Boom ratios door for the bound borrower, by record id", async () => {
+    const call = stub({
+      raw: { totalDebt: 26_320_000, leverage: 2.8, interestCoverage: 6.1, ebitda: 9_400_000, ebitdaMargin: 0.181 },
+      support: { periodEnd: "2025-12-31" },
+    });
     const [boom] = buildBrainTools({ anchor: ANCHOR, call });
     const out = await boom.execute({}, ctx);
-    expect(call).toHaveBeenCalledWith(SERVERS.gateway, TOOLS.boomRatios, { company: ANCHOR.company }, expect.anything());
-    expect(out).toEqual({ totalLeverage: 2.8, interestCoverage: 6.1, ebitda: 9_400_000 });
+    expect(call).toHaveBeenCalledWith(
+      expect.any(String),
+      TOOLS.boomRatios,
+      { salesforceRecordId: ANCHOR.accountId },
+      expect.anything(),
+    );
+    expect(out).toMatchObject({ ebitda: 9_400_000, totalLeverage: 2.8, interestCoverage: 6.1, asOf: "2025-12-31" });
+    // A fraction off Boom, a percentage on the glass: scaled once, in the
+    // normaliser, and never a second time here.
+    expect((out as { ebitdaMargin: number }).ebitdaMargin).toBeCloseTo(18.1, 6);
   });
 
   it("says the door carried no figures rather than returning an empty fact", async () => {
-    const [boom] = buildBrainTools({ anchor: ANCHOR, call: stub({ ratios: {} }) });
+    const [boom] = buildBrainTools({ anchor: ANCHOR, call: stub({ raw: {} }) });
     expect(await boom.execute({}, ctx)).toMatch(/no ratio figures/);
   });
 
-  it("refuses without a bound company rather than reading somebody else's book", async () => {
+  it("says the borrower is not in Boom rather than inventing a spread", async () => {
+    const call = stub({ code: "NOT_FOUND", message: "Company Not Found", boomStatus: 404 });
+    const [boom] = buildBrainTools({ anchor: ANCHOR, call });
+    expect(await boom.execute({}, ctx)).toMatch(/holds no spread for this borrower/);
+  });
+
+  it("refuses without a bound borrower rather than reading somebody else's book", async () => {
     const call = stub({});
-    const [boom] = buildBrainTools({ anchor: { accountId: "001", company: null }, call });
-    expect(await boom.execute({}, ctx)).toMatch(/No company is bound/);
+    const [boom] = buildBrainTools({ anchor: { accountId: null, company: null }, call });
+    expect(await boom.execute({}, ctx)).toMatch(/No borrower is bound/);
     expect(call).not.toHaveBeenCalled();
   });
 

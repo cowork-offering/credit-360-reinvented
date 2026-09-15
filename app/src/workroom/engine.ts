@@ -452,8 +452,8 @@ export function createScriptedEngine(
     async parseIntent(text) {
       const beat = nextBeat();
       // Storyline rails, not a parser. The real engine sends the line to the
-      // gateway and validates the parse against org fields before it becomes a
-      // chip; what it must NOT do, and this must not either, is invent a delta
+      // vocabulary assist and validates the parse against org fields before it
+      // becomes a chip; what it must NOT do, and this must not either, is invent a delta
       // from a line it did not understand.
       if (!beat) return { kind: "unparsed", reply: script.offScript };
       const lower = text.toLowerCase();

@@ -128,6 +128,34 @@
   --chip-recently-modified-bg: var(--neutral-bg);
   --chip-recently-modified-fg: var(--neutral-fg);
 
+  /* Boom ACCOUNT-CODE CHIP FAMILIES (statement register, styles/register.css).
+     Ported verbatim from Noland's Boom MCP widget (boom-mcp/widget/tokens.css),
+     which took them from Boom's own product skin, so a line the banker reads in
+     Boom keeps its colour when the cockpit reads it back. A banker reads the
+     section of a statement off the family, which is why these are their own
+     scale and not the reason-code chips above.
+       ca current assets   cl current liabilities   lta long-term assets
+       ltl long-term liabilities   eq equity   rev revenue   exp expense
+       tot subtotal and total   none unmapped, deliberately mute. */
+  --cat-ca-bg: #fef3c7;
+  --cat-ca-ink: #8a4309;
+  --cat-cl-bg: #d1fae5;
+  --cat-cl-ink: #036347;
+  --cat-lta-bg: #dbeafe;
+  --cat-lta-ink: #1a44b8;
+  --cat-ltl-bg: #fee2e2;
+  --cat-ltl-ink: #a8211b;
+  --cat-eq-bg: #ede9fe;
+  --cat-eq-ink: #5b21b6;
+  --cat-rev-bg: #ccfbf1;
+  --cat-rev-ink: #0b5f58;
+  --cat-exp-bg: #ffedd5;
+  --cat-exp-ink: #9a3412;
+  --cat-tot-bg: #f0f0f2;
+  --cat-tot-ink: #4b4b55;
+  --cat-none-bg: rgba(0, 0, 0, 0.04);
+  --cat-none-ink: #6b6c76;
+
   /* Structural / chart neutrals — tokenised so components carry zero literals. */
   --fill-strong: #1a1a1a; /* drawn bar, avatar, the scene-bar action */
   --ink-inverse: #ffffff;
@@ -290,6 +318,32 @@
   --beat: 460ms;
   --beat-in: 220ms; /* a glyph arriving for the first time */
   --tracking: -0.01em;
+}
+
+/* THE CHIP FAMILIES IN DARK, carried for the day the cockpit has a dark ground.
+   Scoped to an EXPLICIT [data-theme="dark"] and NOT to prefers-color-scheme:
+   the cockpit is a light-only surface today, and a media query would flip these
+   eleven chips dark inside a light register on any machine set to dark. Nothing
+   sets the attribute yet, so nothing changes until something does. */
+:root[data-theme="dark"] {
+  --cat-ca-bg: color-mix(in srgb, #f59e0b 20%, transparent);
+  --cat-ca-ink: #fcd34d;
+  --cat-cl-bg: color-mix(in srgb, #10b981 20%, transparent);
+  --cat-cl-ink: #6ee7b7;
+  --cat-lta-bg: color-mix(in srgb, #3b82f6 22%, transparent);
+  --cat-lta-ink: #93c5fd;
+  --cat-ltl-bg: color-mix(in srgb, #ef4444 22%, transparent);
+  --cat-ltl-ink: #fca5a5;
+  --cat-eq-bg: color-mix(in srgb, #8b5cf6 22%, transparent);
+  --cat-eq-ink: #c4b5fd;
+  --cat-rev-bg: color-mix(in srgb, #14b8a6 22%, transparent);
+  --cat-rev-ink: #5eead4;
+  --cat-exp-bg: color-mix(in srgb, #f97316 22%, transparent);
+  --cat-exp-ink: #fdba74;
+  --cat-tot-bg: rgba(255, 255, 255, 0.08);
+  --cat-tot-ink: #f1f1ef;
+  --cat-none-bg: rgba(255, 255, 255, 0.05);
+  --cat-none-ink: rgba(241, 241, 239, 0.58);
 }
 
 * {

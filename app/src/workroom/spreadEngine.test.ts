@@ -13,7 +13,7 @@ import {
   MAX_FILES,
   PRE_READ_BEAT_MS,
   POLL_EVERY_MS,
-  SETTLE_BUDGET_MS,
+  BOOM_WAIT_BUDGET_MS,
   createSpreadEngine,
   duplicateLine,
   leftWithBoomLine,
@@ -482,7 +482,12 @@ describe("the ladder", () => {
     expect(engine.getState().stage).toBe("sending");
     expect(engine.getState().rows[0].state).toBe("processing");
 
-    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 2);
+    /* THE CADENCE MOVED BY ONE BEAT (0.9.28). The room used to wait a poll
+       before asking Boom anything; the live lane asks straight away, because
+       `boom_await_file` is a BLOCKING call the server itself paces and its own
+       guidance is to make it the moment processing starts. The interval between
+       calls is unchanged, and it is still the room that owns it. */
+    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS);
     expect(engine.getState().rows[0].state).toBe("processing");
 
     await vi.advanceTimersByTimeAsync(POLL_EVERY_MS);
@@ -535,7 +540,12 @@ describe("the ladder", () => {
     expect(engine.getState().statements).toEqual([]);
   });
 
-  it("says Boom is still spreading rather than freezing, and offers the two real options", async () => {
+  /* RESTATED 0.9.28 (founder decision D3). Boom has been observed taking over
+     six minutes on an 8 KB workbook, so the room's own clock moved from 45
+     seconds to two minutes AND the first expiry is a STATEMENT rather than a
+     question: "Boom is still processing", and it re-arms itself. Only the second
+     expiry stops and offers the two doors, which is what this case pins. */
+  it("says Boom is still processing before it ever asks, then offers the two real options", async () => {
     const engine = (live = engineWith({
       adapter: stubAdapter({
         async status(): Promise<BoomUploadResult> {
@@ -548,7 +558,12 @@ describe("the ladder", () => {
     await drop;
 
     const run = engine.confirm();
-    await vi.advanceTimersByTimeAsync(SETTLE_BUDGET_MS + POLL_EVERY_MS);
+    await vi.advanceTimersByTimeAsync(BOOM_WAIT_BUDGET_MS + POLL_EVERY_MS);
+    // The first budget: a line, no stall, and the room carries on checking.
+    expect(engine.getState().stall).toBeNull();
+    expect(engine.getState().notice).toBe("Boom is still processing fy2025.pdf. I will keep checking.");
+
+    await vi.advanceTimersByTimeAsync(BOOM_WAIT_BUDGET_MS + POLL_EVERY_MS);
     const stall = engine.getState().stall;
     expect(stall).not.toBeNull();
     expect(stall?.line).toContain("Boom is still spreading fy2025.pdf");
@@ -564,20 +579,22 @@ describe("the ladder", () => {
   });
 
   it("keeps waiting when the banker says so, and settles on the next answer", async () => {
-    let polls = 0;
+    /* BOOM FINISHES WHEN THE TEST SAYS SO, not after a poll count: the room's
+       budget is two minutes now and counting polls to reach it would pin the
+       poll interval rather than the behaviour. */
+    let spreading = true;
     const engine = (live = engineWith({
       adapter: stubAdapter({
         async status(): Promise<BoomUploadResult> {
-          polls += 1;
-          return polls > 40
-            ? {
+          return spreading
+            ? { fileId: "boom1", companyId: "c1", fileGroupId: null, status: "processing" }
+            : {
                 fileId: "boom1",
                 companyId: "c1",
                 fileGroupId: null,
                 status: "verified",
                 financialStatements: [{ ...STATEMENT, validationStatus: "validated" }],
-              }
-            : { fileId: "boom1", companyId: "c1", fileGroupId: null, status: "processing" };
+              };
         },
       }),
     }));
@@ -586,9 +603,11 @@ describe("the ladder", () => {
     await drop;
 
     const run = engine.confirm();
-    await vi.advanceTimersByTimeAsync(SETTLE_BUDGET_MS + POLL_EVERY_MS);
+    // Two budgets: the room says it is still checking, then it asks.
+    await vi.advanceTimersByTimeAsync((BOOM_WAIT_BUDGET_MS + POLL_EVERY_MS) * 2);
     expect(engine.getState().stall).not.toBeNull();
 
+    spreading = false;
     engine.keepWaiting();
     await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 6);
     await run;

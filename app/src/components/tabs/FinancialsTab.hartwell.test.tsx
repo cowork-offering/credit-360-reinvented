@@ -61,6 +61,13 @@ function render(bundle: BorrowerBundle): HTMLDivElement {
 }
 
 const text = (el: HTMLElement) => (el.textContent ?? "").replace(/\s+/g, " ");
+/** One line of the register, by the name Boom printed on it. */
+const registerRow = (el: HTMLElement, name: string): string =>
+  text(
+    [...el.querySelectorAll<HTMLElement>(".rg-t tbody tr")].find(
+      (r) => (r.querySelector(".rg-nm")?.textContent ?? "") === name,
+    )!,
+  );
 
 /* THE FILE THE BANKER DROPPED, as the room read it: one income statement, two
    columns. The figures are the ones the browser run printed. */
@@ -185,14 +192,28 @@ describe("the income statement fills its prior year", () => {
     expect(row(published())?.priorFy).toBe(64_486_000);
   });
 
-  it("prints no empty prior-year column on the glass", () => {
+  it("prints both of the spread's columns on the glass, neither empty", () => {
+    /* THE REGISTER IS THE STATEMENT SURFACE ONCE A SPREAD LANDS (0.9.28): a
+       publish writes the raw statements onto `spread.file`, so the tab draws
+       every line Boom carried rather than the assembler's two-column extract.
+       Thousands, and a negative reads with a leading minus. */
     const el = render(afterSpread());
+    expect(registerRow(el, "Net Sales")).toContain("71,200");
+    expect(registerRow(el, "Net Sales")).toContain("64,486");
+    expect(registerRow(el, "Interest Expense")).toContain("-1,750");
+    expect(registerRow(el, "Interest Expense")).toContain("-1,610");
+  });
+
+  it("keeps the LTM table on a book that carries only the assembler's extract", () => {
+    /* Four of the five baked borrowers carry `spread.lineItems` and no raw
+       `spread.file` at all. There is nothing for the register to draw on those,
+       and the extract is what a banker reads until a spread lands. */
+    const el = render(hartwell());
+    expect(hartwell().boom?.spread?.file).toBeUndefined();
+    expect(el.querySelector(".rg")).toBeNull();
+    expect(text(el)).toContain("Income statement · LTM vs prior year");
     const revenue = [...el.querySelectorAll<HTMLElement>("tr")].find((r) => text(r).startsWith("Revenue"))!;
-    expect(text(revenue)).toContain("$71.20M");
-    expect(text(revenue)).toContain("$64.49M");
-    const interest = [...el.querySelectorAll<HTMLElement>("tr")].find((r) => text(r).startsWith("Interest Expense"))!;
-    expect(text(interest)).toContain("$1.75M");
-    expect(text(interest)).toContain("$1.61M");
+    expect(text(revenue)).toContain("$64.20M");
   });
 });
 

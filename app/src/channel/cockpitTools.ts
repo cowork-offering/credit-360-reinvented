@@ -7,46 +7,24 @@
    the fix copy for the affected section.
    ============================================================================= */
 
-import type { ActionChangeCounts, ActionHistoryRow, ActionStep, BorrowerBundle, C360Data, Id } from "../data/contract";
-import { buildGroundedPrompt } from "../data/grounding";
-import { callTool, SERVERS, TOOLS, unwrapInvocable, unwrapLlm, unwrapMail, type LlmAnswer } from "./mcp";
+import type { ActionChangeCounts, ActionHistoryRow, ActionStep, Id } from "../data/contract";
+import { readBoom, type BoomBorrower, type BoomReads } from "./boom";
+import { callTool, SERVERS, TOOLS, unwrapInvocable, unwrapMail } from "./mcp";
 import { readThroughEitherLane } from "./gateway/lane";
-
-/* ------------------------------------------------------------------ chat */
-
-/** Ask the credit copilot. The prompt is GROUNDED in the staged bundle so the
- *  model answers from the cockpit's figures, never from general knowledge. */
-export async function askCopilot(args: {
-  data: C360Data;
-  bundle: BorrowerBundle | null;
-  accountName: string | null;
-  tab: string | null;
-  question: string;
-  signal?: AbortSignal;
-}): Promise<LlmAnswer> {
-  const prompt = buildGroundedPrompt(args);
-  const res = await callTool(SERVERS.gateway, TOOLS.llm, { prompt }, { read: true, signal: args.signal });
-  return unwrapLlm(res.payload);
-}
 
 /* ------------------------------------------------------------------ boom */
 
-/** Refresh Boom financials for one company. Ratios are the proven call; the
- *  spread follows the same connector pattern and is best-effort. */
-export async function refreshBoom(company: string): Promise<{ ratios?: unknown; spread?: unknown; storedAt?: number }> {
-  const [ratios, spread] = await Promise.allSettled([
-    callTool(SERVERS.boom, TOOLS.boomRatios, { company }, { read: true, cache: { staleTime: 30_000 } }),
-    callTool(SERVERS.boom, TOOLS.boomSpread, { company }, { read: true, cache: { staleTime: 30_000 } }),
-  ]);
-  const out: { ratios?: unknown; spread?: unknown; storedAt?: number } = {};
-  if (ratios.status === "fulfilled") {
-    out.ratios = ratios.value.payload;
-    out.storedAt = ratios.value.cache?.storedAt;
-  }
-  if (spread.status === "fulfilled") out.spread = spread.value.payload;
-  // Both failing is a real failure; one failing is a partial the caller can show.
-  if (ratios.status === "rejected" && spread.status === "rejected") throw ratios.reason;
-  return out;
+/**
+ * Refresh Boom financials for one relationship.
+ *
+ * THE TWO READS ARE NO LONGER INDEPENDENT (0.9.28). Boom's own server takes a
+ * BORROWER on `boom_get_ratios` and a FILE on `boom_get_spread`, and the file
+ * the spread belongs to is the one the ratio set was struck from, so they run in
+ * sequence rather than side by side. `channel/boom.ts` owns that sequence, the
+ * envelope and the not-found answer; this is the cockpit's name for it.
+ */
+export async function refreshBoom(who: BoomBorrower): Promise<BoomReads> {
+  return readBoom(who);
 }
 
 /* -------------------------------------------------------- action history */

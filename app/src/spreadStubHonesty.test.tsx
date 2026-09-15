@@ -14,9 +14,9 @@ import { FinancialsTab } from "./components/tabs/FinancialsTab";
 import { AppProvider } from "./state/appState";
 import {
   BOOM_UPLOAD_LANE,
-  boomAdapter,
   registerPreRead,
   resetStubBoom,
+  stubBoomAdapter,
   STUB_PROVISIONAL_MESSAGE,
 } from "./channel/boomUpload";
 import type { BoomFinancialStatement, DroppedFile, ExtractedDocument, FilePreRead } from "./spread/types";
@@ -26,11 +26,16 @@ import live from "../../artifact/live-data.json";
 /* =============================================================================
    THE STUB SAYS IT IS THE STUB, ON EVERY SURFACE.
 
-   There is no Boom connector. Everything a banker sees today came from the
-   room's own read of their file, walked back through a stub that imitates
-   Boom's ladder. That is a perfectly honest thing to ship and a catastrophic
-   thing to ship quietly: a provisional figure a committee reads as a verified
-   spread is the one failure this feature can cause.
+   RESTATED 0.9.28. The Boom connector EXISTS now and `BOOM_UPLOAD_LANE` is
+   "live": a spread on stage is Boom's own, and the live lane's own cases live in
+   spreadLiveLane.e2e.test.ts. What this file still pins is the other half of the
+   same promise, and it is not one to let rot: on the day the lane is flipped
+   back (an outage, a demo without a connector), the room must say so on every
+   surface. A provisional figure a committee reads as a verified spread is the
+   one failure this feature can cause, and it is caused by silence.
+
+   So every case below runs the room on the STUB adapter explicitly, and one case
+   pins which lane actually ships.
 
    So the claim is pinned in one place, across all four surfaces the spread
    reaches:
@@ -106,9 +111,10 @@ function deps(): SpreadDeps {
     preReadFile: async () => PRE_READ,
     provisionalRead,
     postRead: async (args) => postReadFacts(args),
-    // THE REAL STUB, with its own ladder and its own clock.
-    adapter: boomAdapter(),
-    lane: BOOM_UPLOAD_LANE,
+    // THE REAL STUB, with its own ladder and its own clock. Named, not taken
+    // from the lane constant: these cases are ABOUT the stub.
+    adapter: stubBoomAdapter(),
+    lane: "stub" as const,
     registerPreRead,
     resetStub: resetStubBoom,
   };
@@ -168,15 +174,16 @@ async function roomAfterSpread(onSpreadEvent?: (e: SpreadRoomEvent) => void): Pr
   return room;
 }
 
-describe("the lane is the stub, and it is the stub everywhere", () => {
-  it("ships on the stub today", () => {
-    expect(BOOM_UPLOAD_LANE).toBe("stub");
-    expect(boomSystemWord(BOOM_UPLOAD_LANE)).toBe("Boom (stub, provisional)");
+describe("the stub says it is the stub, wherever it is the one answering", () => {
+  it("is not the lane that ships, and names itself in the trail when it is", () => {
+    expect(BOOM_UPLOAD_LANE).toBe("live");
+    expect(boomSystemWord("live")).toBe("Boom");
+    expect(boomSystemWord("stub")).toBe("Boom (stub, provisional)");
   });
 
   it("never lets the stub adapter answer verified, validated or with a verification page", async () => {
     registerPreRead(SHA, PRE_READ);
-    const adapter = boomAdapter();
+    const adapter = stubBoomAdapter();
     const sent = await adapter.upload({
       accountId: CTX.accountId,
       company: { externalUniqueId: CTX.accountId, name: COMPANY },
@@ -310,7 +317,7 @@ describe("the surfaces outside the room", () => {
   });
 
   it("names the system as the stub in the relationship's activity trail", () => {
-    const system = boomSystemWord(BOOM_UPLOAD_LANE);
+    const system = boomSystemWord("stub");
     const sent = spreadActivityEntry({
       phase: "sent",
       company: COMPANY,

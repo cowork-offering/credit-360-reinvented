@@ -11,7 +11,6 @@ import {
   TOOLS,
   unwrapInvocable,
   unwrapInvocableOne,
-  unwrapLlm,
   unwrapMail,
   watchTool,
   WRITE_DEADLINE_MS,
@@ -60,11 +59,13 @@ describe("error doctrine", () => {
     const copies = codes.map((c) => describeFailure({ code: c }, "Customer 360", "X").fix);
     expect(new Set(copies).size).toBe(codes.length); // all distinct
     expect(describeFailure({ code: "needs_reauth" }, "Customer 360", "X").fix).toMatch(/Reconnect Customer 360/);
-    expect(describeFailure({ code: "server_not_connected" }, "IDB Gateway", "X").fix).toMatch(/Add IDB Gateway/);
+    expect(describeFailure({ code: "server_not_connected" }, "Microsoft 365", "X").fix).toMatch(/Add Microsoft 365/);
   });
 
   it("blocked_by_policy names the platform limit, never the bank or the connector", () => {
-    const fix = describeFailure({ code: "blocked_by_policy" }, "IDB Gateway", "get_llm_response").fix;
+    // 2026-09-15: IDB Gateway retired; the restate assist is session-door only,
+    // so the sample server here is any connector the cockpit still addresses.
+    const fix = describeFailure({ code: "blocked_by_policy" }, "Microsoft 365", "outlook_email_search").fix;
     // The real cause: the shell's per-page-session trust budget, which expires.
     expect(fix).toMatch(/paused/i);
     expect(fix).toMatch(/platform safety limit/i);
@@ -74,12 +75,12 @@ describe("error doctrine", () => {
     // non-existent IT ticket.
     expect(fix).not.toMatch(/organisation|organization/i);
     expect(fix).not.toMatch(/policy blocks/i);
-    expect(fix).toMatch(/not the Gateway and not your bank's policy/i); // explicit disclaimer
+    expect(fix).toMatch(/not a connector and not your bank's policy/i); // explicit disclaimer
   });
 
   it("leaves genuine authz copy untouched", () => {
     expect(describeFailure({ code: "needs_reauth" }, "Customer 360", "X").fix).toMatch(/Reconnect Customer 360/);
-    expect(describeFailure({ code: "server_not_connected" }, "IDB Gateway", "X").fix).toMatch(/Add IDB Gateway/);
+    expect(describeFailure({ code: "server_not_connected" }, "Microsoft 365", "X").fix).toMatch(/Add Microsoft 365/);
     for (const c of ["needs_reauth", "server_not_connected"]) {
       expect(describeFailure({ code: c }, "S", "T").fix).not.toMatch(/paused|platform safety limit/i);
     }
@@ -120,10 +121,10 @@ describe("callTool", () => {
     const api = installMcp({
       callTool: vi.fn().mockResolvedValue({ payload: { a: 1 }, cache: { storedAt: 123, revalidating: false } }),
     });
-    const res = await callTool(SERVERS.gateway, TOOLS.llm, { prompt: "hi" });
+    const res = await callTool(SERVERS.m365, TOOLS.mailSearch, { query: "hi" });
     expect(res.payload).toEqual({ a: 1 });
     expect(res.cache?.storedAt).toBe(123);
-    expect(api.callTool).toHaveBeenCalledWith(SERVERS.gateway, TOOLS.llm, { prompt: "hi" }, expect.anything());
+    expect(api.callTool).toHaveBeenCalledWith(SERVERS.m365, TOOLS.mailSearch, { query: "hi" }, expect.anything());
   });
 
   it("rejects with a normalized failure, never the raw error", async () => {
@@ -169,7 +170,7 @@ describe("callTool", () => {
   });
 
   it("fails with capability_disabled when the namespace is absent", async () => {
-    await expect(callTool(SERVERS.gateway, TOOLS.llm)).rejects.toMatchObject({
+    await expect(callTool(SERVERS.m365, TOOLS.mailSearch)).rejects.toMatchObject({
       code: "capability_disabled",
       noCapability: true,
     });
@@ -253,33 +254,6 @@ describe("envelope unwrapping — Salesforce invocable", () => {
 
   it("unwrapInvocableOne reads the single-input case", () => {
     expect(unwrapInvocableOne(env([{ isSuccess: true, outputValues: { a: 1 } }]))).toEqual({ ok: true, data: { a: 1 } });
-  });
-});
-
-describe("envelope unwrapping — LLM body string", () => {
-  it("parses the JSON body string and reads .response", () => {
-    const payload = {
-      statusCode: 200,
-      headers: {},
-      body: JSON.stringify({ response: "## Analysis\nLeverage is 3.85x.", model: "claude-x", cost_usd: 0.0021 }),
-    };
-    const a = unwrapLlm(payload);
-    expect(a.text).toContain("Leverage is 3.85x");
-    expect(a.model).toBe("claude-x");
-    expect(a.costUsd).toBeCloseTo(0.0021);
-  });
-
-  it("survives a non-JSON body by surfacing it verbatim", () => {
-    expect(unwrapLlm({ statusCode: 200, body: "plain text answer" }).text).toBe("plain text answer");
-  });
-
-  it("handles an already-parsed body object", () => {
-    expect(unwrapLlm({ body: { response: "hi" } }).text).toBe("hi");
-  });
-
-  it("returns empty text rather than throwing on a shapeless payload", () => {
-    expect(unwrapLlm(undefined).text).toBe("");
-    expect(unwrapLlm({}).text).toBe("");
   });
 });
 

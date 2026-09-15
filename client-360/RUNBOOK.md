@@ -6,7 +6,8 @@ published as a Cowork artifact and OPENED FROM CHAT BY URL, driven by the org-ho
 Salesforce MCP server
 (28 tools: 10 reads, 8 governed stage/execute write pairs, one stage-only renewal and one
 second-hop completion tool) and,
-optionally, Microsoft 365 (client email intake) and the IDB Gateway (Boom financials).
+optionally, Microsoft 365 (client email intake) and Boom (spreads, ratios and the statement upload).
+The cockpit's own asks run on the viewer's session door, so there is no completion connector to add.
 **Two paths, and the fast one is the default (2026-09-05; per-viewer resolution 2026-09-09).**
 ONE COCKPIT PER ORGANIZATION, RESOLVED PER VIEWER: the page declares runtime capabilities, so it is
 organization-internal and a URL published in one claude.ai organization never opens for a seat in
@@ -34,7 +35,9 @@ Register these connectors for the user BEFORE invoking the skill:
    UserRole (nCino credit actions refuse users without one), and the nCino credit-action
    permissions of a lender. Any new demo identity needs all three checked before it drives a write.
 2. Microsoft 365 (optional): mail search for client-request intake. Skipped silently if absent.
-3. IDB Gateway (optional): Boom spreads. Honest gap states if absent.
+3. Boom (optional): spreads, ratios and the statement upload. Found by the tools it serves, so any
+   connector name works. Honest gap states if absent, and a borrower Boom does not hold reads as
+   "not in Boom" rather than as a failure.
 
 ## 3. Install
 Add the `https://github.com/cowork-offering/credit-360-reinvented` marketplace, install **Credit 360**. The

@@ -10,8 +10,6 @@ import { relOpeningForAccount } from "./relationship/RelationshipRoom";
 import { useApp, ACCOUNT_TABS } from "../state/appState";
 import type { AiMessage } from "../data/contract";
 import { formatProbe, newRequestId, probeChannels, type AgentChannel } from "../channel/adapter";
-import { mcpAvailable } from "../channel/mcp";
-import { askCopilot } from "../channel/cockpitTools";
 import { resolveBundle } from "../actions/registry";
 import { ActionPanel } from "./ActionPanel";
 import { suggestActions, type Suggestion } from "../actions/suggest";
@@ -175,24 +173,28 @@ function ConnectionDetails() {
 /* ======================================================= THE DOORS AND THE COPY
 
    THE GATE COUNTED THE WRONG DOORS (founder 2026-09-12, the fallback audit).
-   `available` was `live || channel.available()`: the connector, and the legacy
-   prompt bridge. Neither is the door the cockpit chat answers through. The desk
-   runs on the viewer's own session Claude and needs no connector at all, and it
-   is tried FIRST inside `send`. So a view carrying a working session door and
-   no IDB Gateway rendered the composer disabled and told the banker to re-open
-   the cockpit through the agent, with the door that would have answered sitting
-   open beside it. The desk is now the first door the gate counts, in the same
-   order `send` tries them.
+   `available` counted the connector and the legacy prompt bridge. Neither is
+   the door the cockpit chat answers through. The desk runs on the viewer's own
+   session Claude and needs no connector at all, and it is tried FIRST inside
+   `send`. So a view carrying a working session door and no completion connector
+   rendered the composer disabled and told the banker to re-open the cockpit
+   through the agent, with the door that would have answered sitting open beside
+   it. The desk is now the first door the gate counts, in the same order `send`
+   tries them.
+
+   AND THERE ARE TWO OF THEM NOW (2026-09-15). IDB Gateway retired, so the
+   connector rung between the desk and the legacy bridge is gone with it: a view
+   without the session door has the bridge or it has nothing.
 
    THE COPY IS THE CHAT'S OWN. It used to print the connector layer's fix copy
-   (`McpFailure.fix`), which names the IDB Gateway and claude.ai connector
-   settings: plumbing, addressed to an administrator, handed to a banker with no
-   next step in it. `HealthLine` is where that diagnosis belongs. Here the rule
-   is the golden rule's: say what could not be done, then the move that still
-   exists on this page.                                                        */
+   (`McpFailure.fix`), which names a connector and claude.ai settings: plumbing,
+   addressed to an administrator, handed to a banker with no next step in it.
+   `HealthLine` is where that diagnosis belongs. Here the rule is the golden
+   rule's: say what could not be done, then the move that still exists on this
+   page.                                                                       */
 
-/** The three doors, in the order `send` tries them. */
-export type ChatLane = "desk" | "connector" | "bridge" | "none";
+/** The two doors, in the order `send` tries them. */
+export type ChatLane = "desk" | "bridge" | "none";
 
 /**
  * THE LANE `send` WILL ACTUALLY TRY IN THIS VIEW.
@@ -208,7 +210,6 @@ export type ChatLane = "desk" | "connector" | "bridge" | "none";
  */
 export function chatLane(channel: AgentChannel): ChatLane {
   if (deskAvailable()) return "desk";
-  if (mcpAvailable()) return "connector";
   return bridgeUsable(channel) ? "bridge" : "none";
 }
 
@@ -218,7 +219,7 @@ export function chatLane(channel: AgentChannel): ChatLane {
  *  that refuses before it reaches the host. */
 const bridgeUsable = (channel: AgentChannel): boolean => channel.available() && channel.kind() !== "mcp";
 
-/** Whether the chat can take an ask at all, over any of its three doors. */
+/** Whether the chat can take an ask at all, over either of its two doors. */
 export function chatReachable(channel: AgentChannel): boolean {
   return chatLane(channel) !== "none";
 }
@@ -364,7 +365,6 @@ export function ChatPanelBody() {
     [data, worklist, account],
   );
 
-  const live = mcpAvailable();
   const available = chatReachable(channel);
   const sending = sendState === "sending";
   // Last question, so a failed ask can be retried by a USER GESTURE. Never auto-
@@ -373,7 +373,6 @@ export function ChatPanelBody() {
   const [lastQuestion, setLastQuestion] = useState<string | null>(null);
   // A33.1.1 entry point 3 of 3.
   const [panelActionId, setPanelActionId] = useState<string | null>(null);
-  const [answerMeta, setAnswerMeta] = useState<{ model?: string; costUsd?: number } | null>(null);
   /** The one answer that ARRIVED in this session, so only it speaks its words
    *  (rule 9). Everything else in the thread is history and is simply there. */
   const [streamedId, setStreamedId] = useState<string | null>(null);
@@ -530,12 +529,11 @@ export function ChatPanelBody() {
         // Said ONCE per view, whatever answers next: a door that is off for the
         // rest of this view is a fact about the page, not about this question.
         const notice = takeDeclineNotice();
-        /* THE RUNGS BELOW THE DESK, re-read now rather than trusted from the
+        /* THE RUNG BELOW THE DESK, re-read now rather than trusted from the
            render: a permanent refusal has just taken the desk out of the lane
-           order altogether. Where one of them exists it still gets its turn and
-           IT produces the bubble; where none does, this lane says so itself. */
-        const below = mcpAvailable() || bridgeUsable(channel);
-        if (!below) {
+           order altogether. Where the bridge exists it still gets its turn and
+           IT produces the bubble; where it does not, this lane says so itself. */
+        if (!bridgeUsable(channel)) {
           pushAgent(`${requestId}-answer`, [notice, deskFailureSentence(err)].filter(Boolean).join(" "));
           setSendState("idle");
           return;
@@ -544,28 +542,7 @@ export function ChatPanelBody() {
       }
     }
 
-    // LIVE PATH — ask the credit copilot through the connector, grounded in the
-    // staged bundle, and render the answer in-thread.
-    if (live) {
-      try {
-        const answer = await askCopilot({
-          data,
-          bundle: resolveBundle(data, account?.accountId ?? null),
-          accountName: account?.name ?? null,
-          tab: tabLabel,
-          question: prompt,
-        });
-        pushAgent(`${requestId}-answer`, answer.text || CHAT_EMPTY_ANSWER);
-        setAnswerMeta({ model: answer.model, costUsd: answer.costUsd });
-        setStreamedId(`${requestId}-answer`);
-        setSendState("answered");
-      } catch {
-        setSendState("error");
-      }
-      return;
-    }
-
-    // Legacy prompt-bridge path (no capability in this view).
+    // Legacy prompt-bridge path (no session door in this view).
     try {
       await channel.request(prompt, {
         requestId,
@@ -626,10 +603,10 @@ export function ChatPanelBody() {
 
       {sendState === "error" && (
         <div className="chatnote bad">
-          {/* ONE SENTENCE, THE CHAT'S OWN. The connector's `failure.fix` names
-              the IDB Gateway and claude.ai connector settings, which is
-              plumbing addressed to an administrator. That diagnosis lives on
-              HealthLine, where an operator looks for it. */}
+          {/* ONE SENTENCE, THE CHAT'S OWN. The connector layer's `failure.fix`
+              names a connector and claude.ai settings, which is plumbing
+              addressed to an administrator. That diagnosis lives on HealthLine,
+              where an operator looks for it. */}
           {CHAT_ASK_FAILED}
           {/* The question is already in the thread. Repeating the ASK must not
               repeat the banker's own bubble (golden rule 5). */}
@@ -646,12 +623,6 @@ export function ChatPanelBody() {
       )}
       {sendState === "handedOff" && (
         <div className="chatnote">Handed off to the desk. The cockpit refreshes in place when the answer lands.</div>
-      )}
-      {sendState === "answered" && answerMeta?.model && (
-        <div className="chatnote">
-          {answerMeta.model}
-          {answerMeta.costUsd != null ? ` · $${answerMeta.costUsd.toFixed(4)}` : ""}
-        </div>
       )}
 
       <SuggestionChips suggestions={suggestions} disabled={!available || sending} onPick={(s) => void sendSuggestion(s)} />

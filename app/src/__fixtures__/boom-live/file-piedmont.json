@@ -1,0 +1,27 @@
+{
+  "contractVersion": "1.0",
+  "_source": "BOOM-LIVE",
+  "_provenance": {
+    "system": "Boom",
+    "record": "file",
+    "ids": {
+      "fileId": "cf677dcc-594c-45b5-b47d-c92c0b2ee909",
+      "companyId": "70d9bd23-a4f7-46ab-92d8-9b784e034877"
+    },
+    "asOf": "2026-09-15T00:02:31.891Z"
+  },
+  "file": {
+    "id": "cf677dcc-594c-45b5-b47d-c92c0b2ee909",
+    "fileName": "Piedmont_Precision_Components_Financials_FY2023-2025.xlsx",
+    "status": "verified",
+    "statementQuality": null,
+    "fileGroupId": null,
+    "periodEnds": [
+      "2025-12-31",
+      "2024-12-31",
+      "2023-12-31"
+    ],
+    "createdAt": "2026-06-11T18:55:57.863+00:00",
+    "downloadUrl": "REDACTED: presigned S3 URL, never staged"
+  }
+}

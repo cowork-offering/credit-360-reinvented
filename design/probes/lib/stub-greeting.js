@@ -10,9 +10,8 @@
 
    1. window.claude.mcp, whose outlook_email_search answers the OBSERVED LIVE
       SHAPE (a BARE SINGLE OBJECT, `sender` a plain address string, the body
-      under `summary`), on a per-run shape and delay; the gateway completion
-      tool answering a contract-valid clarify; and stage_/execute_ THROWING,
-      because nothing in this drive may reach a write path.
+      under `summary`), on a per-run shape and delay; and stage_/execute_
+      THROWING, because nothing in this drive may reach a write path.
 
    2. window.claude.use("sample"), a session door that RECORDS every prompt it
       is handed and answers in the v2 grammar, quoting two covenant names and
@@ -103,11 +102,6 @@
             mark("mail-answered");
             resolve({ payload: mailPayload() });
           }, CFG.delayMs || 0);
-        });
-      }
-      if (/get_llm_response/.test(tool)) {
-        return Promise.resolve({
-          payload: { statusCode: 200, body: JSON.stringify({ response: JSON.stringify(CLARIFY) }) },
         });
       }
       return Promise.resolve({ payload: { content: [{ isSuccess: true, outputValues: { ok: true, result: {} } }] } });
