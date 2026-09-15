@@ -47,3 +47,16 @@ artifact).
 
 Components: `app/src/components/workroom/register/SpreadRegister.tsx`, `registerModel.ts` (pure, tested
 on the live Piedmont fixture `app/src/__fixtures__/boom-live/spread-piedmont.json`), `register.css`.
+
+## Gate notes on the built register (orchestrator, 2026-09-15, from `scratchpad/register.png`)
+
+Kept as built: statement select, period chips, Full/K/M, Variance toggle, Adjusted / As given as a server
+re-read, chip families, mis-map flag, per-period coverage tick, "Validated in Boom · 10 of 10 lines carry a
+Boom account code · $ in thousands", provenance footer, Open in Boom as the last element; negatives in ink
+with a leading minus; `flipSign` applied (Boom sends the tax provision positive on the line and negative on
+its own aggregate). Three integration calls: (1) the "feeds <figure>" markers land only on lines that feed
+a headline ratio a banker acts on (revenue, operating income, interest expense, the debt lines, D&A for
+EBITDA), not on every row; (2) Boom's statement-level "[Abstract]" header rows are hidden, they carry no
+figure; (3) layout verified at the room's actual sheet width and in compact mode so Variance % is never
+clipped. Financials tab keeps the four-column table as the fallback where a book carries only the
+assembler's `lineItems` extract (four of five baked borrowers today).
