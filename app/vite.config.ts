@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, type Plugin, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import { execFileSync } from "node:child_process";
@@ -49,8 +49,15 @@ function sampleDataDevServer(): Plugin {
   };
 }
 
+/* THE `test` BLOCK IS VITEST'S, AND IT IS ASSERTED THROUGH vite's OWN TYPE.
+   vitest ships its own copy of vite here, so `vitest/config`'s augmentation
+   lands on a different `UserConfig` than the one this file imports and the two
+   will not unify. The block is read at runtime either way; the assertion is the
+   whole cost of not having two config files that must be kept in step. */
 export default defineConfig({
   plugins: [react(), sampleDataDevServer(), viteSingleFile()],
+  // The read seam is page-session state; a suite is many page sessions.
+  test: { setupFiles: ["./src/test-setup.ts"] },
   define: { __C360_BUILD__: JSON.stringify(buildStamp()) },
   build: {
     target: "es2022",
@@ -66,4 +73,4 @@ export default defineConfig({
       output: { inlineDynamicImports: true },
     },
   },
-});
+} as UserConfig);

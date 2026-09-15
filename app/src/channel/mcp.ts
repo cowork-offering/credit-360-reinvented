@@ -441,6 +441,18 @@ export interface CallOptions {
    *  first ask is running. */
   beforeRetry?: (failure: McpFailure) => boolean | Promise<boolean>;
   cache?: false | { staleTime?: number; gcTime?: number; refresh?: boolean };
+  /**
+   * A GESTURE THE BANKER MADE, so it shares a read that is still IN FLIGHT and
+   * never one that already settled.
+   *
+   * The Sync sweep sets it. `force` on that sweep means the banker asked and
+   * every lane goes and looks (founder, 2026-09-13: a modification only showed
+   * after Sync AND a full page refresh), and a gesture answered out of the
+   * page's own five-second window would be that defect again in miniature.
+   * Nothing else sets it: a read the page decided to make on the banker's
+   * behalf is exactly what the window is for.
+   */
+  fresh?: boolean;
   signal?: AbortSignal;
   /** How long ONE attempt may take before the page stops waiting. Defaults to
    *  READ_DEADLINE_MS or WRITE_DEADLINE_MS by `read`. Zero or less waits for
@@ -671,9 +683,210 @@ export function lastConnectorCallAt(): number {
   return lastCallStartedAt;
 }
 
-/** Call a connector tool. Resolves with the unwrapped envelope, or rejects
- *  with a normalized {@link McpFailure} — never a raw platform error. */
-export async function callTool<T = unknown>(
+/* ------------------------------------------- one in-flight read per question
+
+   THE BURST (backlog row 73, founder's live session 2026-09-15 19:00-20:20 UTC).
+   653 Customer360* reads in eighty minutes from ONE banker on ONE page. Opening
+   the cockpit cost 48 calls in a ten-second window and 44 in the next, with
+   Snapshot asked eight times, Covenants and Opportunities seven, the graph, the
+   signals and the exposure six each, all inside ten seconds and all for one
+   relationship. The dispatcher was answering 502 from 19:00, the read backup
+   carried 401 recovered reads against 3-34 on a normal day, and the page's
+   three-attempt ladder multiplied every failed read by three.
+
+   WHAT THE PAGE WAS ACTUALLY DOING, measured on the built bundle against the
+   stub lanes (knowledge/proofs/0930-read-burst-before.md): with the dispatcher
+   answering, every read is issued once; with the dispatcher 502-ing, each read
+   costs FOUR calls (three up the ladder, one through the backup) and one
+   relationship open spends twenty-four calls in 4.1 seconds at a peak of ten a
+   second, six concurrent on the wire. Two lanes asking the same question double that again.
+
+   THE RULE: ONE PAGE, ONE IN-FLIGHT READ PER QUESTION. A question is
+   (server, tool, canonical args). Every concurrent caller of one question shares
+   ONE promise, which climbs the ladder ONCE and marks lane health ONCE.
+
+   A WRITE IS NEVER COALESCED. Two stage calls under one key are the ORG's fence
+   to hold, not the page's, and collapsing an execute into another caller's
+   execute would hand a banker somebody else's decision token.
+
+   THE WINDOW IS FIVE SECONDS, and it is the page's own number twice over: it is
+   `SYNC_COOLDOWN_MS`, where the cockpit already says a second ask this soon "can
+   only return what the first just fetched", and it is a third of the 15s
+   `staleTime` every detail read already declares, so it can never serve an
+   answer older than the caller had said it would take from the platform cache.
+   A caller that passed `cache: false` is asking to touch the org, so it shares a
+   call that is IN FLIGHT (that is the same live round trip) and never the
+   window. */
+
+/** How long after a read settles its answer still satisfies an identical ask. */
+export const READ_COALESCE_WINDOW_MS = 5_000;
+
+/** Stable regardless of key order, so `{a,b}` and `{b,a}` are one question. */
+function canonicalArgs(input: unknown): string {
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") {
+      const out: Record<string, unknown> = {};
+      for (const k of Object.keys(v as Record<string, unknown>).sort()) out[k] = walk((v as Record<string, unknown>)[k]);
+      return out;
+    }
+    return v;
+  };
+  try {
+    return JSON.stringify(walk(input) ?? null) ?? "null";
+  } catch {
+    // Input we cannot canonicalise is its own question every time: sharing an
+    // answer we cannot prove is for the same ask is worse than a second call.
+    return ` ${Math.random()}`;
+  }
+}
+
+/** The question a read asks, as one key. */
+function readKey(server: string, tool: string, input: unknown): string {
+  return `${server} ${tool} ${canonicalArgs(input)}`;
+}
+
+interface ReadEntry {
+  promise: Promise<McpOk<unknown>>;
+  /** Unset while in flight. */
+  settledAt?: number;
+  /** May a caller arriving AFTER it settled take this answer? False when the
+   *  originator asked for an uncached read. */
+  shareable: boolean;
+}
+
+const inFlightReads = new Map<string, ReadEntry>();
+
+/** The entry that may still answer this question, if there is one. */
+function liveRead(key: string, shareable: boolean, now: number): ReadEntry | undefined {
+  const entry = inFlightReads.get(key);
+  if (!entry) return undefined;
+  if (entry.settledAt === undefined) return entry;
+  if (now - entry.settledAt >= READ_COALESCE_WINDOW_MS) {
+    inFlightReads.delete(key);
+    return undefined;
+  }
+  return entry.shareable && shareable ? entry : undefined;
+}
+
+/* ------------------------------------------ the hosted hop's concurrency cap
+
+   A HOSTED HOP IS A SHARED RESOURCE. The two Salesforce read lanes ride the same
+   claude.ai artifact-to-connector relay and the backup only ever carries the
+   primary's overflow, so they are counted TOGETHER: what the dispatcher session
+   sees is the sum, not either lane's own width.
+
+   FOUR. The sweep has been paced at two in flight since the founder saw random
+   lines reporting the customer briefly unreachable on a nine-call burst; the
+   open goes six wide on the 2026-09-06 measurement that six reads answer
+   together for nearly the price of one. Both numbers were set for a page whose
+   reads were each issued once, and neither was set for the ladder: a six-wide
+   open becomes twenty-four calls the moment the dispatcher starts refusing.
+   Four is the widest that keeps one open's six DISTINCT reads inside two waves
+   while never showing the dispatcher more than four concurrent sessions, and it
+   is twice the width the sweep has run at happily since that burst was
+   diagnosed.
+
+   READS ONLY, AND NEVER A WRITE. A governed write queued behind a wave of reads
+   is a banker watching a spinner while the page re-reads figures it already has.
+   The two writes go straight out, as they always did. */
+
+/** Concurrent reads the Salesforce hop is shown at once, both lanes together. */
+export const HOSTED_READ_MAX_IN_FLIGHT = 4;
+
+/** The lanes that ride the Salesforce hop. Boom, Microsoft 365 and the memo
+ *  connectors are their own hops and are not rationed against these. */
+const HOSTED_READ_LANES = new Set<string>([SERVERS.customer360, SERVERS.readBackup]);
+
+let hostedReadsInFlight = 0;
+const hostedReadQueue: Array<() => void> = [];
+
+/** Run one ATTEMPT under the cap. A call sleeping between retries holds no slot;
+ *  the queue is FIFO, and a released slot is HANDED to the next waiter rather
+ *  than reopened, so a call arriving mid-release cannot jump the queue. */
+async function withHostedSlot<T>(run: () => Promise<T>): Promise<T> {
+  if (hostedReadsInFlight >= HOSTED_READ_MAX_IN_FLIGHT || hostedReadQueue.length > 0) {
+    await new Promise<void>((resolve) => hostedReadQueue.push(resolve));
+  } else {
+    hostedReadsInFlight += 1;
+  }
+  try {
+    return await run();
+  } finally {
+    const next = hostedReadQueue.shift();
+    if (next) next();
+    else hostedReadsInFlight -= 1;
+  }
+}
+
+/** Test seam: put the read seam back the way a fresh page finds it. */
+export function __resetReadSeamForTests(): void {
+  inFlightReads.clear();
+  hostedReadsInFlight = 0;
+  hostedReadQueue.length = 0;
+}
+
+/**
+ * Call a connector tool. Resolves with the unwrapped envelope, or rejects with a
+ * normalized {@link McpFailure}, never a raw platform error.
+ *
+ * READS ARE COALESCED per question (see above); writes go straight through.
+ */
+export function callTool<T = unknown>(
+  server: string,
+  tool: string,
+  input?: unknown,
+  options: CallOptions = {},
+): Promise<McpOk<T>> {
+  /* A CALL A CALLER CAN CANCEL IS ITS OWN. `channel/boom.ts` passes an abort
+     signal on the ratios read, and one caller's abort must never cancel the read
+     another caller is waiting on. */
+  if (options.read !== true || options.signal) return executeCall<T>(server, tool, input, options);
+
+  const key = readKey(server, tool, input);
+  /* THE TWO WAYS A CALLER SAYS "GO AND LOOK". `cache: false` and
+     `cache: { refresh: true }` already say it to the PLATFORM's store, and the
+     page's own window is a store of the same kind, so it may not answer for them
+     either; `fresh` says it where the caller still wants the platform's
+     staleTime honoured, which is the Sync sweep. Either way the answer, once it
+     lands, is a fresh one and is shared with whoever asks next. */
+  const uncached = options.cache === false;
+  const forced = options.fresh === true || (options.cache !== false && options.cache?.refresh === true);
+  const shared = liveRead(key, !uncached && !forced, Date.now());
+  if (shared) return shared.promise.then((ok) => ({ ...ok }) as McpOk<T>);
+
+  const entry = { shareable: !uncached } as ReadEntry;
+  /* THE WINDOW OPENS WHEN THE ANSWER LANDS, and it has to sweep itself: nothing
+     else holds a reference to a settled entry. */
+  const settle = () => {
+    entry.settledAt = Date.now();
+    setTimeout(() => {
+      if (inFlightReads.get(key) === entry) inFlightReads.delete(key);
+    }, READ_COALESCE_WINDOW_MS);
+  };
+  entry.promise = executeCall<T>(server, tool, input, options).then(
+    (ok) => {
+      settle();
+      return ok;
+    },
+    (err) => {
+      /* A FAILURE IS AN ANSWER FOR THE WINDOW TOO. The ladder has been climbed
+         once on this question; a second caller a second later climbing it again
+         is the amplifier the founder's log caught. Five seconds, against the open
+         refresh's own sixty-second background knock, so nothing that recovers on
+         its own is held back by this. */
+      settle();
+      throw err;
+    },
+  ) as Promise<McpOk<unknown>>;
+  // The retained promise outlives its first awaiter; a rejection sitting
+  // unhandled in the window is a page error the lane drive fails on.
+  entry.promise.catch(() => {});
+  inFlightReads.set(key, entry);
+  return entry.promise.then((ok) => ({ ...ok }) as McpOk<T>);
+}
+
+async function executeCall<T = unknown>(
   server: string,
   tool: string,
   input?: unknown,
@@ -702,7 +915,7 @@ export async function callTool<T = unknown>(
      goes out on both doors and nothing else about an attempt differs: same wall
      clock, same in-flight meter, same unwrap. A second copy of this for the
      write door is how the two doors would drift apart. */
-  const invoke = async (onServer: string, withTool: string): Promise<McpOk<T>> => {
+  const attempt = async (onServer: string, withTool: string): Promise<McpOk<T>> => {
     inFlightCalls += 1;
     lastCallStartedAt = Date.now();
     const startedAt = lastCallStartedAt;
@@ -718,6 +931,15 @@ export async function callTool<T = unknown>(
       attemptMs = Date.now() - startedAt;
     }
   };
+
+  /* THE CAP IS SPENT PER ATTEMPT, NOT PER CALL. A read sleeping between rungs of
+     the ladder holds no slot, and the wall clock above still bounds only the
+     round trip: queue time is the caller's lane deadline to own, never this
+     one's. A write takes no slot at all. */
+  const invoke = (onServer: string, withTool: string): Promise<McpOk<T>> =>
+    options.read === true && HOSTED_READ_LANES.has(onServer)
+      ? withHostedSlot(() => attempt(onServer, withTool))
+      : attempt(onServer, withTool);
 
   /** Which attempt we are on, reported on the answer so a surface can say it
    *  asked twice rather than implying the org was slow. */

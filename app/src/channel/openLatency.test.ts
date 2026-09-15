@@ -11,7 +11,7 @@ import {
   openInFlightLimit,
   startOpenRefresh,
 } from "./openRefresh";
-import { callTool, SERVERS, TOOLS } from "./mcp";
+import { callTool, HOSTED_READ_MAX_IN_FLIGHT, SERVERS, TOOLS } from "./mcp";
 import { MAX_IN_FLIGHT } from "./syncSweep";
 
 /* =============================================================================
@@ -81,11 +81,17 @@ function open(opts: Partial<Parameters<typeof startOpenRefresh>[0]> = {}) {
 }
 
 describe("the open goes six wide", () => {
-  it("issues all six detail reads before any of them has answered", async () => {
+  it("asks for all six on the one gesture, and shows the hop the cap's worth at a time", async () => {
     /* THE SHAPE OF THE OLD BUG. Paced two in flight, the third read cannot even
        be ASKED FOR until the first has come back, so a 500ms relay costs 1.5s.
        Nothing here answers, so the only calls that can exist are the ones the
-       page was willing to have in flight at once. */
+       page was willing to have in flight at once.
+
+       AND THE CEILING MOVED ONCE (0.9.30, backlog row 73). The open still ASKS
+       for all six on the one gesture (the pacer's own width is unchanged), but
+       the Salesforce hop is a shared resource and is shown
+       HOSTED_READ_MAX_IN_FLIGHT at a time, so the sixth leaves one relay later
+       rather than riding a burst the dispatcher answered with 502s. */
     const inFlight: string[] = [];
     installMcp(
       vi.fn().mockImplementation((_s: string, tool: string) => {
@@ -97,10 +103,12 @@ describe("the open goes six wide", () => {
     const { stop } = open();
     await vi.advanceTimersByTimeAsync(50);
 
-    expect(inFlight).toHaveLength(OPEN_MAX_IN_FLIGHT);
-    expect(new Set(inFlight)).toEqual(
-      new Set([TOOLS.snapshot, TOOLS.graph, TOOLS.exposure, TOOLS.covenants, TOOLS.opportunities, TOOLS.structuralSignals]),
-    );
+    expect(OPEN_MAX_IN_FLIGHT).toBeGreaterThan(HOSTED_READ_MAX_IN_FLIGHT);
+    expect(inFlight).toHaveLength(HOSTED_READ_MAX_IN_FLIGHT);
+    expect(new Set(inFlight).size).toBe(HOSTED_READ_MAX_IN_FLIGHT);
+    for (const tool of inFlight) {
+      expect([TOOLS.snapshot, TOOLS.graph, TOOLS.exposure, TOOLS.covenants, TOOLS.opportunities, TOOLS.structuralSignals]).toContain(tool);
+    }
     stop();
   });
 
@@ -239,7 +247,10 @@ describe("what the round trip cost", () => {
   it("keeps the last ten and no more", async () => {
     installMcp(vi.fn().mockResolvedValue(envelope({ ok: true })));
     for (let i = 0; i < LANE_CALL_HISTORY + 4; i += 1) {
-      await callTool(SERVERS.customer360, TOOLS.snapshot, {}, { read: true });
+      // A DIFFERENT QUESTION EACH TIME. One question asked fourteen times is one
+      // call and one history row since 0.9.30, which is the whole point of the
+      // read seam; this test is about the history's own ceiling.
+      await callTool(SERVERS.customer360, TOOLS.snapshot, { inputs: [{ accountId: `00${i}` }] }, { read: true });
     }
     expect(laneCalls(SERVERS.customer360)).toHaveLength(LANE_CALL_HISTORY);
   });

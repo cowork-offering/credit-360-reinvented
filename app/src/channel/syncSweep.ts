@@ -311,9 +311,13 @@ export async function runSyncSweep(opts: SweepOptions): Promise<SyncResult> {
       pace(() => withDeadline(run(), deadlineMs, () => laneExpiry(label, deadlineMs, laneOf(SERVERS.customer360)?.lastGoodAt))),
     );
 
-  const portfolio = lane("Portfolio position", () =>
-    readThroughEitherLane(TOOLS.portfolio, [{}], { cache: { staleTime: 15_000 } }),
-  );
+  /* THE GESTURE GOES AND LOOKS. `fresh` says the seam may share a read still in
+     flight but never one that already settled: the banker pressed Sync, and an
+     answer taken out of the page's own five-second window is not what they
+     asked for (0.9.30, knowledge/SPEC-0.9.30-READ-COALESCING.md). */
+  const gesture = { cache: { staleTime: 15_000 }, fresh: true } as const;
+
+  const portfolio = lane("Portfolio position", () => readThroughEitherLane(TOOLS.portfolio, [{}], gesture));
   // SCOPE: only the OPEN account's detail is read. The sweep has never fanned
   // out across the book, and this is where that would show up if it ever did.
   const now = opts.now ?? (() => Date.now());
@@ -335,7 +339,7 @@ export async function runSyncSweep(opts: SweepOptions): Promise<SyncResult> {
     // NOT CALLED AT ALL inside the window. This is the budget relief and the
     // flake relief both: a call that does not happen cannot fail.
     if (servedFromCache(key)) return null;
-    return lane(DETAIL_LABELS[i], () => readThroughEitherLane(tool, [{ accountId }], { cache: { staleTime: 15_000 } }));
+    return lane(DETAIL_LABELS[i], () => readThroughEitherLane(tool, [{ accountId }], gesture));
   });
   const mail = lane("Your inbox for this relationship", () => searchMailbox(accountName));
   const history = lane("Actions filed against this relationship", () => fetchActionHistory(accountId));

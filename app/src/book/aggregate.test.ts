@@ -4,6 +4,7 @@ import { aggregateBorrower } from "./aggregate";
 import { __resetBookForTests, openAccountLive } from "./dynamicBook";
 import { __setDbForTests } from "../channel/dbDoor";
 import { __resetOpenBurstForTests, openInFlightLimit, OPEN_MAX_IN_FLIGHT } from "../channel/openBurst";
+import { HOSTED_READ_MAX_IN_FLIGHT } from "../channel/mcp";
 import { MAX_IN_FLIGHT } from "../channel/syncSweep";
 
 /* =============================================================================
@@ -102,10 +103,14 @@ describe("the live open reads at the open's own width", () => {
     void aggregateBorrower({ accountId: BRIGHT }).catch(() => {});
     await vi.advanceTimersByTimeAsync(50);
 
-    /* SIX AT ONCE. On the sweep's pacing this was 1 at 0ms and the second at
-       200ms, so 50ms of clock bought exactly one read. */
-    expect(launched).toHaveLength(OPEN_MAX_IN_FLIGHT);
-    expect(new Set(launched).size).toBe(OPEN_MAX_IN_FLIGHT);
+    /* ASKED FOR TOGETHER, SHOWN TO THE HOP FOUR AT A TIME. On the sweep's pacing
+       this was 1 at 0ms and the second at 200ms, so 50ms of clock bought exactly
+       one read; the open's own width is still six and 50ms of clock now buys the
+       cap's worth (0.9.30, backlog row 73: the Salesforce hop is a shared
+       resource, and a burst is what the dispatcher answered with 502s). */
+    expect(OPEN_MAX_IN_FLIGHT).toBeGreaterThan(HOSTED_READ_MAX_IN_FLIGHT);
+    expect(launched).toHaveLength(HOSTED_READ_MAX_IN_FLIGHT);
+    expect(new Set(launched).size).toBe(HOSTED_READ_MAX_IN_FLIGHT);
   });
 
   it("does not wait on the portfolio read before the room may open", async () => {

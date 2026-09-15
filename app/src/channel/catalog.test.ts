@@ -11,6 +11,7 @@ import {
   resetCatalog,
   type OrgCatalog,
 } from "./catalog";
+import { READ_COALESCE_WINDOW_MS } from "./mcp";
 
 /* =============================================================================
    Customer360Catalog: THE CHIPS COME FROM THE ORG.
@@ -125,6 +126,12 @@ describe("reading it", () => {
   it("retries after a REFUSAL too, and caches the catalog once it arrives", async () => {
     stubMcp({ content: [{ isSuccess: false, errors: "INSUFFICIENT_ACCESS" }] });
     expect(await readCatalog()).toBeNull();
+    /* PAST THE READ SEAM'S WINDOW (0.9.30). The refusal is a per-element failure
+       inside a transport SUCCESS, so the seam holds that envelope for five
+       seconds and a room asking again inside it is answered without a call,
+       which is the intended relief. The retry this test is about is the next
+       room, minutes later. */
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + READ_COALESCE_WINDOW_MS);
     const callTool = stubMcp(envelope(FIELDS));
     await Promise.all([readCatalog(), readCatalog()]);
     await readCatalog();

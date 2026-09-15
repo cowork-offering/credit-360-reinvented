@@ -2,6 +2,23 @@
 
 ## Changelog
 
+- **0.9.30 (2026-09-16)** ONE PAGE, ONE READ PER QUESTION. The founder asked why Customer 360 read "unreachable" all
+  evening. The org's Apex logs of his page answered: 653 Customer360 reads in 80 minutes from one artifact; opening
+  the cockpit issued 48 calls in ten seconds and 44 in the next, the same read up to eight times (Snapshot 8,
+  Covenants 7, Opportunities 7). Measured on the built bundle against a 502-ing hop: every read went out four times
+  (three attempts plus the backup rung) with six in flight at once, and a worklist row without a baked bundle asked
+  the six detail reads twice (aggregateBorrower then startOpenRefresh). The hosted dispatcher's tolerance dropped
+  at 19:00 UTC (the backup hop carried 401 recovered reads against 3 to 34 per day before); the page was the
+  amplifier. Fix at the seam (`channel/mcp.ts`): one in-flight promise per (server, tool, canonical args) shared by
+  every caller, a 5 s post-resolution window (the sweep's own cooldown), the retry ladder climbed once per question,
+  a cap of four reads in flight on the hosted hop with Customer 360 and the Read Backup counted together, FIFO;
+  writes are never coalesced and never queue behind reads; Sync and Retry pass `fresh` so the banker's gesture is
+  never answered from the window. After: boot, open and Sync each issue every distinct read exactly once, peak
+  concurrent 4 under both an answering and a dead hop (proofs `knowledge/proofs/0930-read-burst-before.md` and
+  `-after.md`, probe `design/probes/read-burst.mjs`). Cost: the open refresh's last two reads wait about 217 ms at a
+  200 ms relay. Rule (`knowledge/SPEC-0.9.30-READ-COALESCING.md`): a hosted hop is a shared resource. Bundle
+  2,172,403 bytes (+1.2 KB). Backlog 73.
+
 - **0.9.29 (2026-09-15)** THE STAGE, THE DOOR, AND THE WAIT. Three things a live day taught.
   THE GOVERNED-ACTION STAGE (founder: "way more sleeker ... cinematic ... they gently and elegantly dissolve"):
   discard-version no longer opens a popup. The stage takes the page, the relationship dims behind it, and one
