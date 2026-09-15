@@ -862,7 +862,7 @@ global with sharing class ExecuteDiscardVersion {
         // stamped, because keeping them is the part of this step that is not negotiable.
         Integer marked = 0;
         for (cm_Action_Staging__c r : [
-            SELECT Id, cm_Status__c FROM cm_Action_Staging__c WHERE Id IN :trailIds WITH USER_MODE
+            SELECT Id, Name, cm_Status__c FROM cm_Action_Staging__c WHERE Id IN :trailIds WITH USER_MODE
         ]) {
             if (r.cm_Status__c == StageDiscardVersion.WITHDRAWN) {
                 marked++;
@@ -870,7 +870,7 @@ global with sharing class ExecuteDiscardVersion {
             InventoryItem w = new InventoryItem();
             w.objectName = 'cm_Action_Staging__c';
             w.recordId = String.valueOf(r.Id);
-            w.name = String.valueOf(r.Id);
+            w.name = StageDiscardVersion.bankerName('cm_Action_Staging__c', r.Name, r.Id, null);
             w.outcome = 'kept';
             out.items.add(w);
         }
@@ -951,7 +951,7 @@ global with sharing class ExecuteDiscardVersion {
         InventoryItem w = new InventoryItem();
         w.objectName = objectName;
         w.recordId = String.valueOf(recordId);
-        w.name = src == null ? String.valueOf(recordId) : src.name;
+        w.name = src == null ? StageDiscardVersion.bankerName(objectName, null, recordId, null) : src.name;
         w.outcome = outcome;
         out.items.add(w);
     }

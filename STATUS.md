@@ -2,6 +2,18 @@
 
 ## Changelog
 
+- **0.9.28 hotfix, org only (2026-09-15)** THE ROLLBACK READS IN BANKER WORDS. The founder's discard of the Sunbelt
+  version from the Activity tab staged (STG-0000000165/166) and the cockpit's id guard refused the plan:
+  `items[12].name looks like an org record id (a4ybb000002kean)`. nCino's pricing engine writes `Name` = `Id` on
+  `LLC_BI__Pricing_Payment_Component__c` and `LLC_BI__Pricing_Stream__c`, and the org passed those names through.
+  `StageDiscardVersion.bankerName` is now the one funnel every inventory item is built through, on the stage and
+  the execute side: a raw `Name` survives only when it is a real name (not null, not blank, not id-shaped by the
+  cockpit's own test); anything else reads `<object label> on <facility name>`, or `on this version` when no
+  facility owns the row. Deployed 0Afbb00000Dx4bBCAR (validate 0Afbb00000Dx44vCAB, 77 of 77 tests). Proof:
+  the same Sunbelt version re-staged as STG-0000000168, 32 items, zero id-shaped names, not executed (the founder
+  keeps the version). Rows 165/166 keep their old plan and must not be resumed; stage afresh. Backlog 63, lesson 82.
+  No cockpit change, no plugin bump.
+
 - **0.9.28 (2026-09-15)** THE BOOM LANE. Boom is its own MCP server (`boom-mcp`) and the cockpit talks
   to it directly: the two reads dropped the gateway's `boom-mcp-js___` prefix, `boom_get_ratios` takes
   a BORROWER and `boom_get_spread` the FILE those ratios name, and the Spreading room walks the real

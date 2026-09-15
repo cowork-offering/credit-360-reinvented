@@ -634,6 +634,139 @@ private class StageExecuteDiscardVersionTest {
         System.assertNotEquals(null, res.result.decisionToken, 'A stage mints a single-use token.');
     }
 
+    // -------------------------------------------------------------------------------------------
+    // Item names. nCino's pricing engine writes a record's own id into its Name, and an id is not
+    // a name a banker can read: the cockpit refused a live Sunbelt discard on exactly that
+    // (2026-09-15, lesson 82).
+    // -------------------------------------------------------------------------------------------
+
+    /** The shape the cockpit's plan guard refuses, so these tests ask the client's own question. */
+    private static final String RECORD_ID_SHAPE = '^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$';
+
+    /**
+     * A payment component carrying its own fifteen-character id in `Name`, which is what nCino's
+     * pricing engine leaves behind. The id does not exist until the insert has run, so the Name is
+     * stamped by a second DML rather than set on the way in.
+     *
+     * @param facility The version facility the component hangs off.
+     * @return The component, with its Name equal to its own id.
+     */
+    private static LLC_BI__Pricing_Payment_Component__c componentNamedAfterItsOwnId(LLC_BI__Loan__c facility) {
+        LLC_BI__Pricing_Stream__c stream = new LLC_BI__Pricing_Stream__c(
+            Name = 'ZZ-DISCARD-TEST Payment Stream',
+            LLC_BI__Loan__c = facility.Id,
+            LLC_BI__Context_Id__c = String.valueOf(facility.Id)
+        );
+        insert stream;
+        LLC_BI__Pricing_Payment_Component__c pc = new LLC_BI__Pricing_Payment_Component__c(
+            LLC_BI__Pricing_Stream__c = stream.Id,
+            cm_Loan__c = facility.Id
+        );
+        insert pc;
+        pc.Name = String.valueOf(pc.Id).substring(0, 15);
+        update pc;
+        return pc;
+    }
+
+    /** A pricing stream the org holds with no Name at all. */
+    private static LLC_BI__Pricing_Stream__c streamWithNoName(LLC_BI__Loan__c facility) {
+        LLC_BI__Pricing_Stream__c stream = new LLC_BI__Pricing_Stream__c(
+            LLC_BI__Loan__c = facility.Id,
+            LLC_BI__Context_Id__c = String.valueOf(facility.Id)
+        );
+        insert stream;
+        return stream;
+    }
+
+    private static StageDiscardVersion.InventoryItem itemFor(StageDiscardVersion.Response res, Id recordId) {
+        for (StageDiscardVersion.InventoryItem i : res.result.items) {
+            if (i.recordId == String.valueOf(recordId)) {
+                return i;
+            }
+        }
+        return null;
+    }
+
+    @IsTest
+    static void aComponentNamedAfterItsOwnIdIsNamedAfterItsFacilityInstead() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Loan__c facility = cloneLoan();
+        LLC_BI__Pricing_Payment_Component__c pc = componentNamedAfterItsOwnId(facility);
+
+        Test.startTest();
+        StageDiscardVersion.Response res = stage(key('idname'), versionPackageId());
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Stage should succeed. ' + why(res));
+        StageDiscardVersion.InventoryItem item = itemFor(res, pc.Id);
+        System.assertNotEquals(null, item, 'The payment component is on the delete list.');
+        System.assertEquals(
+            'Pricing payment component on ' + cloneLoan().Name,
+            item.name,
+            'A Name that is the record\'s own id is replaced by the object and the facility it hangs off.'
+        );
+    }
+
+    @IsTest
+    static void aPledgeWithARealNameKeepsIt() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Loan_Collateral2__c pledge = [
+            SELECT Id, Name FROM LLC_BI__Loan_Collateral2__c WHERE LLC_BI__Loan__c = :cloneLoan().Id LIMIT 1
+        ];
+
+        Test.startTest();
+        StageDiscardVersion.Response res = stage(key('realname'), versionPackageId());
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Stage should succeed. ' + why(res));
+        StageDiscardVersion.InventoryItem item = itemFor(res, pledge.Id);
+        System.assertNotEquals(null, item, 'The pledge is on the delete list.');
+        System.assertEquals(
+            pledge.Name, item.name, 'A real Name is the banker\'s own reference and is never rewritten.'
+        );
+    }
+
+    @IsTest
+    static void aRowWithNoNameIsNamedAfterItsObjectAndItsFacility() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Pricing_Stream__c stream = streamWithNoName(cloneLoan());
+
+        Test.startTest();
+        StageDiscardVersion.Response res = stage(key('nullname'), versionPackageId());
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Stage should succeed. ' + why(res));
+        StageDiscardVersion.InventoryItem item = itemFor(res, stream.Id);
+        System.assertNotEquals(null, item, 'The unnamed stream is on the delete list.');
+        System.assertEquals(
+            'Pricing stream on ' + cloneLoan().Name,
+            item.name,
+            'A null Name falls back to the object label and the facility, never to the id.'
+        );
+    }
+
+    @IsTest
+    static void noItemNameInTheWholeInventoryIsAnOrgRecordId() {
+        C360TestFixture.armCalloutMock();
+        LLC_BI__Loan__c facility = cloneLoan();
+        componentNamedAfterItsOwnId(facility);
+        streamWithNoName(facility);
+
+        Test.startTest();
+        StageDiscardVersion.Response res = stage(key('noids'), versionPackageId());
+        Test.stopTest();
+
+        System.assertEquals(true, res.ok, 'Stage should succeed. ' + why(res));
+        System.assert(!res.result.items.isEmpty(), 'The plan carries items to judge.');
+        for (StageDiscardVersion.InventoryItem i : res.result.items) {
+            System.assert(
+                String.isNotBlank(i.name) && !Pattern.matches(RECORD_ID_SHAPE, i.name),
+                'The cockpit refuses any item name that reads as an org record id: ' +
+                i.objectName + ' was named ' + i.name
+            );
+        }
+    }
+
     @IsTest
     static void theStagedTrailRowIsKeptAndIsNotThisActionsOwnRow() {
         C360TestFixture.armCalloutMock();

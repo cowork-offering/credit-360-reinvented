@@ -177,6 +177,17 @@ global with sharing class StageDiscardVersion {
     /** PDI-00015762: more than 200 collateral rows is where nCino's own rollback is documented to break. */
     private static final Integer PLEDGE_WARNING_THRESHOLD = 200;
 
+    /**
+     * A record id, in exactly the shape the cockpit's plan guard refuses
+     * (`app/src/actions/stagedPlan.ts`, `assertNoRecordIds`). Fifteen or eighteen alphanumerics and
+     * nothing else. Kept identical to the guard on purpose: the org decides what a banker reads,
+     * and it has to answer the same question the client asks.
+     */
+    private static final String RECORD_ID_SHAPE = '^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$';
+
+    /** Object labels, described once per transaction rather than once per item. */
+    private static final Map<String, String> LABELS = new Map<String, String>();
+
     /** The platform's own DML ceiling. A version this large is a data problem, not a discard. */
     private static final Integer MAX_ITEMS = 5000;
 
@@ -320,10 +331,19 @@ global with sharing class StageDiscardVersion {
         public String name;
         public String reason;
 
-        public Item(String objectName, Id recordId, String name, String reason) {
+        /**
+         * @param objectName The record's API name, which supplies the label when the Name cannot.
+         * @param recordId The record.
+         * @param rawName The record's own Name, which may be null, blank, or the id nCino's pricing
+         *        engine writes into it. It is never passed through unchecked: `bankerName` decides.
+         * @param facilityName The version facility this row hangs off, for the fallback name. Null
+         *        where no facility owns the row.
+         * @param reason Why the record goes, in the banker's words.
+         */
+        public Item(String objectName, Id recordId, String rawName, String facilityName, String reason) {
             this.objectName = objectName;
             this.recordId = recordId;
-            this.name = name == null ? String.valueOf(recordId) : name;
+            this.name = bankerName(objectName, rawName, recordId, facilityName);
             this.reason = reason;
         }
     }
@@ -352,6 +372,8 @@ global with sharing class StageDiscardVersion {
         public Id accountId;
         public String accountName;
         public List<Id> memberIds = new List<Id>();
+        /** Each version facility's Name, so an unnamed row on it can be named after it. */
+        public Map<Id, String> facilityNames = new Map<Id, String>();
         public List<Id> parentIds = new List<Id>();
         public List<String> parentNames = new List<String>();
         public List<DeleteGroup> groups = new List<DeleteGroup>();
@@ -560,6 +582,7 @@ global with sharing class StageDiscardVersion {
         inv.latestBuildRow = pkg.CreatedDate;
         for (LLC_BI__Loan__c m : members) {
             inv.memberIds.add(m.Id);
+            inv.facilityNames.put(m.Id, m.Name);
             inv.latestBuildRow = later(inv.latestBuildRow, m.CreatedDate);
         }
 
@@ -876,7 +899,7 @@ global with sharing class StageDiscardVersion {
         Map<Id, String> sourceNames = new Map<Id, String>();
 
         for (LLC_BI__LoanRenewal__c j : chain) {
-            add(inv, g, 'LLC_BI__LoanRenewal__c', j.Id, j.Name,
+            add(inv, g, 'LLC_BI__LoanRenewal__c', j.Id, j.Name, parentNameOf(j),
                 'chain row revision ' + String.valueOf(j.LLC_BI__RevisionNumber__c) + ' linking booked facility ' +
                 String.valueOf(j.LLC_BI__ParentLoanId__r == null ? null : j.LLC_BI__ParentLoanId__r.Name) +
                 ' to this version. While it stands the parent reads hasRenewal true and every later roll is refused.');
@@ -951,7 +974,7 @@ global with sharing class StageDiscardVersion {
             );
             return;
         }
-        add(inv, g, 'LLC_BI__LoanRenewal__c', j.Id, j.Name,
+        add(inv, g, 'LLC_BI__LoanRenewal__c', j.Id, j.Name, parentNameOf(j),
             'the revision-0 self anchor this fork minted on booked facility ' +
             String.valueOf(j.LLC_BI__ParentLoanId__r == null ? null : j.LLC_BI__ParentLoanId__r.Name) + '.');
     }
@@ -963,11 +986,12 @@ global with sharing class StageDiscardVersion {
         DeleteGroup pledges = new DeleteGroup('delete_pledges', 'LLC_BI__Loan_Collateral2__c', 'Remove the collateral pledges copied onto the version facilities');
         if (!members.isEmpty()) {
             for (LLC_BI__Loan_Collateral2__c p : [
-                SELECT Id, Name, CreatedDate, LLC_BI__Collateral__r.Name FROM LLC_BI__Loan_Collateral2__c
+                SELECT Id, Name, CreatedDate, LLC_BI__Loan__c, LLC_BI__Collateral__r.Name
+                FROM LLC_BI__Loan_Collateral2__c
                 WHERE LLC_BI__Loan__c IN :members WITH USER_MODE
             ]) {
                 inv.latestBuildRow = later(inv.latestBuildRow, p.CreatedDate);
-                add(inv, pledges, 'LLC_BI__Loan_Collateral2__c', p.Id, p.Name,
+                add(inv, pledges, 'LLC_BI__Loan_Collateral2__c', p.Id, p.Name, inv.facilityNames.get(p.LLC_BI__Loan__c),
                     'a pledge of ' + String.valueOf(p.LLC_BI__Collateral__r == null ? null : p.LLC_BI__Collateral__r.Name) +
                     ' copied onto this version. The asset itself and its ownership junction stay. This row must go before ' +
                     'its facility: the lookup carries restrictedDelete.');
@@ -978,9 +1002,10 @@ global with sharing class StageDiscardVersion {
         DeleteGroup junctions = new DeleteGroup('delete_covenant_junctions', 'LLC_BI__Loan_Covenant__c', 'Detach the covenants from the version facilities');
         if (!members.isEmpty()) {
             for (LLC_BI__Loan_Covenant__c c : [
-                SELECT Id, Name FROM LLC_BI__Loan_Covenant__c WHERE LLC_BI__Loan__c IN :members WITH USER_MODE
+                SELECT Id, Name, LLC_BI__Loan__c FROM LLC_BI__Loan_Covenant__c
+                WHERE LLC_BI__Loan__c IN :members WITH USER_MODE
             ]) {
-                add(inv, junctions, 'LLC_BI__Loan_Covenant__c', c.Id, c.Name,
+                add(inv, junctions, 'LLC_BI__Loan_Covenant__c', c.Id, c.Name, inv.facilityNames.get(c.LLC_BI__Loan__c),
                     'the junction holding a covenant on a version facility. The covenant record itself stays on the borrower.');
             }
         }
@@ -994,29 +1019,36 @@ global with sharing class StageDiscardVersion {
 
         if (!members.isEmpty()) {
             for (LLC_BI__Pricing_Rate_Component__c rc : [
-                SELECT Id, Name FROM LLC_BI__Pricing_Rate_Component__c WHERE cm_Loan__c IN :members WITH USER_MODE
+                SELECT Id, Name, cm_Loan__c FROM LLC_BI__Pricing_Rate_Component__c
+                WHERE cm_Loan__c IN :members WITH USER_MODE
             ]) {
-                add(inv, rates, 'LLC_BI__Pricing_Rate_Component__c', rc.Id, rc.Name, 'a rate component on a version facility.');
+                add(inv, rates, 'LLC_BI__Pricing_Rate_Component__c', rc.Id, rc.Name,
+                    inv.facilityNames.get(rc.cm_Loan__c), 'a rate component on a version facility.');
             }
             for (LLC_BI__Pricing_Payment_Component__c pc : [
-                SELECT Id, Name FROM LLC_BI__Pricing_Payment_Component__c WHERE cm_Loan__c IN :members WITH USER_MODE
+                SELECT Id, Name, cm_Loan__c FROM LLC_BI__Pricing_Payment_Component__c
+                WHERE cm_Loan__c IN :members WITH USER_MODE
             ]) {
-                add(inv, payments, 'LLC_BI__Pricing_Payment_Component__c', pc.Id, pc.Name, 'a payment component on a version facility.');
+                add(inv, payments, 'LLC_BI__Pricing_Payment_Component__c', pc.Id, pc.Name,
+                    inv.facilityNames.get(pc.cm_Loan__c), 'a payment component on a version facility.');
             }
             for (LLC_BI__Pricing_Stream__c s : [
-                SELECT Id, Name FROM LLC_BI__Pricing_Stream__c WHERE LLC_BI__Loan__c IN :members WITH USER_MODE
+                SELECT Id, Name, LLC_BI__Loan__c FROM LLC_BI__Pricing_Stream__c
+                WHERE LLC_BI__Loan__c IN :members WITH USER_MODE
             ]) {
-                add(inv, streams, 'LLC_BI__Pricing_Stream__c', s.Id, s.Name,
+                add(inv, streams, 'LLC_BI__Pricing_Stream__c', s.Id, s.Name, inv.facilityNames.get(s.LLC_BI__Loan__c),
                     'a pricing stream nCino cloned onto this version. The parent facility keeps its own.');
             }
             for (LLC_BI__Fee__c f : [
-                SELECT Id, Name FROM LLC_BI__Fee__c WHERE LLC_BI__Loan__c IN :members WITH USER_MODE
+                SELECT Id, Name, LLC_BI__Loan__c FROM LLC_BI__Fee__c
+                WHERE LLC_BI__Loan__c IN :members WITH USER_MODE
             ]) {
-                add(inv, fees, 'LLC_BI__Fee__c', f.Id, f.Name, 'a fee on a version facility.');
+                add(inv, fees, 'LLC_BI__Fee__c', f.Id, f.Name, inv.facilityNames.get(f.LLC_BI__Loan__c),
+                    'a fee on a version facility.');
             }
         }
         for (LLC_BI__Legal_Entities__c e : involvementRows(inv)) {
-            add(inv, involvements, 'LLC_BI__Legal_Entities__c', e.Id, e.Name,
+            add(inv, involvements, 'LLC_BI__Legal_Entities__c', e.Id, e.Name, inv.facilityNames.get(e.LLC_BI__Loan__c),
                 'a borrowing structure row on this version. The account it names is untouched.');
         }
 
@@ -1031,12 +1063,12 @@ global with sharing class StageDiscardVersion {
     private static List<LLC_BI__Legal_Entities__c> involvementRows(Inventory inv) {
         if (inv.memberIds.isEmpty()) {
             return [
-                SELECT Id, Name FROM LLC_BI__Legal_Entities__c
+                SELECT Id, Name, LLC_BI__Loan__c FROM LLC_BI__Legal_Entities__c
                 WHERE LLC_BI__Product_Package__c = :inv.versionPackageId WITH USER_MODE
             ];
         }
         return [
-            SELECT Id, Name FROM LLC_BI__Legal_Entities__c
+            SELECT Id, Name, LLC_BI__Loan__c FROM LLC_BI__Legal_Entities__c
             WHERE LLC_BI__Loan__c IN :inv.memberIds OR LLC_BI__Product_Package__c = :inv.versionPackageId
             WITH USER_MODE
         ];
@@ -1046,7 +1078,7 @@ global with sharing class StageDiscardVersion {
     private static void buildMemberGroup(Inventory inv, List<LLC_BI__Loan__c> members) {
         DeleteGroup loans = new DeleteGroup('delete_members', 'LLC_BI__Loan__c', 'Remove the version facilities');
         for (LLC_BI__Loan__c m : members) {
-            add(inv, loans, 'LLC_BI__Loan__c', m.Id, m.Name,
+            add(inv, loans, 'LLC_BI__Loan__c', m.Id, m.Name, null,
                 'a facility on this version at ' + String.valueOf(m.LLC_BI__Stage__c) +
                 '. Its Loan Detail and loan documents are master-detail children and go with it.');
         }
@@ -1098,9 +1130,11 @@ global with sharing class StageDiscardVersion {
 
         List<Id> candidates = new List<Id>();
         Set<Id> seen = new Set<Id>();
+        Map<Id, String> shellFacility = new Map<Id, String>();
         for (LLC_BI__Loan__c m : members) {
             if (m.LLC_BI__Loan_Collateral_Aggregate__c != null && seen.add(m.LLC_BI__Loan_Collateral_Aggregate__c)) {
                 candidates.add(m.LLC_BI__Loan_Collateral_Aggregate__c);
+                shellFacility.put(m.LLC_BI__Loan_Collateral_Aggregate__c, m.Name);
             }
         }
         Map<Id, LLC_BI__Loan_Collateral_Aggregate__c> owned = candidates.isEmpty()
@@ -1144,7 +1178,7 @@ global with sharing class StageDiscardVersion {
                 continue;
             }
             inv.aggregateIds.add(c);
-            add(inv, shells, 'LLC_BI__Loan_Collateral_Aggregate__c', c, row.Name,
+            add(inv, shells, 'LLC_BI__Loan_Collateral_Aggregate__c', c, row.Name, shellFacility.get(c),
                 'the collateral aggregate shell nCino minted for a version facility. It carries no lookup back to the ' +
                 'facility, so deleting the facility alone would strand it empty.');
         }
@@ -1157,7 +1191,7 @@ global with sharing class StageDiscardVersion {
             }
             inv.aggregateIds.add(o.Id);
             inv.orphanShellCount++;
-            add(inv, shells, 'LLC_BI__Loan_Collateral_Aggregate__c', o.Id, o.Name,
+            add(inv, shells, 'LLC_BI__Loan_Collateral_Aggregate__c', o.Id, o.Name, null,
                 'an empty collateral aggregate shell minted while this version was being built, by the same user and ' +
                 'inside the same few minutes. No facility and no pledge anywhere points at it, it carries no lookup ' +
                 'key and no pledged value, so nothing but this version can account for it.');
@@ -1264,7 +1298,7 @@ global with sharing class StageDiscardVersion {
     /** Group 7: the version package itself. */
     private static void buildPackageGroup(Inventory inv, LLC_BI__Product_Package__c pkg) {
         DeleteGroup packages = new DeleteGroup('delete_package', 'LLC_BI__Product_Package__c', 'Remove the version package');
-        add(inv, packages, 'LLC_BI__Product_Package__c', pkg.Id, pkg.Name, 'the version package itself.');
+        add(inv, packages, 'LLC_BI__Product_Package__c', pkg.Id, pkg.Name, null, 'the version package itself.');
         inv.groups.add(packages);
     }
 
@@ -1578,9 +1612,93 @@ global with sharing class StageDiscardVersion {
         return n;
     }
 
-    private static void add(Inventory inv, DeleteGroup g, String objectName, Id recordId, String name, String reason) {
+    private static void add(
+        Inventory inv,
+        DeleteGroup g,
+        String objectName,
+        Id recordId,
+        String rawName,
+        String facilityName,
+        String reason
+    ) {
         g.ids.add(recordId);
-        inv.items.add(new Item(objectName, recordId, name, reason));
+        inv.items.add(new Item(objectName, recordId, rawName, facilityName, reason));
+    }
+
+    /**
+     * The name a banker reads for one inventory item, which is never an org record id.
+     *
+     * THE DEFECT THIS EXISTS FOR (live, 2026-09-15). nCino's pricing engine writes the record's own
+     * fifteen-character id into `Name` on `LLC_BI__Pricing_Payment_Component__c` and on
+     * `LLC_BI__Pricing_Stream__c`. The inventory passed `Name` straight through, so the plan carried
+     * `a4ybb000002kean` as an item name and the cockpit's own plan guard refused the whole discard
+     * with "items[12].name looks like an org record id". The guard is right: a banker confirming a
+     * DELETE has to be able to read what goes.
+     *
+     * THE RULE. The raw Name is returned only when it is a real name: not null, not blank, and not
+     * id-shaped, where id-shaped is the cockpit's own test, fifteen or eighteen alphanumerics and
+     * nothing else. Anything else is named `<object label> on <facility name>`, or
+     * `<object label> on this version` when no facility owns the row. A Salesforce id is by
+     * construction fifteen or eighteen alphanumerics, so the shape test already covers the case
+     * where the Name is literally the record's own id in either form; there is no second comparison
+     * because there is no value it could catch. A facility name that is itself id-shaped is refused
+     * the same way, so the fallback can never smuggle an id in through the back door.
+     *
+     * @param objectApiName The record's API name, which supplies the label.
+     * @param rawName The record's Name as the org holds it.
+     * @param recordId The record this name belongs to. Deliberately not consulted: every caller has
+     *        it to hand and the rule is written in terms of it, but a Salesforce id always matches
+     *        the shape test above, so comparing against it could never reach a value that test
+     *        missed.
+     * @param facilityName The version facility the row hangs off, or null.
+     * @return A name a banker can read. Never null, never an id.
+     */
+    public static String bankerName(String objectApiName, String rawName, Id recordId, String facilityName) {
+        if (isRealName(rawName)) {
+            return rawName;
+        }
+        String label = objectLabel(objectApiName);
+        return isRealName(facilityName) ? label + ' on ' + facilityName : label + ' on this version';
+    }
+
+    /** True when a string is a name rather than a record id. */
+    private static Boolean isRealName(String value) {
+        return String.isNotBlank(value) && !Pattern.matches(RECORD_ID_SHAPE, value);
+    }
+
+    /**
+     * The object's label in the sentence case an item line is written in.
+     *
+     * "Pricing Payment Component" reads as a field label; "Pricing payment component on Sunbelt
+     * Hospitality Group Inc - Purchase - $19,000,000.00" reads as the sentence the plan is made of.
+     * Only a word that is Capitalised-then-lower is lowered, so `LoanRenewal` and any acronym keep
+     * the shape the org gave them.
+     *
+     * @param objectApiName The object's API name.
+     * @return Its label, or the API name when the object does not resolve.
+     */
+    private static String objectLabel(String objectApiName) {
+        if (LABELS.containsKey(objectApiName)) {
+            return LABELS.get(objectApiName);
+        }
+        Schema.SObjectType t = Schema.getGlobalDescribe().get(objectApiName);
+        String label = objectApiName;
+        if (t != null) {
+            List<String> words = t.getDescribe().getLabel().split(' ');
+            for (Integer i = 1; i < words.size(); i++) {
+                if (Pattern.matches('^[A-Z][a-z]+$', words[i])) {
+                    words[i] = words[i].toLowerCase();
+                }
+            }
+            label = String.join(words, ' ');
+        }
+        LABELS.put(objectApiName, label);
+        return label;
+    }
+
+    /** The booked parent a chain row flags, which is the facility it hangs off. */
+    private static String parentNameOf(LLC_BI__LoanRenewal__c j) {
+        return j.LLC_BI__ParentLoanId__r == null ? null : j.LLC_BI__ParentLoanId__r.Name;
     }
 
     private static GateException gate(String code, String message) {

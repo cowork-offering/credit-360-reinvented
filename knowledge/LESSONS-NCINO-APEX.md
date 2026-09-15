@@ -1198,3 +1198,25 @@ that lives only in a session transcript does not exist.*
     with the fees), so it is reported as cascading rather than deleted. The one thing the banker
     gains is prose: the plan now says the package was created by this cockpit, names the trail row,
     and says there are no booked parents to restore.
+
+82. **nCino's pricing engine sets `Name` = `Id`, so a plan item name must never be a raw `Name`
+    pass-through (2026-09-15, D1, live defect).** On `LLC_BI__Pricing_Payment_Component__c` and
+    `LLC_BI__Pricing_Stream__c` the engine writes the record's own fifteen-character id into `Name`:
+    Sunbelt version `a5Fbb000000JIR3EAO` carried `a4ybb000002kean`, `a4ybb000002keao` and
+    `a50bb00000vQIwZ`. `StageDiscardVersion` passed `Name` straight through to the inventory item's
+    `name` (its only fallback fired on null), so the plan reached the cockpit carrying an id as a
+    name and `assertNoRecordIds` in `app/src/actions/stagedPlan.ts` refused the whole discard with
+    `items[12].name looks like an org record id (a4ybb000002kean)`. The staging rows
+    `STG-0000000165` and `STG-0000000166` were fine; the plan they carried was unreadable. The
+    client's rule is right and the fix belongs in the org: a banker confirming a DELETE has to be
+    able to read every line of what goes. Every item is now named through one helper,
+    `StageDiscardVersion.bankerName(objectApiName, rawName, recordId, facilityName)`, which returns
+    the raw `Name` only when it is a real name (not null, not blank, not matching the cockpit's own
+    `^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$`) and otherwise returns `<object label> on <facility name>`,
+    or `<object label> on this version` where no facility owns the row. GENERALISE: an org-side field
+    a managed package populates is not a banker-facing string until something has judged it, and the
+    judging belongs at the ONE place the item is constructed rather than at each of the thirteen call
+    sites that build one. Two smaller notes: a Salesforce id is by construction fifteen or eighteen
+    alphanumerics, so the shape test already covers "the Name is literally its own id" and a second
+    equality comparison would be unreachable code; and the facility name used in the fallback is put
+    through the same test, so the fallback cannot smuggle an id in from the other side.
