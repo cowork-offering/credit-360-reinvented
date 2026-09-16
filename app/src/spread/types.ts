@@ -168,6 +168,9 @@ export interface SpreadPlan {
   items: Array<{
     fileId: string;
     name: string;
+    /** The file's own size, as the browser read it. The receipt prints it and
+     *  the expectation line is measured on it. */
+    bytes: number;
     mime: string;
     base64: string;
     sha256: string;

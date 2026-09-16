@@ -2,6 +2,34 @@
 
 ## Changelog
 
+- **0.9.31 (2026-09-16)** THE SPREADING STAGE, AND THE WAIT THAT FOLLOWS THE BANKER. After the first live Boom drop the
+  founder asked for one thing above all: "so i can leave the workroom of spreading and there is a progress indicator
+  somewhere?" Boom takes five to seven minutes on a real statement set and the poll lived inside the room, so closing
+  it killed the loop, nothing on the cockpit said Boom was still reading, and the spread waited for a re-entry that
+  rebuilt the wait from scratch. THE POLL LEFT THE ROOM (`components/workroom/boomWatch.ts`): it runs at page level,
+  keyed on receipts that now survive a reload (sessionStorage, the `state/persist.ts` envelope), one poll per file
+  deduped by Boom's own file id, with the 0.9.29 rules carried whole (a rejected call is a miss, the rung never moves,
+  two misses drop the blocking wait to the plain read, `awaitDeadlineMs` untouched). The room subscribes to a ticket and
+  keeps only its own clock, the two-minute statement and the stall doors; "leave it with Boom" stops the room and never
+  the poll. THE ARRIVAL IS BROUGHT TO THE BANKER: a compact glass pill in the header beside the live dot, in the health
+  line's own quiet register, carrying the filling ">" and one line ("Reading <relationship>'s statements, the elapsed
+  clock, files done of total"), two relationships newest first, a click into that Spreading room; on completion it
+  settles into the arrival marker for two beats and stays a quiet pill until looked at, the relationship's worklist row
+  carrying one steady glow until then. No percentage (Boom reports four rungs and no sub-stages), no sounds, no browser
+  notifications. The spread is held on the arrival until the look, so the register is there on return with no second
+  read. THE ROOM IS A STAGE IN THREE BEATS: the drop lands as one receipt per file, facts only and one per beat, each
+  from a real answer, and the five-lamp rung strip is gone; the wait is one calm timeline with an elapsed clock, the one
+  honest expectation line derived from the sets THIS page has watched Boom finish (absent before the first observation),
+  and the sentence that says the banker may leave; the arrival types in three beats at the governed stage's own pace and
+  the register unfolds beneath it. Reduced motion reaches the same facts. OPEN IN BOOM reached the Financials tab
+  (founder, live: "where is the open in boom button there is none"): the compact register carries the control, minted on
+  the click, a button until Boom answers and an anchor after it, Boom's own words and no dead link on a refusal, absent
+  where no live Boom file backs the tab. Proof: 23 new vitest cases on the live Boom fixtures (suite 235 files, 5,555
+  passing), `drive-boom.mjs` gains a seventh scenario on the built page (7 scenarios, 55 assertions), `spread-e2e.mjs`
+  green, screenshots `knowledge/proofs/0931/`. Design `knowledge/DESIGN-0.9.31-SPREADING-STAGE.md`. Bundle 2,187,744
+  bytes (+15.0 KB over 0.9.30: the page-level poller, the header indicator, the receipts and the typed arrival brief,
+  which is the whole of the feature and not a dependency). Backlog 74.
+
 - **0.9.30 (2026-09-16)** ONE PAGE, ONE READ PER QUESTION. The founder asked why Customer 360 read "unreachable" all
   evening. The org's Apex logs of his page answered: 653 Customer360 reads in 80 minutes from one artifact; opening
   the cockpit issued 48 calls in ten seconds and 44 in the next, the same read up to eight times (Snapshot 8,

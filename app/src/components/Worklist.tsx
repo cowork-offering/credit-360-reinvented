@@ -14,6 +14,7 @@ import { mcpAvailable } from "../channel/mcp";
 import { announce, openAccountLive } from "../book/dynamicBook";
 import { CMDK_OPEN_EVENT } from "./CommandPalette";
 import { WorklistSkeleton } from "./HomeSkeleton";
+import { boomRowState, useBoomWatch } from "./workroom/boomWatch";
 
 /* =============================================================================
    THE WORKLIST — the landing's third beat.
@@ -110,6 +111,11 @@ function Row({
 }) {
   const breach = r.reasons.includes("COVENANT_BREACH");
   const sts = statusesFor(r);
+  /* BOOM BRINGS THE SPREAD TO THE ROW (0.9.31). A relationship whose spread
+     landed while the banker was elsewhere carries ONE glow until they look at
+     it; nothing pulses and nothing is added to the row's own content, because a
+     row that grew a badge would be the clutter rule 13 keeps out. */
+  const boom = boomRowState(r.accountId);
   const urgent = sts.some((s) => s.tone === "bad") ? "bad" : sts.some((s) => s.tone === "warn") ? "warn" : "";
   return (
     <div
@@ -124,6 +130,7 @@ function Row({
         }
       }}
       className="wlrow"
+      data-boom={boom ?? undefined}
       /* THE ARRIVAL PLAYS ONCE, PER ROW, EVER. A row that was already on screen
          when the live read landed keeps its place and takes the new figures
          where it stands; only a row that is genuinely new rises. Re-running the
@@ -186,6 +193,9 @@ function Row({
 
 export function Worklist() {
   const { data, queue, state, dispatch } = useApp();
+  /* One subscription for the whole queue: the rows read `boomRowState` during
+     the render this wakes. */
+  useBoomWatch();
   const booting = useLivePortfolioResult().booting;
   const worklist = queue.worklist;
   const rows = useMemo(() => buildWorklistRows(data, worklist), [data, worklist]);

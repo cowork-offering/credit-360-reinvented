@@ -30,6 +30,13 @@
      6  never verified   nothing in the run returns `verified`, a validated
                          statement or a validation URL: verification is an
                          analyst's act inside Boom and no stub may claim one
+     7  the wait follows THE 0.9.31 REQUIREMENT, on the built page rather than at
+                         the wire: drop a statement, LEAVE the Spreading room for
+                         the worklist, and the header carries the indicator with
+                         the relationship, the elapsed clock and the count; the
+                         stub then completes the file while the room is shut, the
+                         arrival marker lands, the worklist row glows, and the
+                         register is on the sheet on the way back in
 
    THE ARGUMENT NAMES ARE THE ASSERTION. Every call below carries the exact body
    the builders in app/src/channel/boomUpload.ts produce, so running this against
@@ -40,8 +47,12 @@
    Usage:  node drive-boom.mjs [file-or-url] [outDir]
 */
 import { chromium } from "playwright";
-import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { serveDir } from "./lib/serve.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const TARGET = process.argv[2] ?? `${HERE}../../artifact/customer-360-template.html`;
@@ -69,6 +80,67 @@ const OTHER_SHA = "b7c2".repeat(16);
 
 mkdirSync(OUT, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* ------------------------------------------------- the built page, for scenario 7
+
+   THE FIVE WIRE SCENARIOS drive the connector through the artifact template;
+   the sixth drives the COCKPIT, because what it asserts is a page-level poll and
+   a header, neither of which exists at the wire. The assembly is `spread-e2e`'s
+   own, so the two drives are looking at the same bundle. */
+const ROOT = `${HERE}../..`;
+const BUNDLE = `${ROOT}/app/dist/cockpit.html`;
+const SAMPLE = readFileSync(`${HERE}lib/stub-sample.js`, "utf8");
+
+/** One statement, this borrower's own name on it, so the room's company ask
+ *  resolves rather than asking the drive to answer it. */
+const STATEMENT_CSV = `${OUT}/statements-fy2025.csv`;
+writeFileSync(
+  STATEMENT_CSV,
+  [
+    COMPANY,
+    "Income Statement (in thousands)",
+    "Fiscal year ended December 31,2025,2024",
+    "Net sales revenue,71200,64486",
+    "Cost of sales,49840,45140",
+    "Gross profit,21360,19346",
+    "Operating expenses,15960,14100",
+    "Operating profit,5400,5246",
+    "Interest expense,1750,1989",
+    "Net income,2700,2400",
+  ].join("\n"),
+);
+
+let site = null;
+
+/** The built cockpit, on the stub lanes, with Boom slow enough that the banker
+ *  can leave the room before the file lands. */
+async function openCockpit(browser) {
+  if (!site) {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "boom-drive-"));
+    mkdirSync(path.join(dir, "b"), { recursive: true });
+    execFileSync(
+      "node",
+      [`${ROOT}/app/scripts/assemble-artifact.mjs`, `${ROOT}/artifact/live-data.json`, path.join(dir, "b/index.html"), BUNDLE],
+      { stdio: "ignore" },
+    );
+    site = await serveDir(dir);
+  }
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await page.addInitScript(stub);
+  await page.addInitScript(SAMPLE);
+  /* LONG ENOUGH TO LEAVE. The drive turns this off per file once the room is
+     shut, which is the assertion. */
+  await page.addInitScript(() => {
+    const t = setInterval(() => {
+      if (!window.__LANES) return;
+      clearInterval(t);
+      window.__LANES.boom.processingMs = 600000;
+    }, 0);
+  });
+  await page.goto(site.url + "b/", { waitUntil: "load" });
+  await page.waitForSelector(`[data-open="${ACCOUNT}"]`, { timeout: 30000 });
+  return page;
+}
 
 const results = {};
 const failures = [];
@@ -298,6 +370,117 @@ try {
     await page.close();
   }
 
+  /* -------------------------------------------- 7. the wait follows the banker
+
+     THE REQUIREMENT ABOVE ALL (design 0.9.31, founder: "so i can leave the
+     workroom of spreading and there is a progress indicator somewhere?"). The
+     five scenarios above drive the WIRE; this one drives the BUILT PAGE, because
+     what is being asserted is that the poll is no longer the room's.
+
+     THE FILE IS COMPLETED WHILE THE ROOM IS SHUT, which is the whole point: the
+     stub's per-file clock (`__LANES.boom.files[id].processingMs`, 0.9.31) is set
+     to zero from the worklist, with no Spreading room mounted anywhere. */
+  {
+    const page = await openCockpit(browser);
+    const room = "[data-room='spread']";
+
+    await page.click(`[data-open="${ACCOUNT}"]`);
+    await page.waitForSelector("#view-account .hero", { timeout: 15000 });
+    await page.click("#fab");
+    await page.waitForSelector("#actSpread", { state: "visible", timeout: 6000 });
+    await page.click("#actSpread");
+    await page.waitForSelector(".sp-body", { timeout: 6000 });
+    await page.setInputFiles("input.sp-file", STATEMENT_CSV);
+    await page.waitForSelector(".sp-cards", { timeout: 10000 });
+    for (let i = 0; i < 8; i += 1) {
+      if (await page.$(".sp-go")) break;
+      await page.waitForSelector(".sp-ask, .sp-go", { timeout: 15000 });
+      if (await page.$(".sp-go")) break;
+      await page.click(".sp-ask .sp-chip");
+      await page.waitForTimeout(400);
+    }
+    await page.waitForSelector(".sp-go", { timeout: 15000 });
+    await page.click(".sp-go");
+
+    // The receipts, and the sentence that says the banker may leave. Waited on
+    // the LAST fact rather than on the block: the facts land one per beat and a
+    // receipt read at the first of them is a receipt half written.
+    await page.waitForFunction(
+      () => /Processing since/.test(document.querySelector(".sp-rcpt")?.textContent || ""),
+      null,
+      { timeout: 20000 },
+    );
+    const receipt = await page.textContent(".sp-rcpt");
+    const leaveLine = await page.textContent(".sp-wait-l");
+
+    // LEAVE. The room closes and the banker goes back to the worklist.
+    await page.click("[aria-label='Close the spreading room']");
+    await page.waitForSelector(room, { state: "detached", timeout: 6000 });
+    await page.click("#goHome");
+    await page.waitForSelector(`#view-home [data-open="${ACCOUNT}"]`, { timeout: 10000 });
+
+    // THE INDICATOR, WITH THE ROOM SHUT.
+    await page.waitForSelector(".bw-pill[data-boom-state='reading']", { timeout: 10000 });
+    const readPill = (state) => page.textContent(`.bw-pill[data-boom-state='${state}'] .bw-t`);
+    const readCount = () =>
+      page.$eval(".bw-pill[data-boom-state='reading']", (n) =>
+        [...n.querySelectorAll(".bw-s")].map((x) => x.textContent).join(" · "),
+      );
+    const reading = ((await readPill("reading")) || "") + " · " + (await readCount());
+    await page.waitForTimeout(1200);
+    const readingLater = ((await readPill("reading")) || "") + " · " + (await readCount());
+
+    // Boom finishes while nobody is in the room.
+    const shutWhileFinishing = (await page.$(room)) === null;
+    await page.evaluate(() => {
+      Object.values(window.__LANES.boom.files).forEach((f) => {
+        f.processingMs = 0;
+      });
+    });
+
+    await page.waitForSelector(".bw-pill[data-boom-state='marker'], .bw-pill[data-boom-state='arrived']", { timeout: 20000 });
+    const arrived = (await page.textContent(".bw-pill .bw-t")) || "";
+    const glow = await page.$$eval('[data-boom="arrived"]', (ns) => ns.length);
+
+    // BACK IN, AND THE REGISTER IS THERE.
+    await page.click(".bw-pill");
+    await page.waitForSelector(".sp-fin .rg", { timeout: 20000 });
+    // The brief types, three sentences at the governed stage's own pace.
+    await page.waitForFunction(
+      () => /Boom found \d+ periods?:/.test(document.querySelector(".sp-arrive")?.textContent || ""),
+      null,
+      { timeout: 20000 },
+    );
+    const brief = (await page.textContent(".sp-arrive")) || "";
+    const registerRows = await page.$$eval(".sp-fin .rg-t tbody tr", (ns) => ns.length);
+    const clearedOnLook = await page.$$eval(".bw-pill", (ns) => ns.length);
+
+    results.waitFollows = {
+      receipt: receipt.replace(/\s+/g, " ").trim().slice(0, 240),
+      leaveLine: (leaveLine || "").trim(),
+      reading: reading.replace(/\s+/g, " ").trim(),
+      readingLater: readingLater.replace(/\s+/g, " ").trim(),
+      arrived: arrived.replace(/\s+/g, " ").trim(),
+      brief: brief.replace(/\s+/g, " ").trim().slice(0, 400),
+      registerRows,
+      glow,
+      clearedOnLook,
+    };
+    check("waitFollows", "the drop lands as a receipt Boom's own answers produced", /Known by/.test(receipt) && /Boom acknowledged, file/.test(receipt));
+    check("waitFollows", "the room says on the glass that the banker may leave", /You can leave this room/.test(leaveLine || ""));
+    check("waitFollows", "the room is shut while Boom is still reading", shutWhileFinishing);
+    check("waitFollows", "the header names the relationship Boom is reading for", /^Reading .+ statements/.test(results.waitFollows.reading));
+    check("waitFollows", "and counts the files", /\d of \d files?$/.test(results.waitFollows.reading));
+    check("waitFollows", "the elapsed clock is running", /\d\d:\d\d/.test(results.waitFollows.reading) && results.waitFollows.reading !== results.waitFollows.readingLater);
+    check("waitFollows", "no percentage is invented anywhere on it", !/%/.test(results.waitFollows.reading));
+    check("waitFollows", "the arrival is brought to the banker", /^Boom has read /.test(results.waitFollows.arrived));
+    check("waitFollows", "the worklist row carries the glow until they look", glow >= 1);
+    check("waitFollows", "the register is there on the way back in", registerRows > 0);
+    check("waitFollows", "the arrival brief says what Boom found", /Boom found \d+ period/.test(brief));
+    check("waitFollows", "and the pill clears once it has been looked at", clearedOnLook === 0);
+    await page.close();
+  }
+
   /* ---------------------------------------------------- 6. never verified */
   {
     const every = JSON.stringify(results);
@@ -312,6 +495,7 @@ try {
   }
 } finally {
   await browser.close();
+  site?.close?.();
 }
 
 writeFileSync(`${OUT}/boom.json`, JSON.stringify(results, null, 2));

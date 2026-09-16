@@ -14,6 +14,8 @@ import { WorkroomHost } from "./workroom/WorkroomHost";
 import { RelationshipRoomHost } from "./relationship/RelationshipRoom";
 import { MemoRoomHost } from "./memo/MemoRoomHost";
 import { SpreadingRoomHost } from "./workroom/SpreadingRoom";
+import { startBoomWatcher } from "./workroom/boomWatch";
+import { boomAdapter } from "../channel/boomUpload";
 import { buildWorklistRows } from "../data/worklistRows";
 import { useKeepAlive } from "../channel/keepAlive";
 import { useOpenRefresh } from "../channel/openRefresh";
@@ -100,6 +102,13 @@ export function AppShell() {
   useViewSwitch(homeRef, accountRef, state.view);
 
   const topRow = useMemo(() => buildWorklistRows(data, worklist)[0], [data, worklist]);
+
+  /* THE WAIT FOLLOWS THE BANKER (0.9.31). The poll on a file Boom is spreading
+     lives HERE, at page level, keyed on the persisted receipts, so closing the
+     Spreading room, switching relationship and reloading the page all leave it
+     running. It starts nothing where there are no receipts, which is every
+     session in which nobody has dropped a statement. */
+  useEffect(() => startBoomWatcher(boomAdapter()), []);
 
   /* THE CONNECTOR PROMPTS ARRIVE TOGETHER, AT THE START (founder, 2026-09-13:
      they used to come one by one, on different pages and on Sync). One cheap

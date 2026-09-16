@@ -61,7 +61,7 @@ console.log(`bundle: dist/cockpit.html \u2014 ${bytes.toLocaleString()} bytes ($
 //                  say what the bytes bought. Bump BASELINE_BYTES in the same
 //                  commit that ships the growth.
 const HARD_CAP_MIB = 2.25; // 0.9.24 (2026-09-14): the relationship briefing, the account-anchored reviews with associations and the three-book drive fixes took the page past 2.0 MiB (2.007). Moved once, to 2.25, with the same load reasoning (about 2.3 s over a 10 Mbit hotel link); the next move is a trim, not a cap.
-const BASELINE_BYTES = 2_172_403; // 0.9.30 shipped size, 2026-09-16 (read coalescing and the hosted-hop cap; +1.2 KB over 0.9.29)
+const BASELINE_BYTES = 2_187_744; // 0.9.31 shipped size, 2026-09-16 (the Spreading stage, the page-level Boom poll and the header indicator; +15.0 KB over 0.9.30)
 const SOFT_TIER_BYTES = 50 * 1024;
 if (mib > HARD_CAP_MIB) {
   console.error(`FAIL: bundle ${mib.toFixed(3)} MiB exceeds the ${HARD_CAP_MIB} MiB hard cap (load-derived; founder decision to move)`);

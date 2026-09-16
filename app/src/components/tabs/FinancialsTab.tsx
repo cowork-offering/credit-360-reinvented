@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { normaliseBoom } from "../../../../client-360/render/boom-normalise.mjs";
 import { isBoomNotFound, readBoom } from "../../channel/boom";
+import { boomAdapter } from "../../channel/boomUpload";
+import { verifyFailedLine } from "../../workroom/spreadEngine";
 import { boomServer } from "../../channel/boomLane";
 import { mcpAvailable } from "../../channel/mcp";
 import type { BorrowerBundle, Covenant } from "../../data/contract";
@@ -91,12 +93,17 @@ function ratioTone(
 
 type BoomState = { phase: "idle" | "reading" | "answered" } | { phase: "absent"; message: string };
 
-function useBoomOnOpen(bundle: BorrowerBundle): { state: BoomState; source?: string } {
+function useBoomOnOpen(bundle: BorrowerBundle): { state: BoomState; source?: string; fileId: string | null } {
   const { dispatch } = useApp();
   const accountId = bundle.snapshot?.accountId ?? null;
   const company = bundle.snapshot?.name ?? null;
   const [state, setState] = useState<BoomState>({ phase: "idle" });
   const [source, setSource] = useState<string | undefined>(undefined);
+  /* WHICH BOOM FILE THIS TAB IS STANDING ON. The ratio set names the file it
+     was struck from and the spread beside it is that file's; the verification
+     page is that file's too. A page-session fact about a read, never a field on
+     the book. */
+  const [fileId, setFileId] = useState<string | null>(null);
   const asked = useRef<string | null>(null);
 
   useEffect(() => {
@@ -118,6 +125,7 @@ function useBoomOnOpen(bundle: BorrowerBundle): { state: BoomState; source?: str
           ...(reads.spread ? { spread: reads.spread } : {}),
         });
         setSource(reads.source);
+        setFileId(reads.fileId ?? null);
         setState({ phase: "answered" });
         if (merged) dispatch({ type: "PATCH_BUNDLE", accountId, patch: { boom: merged }, storedAt: reads.storedAt });
       } catch (e) {
@@ -135,7 +143,62 @@ function useBoomOnOpen(bundle: BorrowerBundle): { state: BoomState; source?: str
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId]);
 
-  return { state, source };
+  return { state, source, fileId };
+}
+
+/**
+ * OPEN THE ANALYST'S PAGE IN BOOM, FROM THE TAB (0.9.31).
+ *
+ * FOUNDER, live, standing on this tab: "where is the open in boom button there
+ * is none". The room has had one since 0.9.29 and the tab never did: compact
+ * mode was given no footer at all, so the register printed "Not validated in
+ * Boom" over a spread with no way to go and look at it.
+ *
+ * THE DOCTRINE IS THE ROOM'S, UNCHANGED. `boom_open_verification` mints a
+ * session token that lives 60 minutes, so it is spent on the banker's click and
+ * never at render; the control is a BUTTON until Boom answers and a real anchor
+ * after it; a refusal shows Boom's own words and NO link. Absent entirely where
+ * the lane has no verification page to give or no file behind this tab.
+ */
+function useOpenInBoom(fileId: string | null) {
+  const adapter = useMemo(() => boomAdapter(), []);
+  const [url, setUrl] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const open = adapter.validationSession;
+
+  const onVerify = useCallback(() => {
+    if (!open || !fileId || verifying || url) return;
+    setVerifying(true);
+    setError(null);
+    void open(fileId)
+      .then((session: { url: string }) => {
+        setVerifying(false);
+        setUrl(session.url);
+      })
+      .catch((e: unknown) => {
+        setVerifying(false);
+        setError(verifyFailedLine(failureText(e)));
+      });
+  }, [open, fileId, verifying, url]);
+
+  return {
+    verificationUrl: url,
+    verifying,
+    verifyError: error,
+    onVerify: open && fileId ? onVerify : undefined,
+  };
+}
+
+/** A rejection in words. The room's own rule: never `String(e)`, which is how
+ *  "[object Object]" reached the glass on 2026-09-15. */
+function failureText(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  const o = e as { message?: unknown; code?: unknown } | null;
+  if (typeof o?.message === "string") return o.message;
+  if (typeof o?.code === "string") return o.code;
+  return "no reason was given.";
 }
 
 /** What answered, where it was not Boom's own live read. The server stamps every
@@ -150,7 +213,8 @@ const sourceWord = (source: string | undefined): string | null =>
 const ABSENT_NOTE = "Boom holds no company for this borrower, so these figures are the ones already on the book.";
 
 export function FinancialsTab({ bundle }: { bundle: BorrowerBundle }) {
-  const { state: boomState, source } = useBoomOnOpen(bundle);
+  const { state: boomState, source, fileId } = useBoomOnOpen(bundle);
+  const openInBoom = useOpenInBoom(fileId);
   const boom = bundle.boom;
   if (!boom || (!boom.spread && !boom.ratios)) {
     return (
@@ -365,7 +429,15 @@ export function FinancialsTab({ bundle }: { bundle: BorrowerBundle }) {
                 the cockpit rather than a second idea of what a spread looks
                 like. Adjusted is Boom's default read and the tab offers no
                 switch, because the tab has no file to re-read against. */}
-            <SpreadRegister statements={statements} mode="compact" adjusted />
+            <SpreadRegister
+              statements={statements}
+              mode="compact"
+              adjusted
+              verificationUrl={openInBoom.verificationUrl}
+              onVerify={openInBoom.onVerify}
+              verifying={openInBoom.verifying}
+              verifyError={openInBoom.verifyError}
+            />
           </PaneCard>
         ) : items.length > 0 ? (
           <PaneCard>

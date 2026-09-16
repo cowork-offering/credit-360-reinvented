@@ -14,6 +14,7 @@ import { isProvisionalPeriod } from "./spread/publishSpread";
 import { provisionalRead } from "./spread/provisional";
 import { applySpreadEvent } from "./state/spreadPublish";
 import {
+  arrivalBrief,
   BOOM_AWAIT_SECONDS,
   BOOM_WAIT_BUDGET_MS,
   createSpreadEngine,
@@ -22,6 +23,7 @@ import {
   type SpreadDeps,
   type SpreadEngine,
 } from "./workroom/spreadEngine";
+import { receiptFacts } from "./components/workroom/SpreadingRoom";
 import type { RelationshipSpreadContext } from "./spread/preRead";
 import type { Boom, BorrowerBundle } from "./data/contract";
 import type { DroppedFile, ExtractedDocument, FilePreRead } from "./spread/types";
@@ -52,6 +54,8 @@ import SPREAD from "./__fixtures__/boom-live/spread-piedmont.json";
    ============================================================================= */
 
 const ACCOUNT = "001bb00001DLtRMAA1";
+/** The relationship a receipt belongs to: the page-level poll names it. */
+const ACCOUNT_REF = { accountId: ACCOUNT, accountName: "Piedmont Precision Components, Inc." };
 const COMPANY = "Piedmont Precision Components, Inc.";
 const SHA = "a".repeat(64);
 const FILE_ID = "cf677dcc-594c-45b5-b47d-c92c0b2ee909";
@@ -297,10 +301,7 @@ describe("the wait, across the room's own clock", () => {
   it("writes the file handle down the moment a file id exists, and clears it when it settles", async () => {
     const e = (engine = createSpreadEngine({
       ctx: CTX,
-      deps: deps({
-        rememberFile: (handle) => rememberBoomFile(ACCOUNT, handle),
-        forgetFile: (fileId) => forgetBoomFile(ACCOUNT, fileId),
-      }),
+      deps: deps(),
     }));
     await e.drop([droppedFile()]);
     await e.confirm();
@@ -310,13 +311,10 @@ describe("the wait, across the room's own clock", () => {
 
   it("resumes from the file Boom still holds rather than sending the bytes again", async () => {
     const server = boomServerStub();
-    rememberBoomFile(ACCOUNT, { fileId: FILE_ID, companyId: null, fileName: FILE_NAME, startedAt: Date.now() - 400_000 });
+    rememberBoomFile(ACCOUNT_REF, { fileId: FILE_ID, companyId: null, fileName: FILE_NAME, startedAt: Date.now() - 400_000 });
     const e = (engine = createSpreadEngine({
       ctx: CTX,
-      deps: deps({
-        adapter: liveBoomAdapter(server.call),
-        forgetFile: (fileId) => forgetBoomFile(ACCOUNT, fileId),
-      }),
+      deps: deps({ adapter: liveBoomAdapter(server.call) }),
     }));
     await e.resume(pendingBoomFiles(ACCOUNT));
 
@@ -351,7 +349,7 @@ describe("three files left with Boom, and the way back to them", () => {
 
   it("keeps one receipt per file rather than letting the third overwrite the first", async () => {
     const handles = IDS.map((fileId, i) => ({ fileId, companyId: null, fileName: NAMES[i], startedAt: Date.now() }));
-    for (const h of handles) rememberBoomFile(ACCOUNT, h);
+    for (const h of handles) rememberBoomFile(ACCOUNT_REF, h);
     expect(pendingBoomFiles(ACCOUNT).map((h) => h.fileId)).toEqual(IDS);
 
     forgetBoomFile(ACCOUNT, IDS[1]);
@@ -374,11 +372,11 @@ describe("three files left with Boom, and the way back to them", () => {
       return { payload: {}, raw: {} };
     };
     for (const [i, fileId] of IDS.entries()) {
-      rememberBoomFile(ACCOUNT, { fileId, companyId: null, fileName: NAMES[i], startedAt: Date.now() - 60_000 });
+      rememberBoomFile(ACCOUNT_REF, { fileId, companyId: null, fileName: NAMES[i], startedAt: Date.now() - 60_000 });
     }
     const e = (engine = createSpreadEngine({
       ctx: CTX,
-      deps: deps({ adapter: liveBoomAdapter(call), forgetFile: (id) => forgetBoomFile(ACCOUNT, id) }),
+      deps: deps({ adapter: liveBoomAdapter(call) }),
     }));
 
     const resumed = e.resume(pendingBoomFiles(ACCOUNT));
@@ -462,10 +460,10 @@ describe("three files left with Boom, and the way back to them", () => {
       if (tool === "boom_get_ratios") return { payload: RATIOS, raw: {} };
       return { payload: {}, raw: {} };
     };
-    rememberBoomFile(ACCOUNT, { fileId: FILE_ID, companyId: null, fileName: FILE_NAME, startedAt: Date.now() });
+    rememberBoomFile(ACCOUNT_REF, { fileId: FILE_ID, companyId: null, fileName: FILE_NAME, startedAt: Date.now() });
     const e = (engine = createSpreadEngine({
       ctx: CTX,
-      deps: deps({ adapter: liveBoomAdapter(call), forgetFile: (id) => forgetBoomFile(ACCOUNT, id) }),
+      deps: deps({ adapter: liveBoomAdapter(call) }),
     }));
 
     const resumed = e.resume(pendingBoomFiles(ACCOUNT));
@@ -707,5 +705,165 @@ describe("the room's spread section", () => {
     // No link at all, and certainly not the defect.
     expect(room.querySelector("a.rg-provlink")).toBeNull();
     expect(footer.textContent).not.toContain("[object Object]");
+  });
+});
+
+/* =============================================================================
+   THE SPREADING STAGE, ITS THREE BEATS (design 0.9.31).
+
+   FOUNDER, 2026-09-16: "the workroom needs to be also more show that is working
+   on it not just reading or something ... more structured information but
+   elegant and sexy bit more cinematic but in our styling".
+
+   The drop lands as RECEIPTS rather than a five-lamp rung strip Boom gives no
+   sub-stages to light, the wait is one calm timeline that says the banker may
+   leave, and the arrival is a brief that types before the register unfolds.
+   Every fact below comes off Boom's own recorded answers.
+   ============================================================================= */
+describe("the stage's three beats", () => {
+  let root: Root | null = null;
+  let container: HTMLDivElement | null = null;
+
+  afterEach(() => {
+    act(() => root?.unmount());
+    container?.remove();
+    root = null;
+    container = null;
+    document.body.className = "";
+  });
+
+  it("lands each file as a receipt: what it is, what it is known by, and when Boom took it", async () => {
+    const e = await runToSpread();
+    const row = e.getState().rows[0];
+    expect(row.sha256).toBe(SHA);
+    expect(row.boomFileId).toBe(FILE_ID);
+    expect(row.companyId).toBe("70d9bd23-a4f7-46ab-92d8-9b784e034877");
+    expect(row.bytes).toBe(DROPPED.bytes);
+    expect(row.startedAt).toBeGreaterThan(0);
+
+    const facts = receiptFacts(row, COMPANY);
+    expect(facts[0]).toBe(`Known by ${SHA.slice(0, 12)}`);
+    expect(facts[1]).toBe(`Registered under ${COMPANY} in Boom`);
+    expect(facts[2]).toBe(`Boom acknowledged, file ${FILE_ID.slice(0, 8)}`);
+    expect(facts[3]).toMatch(/^Processing since \d{2}:\d{2}:\d{2}$/);
+    // FACTS ONLY. A file with nothing answered about it carries no line at all.
+    expect(receiptFacts({ ...row, sha256: null, companyId: null, boomFileId: null, startedAt: null }, COMPANY)).toEqual([]);
+  });
+
+  it("builds the arrival brief out of Boom's own spread and its own support lines", async () => {
+    const e = await runToSpread();
+    const s = e.getState();
+    const brief = arrivalBrief({
+      statements: s.statements,
+      figures: s.figures,
+      support: s.support,
+      rows: s.rows,
+      validationStatus: s.validationStatus,
+    });
+
+    // Three beats and never a fourth.
+    expect(brief).toHaveLength(3);
+    expect(brief[0]).toBe("Boom found 3 periods: FY2023, FY2024 and FY2025.");
+    expect(brief[1]).toBe(
+      "3 statements: cash flow, income statement and balance sheet. Every one is validated in Boom.",
+    );
+    // THE LINE BEHIND THE FIGURE is the one thing the tiles cannot say, and it
+    // is Boom's own `support.lines` name, never a word this page chose.
+    expect(brief[2]).toContain("revenue $64.5M from Net Sales");
+    expect(brief[2]).toContain("coverage 2.64x");
+    expect(brief.join(" ")).not.toMatch(/—/);
+  });
+
+  it("makes a failed file the whole brief, in Boom's own words", () => {
+    expect(
+      arrivalBrief({
+        statements: [],
+        figures: { revenue: null, ebitda: null, marginPct: null, leverage: null, coverage: null },
+        support: [],
+        rows: [
+          {
+            fileId: "f1",
+            name: "scan.pdf",
+            state: "failed",
+            boomFileId: "b1",
+            message: "Boom could not read this file.",
+            stalled: false,
+            bytes: 10,
+            sha256: null,
+            companyId: null,
+            startedAt: null,
+          },
+        ],
+        validationStatus: null,
+      }),
+    ).toEqual(["Boom could not read this file."]);
+  });
+
+  it("says on the glass that the banker may leave, and keeps no clock they must sit through", async () => {
+    vi.useFakeTimers();
+    const server = boomServerStub({ spreading: true });
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(
+        createElement(SpreadingRoom, {
+          ctx: CTX,
+          onFileBoom: null,
+          deps: deps({ adapter: liveBoomAdapter(server.call) }),
+          onClose: () => {},
+        }),
+      );
+    });
+    const room = document.querySelector<HTMLElement>('[data-room="spread"]')!;
+    const zone = room.querySelector<HTMLElement>(".sp-drop")!;
+    await act(async () => {
+      zone.dispatchEvent(
+        Object.assign(new Event("drop", { bubbles: true }), { dataTransfer: { files: [droppedFile()] } }),
+      );
+    });
+    for (let i = 0; i < 8 && !room.querySelector(".sp-go"); i++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_000);
+      });
+      const chip = room.querySelector<HTMLElement>(".sp-ask .sp-chip");
+      if (chip && !room.querySelector(".sp-go")) await act(async () => chip.click());
+    }
+    await act(async () => {
+      room.querySelector<HTMLElement>(".sp-go")!.click();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000);
+    });
+
+    expect(room.querySelector(".sp-wait-l")!.textContent).toBe(
+      "You can leave this room. I will keep checking and bring the spread to you.",
+    );
+    // Nothing on this sheet invents a sub-stage or a percentage.
+    expect(room.querySelector(".sp-dot")).toBeNull();
+    expect(room.textContent ?? "").not.toMatch(/%/);
+    // The receipt's own elapsed clock is counting.
+    expect(room.querySelector(".sp-rcpt-c")!.textContent).toMatch(/^\d{2}:\d{2}$/);
+    // And no expectation line, because this page has watched Boom finish nothing.
+    expect(room.querySelector(".sp-wait-x")).toBeNull();
+  });
+});
+
+/* THE CONTROL IS THERE ON A `completed` FILE TOO (0.9.31). `verified` only adds
+   that an analyst has signed the spread off INSIDE Boom; a completed file is
+   exactly the one a banker wants to go and verify, and it is the state the
+   founder was looking at when he asked where the button was. */
+describe("Open in Boom, on a file Boom has completed and nobody has verified", () => {
+  it("still offers the door", async () => {
+    const server = boomServerStub();
+    const completed = { ...FILE, file: { ...(FILE as { file: Record<string, unknown> }).file, status: "completed" } };
+    const call = async (s: string, tool: string, input?: unknown): Promise<McpOk<unknown>> => {
+      if (tool === "boom_get_file") return { payload: completed, raw: {} };
+      return server.call(s, tool, input);
+    };
+    const e = await runToSpread({ adapter: liveBoomAdapter(call) });
+    expect(e.getState().rows[0].state).toBe("completed");
+    // `verifiable` is the LANE's capability, not the rung's.
+    expect(e.getState().verifiable).toBe(true);
   });
 });

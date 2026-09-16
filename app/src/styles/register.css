@@ -372,10 +372,19 @@ button.rg-provlink:disabled {
 .rg-proverr {
   color: var(--ink-muted);
 }
+/* COMPACT CARRIES THE CONTROL AND NOTHING ELSE (0.9.31). No "Spread by Boom",
+   no citation line: the tab already names its source in its own Note, and the
+   one thing it was missing is the door. */
+.rg-prov[data-mode="compact"] {
+  margin-top: 8px;
+  justify-content: flex-end;
+}
 
 /* ----------------------------------------------------------- compact mode
    The tab's register: the statement select, the line name, three periods and
-   Variance %. No footer, because the tab carries its own source note.
+   Variance %. No citation footer, because the tab carries its own source note;
+   the "Open in Boom" control is there from 0.9.31, because a banker who can
+   read a spread must be able to open it where it lives.
 
    THE TAB IS THE SUMMARY AND THE ROOM IS THE AUDIT (founder, 2026-09-15). The
    gutter and the account-code chip are dropped in the markup rather than hidden

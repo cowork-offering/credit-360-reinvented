@@ -72,6 +72,89 @@ body.scrolled .topbar {
 .topbar .spacer {
   flex: 1;
 }
+/* ------------------------------------------------- Boom is still reading
+
+   THE INDICATOR THE WAIT FOLLOWS THE BANKER WITH (0.9.31). It sits in the
+   header's status cluster, just before the live dot, and it is deliberately the
+   same register as the connector health line at the foot of the document: 11px,
+   faint ink, dot separators, one glass pill and nothing louder. A banker should
+   be able to ignore it and still find it in the same place.
+
+   IT NEVER TAKES THE BAR. The name truncates and the clock and the count never
+   do, because the two facts a banker walked away for are how long and how much.
+   No fill, no bar, no percentage: Boom reports rungs, not progress. */
+.bw {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 44%;
+}
+.bw-pill {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-hairline);
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  transition: background var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out),
+    border-color var(--dur-mid) var(--ease-out);
+}
+.bw-pill:hover {
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink);
+}
+.bw-pill:focus-visible {
+  outline: 1px solid var(--focus, var(--accent));
+  outline-offset: 2px;
+}
+.bw-mk {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  font-size: 11px;
+  line-height: 1;
+}
+.bw-dot {
+  font-style: normal;
+  color: var(--accent);
+}
+.bw-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bw-s {
+  flex: none;
+}
+.bw-sep {
+  flex: none;
+  color: var(--border-strong);
+}
+/* THE ARRIVAL LANDS LIT AND THEN SETTLES. One beat in the brand's own ink, then
+   the same words in the quiet pill they stay in until the banker looks. */
+.bw-pill[data-boom-state="marker"] {
+  background: var(--brand-wash);
+  border-color: rgba(161, 0, 255, 0.28);
+  color: var(--ink);
+}
+.bw-pill[data-boom-state="arrived"] .bw-t {
+  color: var(--ink-body);
+}
+
 .dot-live {
   width: 7px;
   height: 7px;
@@ -720,6 +803,18 @@ body.on-client .topnav {
   transform: translateY(-1px);
   box-shadow: 0 8px 40px rgba(26, 7, 54, 0.16);
 }
+/* BOOM BROUGHT A SPREAD TO THIS ROW (0.9.31). ONE glow, held until the banker
+   looks, never a pulse and never a badge: the row's content does not change at
+   all. It is the same brand light the cockpit uses everywhere else, at the
+   quietest radius it has. */
+#view-home .wlrow[data-boom="arrived"] {
+  box-shadow: var(--shadow-card), 0 0 0 1px rgba(161, 0, 255, 0.22), 0 6px 26px -8px rgba(161, 0, 255, 0.3);
+  transition: box-shadow 620ms var(--ease-settle);
+}
+#view-home .wlrow[data-boom="arrived"]:hover {
+  box-shadow: 0 8px 40px rgba(26, 7, 54, 0.16), 0 0 0 1px rgba(161, 0, 255, 0.22);
+}
+
 #view-home .wlrow .who {
   min-width: 230px;
 }

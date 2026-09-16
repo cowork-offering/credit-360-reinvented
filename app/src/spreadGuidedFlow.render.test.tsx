@@ -174,15 +174,21 @@ describe("the column reads in one order", () => {
     expect(zone.classList.contains("is-bar")).toBe(true);
     expect(zone.textContent).toContain("Add another statement");
     expect(zone.textContent).toContain("1 file in this plan");
-    // And it is still above the card: a target the banker can find.
-    expect(order(room).slice(0, 4)).toEqual(["sp-steps", "sp-guide", "sp-drop", "sp-cards"]);
+    /* AND IT HAS MOVED TO THE FOOT (design 0.9.31: "no dropzone chrome after the
+       first file; a quiet 'drop another' affordance at the foot"). The card is
+       what the banker's eye should land on, and a full-width target above it was
+       the chrome the design took out. */
+    expect(order(room).slice(0, 3)).toEqual(["sp-steps", "sp-guide", "sp-cards"]);
+    expect(order(room).at(-1)).toBe("sp-drop");
   });
 
   it("puts the action LAST and opens no financials panel before the spread", async () => {
     const room = open();
     await drop(room);
     const column = order(room);
-    expect(column[column.length - 1]).toBe("sp-act");
+    // The sheet is the last thing that is CONTENT; under it sits only the quiet
+    // "drop another" affordance.
+    expect(column.filter((c) => c !== "sp-drop").at(-1)).toBe("sp-act");
     expect(room.querySelector(".sp-fin")).toBeNull();
     expect(room.querySelector(".sp-tiles")).toBeNull();
     expect(room.querySelector(".sp-trend")).toBeNull();
@@ -271,11 +277,13 @@ describe("the room ends on the filed sheet's own register", () => {
     expect(sheet.querySelector(".wk-sheet-t")?.textContent).toBe("The spread is in");
     // The panel and the post-read are BLOCKS OF THE SHEET, not cards below it.
     expect([...sheet.querySelectorAll(".wk-sheet-sec")].map((n) => n.getAttribute("data-block"))).toEqual([
-      "ladder",
+      "receipts",
       "financials",
       "changes",
     ]);
-    expect(room.querySelector(".sp-body")!.lastElementChild).toBe(sheet);
+    // The sheet is the last surface on the column; the "drop another" bar sits
+    // under it as chrome, not as content.
+    expect([...room.querySelector(".sp-body")!.children].filter((n) => !n.classList.contains("sp-drop")).at(-1)).toBe(sheet);
   });
 
   it("ends in the modification finale's two doors: the memo, and the way back", async () => {

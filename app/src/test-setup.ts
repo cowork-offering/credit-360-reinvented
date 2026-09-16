@@ -8,9 +8,19 @@
 
    The read seam's own tests reset it themselves too, because they reset it
    mid-test as well as between tests. */
+/* AND FOR THE BOOM WAIT (0.9.31).
+
+   The poll on a file Boom is spreading lives at PAGE level and is deduped by
+   Boom's own file id, so a test that watches the same fixture file as the test
+   before it would join the first test's loop and never make a call. Same
+   reasoning, same place. */
 import { beforeEach } from "vitest";
 import { __resetReadSeamForTests } from "./channel/mcp";
+import { resetBoomWatch } from "./components/workroom/boomWatch";
+import { resetBoomFiles } from "./components/workroom/spreadSession";
 
 beforeEach(() => {
   __resetReadSeamForTests();
+  resetBoomWatch();
+  resetBoomFiles();
 });

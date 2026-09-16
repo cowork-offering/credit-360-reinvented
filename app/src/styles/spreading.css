@@ -513,65 +513,190 @@
   color: var(--ink-body);
 }
 
-/* ---------------------------------------------------------------- the ladder
+/* --------------------------------------------------------- the receipts
 
-   THE SAME CINEMATIC PROGRESSION THE FILING FINALE USES: one row per file,
-   five rungs, the current one lit. The dots do not spin: a rung that is waiting
-   BREATHES, so a stalled step still reads as a state rather than as a loader
-   that has hung. */
-.sp-rung {
+   THE FIRST TWO BEATS OF THE SPREADING STAGE (design 0.9.31). One file is one
+   receipt: its name, its size, the word for the rung Boom named, and under it
+   the facts, one per beat. The five-dot rung strip went with it, and that is
+   the point rather than a side effect: Boom reports four rungs and nothing
+   between them, so a strip with five lamps had to invent the middle three.
+
+   THE MARK IS THE COCKPIT'S ONE LOADING MOTIF. The ">" FILLS with brand ink
+   while Boom is reading (tokens.css `.c360-beat`) and it never travels; a
+   settled file takes the accent dot the governed stage gives a verified row.
+   Nothing on this list reflows as a state changes: colour, opacity and a clip,
+   which is the memo timeline's own rule. */
+.sp-rcpt {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--divider-soft);
+}
+.sp-rcpt:last-of-type {
+  border-bottom: 0;
+}
+.sp-rcpt-h {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
   font-size: 12.5px;
 }
-.sp-rung-n {
+.sp-rcpt-mk {
+  flex: none;
+  width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--ink-label);
+  align-self: center;
+}
+.sp-rcpt-dot {
+  font-style: normal;
+  font-size: 11px;
+  line-height: 1;
+}
+.sp-rcpt[data-state="completed"] .sp-rcpt-dot,
+.sp-rcpt[data-state="verified"] .sp-rcpt-dot {
+  color: var(--accent);
+}
+.sp-rcpt[data-state="failed"] .sp-rcpt-dot {
+  color: var(--critical);
+  font-size: 13px;
+}
+.sp-rcpt-n {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--ink);
+  font-weight: 500;
 }
-.sp-rung-d {
-  display: inline-flex;
-  gap: 5px;
+.sp-rcpt-b,
+.sp-rcpt-w,
+.sp-rcpt-c {
   flex: none;
+  font-size: 11px;
+  color: var(--ink-faint);
 }
-.sp-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--fill-strong);
-}
-.sp-dot.is-on {
-  background: var(--accent);
-}
-.sp-dot.is-now {
-  animation: sp-breathe 1.8s ease-in-out infinite;
-}
-.sp-rung[data-state="failed"] .sp-dot.is-on {
-  background: var(--critical);
-}
-.sp-rung-w {
-  flex: none;
-  width: 84px;
+.sp-rcpt-w {
+  min-width: 68px;
   text-align: right;
   color: var(--ink-muted);
 }
-.sp-rung-m {
-  flex: none;
+.sp-rcpt[data-state="failed"] .sp-rcpt-w {
+  color: var(--critical);
+}
+.sp-rcpt-c {
+  min-width: 46px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+/* THE FACTS, ONE PER BEAT. They arrive in the room's own cadence rather than
+   appearing whole, which is the pre-read card's rule at a smaller radius. */
+.sp-rcpt-f {
+  margin: 1px 0 0;
+  padding: 0 0 0 25px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sp-rcpt-f li {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  animation: sp-fact-in var(--beat) var(--ease-settle) both;
+  animation-delay: calc(var(--sp-i, 0) * var(--beat) * 0.5);
+}
+@keyframes sp-fact-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-3px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.sp-rcpt-m {
+  margin: 4px 0 0 25px;
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--warning-prose);
 }
-@keyframes sp-breathe {
+.sp-rcpt[data-state="failed"] .sp-rcpt-m {
+  color: var(--critical);
+}
+
+/* THE WAIT'S OWN FOOT: what this page has watched Boom take, and the promise
+   that the banker may leave. The expectation line is absent until there is an
+   observation to draw it from, which is why nothing here has a placeholder. */
+.sp-wait {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--divider-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sp-wait-x {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.sp-wait-l {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------- the arrival brief
+
+   THE THIRD BEAT, TYPED, in the governed stage's own type and with its caret
+   (stage.css `.gs-said`, `.gs-caret`). Three sentences and then the register
+   unfolds beneath them. */
+.sp-arrive {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 2px 0 10px;
+}
+.sp-arrive p {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.008em;
+  color: var(--ink);
+  min-height: 1.45em;
+}
+.sp-caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.92em;
+  background: var(--brand);
+  margin-left: 4px;
+  vertical-align: -1px;
+  animation: sp-blink 1.05s steps(1) infinite;
+}
+@keyframes sp-blink {
   0%,
-  100% {
+  49% {
     opacity: 1;
   }
-  50% {
-    opacity: 0.35;
+  50%,
+  100% {
+    opacity: 0;
   }
 }
+
 .sp-stall {
   padding-top: 6px;
   border-top: 1px solid var(--divider-soft);
@@ -686,4 +811,20 @@
 }
 .sp-prose p:first-child {
   margin-top: 0;
+}
+
+/* ------------------------------------------------------------- reduced motion
+
+   THE SAME FACTS, WITHOUT THE CHOREOGRAPHY (design 0.9.31). The receipt's facts
+   are all there in one commit, the caret does not blink and the ">" stands
+   filled (tokens.css already holds `.c360-beat` still). The elapsed clock is
+   NOT motion and keeps counting: a figure that stopped would be a wrong figure.
+   This is also what every jsdom test sees. */
+@media (prefers-reduced-motion: reduce) {
+  .sp-rcpt-f li {
+    animation: none !important;
+  }
+  .sp-caret {
+    animation: none;
+  }
 }

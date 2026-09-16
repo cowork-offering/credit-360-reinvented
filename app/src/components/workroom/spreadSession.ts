@@ -30,11 +30,35 @@ import type { BoomFileHandle } from "../../workroom/spreadEngine";
    file is unsettled: the room resumes from `boom_get_file` and sends nothing.
    It is deliberately NOT the bytes and NOT the plan; it is a receipt, and
    there is one PER FILE: a plan of three statements leaves three.
+
+   AND SINCE 0.9.31 THE RECEIPTS SURVIVE THE PAGE. They were module memory, so a
+   reload lost every one of them while Boom was still spreading and the wait had
+   to be rebuilt from `boom_list_files`. They are written to `sessionStorage`
+   now, in the same envelope shape `state/persist.ts` uses (version, savedAt, a
+   day) and with the same silent degradation where storage is not there: the
+   receipts are what the page-level poll is keyed on (`boomWatch.ts`), so losing
+   them is losing the wait the banker was promised.
+
+   THE RELATIONSHIP'S NAME TRAVELS WITH THEM, because the surface that reads
+   them is no longer inside the room. The header says which relationship Boom is
+   reading for and clicking it opens that room; a page reloaded mid-wait has no
+   book to look that name up in until the worklist has landed.
    ============================================================================= */
 
 export interface SpreadSession {
   accountId: string;
   accountName: string;
+}
+
+/** The relationship a receipt belongs to: which one, and what to call it. */
+export interface SpreadAccountRef {
+  accountId: string;
+  accountName: string;
+}
+
+/** Every file one relationship has left with Boom, oldest first. */
+export interface BoomReceipts extends SpreadAccountRef {
+  files: BoomFileHandle[];
 }
 
 let session: SpreadSession | null = null;
@@ -45,12 +69,17 @@ function emit() {
 }
 
 /** Open the Spreading room on a relationship. The opener the arc calls. */
-export function openSpreadingRoom(context: { accountId: string; accountName: string }): void {
+export function openSpreadingRoom(context: SpreadAccountRef): void {
   session = { accountId: context.accountId, accountName: context.accountName };
   emit();
 }
 
 /* ------------------------------------------------------- the file receipts */
+
+interface AccountReceipts {
+  accountName: string;
+  files: Map<string, BoomFileHandle>;
+}
 
 /**
  * Per relationship, EVERY file Boom is still working on.
@@ -64,33 +93,120 @@ export function openSpreadingRoom(context: { accountId: string; accountName: str
  * Boom's own file id and holds them in the order they were sent, which is the
  * order the room walks them back.
  */
-const pending = new Map<string, Map<string, BoomFileHandle>>();
+const pending = new Map<string, AccountReceipts>();
+
+const receiptListeners = new Set<() => void>();
+let receiptsVersion = 0;
+
+const STORE_KEY = "c360:boom:receipts";
+const STORE_VERSION = 1;
+const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+interface StoredEnvelope {
+  v: number;
+  savedAt: number;
+  accounts: BoomReceipts[];
+}
+
+let loaded = false;
+
+/** The receipts this browser left behind, read once per page. A blob of another
+ *  version, or one older than a day, is dropped rather than half-read: a file
+ *  Boom was spreading yesterday is not this session's work. */
+function hydrate(): void {
+  if (loaded) return;
+  loaded = true;
+  try {
+    const raw = sessionStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    const env = JSON.parse(raw) as StoredEnvelope;
+    if (!env || env.v !== STORE_VERSION) return;
+    if (typeof env.savedAt !== "number" || Date.now() - env.savedAt > MAX_AGE_MS) return;
+    for (const account of env.accounts ?? []) {
+      if (!account?.accountId || !Array.isArray(account.files)) continue;
+      const files = new Map<string, BoomFileHandle>();
+      for (const h of account.files) if (h?.fileId) files.set(h.fileId, h);
+      if (files.size) pending.set(account.accountId, { accountName: account.accountName || account.accountId, files });
+    }
+  } catch {
+    /* an unreadable blob is no receipt at all */
+  }
+}
+
+function persist(): void {
+  try {
+    const accounts = [...pending.entries()].map(([accountId, r]) => ({
+      accountId,
+      accountName: r.accountName,
+      files: [...r.files.values()],
+    }));
+    if (!accounts.length) sessionStorage.removeItem(STORE_KEY);
+    else sessionStorage.setItem(STORE_KEY, JSON.stringify({ v: STORE_VERSION, savedAt: Date.now(), accounts }));
+  } catch {
+    /* storage unavailable: the wait is then only as long as this document */
+  }
+}
+
+function changed(): void {
+  receiptsVersion += 1;
+  persist();
+  for (const l of receiptListeners) l();
+}
 
 /** Boom has these bytes. Written the moment a file id exists, not when the room
  *  gives up waiting: a session can die anywhere in between. */
-export function rememberBoomFile(accountId: string, handle: BoomFileHandle): void {
-  const forAccount = pending.get(accountId) ?? new Map<string, BoomFileHandle>();
-  forAccount.set(handle.fileId, handle);
-  pending.set(accountId, forAccount);
-  emit();
+export function rememberBoomFile(account: SpreadAccountRef, handle: BoomFileHandle): void {
+  hydrate();
+  const forAccount = pending.get(account.accountId) ?? { accountName: account.accountName, files: new Map() };
+  if (account.accountName) forAccount.accountName = account.accountName;
+  pending.set(account.accountId, forAccount);
+  if (forAccount.files.has(handle.fileId)) return;
+  forAccount.files.set(handle.fileId, handle);
+  changed();
 }
 
 /** The file settled, or the banker walked away from it deliberately. */
 export function forgetBoomFile(accountId: string, fileId: string): void {
+  hydrate();
   const forAccount = pending.get(accountId);
-  if (!forAccount?.delete(fileId)) return;
-  if (!forAccount.size) pending.delete(accountId);
-  emit();
+  if (!forAccount?.files.delete(fileId)) return;
+  if (!forAccount.files.size) pending.delete(accountId);
+  changed();
 }
 
 /** The files this relationship left with Boom, oldest first. */
 export function pendingBoomFiles(accountId: string): BoomFileHandle[] {
-  return [...(pending.get(accountId)?.values() ?? [])];
+  hydrate();
+  return [...(pending.get(accountId)?.files.values() ?? [])];
+}
+
+/** Every relationship with work still at Boom. What the page-level poll is
+ *  keyed on, and the only record a reloaded page opens with. */
+export function allBoomReceipts(): BoomReceipts[] {
+  hydrate();
+  return [...pending.entries()].map(([accountId, r]) => ({
+    accountId,
+    accountName: r.accountName,
+    files: [...r.files.values()],
+  }));
+}
+
+/** The receipts changed. The page-level watcher is the one subscriber. */
+export function subscribeBoomReceipts(listener: () => void): () => void {
+  receiptListeners.add(listener);
+  return () => receiptListeners.delete(listener);
 }
 
 /** Tests. */
 export function resetBoomFiles(): void {
   pending.clear();
+  loaded = true;
+  try {
+    sessionStorage.removeItem(STORE_KEY);
+  } catch {
+    /* nothing to clear */
+  }
+  changed();
 }
 
 export function closeSpreadingRoom(): void {

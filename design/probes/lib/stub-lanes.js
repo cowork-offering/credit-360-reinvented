@@ -101,7 +101,12 @@
                  the stand-in for Noland's Boom MCP server:
                    mode          "ok" | "failed", what the file ends as
                    processingMs  how long the file sits at `processing`
-                                 (4000 is the floor of the room's own range)
+                                 (4000 is the floor of the room's own range).
+                                 PER FILE it can be overridden:
+                                 `files[<id>].processingMs = 0` completes that
+                                 one NOW, which is how a drive finishes a file
+                                 while the Spreading room is closed and only the
+                                 page-level poll is watching (0.9.31)
                    files         per-file clock, keyed by Boom file id
                    rejects       per TOOL, how many of the next calls the
                                  transport swallows (502), the file carrying on
@@ -1127,10 +1132,19 @@
     };
   }
 
-  /** Where one file has got to on Boom's ladder, by the clock. */
+  /** Where one file has got to on Boom's ladder, by the clock.
+   *
+   *  THE CLOCK CAN BE THIS FILE'S OWN (0.9.31). `processingMs` on the lane is
+   *  the default for every file; setting `window.__LANES.boom.files[id]
+   *  .processingMs` overrides it for one, and setting it to 0 completes that
+   *  file NOW. That is what a drive needs to finish a file while the Spreading
+   *  room is CLOSED: the page-level poll is running on the receipts and there
+   *  is no room on screen to wait against, so the drive says when Boom is done
+   *  rather than sleeping a wall clock it cannot see. */
   function boomStatusOf(file) {
     var B = window.__LANES.boom;
-    if (Date.now() - file.startedAt < (B.processingMs || 0)) return "processing";
+    var span = typeof file.processingMs === "number" ? file.processingMs : B.processingMs || 0;
+    if (Date.now() - file.startedAt < span) return "processing";
     return B.mode === "failed" ? "failed" : "completed";
   }
 

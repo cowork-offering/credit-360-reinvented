@@ -15,13 +15,15 @@ import { Portal } from "../Portal";
 import { odoRoll } from "../Odometer";
 import { RoomBoundary } from "./RoomBoundary";
 import { SpreadRegister } from "./register/SpreadRegister";
-import { closeSpreadingRoom, forgetBoomFile, pendingBoomFiles, rememberBoomFile, useSpreadingRoom } from "./spreadSession";
+import { closeSpreadingRoom, pendingBoomFiles, useSpreadingRoom } from "./spreadSession";
+import { boomArrivalFiles, boomExpectationLine, lookedAtBoom, useBoomWatch, useNow } from "./boomWatch";
 import { openMemoRoom } from "../memo/memoSession";
 import { startPacer } from "../../channel/streamPacer";
 import { prefersReducedMotion } from "../../data/motion";
 import { fmtMoney, fmtPct } from "../../data/format";
 import { covenantDirection, covenantUnit, fmtRatio } from "../../data/finance";
 import {
+  arrivalBrief,
   createSpreadEngine,
   provisionalBrief,
   PROVISIONAL_NOTE,
@@ -50,6 +52,7 @@ import {
   preReadFile,
   provisionalRead,
   readDroppedFile,
+  sentence,
   type RelationshipSpreadContext,
 } from "../../spread";
 import { mergeDisplayPeriods, type SpreadProvenance } from "../../spread/publishSpread";
@@ -84,7 +87,7 @@ import "../../styles/spreading.css";
 
 const ROOM_TITLE = "Spread financials";
 
-const DROP_HEAD = (company: string) => `Drop financial statements for ${company}.`;
+const DROP_HEAD = (company: string) => sentence(`Drop financial statements for ${company}`);
 const DROP_SUB =
   "PDF, XLSX, CSV or an image of a statement. Up to ten files, 5 MB each. Boom spreads them and the financials here refresh from Boom's own read.";
 const BROWSE = "Browse files";
@@ -147,7 +150,15 @@ const RUNG_WORD: Record<UploadState, string> = {
   failed: "Failed",
 };
 
-const RUNGS: UploadState[] = ["pending", "sending", "processing", "completed", "verified"];
+/* -------------------------------------------------- the stage's three beats
+
+   0.9.31. The room is a stage now: the drop lands as receipts, the wait is one
+   calm timeline with an elapsed clock, and the arrival is a brief that types
+   before the register unfolds under it. The one sentence below is the promise
+   the page-level poll keeps (`boomWatch.ts`); it is on the glass because a
+   banker who does not know they may leave will sit and watch a six-minute
+   spread. */
+const LEAVE_LINE = "You can leave this room. I will keep checking and bring the spread to you.";
 
 /* ---------------------------------------------------------------- the tiles */
 
@@ -312,13 +323,16 @@ export function SpreadingRoom({
 }: SpreadingRoomProps) {
   const engineRef = useRef<SpreadEngine | null>(null);
   if (!engineRef.current) {
-    engineRef.current = createSpreadEngine({ ctx, deps: deps ?? liveDeps(ctx.accountId), onFileBoom });
+    engineRef.current = createSpreadEngine({ ctx, deps: deps ?? liveDeps(ctx.company), onFileBoom });
   }
   const engine = engineRef.current;
   const lane = deps?.lane ?? BOOM_UPLOAD_LANE;
   const state = useSyncExternalStore(engine.subscribe, engine.getState, engine.getState);
   const fileRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
+  /* THE ONLY THING ON THIS SHEET THAT MOVES BY ITSELF: how long Boom has been
+     reading. It ticks while a file is unsettled and stops the moment one is. */
+  const now = useNow(state.stage === "sending" ? 1_000 : 0);
   /** One event per moment, however many times the store wakes this component. */
   const said = useRef<Set<SpreadRoomEvent["phase"]>>(new Set());
 
@@ -330,10 +344,13 @@ export function SpreadingRoom({
      Once, on mount: each handle is cleared by the engine when its file settles.
 
      EVERY FILE, NOT ONE (0.9.29), and handed NOTHING the engine asks Boom
-     itself: the receipts are module memory and a reloaded page has none, which
-     is the state the founder's own re-entry landed in on 2026-09-15. */
+     itself. SINCE 0.9.31 THERE ARE TWO THINGS TO PICK UP: files Boom is still
+     holding (the receipts), and files the PAGE already watched land while this
+     room was shut, whose answers are held on the arrival until the banker
+     looks. The second is the whole promise of the header indicator: the
+     register is there on return, without a second read. */
   useEffect(() => {
-    void engine.resume(pendingBoomFiles(ctx.accountId));
+    void engine.resume(pendingBoomFiles(ctx.accountId), boomArrivalFiles(ctx.accountId));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine]);
 
@@ -416,10 +433,44 @@ export function SpreadingRoom({
     }));
   }, [state.stage, state.figures.revenue, state.newPeriod, trend]);
 
-  /* THE ZONE IS A BAR ONCE A FILE IS IN, and a stage again while something is
-     being dragged over it. */
-  const collapsed = state.cards.length > 0 && !over;
-  const brief = useMemo(() => provisionalBrief(state.provisional), [state.provisional]);
+  /* THE ZONE IS A BAR ONCE ANYTHING IS IN, and a stage again while something is
+     being dragged over it.
+
+     AND IT MOVES TO THE FOOT (design 0.9.31: "no dropzone chrome after the first
+     file; a quiet 'drop another' affordance at the foot"). WHERE it sits is
+     decided by `landed` and not by `over`, so a drag does not throw the zone up
+     the page under the cursor; what `over` changes is only whether the bar opens
+     back into a stage in place.
+
+     ROWS COUNT, NOT JUST CARDS. A room re-entered on a spread the page brought
+     in while it was shut holds no cards at all, and it was opening on a
+     full-height drop stage over a finished spread. */
+  const landed = state.cards.length > 0 || state.rows.length > 0;
+  const collapsed = landed && !over;
+  const preBrief = useMemo(() => provisionalBrief(state.provisional), [state.provisional]);
+
+  /* THE ARRIVAL BRIEF, and it is Boom's answer read back rather than a second
+     source (facts once): the periods off the statements, the sign-off off their
+     own status, the figures with the line Boom says fed each. */
+  const brief = useMemo(
+    () =>
+      state.stage === "spread"
+        ? arrivalBrief({
+            statements: state.statements,
+            figures: state.figures,
+            support: state.support,
+            rows: state.rows,
+            validationStatus: state.validationStatus,
+          })
+        : [],
+    [state.stage, state.statements, state.figures, state.support, state.rows, state.validationStatus],
+  );
+
+  /* THE EXPECTATION LINE, from what this page has OBSERVED and nothing else. */
+  const expectation = useMemo(
+    () => boomExpectationLine(state.rows.reduce((sum, r) => sum + (r.bytes ?? 0), 0)),
+    [state.rows],
+  );
 
   /* WHAT THE SHEET IS ABOUT, IN ITS STAMP. Before the spread the period is the
      one the browser read out of the file; after it, the one Boom moved. */
@@ -427,6 +478,54 @@ export function SpreadingRoom({
   const period = (settled ? state.newPeriod : null) ?? state.provisional?.period ?? null;
   const title = sheetTitle(state.stage, lane);
   const stamp = period ? `${ctx.company} · ${period}` : ctx.company;
+
+  /* ONE ELEMENT, TWO PLACES. It is the same node wherever it renders, so the
+     file input it owns is never torn down mid-pick. */
+  const dropZone = (
+    <div
+      className={`sp-drop${over ? " is-over" : ""}${collapsed ? " is-bar" : ""}`}
+      data-stage={state.stage}
+      role="button"
+      tabIndex={0}
+      aria-label={DROP_ARIA}
+      onClick={() => fileRef.current?.click()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") fileRef.current?.click();
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={onDrop}
+    >
+      <svg className="sp-drop-g" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 3.5h8.5L19 8v12.5H6z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+        <path d="M14.5 3.5V8H19" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+        <path d="M12 18v-6.4M9.4 14.2 12 11.6l2.6 2.6" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <div className="sp-drop-h">{collapsed ? ADD_MORE : DROP_HEAD(ctx.company)}</div>
+      <div className="sp-drop-s">{DROP_SUB}</div>
+      {collapsed ? (
+        <span className="sp-drop-c">{addedWord(state.cards.length || state.rows.length)}</span>
+      ) : (
+        <span className="sp-drop-b">{BROWSE}</span>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept={ACCEPT}
+        className="sp-file"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={(e) => {
+          take(e.target.files);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
 
   return (
     <Portal>
@@ -462,49 +561,7 @@ export function SpreadingRoom({
             <SpreadSteps stage={state.stage} />
             <p className="sp-guide">{spreadGuidance(state)}</p>
 
-            <div
-              className={`sp-drop${over ? " is-over" : ""}${collapsed ? " is-bar" : ""}`}
-              data-stage={state.stage}
-              role="button"
-              tabIndex={0}
-              aria-label={DROP_ARIA}
-              onClick={() => fileRef.current?.click()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") fileRef.current?.click();
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setOver(true);
-              }}
-              onDragLeave={() => setOver(false)}
-              onDrop={onDrop}
-            >
-              <svg className="sp-drop-g" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 3.5h8.5L19 8v12.5H6z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-                <path d="M14.5 3.5V8H19" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-                <path d="M12 18v-6.4M9.4 14.2 12 11.6l2.6 2.6" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <div className="sp-drop-h">{collapsed ? ADD_MORE : DROP_HEAD(ctx.company)}</div>
-              <div className="sp-drop-s">{DROP_SUB}</div>
-              {collapsed ? (
-                <span className="sp-drop-c">{addedWord(state.cards.length)}</span>
-              ) : (
-                <span className="sp-drop-b">{BROWSE}</span>
-              )}
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                accept={ACCEPT}
-                className="sp-file"
-                aria-hidden="true"
-                tabIndex={-1}
-                onChange={(e) => {
-                  take(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-            </div>
+            {!landed && dropZone}
 
             {state.refusals.length > 0 && (
               <div className="sp-refusals" role="status">
@@ -578,7 +635,7 @@ export function SpreadingRoom({
                 </div>
 
                 {state.rows.length > 0 ? (
-                  <div className="wk-sheet-sec" data-block="ladder">
+                  <div className="wk-sheet-sec" data-block="receipts">
                     {/* NOT THE SAME WORDS TWICE (the filed sheet's own rule for
                         its ledger head). While Boom is spreading, the SHEET is
                         already titled "Boom is spreading"; a label under it
@@ -586,8 +643,19 @@ export function SpreadingRoom({
                         title moves on and the block says whose spread it is. */}
                     {settled && <div className="wk-sheet-k">{ladderHead(lane, true)}</div>}
                     {state.rows.map((row) => (
-                      <SpreadLadderRow key={row.fileId} row={row} />
+                      <SpreadReceipt key={row.fileId} row={row} company={ctx.company} now={now} />
                     ))}
+                    {/* THE WAIT'S OWN FOOT. The expectation line is drawn only
+                        where this page has WATCHED Boom finish a set about this
+                        size; before that there is nothing honest to say and the
+                        line is absent. The sentence under it is the promise the
+                        page-level poll keeps. */}
+                    {!settled && (
+                      <div className="sp-wait">
+                        {expectation && <p className="sp-wait-x">{expectation}</p>}
+                        <p className="sp-wait-l">{LEAVE_LINE}</p>
+                      </div>
+                    )}
                     {state.stall && (
                       <div className="sp-stall" role="status">
                         <p>{state.stall.line}</p>
@@ -610,10 +678,10 @@ export function SpreadingRoom({
                       <p className="sp-plan-n">{PLAN_NOTE}</p>
                       {lane !== "live" && <p className="sp-plan-w">{STUB_NOTE}</p>}
                     </div>
-                    {brief.length > 0 && (
+                    {preBrief.length > 0 && (
                       <div className="wk-sheet-sec sp-brief" data-block="read">
                         <div className="wk-sheet-k">{PROVISIONAL_HEAD}</div>
-                        {brief.map((line) => (
+                        {preBrief.map((line) => (
                           <p key={line}>{line}</p>
                         ))}
                       </div>
@@ -650,6 +718,11 @@ export function SpreadingRoom({
                         </button>
                       )}
                     </div>
+                    {/* THE ARRIVAL, TYPED, BEFORE THE REGISTER UNFOLDS. What
+                        Boom found, whether an analyst has signed it off, and
+                        which line fed each headline figure: the last of those is
+                        the one thing the tiles below cannot say. */}
+                    <ArrivalBrief lines={brief} />
                     <div className="sp-tiles">
                       {tilesFor(state.figures).map((tile) => (
                         <SpreadTile key={tile.key} tile={tile} />
@@ -730,6 +803,8 @@ export function SpreadingRoom({
               </section>
             )}
 
+            {landed && dropZone}
+
             {state.notice && <p className="sp-note" role="status">{state.notice}</p>}
           </div>
         </div>
@@ -776,7 +851,7 @@ function SpreadFileCard({ card }: { card: SpreadCard }) {
     <article className={`sp-card${card.excluded ? " is-out" : ""}`} data-phase={card.phase}>
       <div className="sp-card-h">
         <span className="sp-card-n">{card.name}</span>
-        <span className="sp-card-b">{`${(card.bytes / (1024 * 1024)).toFixed(1)} MB`}</span>
+        <span className="sp-card-b">{sizeWord(card.bytes) ?? ""}</span>
         {card.phase === "reading" && <span className="sp-card-s">{READING}</span>}
         {card.excluded && <span className="sp-card-s">{LEFT_OUT}</span>}
       </div>
@@ -796,18 +871,132 @@ function SpreadFileCard({ card }: { card: SpreadCard }) {
   );
 }
 
-function SpreadLadderRow({ row }: { row: LadderRow }) {
-  const at = RUNGS.indexOf(row.state);
+/* ---------------------------------------------------------- the receipt
+
+   ONE FILE, AS A RECEIPT (design 0.9.31). It replaced a five-dot rung strip,
+   and that is the point rather than a side effect: Boom reports four rungs and
+   nothing between them, so a strip with five lamps had to invent the middle
+   three. A receipt invents nothing. Every line below exists only where a real
+   answer produced it, and they arrive one per beat, which is the room's own
+   cadence.
+
+   THE ">" FILLS WHILE BOOM IS READING and it never travels (tokens.css, the
+   deck-studio loading law). A settled file takes the accent dot the governed
+   stage gives a verified row; a failed one takes its own. */
+
+/** Size as a banker reads it: KB under a megabyte, MB over. */
+function sizeWord(bytes: number | null): string | null {
+  if (bytes == null || bytes <= 0) return null;
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** The wall clock of a page-session gesture, which is what a wait is. */
+function clockAt(ms: number): string {
+  const d = new Date(ms);
+  return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, "0")).join(":");
+}
+
+/** How long it has been, mm:ss, and hours where it has run to them. */
+export function elapsedWord(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const mm = String(Math.floor(total / 60) % 60).padStart(2, "0");
+  const ss = String(total % 60).padStart(2, "0");
+  const hours = Math.floor(total / 3600);
+  return hours ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/** THE FACTS, AND ONLY THE ONES AN ANSWER PRODUCED. */
+export function receiptFacts(row: LadderRow, company: string): string[] {
+  const out: string[] = [];
+  if (row.sha256) out.push(`Known by ${row.sha256.slice(0, 12)}`);
+  if (row.companyId) out.push(`Registered under ${company} in Boom`);
+  if (row.boomFileId) out.push(`Boom acknowledged, file ${row.boomFileId.slice(0, 8)}`);
+  if (row.startedAt) out.push(`Processing since ${clockAt(row.startedAt)}`);
+  return out;
+}
+
+function SpreadReceipt({ row, company, now }: { row: LadderRow; company: string; now: number }) {
+  const settled = row.state === "completed" || row.state === "verified";
+  const failed = row.state === "failed";
+  const working = !settled && !failed;
+  const size = sizeWord(row.bytes);
   return (
-    <div className="sp-rung" data-state={row.state}>
-      <span className="sp-rung-n">{row.name}</span>
-      <span className="sp-rung-d" aria-hidden="true">
-        {RUNGS.map((rung, i) => (
-          <i key={rung} className={`sp-dot${at >= 0 && i <= at ? " is-on" : ""}${at === i ? " is-now" : ""}`} />
+    <article className="sp-rcpt" data-state={row.state}>
+      <div className="sp-rcpt-h">
+        <span className="sp-rcpt-mk" aria-hidden="true">
+          {working ? <i className="c360-glyph c360-beat">&gt;</i> : <i className="sp-rcpt-dot">·</i>}
+        </span>
+        <span className="sp-rcpt-n">{row.name}</span>
+        {size && <span className="sp-rcpt-b num">{size}</span>}
+        <span className="sp-rcpt-w">{row.stalled ? RUNG_WORD.processing : RUNG_WORD[row.state]}</span>
+        {working && row.startedAt != null && <span className="sp-rcpt-c num">{elapsedWord(now - row.startedAt)}</span>}
+      </div>
+      <ol className="sp-rcpt-f">
+        {receiptFacts(row, company).map((fact, i) => (
+          <li key={fact} style={{ ["--sp-i" as string]: String(i) }}>
+            {fact}
+          </li>
         ))}
-      </span>
-      <span className="sp-rung-w">{row.stalled ? RUNG_WORD.processing : RUNG_WORD[row.state]}</span>
-      {row.message && <span className="sp-rung-m">{row.message}</span>}
+      </ol>
+      {row.message && <p className="sp-rcpt-m">{row.message}</p>}
+    </article>
+  );
+}
+
+/* ------------------------------------------------------- the arrival brief
+
+   THE THIRD BEAT, TYPED, with the governed stage's own pause (stage.css and
+   `GovernedStage.tsx`: 27ms a character inside a 400 to 1300ms span, 460ms
+   between sentences). Reduced motion lands all three at once, which is also
+   what every jsdom test sees. */
+const TYPE = { char: 27, min: 400, max: 1300, lead: 360, pause: 460 } as const;
+
+function ArrivalBrief({ lines }: { lines: string[] }) {
+  const reduced = prefersReducedMotion();
+  /* THE LINES AS ONE STRING, so the effect re-arms on a changed BRIEF and not
+     on a new array with the same sentences in it. */
+  const text = lines.join("\u0000");
+  const [said, setSaid] = useState<string[]>(lines);
+  const [typing, setTyping] = useState(-1);
+  const timers = useRef<number[]>([]);
+
+  useEffect(() => {
+    const all = text ? text.split("\u0000") : [];
+    timers.current.forEach(window.clearTimeout);
+    timers.current = [];
+    if (reduced || !all.length) {
+      setSaid(all);
+      setTyping(-1);
+      return;
+    }
+    setSaid(all.map(() => ""));
+    const at = (ms: number, fn: () => void) => timers.current.push(window.setTimeout(fn, ms));
+    let delay = TYPE.lead;
+    all.forEach((line, i) => {
+      const span = Math.min(TYPE.max, Math.max(TYPE.min, line.length * TYPE.char));
+      const per = span / Math.max(1, line.length);
+      at(delay, () => setTyping(i));
+      for (let c = 1; c <= line.length; c += 1) {
+        at(delay + c * per, () => setSaid((prev) => prev.map((v, j) => (j === i ? line.slice(0, c) : v))));
+      }
+      delay += span + TYPE.pause;
+    });
+    at(delay, () => setTyping(-1));
+    return () => {
+      timers.current.forEach(window.clearTimeout);
+      timers.current = [];
+    };
+  }, [text, reduced]);
+
+  if (!said.length) return null;
+  return (
+    <div className="sp-arrive" role="status">
+      {said.map((line, i) => (
+        <p key={i}>
+          {line}
+          {typing === i && <span className="sp-caret" aria-hidden="true" />}
+        </p>
+      ))}
     </div>
   );
 }
@@ -815,8 +1004,13 @@ function SpreadLadderRow({ row }: { row: LadderRow }) {
 /* ------------------------------------------------------------------ the host */
 
 /** The live dependency set. One place, so the swap to S2 and S3 is the import
- *  block at the top of this file and nothing else. */
-function liveDeps(accountId: string): SpreadDeps {
+ *  block at the top of this file and nothing else.
+ *
+ *  THE RECEIPTS ARE NOT IN HERE ANY MORE (0.9.31). They are written and cleared
+ *  by the page-level poll, which is the thing that outlives this component; all
+ *  the room hands down is who it is open on, so the receipt and the header
+ *  indicator can name the relationship. */
+function liveDeps(accountName: string): SpreadDeps {
   return {
     readDroppedFile,
     extractDocument,
@@ -827,8 +1021,7 @@ function liveDeps(accountId: string): SpreadDeps {
     lane: BOOM_UPLOAD_LANE,
     registerPreRead,
     resetStub: resetStubBoom,
-    rememberFile: (handle) => rememberBoomFile(accountId, handle),
-    forgetFile: (fileId) => forgetBoomFile(accountId, fileId),
+    accountName,
   };
 }
 
@@ -886,6 +1079,21 @@ export function SpreadingRoomHost() {
   const session = useSpreadingRoom();
   const { data, state, dispatch } = useApp();
   const accountId = session?.accountId ?? null;
+
+  /* THE BANKER LOOKED. Every door into this room is a look, which is why it is
+     here and not on the indicator's own click: the arrival pill, the worklist
+     row and the FAB all end up in the same place, and the marker has to clear
+     for all three.
+
+     AFTER EVERY COMMIT, not once on open. A spread that lands WHILE the room is
+     open has been looked at by definition, and a pill for it over an open room
+     would be the cockpit telling a banker about the thing they are reading. The
+     room's own mount effect runs first (React commits child effects before
+     parent ones), so it reads the arrival before this clears it. */
+  useBoomWatch();
+  useEffect(() => {
+    if (accountId) lookedAtBoom(accountId);
+  });
 
   const bundle = useMemo(() => {
     if (!accountId) return null;

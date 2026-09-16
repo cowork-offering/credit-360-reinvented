@@ -38,6 +38,7 @@ import type {
   ProvisionalRead,
 } from "../spread/types";
 import { MODEL_FAILED_NOTE, unitsStatedNote, type RelationshipSpreadContext } from "../spread/preRead";
+import { pendingBoomFiles, subscribeBoomReceipts } from "../components/workroom/spreadSession";
 
 /* =============================================================================
    THE SPREADING ROOM'S ENGINE, AS A MACHINE.
@@ -239,6 +240,7 @@ describe("the stages", () => {
           {
             fileId: "f1",
             name: "annual.pdf",
+            bytes: 1_000,
             mime: "application/pdf",
             base64: "",
             sha256: "s",
@@ -1055,12 +1057,8 @@ describe("a wait that failed is not a file that failed", () => {
   });
 
   it("keeps the receipt of a file Boom still holds, and drops it only once Boom is done", async () => {
-    const remembered: string[] = [];
-    const forgotten: string[] = [];
     let settled = false;
     const engine = (live = liveEngineWith({
-      rememberFile: (h) => remembered.push(h.fileId),
-      forgetFile: (id) => forgotten.push(id),
       adapter: stubAdapter({
         async awaitSettled(): Promise<BoomUploadResult> {
           if (!settled) throw { code: "server_unavailable", message: "request failed (502)" };
@@ -1079,14 +1077,14 @@ describe("a wait that failed is not a file that failed", () => {
 
     const run = engine.confirm();
     await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 4);
-    // Boom has the bytes and the wait is missing: the receipt must stand.
-    expect(remembered).toEqual(["boom1"]);
-    expect(forgotten).toEqual([]);
+    // Boom has the bytes and the wait is missing: the receipt must stand. The
+    // receipt is the page's, not the room's, since 0.9.31.
+    expect(pendingBoomFiles(CTX.accountId).map((h) => h.fileId)).toEqual(["boom1"]);
 
     settled = true;
     await vi.advanceTimersByTimeAsync(POLL_EVERY_MS * 6);
     await run;
-    expect(forgotten).toEqual(["boom1"]);
+    expect(pendingBoomFiles(CTX.accountId)).toEqual([]);
   });
 });
 
@@ -1099,12 +1097,14 @@ describe("several files in one plan", () => {
      RECEIPTS were not per file, so the three ids trampled one another in the
      session store (`spreadSession.ts`), and that is pinned in its own suite. */
   it("gives every file its own row, its own Boom id and its own receipt", async () => {
-    const remembered: string[] = [];
+    const seen: string[] = [];
+    const off = subscribeBoomReceipts(() => {
+      for (const h of pendingBoomFiles(CTX.accountId)) if (!seen.includes(h.fileId)) seen.push(h.fileId);
+    });
     const sent: string[] = [];
     let n = 0;
     const engine = (live = liveEngineWith({
       readDroppedFile: async (f: File) => dropped(f.name, `sha-${f.name}`),
-      rememberFile: (h) => remembered.push(h.fileId),
       adapter: stubAdapter({
         async upload(req): Promise<BoomUploadResult> {
           sent.push(req.file.name);
@@ -1135,8 +1135,12 @@ describe("several files in one plan", () => {
     expect(sent).toEqual(["compiled.pdf", "company-prepared.pdf", "trial-balance.xlsx"]);
     expect(s.rows.map((r) => r.boomFileId)).toEqual(["boom1", "boom2", "boom3"]);
     expect(s.rows.every((r) => r.state === "completed")).toBe(true);
-    // One receipt per file, never one slot the next file overwrites.
-    expect(remembered).toEqual(["boom1", "boom2", "boom3"]);
+    // One receipt per file, never one slot the next file overwrites. All three
+    // settled, so all three receipts are cleared; what is pinned is that each
+    // was WRITTEN, which the watcher records as it opens each poll.
+    off();
+    expect(seen).toEqual(["boom1", "boom2", "boom3"]);
+    expect(pendingBoomFiles(CTX.accountId)).toEqual([]);
     expect(s.statements).toHaveLength(3);
   });
 

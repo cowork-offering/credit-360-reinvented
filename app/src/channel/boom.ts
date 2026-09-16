@@ -54,6 +54,11 @@ export interface BoomEnvelope {
   source?: string;
   /** The date the body describes, where the answer is about a period. */
   asOf?: string;
+  /** `_provenance.ids.fileId`: WHICH Boom file the answer is about. The two
+   *  file-shaped calls (`boom_get_spread`, `boom_open_verification`) take one
+   *  and nothing else, so this is what lets a surface reading Boom for a
+   *  BORROWER offer the door into the file behind the figures. */
+  fileId?: string;
 }
 
 export interface BoomBody<T> {
@@ -82,10 +87,12 @@ export function readBoomAnswer<T = Record<string, unknown>>(res: McpOk<unknown>,
     throw { notFound: true, message: str(outer.message) ?? "Boom holds no record for this borrower." } satisfies BoomNotFound;
   }
   const provenance = isObj(outer._provenance) ? outer._provenance : undefined;
+  const ids = isObj(provenance?.ids) ? provenance.ids : undefined;
   const envelope: BoomEnvelope = {
     contractVersion: str(outer.contractVersion),
     source: str(outer._source),
     asOf: str(provenance?.asOf),
+    fileId: str(ids?.fileId),
   };
   const body = key ? outer[key] : outer;
   return isObj(body) ? { body: body as T, envelope } : undefined;
@@ -123,6 +130,10 @@ export interface BoomReads {
   ratios?: Record<string, unknown>;
   /** `boom_get_spread`, wrapped the way `bundle.boom.spread` carries it. */
   spread?: { file: Record<string, unknown> };
+  /** THE FILE THE RATIO SET WAS STRUCK FROM. `boom_get_spread` takes a file id
+   *  and nothing else, and so does `boom_open_verification`: this is what lets
+   *  a surface reading Boom for a BORROWER offer the door into the FILE. */
+  fileId?: string;
   /** "BOOM-LIVE", or the fixture the server answered from. */
   source?: string;
   /** When the served answer was stored, where it came off the cache. */
@@ -170,8 +181,9 @@ export async function readBoom(
   };
 
   const support = isObj(answer.body.support) ? answer.body.support : undefined;
-  const fileId = str(support?.fileId);
+  const fileId = str(support?.fileId) ?? answer.envelope.fileId;
   if (!fileId) return out;
+  out.fileId = fileId;
 
   try {
     const spreadRes = await call(server, TOOLS.boomSpread, { fileId }, { ...READ, signal: opts.signal });

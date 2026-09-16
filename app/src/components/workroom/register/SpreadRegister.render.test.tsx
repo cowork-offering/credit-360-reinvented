@@ -305,10 +305,19 @@ describe("compact mode", () => {
     expect(at.left).toBe(0);
   });
 
-  it("carries no footer, not even when a verification link was handed in", () => {
+  /* 0.9.31, founder live on the Financials tab: "where is the open in boom
+     button there is none". Compact still carries no CITATION, because the tab
+     names its own source; what it carries now is the door. */
+  it("carries no citation footer, and does carry the door into Boom", () => {
     const host = mount(compact);
+    expect(text(host.querySelector(".rg-prov"))).not.toContain("Spread by Boom");
+    expect(host.querySelector(".rg-provline")).toBeNull();
+    expect(text(host.querySelector(".rg-provlink"))).toBe("Open in Boom");
+  });
+
+  it("draws no footer at all where the lane has no verification page to give", () => {
+    const host = mount(<SpreadRegister {...base} mode="compact" verificationUrl={null} />);
     expect(host.querySelector(".rg-prov")).toBeNull();
-    expect(host.querySelector(".rg-provlink")).toBeNull();
   });
 });
 

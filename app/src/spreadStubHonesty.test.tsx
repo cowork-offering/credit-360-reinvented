@@ -213,10 +213,10 @@ describe("the room's own surfaces", () => {
     expect(badge?.classList.contains("is-prov")).toBe(true);
     expect(room.querySelector(".sp-verify")).toBeNull();
 
-    const rung = room.querySelector(".sp-rung")!;
-    expect(rung.getAttribute("data-state")).toBe("completed");
-    expect(text(rung.querySelector(".sp-rung-w"))).toBe("Completed");
-    expect(text(rung)).not.toMatch(/\bverified\b/i);
+    const receipt = room.querySelector(".sp-rcpt")!;
+    expect(receipt.getAttribute("data-state")).toBe("completed");
+    expect(text(receipt.querySelector(".sp-rcpt-w"))).toBe("Completed");
+    expect(text(receipt)).not.toMatch(/\bverified\b/i);
 
     // The note under the tiles says where the figures came from.
     expect(text(room)).toContain("Boom's own spread replaces it");

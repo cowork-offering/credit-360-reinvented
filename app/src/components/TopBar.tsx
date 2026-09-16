@@ -5,6 +5,7 @@ import { mcpAvailable } from "../channel/mcp";
 import { BrandGlyph } from "./brand";
 import { CMDK_OPEN_EVENT } from "./CommandPalette";
 import { TabIcon } from "./TabIcon";
+import { BoomWaitLine } from "./BoomWaitLine";
 
 /* =============================================================================
    THE APP HEADER — DIRECTION-LOCKED rule 45.
@@ -107,6 +108,13 @@ export function TopBar() {
           </nav>
         </div>
         <span className="spacer" />
+        {/* BOOM IS STILL READING (0.9.31). It sits in the header's own status
+            cluster, beside the live dot, because that is the only chrome on the
+            page a banker can see from every view without scrolling: the
+            connector health line is at the FOOT of the document, and a wait a
+            banker has to scroll to find is not one that followed them. It
+            renders nothing at all when Boom is holding nothing. */}
+        <BoomWaitLine />
         <span
           className="dot-live"
           style={live ? undefined : { background: "var(--ink-faint)" }}

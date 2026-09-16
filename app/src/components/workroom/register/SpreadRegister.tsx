@@ -406,10 +406,17 @@ export function SpreadRegister({
         </table>
       </div>
 
-      {!compact && (provLine || verificationUrl || onVerify || verifyError) && (
-        <div className="rg-prov">
-          <b>{SPREAD_BY_BOOM}</b>
-          {provLine && <span className="rg-provline">{provLine}</span>}
+      {/* THE FOOTER IS THE ROOM'S; THE CONTROL IS EVERYONE'S (0.9.31, founder
+          live: "where is the open in boom button there is none", standing on
+          the Financials tab). 0.9.28 gave compact mode no footer, and the
+          citation is still the room's: the tab already names its own source in
+          its Note and a second copy would be a fact twice. What the tab was
+          missing is the DOOR, and a banker who can read a spread must be able
+          to open it where it lives. So compact carries the control alone. */}
+      {(!compact && provLine) || verificationUrl || onVerify || verifyError ? (
+        <div className="rg-prov" data-mode={mode}>
+          {!compact && <b>{SPREAD_BY_BOOM}</b>}
+          {!compact && provLine && <span className="rg-provline">{provLine}</span>}
           {verifyError && <span className="rg-proverr">{verifyError}</span>}
           {/* THE LINK ONLY ONCE BOOM HAS MINTED THE SESSION. Before that the
               control is a BUTTON that asks for one, because there is no URL to
@@ -428,7 +435,7 @@ export function SpreadRegister({
             )
           )}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
