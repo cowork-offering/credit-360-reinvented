@@ -22,7 +22,12 @@
               be the same fact twice.
    ============================================================================= */
 
-import type { BoomFinancialStatement, BoomRatioSupportLine, StatementType } from "../../../spread/types";
+import type {
+  BoomFileStatus,
+  BoomFinancialStatement,
+  BoomRatioSupportLine,
+  StatementType,
+} from "../../../spread/types";
 
 /** The unit scale the banker reads the grid at. */
 export type Unit = "full" | "k" | "m";
@@ -50,6 +55,10 @@ export interface RegisterRow {
   abbr: string;
   /** A line item Boom placed no account code on, so it is outside Boom's aggregate. */
   mismapped: boolean;
+  /** Boom's own marker that this line's printed sign is not the sign its
+   *  aggregate carries. The figures below already have it applied; the ghost
+   *  register reads the FLAG to say Boom read the line the other way round. */
+  flipSign: boolean;
   /** One per period of the statement, in the statement's own period order. */
   values: Array<number | null>;
   /** The headline figures this line feeds, from the ratios' support lines. */
@@ -328,6 +337,7 @@ export function registerStatements(
             family,
             abbr: chipAbbr(family),
             mismapped: !code && hierarchy === "line_item",
+            flipSign: Boolean(li.flipSign),
             values: periods.map((p) => applyFlipSign(pickValue(li, p.id, opts.adjusted), li.flipSign)),
             feeds: support.get(`${s.statementType}|${code ?? li.name}`) ?? [],
           };
@@ -355,3 +365,20 @@ export function codeCoverageLine(mapped: number, mappable: number): string {
 
 export const VALIDATED = "Validated in Boom";
 export const NOT_VALIDATED = "Not validated in Boom";
+
+/**
+ * THE VALIDATION WORD, FROM WHAT BOOM ACTUALLY REPORTS AND NOTHING ELSE.
+ *
+ * Boom's file ladder ends at `completed` or at `verified`, and only the second
+ * of those is an analyst signing the spread off inside Boom. A `completed` file
+ * reads "Not validated in Boom", however much the room would like to say
+ * otherwise. The statement carries its own word where Boom gave one; the file's
+ * rung is the answer where it did not.
+ */
+export function validationWord(
+  args: { statementValidated?: boolean | null; fileStatus?: BoomFileStatus | null },
+): string {
+  if (args.statementValidated === true) return VALIDATED;
+  if (args.statementValidated === false) return NOT_VALIDATED;
+  return args.fileStatus === "verified" ? VALIDATED : NOT_VALIDATED;
+}

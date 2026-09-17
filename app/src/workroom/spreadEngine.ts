@@ -484,7 +484,14 @@ export function spreadSteps(stage: SpreadStage): StepState[] {
  * sentence per stage and never more, so the guidance does not become the wall
  * it was written to replace.
  */
-export function spreadGuidance(state: { stage: SpreadStage; ask: SpreadAsk | null; company: string }): string {
+export function spreadGuidance(state: {
+  stage: SpreadStage;
+  ask: SpreadAsk | null;
+  company: string;
+  /** Boom answered and returned no statement at all. The room must not tell a
+   *  banker the spread is in over a file Boom refused (0.9.32). */
+  empty?: boolean;
+}): string {
   switch (state.stage) {
     case "idle":
       return `${sentence(`Drop the statements for ${state.company}`)} I read them in the browser before anything leaves the cockpit.`;
@@ -503,7 +510,9 @@ export function spreadGuidance(state: { stage: SpreadStage; ask: SpreadAsk | nul
          all; this sentence says where the banker is and nothing more. */
       return "Boom is spreading these statements. Each file below says where Boom has got to.";
     case "spread":
-      return sentence(`The spread is in. Here is what it changes for ${state.company}`);
+      return state.empty
+        ? "Boom has no spread for these files. What this room read off the page stands below, unmapped."
+        : sentence(`The spread is in. Here is what it changes for ${state.company}`);
   }
 }
 
@@ -644,30 +653,6 @@ export function cardFootnote(pre: FilePreRead): string | null {
   return pre.quality.some((q) => noteTopic(q.text, pre) === "degrade") ? DEGRADED_FOOTNOTE : null;
 }
 
-/* -------------------------------------------------------------- the plan
-
-   THE PROVISIONAL READ, CUT TO WHAT THE CONFIRM NEEDS. The full read is a dozen
-   sentences and belongs under the spread; what a banker wants BEFORE confirming
-   is the top line against the book, the ratio that moves a test, and whether the
-   balance sheet foots. Four lines, in that order.                           */
-
-export const PROVISIONAL_BRIEF_MAX = 4;
-
-export function provisionalBrief(read: ProvisionalRead | null): string[] {
-  if (!read?.lines.length) return [];
-  const want = [/^Revenue\b/i, /coverage/i, /leverage/i, /balance sheet/i];
-  const out: string[] = [];
-  for (const re of want) {
-    const line = read.lines.find((l) => re.test(l) && !out.includes(l));
-    if (line) out.push(line);
-  }
-  for (const line of read.lines) {
-    if (out.length >= PROVISIONAL_BRIEF_MAX) break;
-    if (!out.includes(line)) out.push(line);
-  }
-  return out.slice(0, PROVISIONAL_BRIEF_MAX);
-}
-
 /* ------------------------------------------------------- the arrival brief
 
    THE THIRD BEAT (design 0.9.31). The spread lands and the room says what
@@ -705,12 +690,48 @@ export function periodLabelOf(endDate: string | null | undefined): string | null
   return /^\d{4}$/.test(year) ? `FY${year}` : null;
 }
 
+/** ONE PINNED ROW, and what Boom did to it. The verdict is the register's own
+ *  (`register/ghostModel.ts`), carried structurally so the engine does not have
+ *  to know the register exists. */
+export interface PinnedRow {
+  name: string;
+  verdict: "kept" | "fold" | "sign" | "restated" | "unmatched" | null;
+}
+
+/**
+ * THE PINNED LINE IS ANSWERED, NOT FLATTERED.
+ *
+ * What Boom did to each pinned row is read off that row's OWN verdict, so a pin
+ * on a line Boom folded away never reads as "Boom kept it". Null where the
+ * banker pinned nothing, and the brief simply has three beats instead of four.
+ */
+export function pinnedLine(rows: readonly PinnedRow[]): string | null {
+  if (!rows.length) return null;
+  const names = (xs: readonly PinnedRow[]): string => andList(xs.map((x) => x.name));
+  const said = `You pinned ${names(rows)}.`;
+  const changed = rows.filter((r) => r.verdict && r.verdict !== "kept");
+  if (!changed.length) {
+    const many = rows.length === 1 ? "it" : rows.length === 2 ? "both" : `all ${rows.length}`;
+    return `${said} Boom kept ${many} as ${rows.length === 1 ? "it stands" : "they stand"}.`;
+  }
+  const kept = rows.filter((r) => !r.verdict || r.verdict === "kept");
+  const bits = changed.map((r) => {
+    if (r.verdict === "sign") return `read ${r.name} with the opposite sign`;
+    if (r.verdict === "fold") return `folded ${r.name} into another line`;
+    if (r.verdict === "restated") return `read a different figure on ${r.name}`;
+    return `returned no line of its own for ${r.name}`;
+  });
+  return kept.length ? `${said} Boom kept ${names(kept)}, ${andList(bits)}.` : `${said} Boom ${andList(bits)}.`;
+}
+
 export function arrivalBrief(args: {
   statements: BoomFinancialStatement[];
   figures: SpreadFigures;
   support: BoomRatioSupportLine[];
   rows: LadderRow[];
   validationStatus: SpreadState["validationStatus"];
+  /** The rows the banker asked to watch, with the register's verdict on each. */
+  pinned?: readonly PinnedRow[];
 }): string[] {
   const failed = args.rows.find((r) => r.state === "failed");
   if (!args.statements.length) {
@@ -755,6 +776,8 @@ export function arrivalBrief(args: {
 
   const brief = [periods, found];
   if (figures.length) brief.push(`The spread carries ${andList(figures)}.`);
+  const pinned = pinnedLine(args.pinned ?? []);
+  if (pinned) brief.push(pinned);
   return brief;
 }
 

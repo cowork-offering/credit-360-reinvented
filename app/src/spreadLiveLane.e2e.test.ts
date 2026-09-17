@@ -596,6 +596,20 @@ describe("the room's spread section", () => {
     expect(room.textContent ?? "").not.toMatch(/provisional/i);
   });
 
+  it("ends in exactly two doors, and BOTH are glass (rule 27/41)", async () => {
+    const room = await spreadInTheRoom();
+    const doors = [...room.querySelectorAll<HTMLButtonElement>(".wk-sheet-acts > *")];
+    expect(doors.map((d) => d.textContent)).toEqual([
+      "Draft the credit memo",
+      `Back to ${COMPANY}`,
+    ]);
+    /* The commit moment was the confirm pill, and it is gone. What is left are
+       two ways on, and a way on is glass. */
+    expect(doors.map((d) => d.className)).toEqual(["wk-sheet-go", "sp-back wk-sheet-back"]);
+    expect(room.querySelectorAll(".eg-btn-ink")).toHaveLength(0);
+    expect(room.querySelector(".sp-rail")).toBeNull();
+  });
+
   it("says the validation once, in the register, and leaves the file-level pair behind", async () => {
     const room = await spreadInTheRoom();
     const head = room.querySelector<HTMLElement>(".sp-fin-head")!;
@@ -837,7 +851,7 @@ describe("the stage's three beats", () => {
     });
 
     expect(room.querySelector(".sp-wait-l")!.textContent).toBe(
-      "You can leave this room. I will keep checking and bring the spread to you.",
+      "You can leave this room. The top bar keeps the clock and I bring the spread to you.",
     );
     // Nothing on this sheet invents a sub-stage or a percentage.
     expect(room.querySelector(".sp-dot")).toBeNull();
@@ -846,6 +860,29 @@ describe("the stage's three beats", () => {
     expect(room.querySelector(".sp-rcpt-c")!.textContent).toMatch(/^\d{2}:\d{2}$/);
     // And no expectation line, because this page has watched Boom finish nothing.
     expect(room.querySelector(".sp-wait-x")).toBeNull();
+
+    /* THE GUIDED RAIL (0.9.32). Four sections, Boom's own words, and doors
+       computed from THIS relationship's book rather than typed in. */
+    const rail = room.querySelector<HTMLElement>(".sp-rail")!;
+    expect([...rail.querySelectorAll("dt")].map((n) => n.textContent)).toEqual([
+      "What Boom is doing",
+      "What happens next",
+      "Meanwhile",
+    ]);
+    expect(rail.querySelector("dd")!.textContent).toContain("Reading the file.");
+    expect(rail.textContent).toContain("processing, completed, verified or failed");
+    const doors = [...rail.querySelectorAll<HTMLButtonElement>(".sp-door")];
+    expect(doors.map((d) => d.dataset.door)).toEqual(["covenants", "lastSpread", "financials", "worklist"]);
+    // The count is the book's own, and so is the period.
+    expect(doors[0].textContent).toBe(`${CTX.covenants.length} covenant on this relationship`);
+    expect(doors[1].textContent).toBe(`The ${CTX.onFilePeriods[0]} spread already on file`);
+    // A door is glass, because nothing on this rail commits anything.
+    expect(doors.every((d) => !d.classList.contains("eg-btn-ink"))).toBe(true);
+
+    /* THE GHOST STANDS THROUGH THE WAIT, and says it is not Boom's. */
+    expect(room.querySelector(".rg-line")!.textContent).toContain("Not yet mapped by Boom");
+    expect(room.querySelectorAll(".rg-t tbody tr[data-ghost]").length).toBeGreaterThan(0);
+    expect(room.querySelector(".rg-cat")).toBeNull();
   });
 });
 

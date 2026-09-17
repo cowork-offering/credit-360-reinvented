@@ -11,7 +11,6 @@ import {
   cardFootnote,
   cardWarnings,
   DEGRADED_FOOTNOTE,
-  provisionalBrief,
   SPREAD_STEPS,
   spreadGuidance,
   spreadSteps,
@@ -23,6 +22,7 @@ import {
   createSpreadEngine,
   duplicateLine,
   leftWithBoomLine,
+  pinnedLine,
   planSummary,
   tooBigLine,
   type SpreadDeps,
@@ -35,7 +35,6 @@ import type {
   DroppedFile,
   ExtractedDocument,
   FilePreRead,
-  ProvisionalRead,
 } from "../spread/types";
 import { MODEL_FAILED_NOTE, unitsStatedNote, type RelationshipSpreadContext } from "../spread/preRead";
 import { pendingBoomFiles, subscribeBoomReceipts } from "../components/workroom/spreadSession";
@@ -693,6 +692,15 @@ describe("the one sentence that leads each stage", () => {
     expect(said("reading")).not.toContain("question");
   });
 
+  it("never says the spread is in over a set Boom returned nothing for (0.9.32)", () => {
+    const empty = spreadGuidance({ stage: "spread", ask: null, company: "Hartwell Precision", empty: true });
+    expect(empty).toBe(
+      "Boom has no spread for these files. What this room read off the page stands below, unmapped.",
+    );
+    expect(empty).not.toContain("The spread is in");
+    expect(said("spread")).toContain("The spread is in");
+  });
+
   it("is one sober line everywhere, with no em dash and no exclamation", () => {
     for (const stage of ["idle", "reading", "asking", "plan", "sending", "spread"] as SpreadStage[]) {
       for (const ask of [true, false]) {
@@ -792,41 +800,48 @@ describe("the card carries each fact once", () => {
   });
 });
 
-describe("the four lines the confirm carries", () => {
-  const read = (lines: string[]): ProvisionalRead => ({
-    period: "FY2025",
-    figures: {},
-    onFile: {},
-    onFilePeriod: "LTM",
-    lines,
-    provisional: true,
+/* =============================================================================
+   THE PINNED LINE, ANSWERED (0.9.32).
+
+   A pin is a promise that the arrival will say what happened to THAT row. The
+   answer is read off the register's own verdict, so a pin on a line Boom folded
+   away can never read as "Boom kept it".
+   ============================================================================= */
+describe("the pinned line in the arrival brief", () => {
+  it("has nothing to say where the banker pinned nothing", () => {
+    expect(pinnedLine([])).toBeNull();
   });
 
-  it("takes the top line, the ratios that move a test and the foot check, in that order", () => {
-    const brief = provisionalBrief(
-      read([
-        "Revenue $71.20M against $64.20M LTM on file, up 10.9%.",
-        "EBITDA is not stated: this file carries no depreciation and amortisation line.",
-        "Provisional interest coverage 3.09x against 2.95x on file, operating profit over interest expense.",
-        "Provisional leverage 2.10x against 2.42x on file.",
-        "The balance sheet foots: total assets $52.00M against liabilities and equity of $52.00M.",
-      ]),
+  it("says Boom kept them where it kept them", () => {
+    expect(pinnedLine([{ name: "Net Sales", verdict: "kept" }])).toBe(
+      "You pinned Net Sales. Boom kept it as it stands.",
     );
-    expect(brief).toEqual([
-      "Revenue $71.20M against $64.20M LTM on file, up 10.9%.",
-      "Provisional interest coverage 3.09x against 2.95x on file, operating profit over interest expense.",
-      "Provisional leverage 2.10x against 2.42x on file.",
-      "The balance sheet foots: total assets $52.00M against liabilities and equity of $52.00M.",
-    ]);
+    expect(
+      pinnedLine([
+        { name: "Net Sales", verdict: "kept" },
+        { name: "Gross Profit", verdict: "kept" },
+      ]),
+    ).toBe("You pinned Net Sales and Gross Profit. Boom kept both as they stand.");
   });
 
-  it("never runs past four lines, whatever the read placed", () => {
-    expect(provisionalBrief(read(Array.from({ length: 12 }, (_, i) => `Line ${i}.`)))).toHaveLength(4);
+  it("names what Boom did instead, row by row, and never flatters a changed line", () => {
+    expect(
+      pinnedLine([
+        { name: "Net Sales", verdict: "kept" },
+        { name: "Provision for Income Taxes", verdict: "sign" },
+        { name: "Depreciation and Amortization", verdict: "fold" },
+      ]),
+    ).toBe(
+      "You pinned Net Sales, Provision for Income Taxes and Depreciation and Amortization. " +
+        "Boom kept Net Sales, read Provision for Income Taxes with the opposite sign and " +
+        "folded Depreciation and Amortization into another line.",
+    );
   });
 
-  it("has nothing to say where the read placed nothing", () => {
-    expect(provisionalBrief(null)).toEqual([]);
-    expect(provisionalBrief(read([]))).toEqual([]);
+  it("says so where Boom returned no line of its own", () => {
+    expect(pinnedLine([{ name: "Management Fees", verdict: "unmatched" }])).toBe(
+      "You pinned Management Fees. Boom returned no line of its own for Management Fees.",
+    );
   });
 });
 

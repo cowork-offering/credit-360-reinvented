@@ -15,6 +15,13 @@ import { Portal } from "../Portal";
 import { odoRoll } from "../Odometer";
 import { RoomBoundary } from "./RoomBoundary";
 import { SpreadRegister } from "./register/SpreadRegister";
+import {
+  ghostStatements,
+  registerSources,
+  sourceRows,
+  type GhostStatement,
+  type Verdict,
+} from "./register/ghostModel";
 import { closeSpreadingRoom, pendingBoomFiles, useSpreadingRoom } from "./spreadSession";
 import { boomArrivalFiles, boomExpectationLine, lookedAtBoom, useBoomWatch, useNow } from "./boomWatch";
 import { openMemoRoom } from "../memo/memoSession";
@@ -25,7 +32,6 @@ import { covenantDirection, covenantUnit, fmtRatio } from "../../data/finance";
 import {
   arrivalBrief,
   createSpreadEngine,
-  provisionalBrief,
   PROVISIONAL_NOTE,
   SPREAD_STEPS,
   spreadGuidance,
@@ -101,18 +107,16 @@ const addedWord = (n: number): string => `${n} file${n === 1 ? "" : "s"} in this
 
 const STEPS_ARIA = "Where this spread has got to";
 const PLAN_HEAD = "The plan";
-const PLAN_SEC_HEAD = "What goes to Boom";
+const GHOST_HEAD = "What the file reads, before it goes";
 const SPREAD_HEAD = "The spread is in";
+const NO_SPREAD_HEAD = "Boom has no spread for these files";
 const DRAFT_MEMO = "Draft the credit memo";
 const backTo = (company: string): string => `Back to ${company}`;
-const PLAN_NOTE =
-  "When you confirm, these files go to Boom. Boom spreads them and stays the record of the spread; the financials here refresh from its own read.";
 /* THE STAND-IN SAYS SO, WHENEVER IT IS THE ONE ANSWERING (0.9.28). The lane is
    live by default now; this sentence is what the room says on the day somebody
    flips it back, and it must never read as though Boom had spread the file. */
 const STUB_NOTE =
   "The Boom lane is on its stand-in, so this spread is the browser's own read and stays provisional.";
-const PROVISIONAL_HEAD = "What the file reads as, before it goes";
 const CONFIRM = "Confirm and spread";
 const LEAVE = "Leave it for now";
 const KEEP_WAITING = "Keep waiting";
@@ -135,10 +139,13 @@ const ladderHead = (lane: "stub" | "live", settled: boolean): string =>
 
 /** THE SHEET'S OWN TITLE, one per stage. The middle one names the system doing
  *  the work, stub included, for the same reason the ladder's heading does. */
-const sheetTitle = (stage: SpreadStage, lane: "stub" | "live"): string => {
-  if (stage === "spread") return SPREAD_HEAD;
+const sheetTitle = (stage: SpreadStage, lane: "stub" | "live", empty = false): string => {
+  if (stage === "spread") return empty ? NO_SPREAD_HEAD : SPREAD_HEAD;
   if (stage === "sending") return ladderHead(lane, false);
-  return PLAN_HEAD;
+  /* THE GHOST BEAT HAS ITS OWN TITLE (0.9.32). The sheet stands from the first
+     line the pre-read places, and calling it "The plan" before there is a plan
+     is the sheet claiming a state the room is not in. */
+  return stage === "plan" ? PLAN_HEAD : GHOST_HEAD;
 };
 
 const RUNG_WORD: Record<UploadState, string> = {
@@ -158,7 +165,49 @@ const RUNG_WORD: Record<UploadState, string> = {
    the page-level poll keeps (`boomWatch.ts`); it is on the glass because a
    banker who does not know they may leave will sit and watch a six-minute
    spread. */
-const LEAVE_LINE = "You can leave this room. I will keep checking and bring the spread to you.";
+const LEAVE_LINE = "You can leave this room. The top bar keeps the clock and I bring the spread to you.";
+
+/* ------------------------------------------------------- the confirm beat
+
+   0.9.32. One banker sentence, one ink pill (rule 27/41: the commit moment is
+   the ONE control here that is not glass), and then the receipts type in as the
+   ladder runs. It replaced a READ AS / STATEMENTS / PERIODS table, because the
+   ghost register below already carries the statement, the file, the periods and
+   the scale, and a table above it saying them again is the same facts twice. */
+const confirmLine = (files: number, company: string, accountId: string): string =>
+  /* `sentence` and not a full stop: a borrower called "Inc." already ends in
+     one, and "Inc.. Boom registers" is a typo on the glass. */
+  `Start Boom reading ${files === 1 ? "this file" : `these ${files} files`} for ${sentence(company)} ` +
+  `Boom registers the borrower under its Account Id ${accountId} and reads each file on its own.`;
+
+/* --------------------------------------------------------- the reading rail
+
+   NOT A SIDEBAR. Three labelled lines under the receipts: what Boom is doing in
+   its own four words, what happens when it answers, and the real doors a banker
+   can take while they wait. The doors are computed from THIS relationship's own
+   book; a door with nothing behind it is not drawn. */
+const RAIL_DOING = "What Boom is doing";
+const RAIL_NEXT = "What happens next";
+const RAIL_MEANWHILE = "Meanwhile";
+const RAIL_WORDS = "Its words are processing, completed, verified or failed. Nothing between them.";
+const RAIL_NEXT_LINE = "Boom's mapped lines light the register below, in place. The brief types above it.";
+const RAIL_NEXT_QUIET = "Open in Boom to validate.";
+const DOOR_FINANCIALS = "Financials tab";
+const DOOR_WORKLIST = "Back to the worklist";
+const doorCovenants = (n: number): string => `${n} covenant${n === 1 ? "" : "s"} on this relationship`;
+const doorLastSpread = (period: string): string => `The ${period} spread already on file`;
+
+export type SpreadDoor = "covenants" | "lastSpread" | "financials" | "worklist";
+
+/** What Boom is doing, in Boom's own rungs and nothing between them. */
+export function boomDoingLine(rows: readonly LadderRow[]): string {
+  const answered = rows.filter((r) => r.state === "completed" || r.state === "verified" || r.state === "failed");
+  const reading = rows.find((r) => r.state !== "completed" && r.state !== "verified" && r.state !== "failed");
+  if (!rows.length) return "Boom has the files.";
+  if (!answered.length) return rows.length === 1 ? "Reading the file." : `Reading all ${rows.length} files.`;
+  if (!reading) return `All ${rows.length} file${rows.length === 1 ? "" : "s"} answered.`;
+  return `${answered.length} of ${rows.length} answered. Still reading ${reading.name}.`;
+}
 
 /* ---------------------------------------------------------------- the tiles */
 
@@ -308,6 +357,11 @@ export interface SpreadingRoomProps {
    *  the period it just spread so the memo can name what asked for it; the host
    *  owns the session. Absent where the host has no memo room to open. */
   onDraftMemo?: (period: string | null) => void;
+  /** THE REAL DOORS THE RAIL OFFERS WHILE BOOM READS. The room computes WHICH
+   *  doors exist from this relationship's own book; the host is what knows how
+   *  to open one. Absent where the host has nowhere to send the banker, and
+   *  then the rail carries only the doors that do not leave the cockpit. */
+  onDoor?: (door: SpreadDoor) => void;
   onClose: () => void;
 }
 
@@ -319,6 +373,7 @@ export function SpreadingRoom({
   onSpreadEvent,
   onExplain,
   onDraftMemo,
+  onDoor,
   onClose,
 }: SpreadingRoomProps) {
   const engineRef = useRef<SpreadEngine | null>(null);
@@ -335,6 +390,21 @@ export function SpreadingRoom({
   const now = useNow(state.stage === "sending" ? 1_000 : 0);
   /** One event per moment, however many times the store wakes this component. */
   const said = useRef<Set<SpreadRoomEvent["phase"]>>(new Set());
+
+  /* THE ROWS THE BANKER IS WATCHING. Set on the ghost, kept by key across the
+     arrival, and named in the brief. The room owns them because the brief does
+     and the register is content. */
+  const [pinned, setPinned] = useState<Record<string, string>>({});
+  const togglePin = useCallback((key: string, name: string) => {
+    setPinned((held) => {
+      if (held[key]) {
+        const next = { ...held };
+        delete next[key];
+        return next;
+      }
+      return { ...held, [key]: name };
+    });
+  }, []);
 
   useEffect(() => () => engine.dispose(), [engine]);
 
@@ -447,11 +517,53 @@ export function SpreadingRoom({
      full-height drop stage over a finished spread. */
   const landed = state.cards.length > 0 || state.rows.length > 0;
   const collapsed = landed && !over;
-  const preBrief = useMemo(() => provisionalBrief(state.provisional), [state.provisional]);
+
+  /* ================================================================ THE GHOST
+
+     WHAT THIS ROOM ALREADY READ, AS THE REGISTER ITSELF (0.9.32). The pre-read
+     lifts every printed line with its figures off each file before Boom is
+     called at all; until 0.9.31 that was spent on a five-row label table. Here
+     it IS the register, in faint ink, and Boom's lines land on these same rows.
+     A file the banker left out of the plan is not on the glass. */
+  const ghost = useMemo<GhostStatement[]>(
+    () =>
+      ghostStatements(
+        state.cards
+          .filter((c) => c.pre && !c.excluded && c.phase !== "rejected")
+          .map((c) => ({ fileId: c.id, fileName: c.name, pre: c.pre as NonNullable<SpreadCard["pre"]> })),
+      ),
+    [state.cards],
+  );
+
+  /* BOOM'S OWN WORDS ON A FILE IT COULD NOT READ, against the file the ghost
+     came off, so the register can stand that statement up unmapped and say why
+     rather than dropping it. */
+  const failures = useMemo<Record<string, string>>(() => {
+    const out: Record<string, string> = {};
+    for (const row of state.rows) if (row.state === "failed") out[row.fileId] = row.message ?? "";
+    return out;
+  }, [state.rows]);
+
+  /* WHAT BOOM DID TO EACH ROW, read off the register's own derivation so the
+     brief and the grid can never disagree about one line. */
+  const verdicts = useMemo<Map<string, Verdict | null>>(() => {
+    const out = new Map<string, Verdict | null>();
+    if (state.stage !== "spread") return out;
+    for (const source of registerSources({
+      statements: state.statements,
+      ghost,
+      adjusted: state.adjusted,
+      support: state.support,
+    })) {
+      for (const row of sourceRows(source)) if (!out.has(row.key)) out.set(row.key, row.verdict);
+    }
+    return out;
+  }, [state.stage, state.statements, state.adjusted, state.support, ghost]);
 
   /* THE ARRIVAL BRIEF, and it is Boom's answer read back rather than a second
      source (facts once): the periods off the statements, the sign-off off their
-     own status, the figures with the line Boom says fed each. */
+     own status, the figures with the line Boom says fed each, and what Boom did
+     to the rows the banker pinned. */
   const brief = useMemo(
     () =>
       state.stage === "spread"
@@ -461,22 +573,69 @@ export function SpreadingRoom({
             support: state.support,
             rows: state.rows,
             validationStatus: state.validationStatus,
+            pinned: Object.entries(pinned).map(([key, name]) => ({ name, verdict: verdicts.get(key) ?? null })),
           })
         : [],
-    [state.stage, state.statements, state.figures, state.support, state.rows, state.validationStatus],
+    [
+      state.stage,
+      state.statements,
+      state.figures,
+      state.support,
+      state.rows,
+      state.validationStatus,
+      pinned,
+      verdicts,
+    ],
   );
 
-  /* THE EXPECTATION LINE, from what this page has OBSERVED and nothing else. */
+  /* THE EXPECTATION LINE, from what this page has OBSERVED and nothing else.
+     It is measured on the bytes about to go at the confirm beat and on the bytes
+     that went once they have; before the first observation there is nothing
+     honest to say and the line is absent (0.9.31 rule). */
   const expectation = useMemo(
-    () => boomExpectationLine(state.rows.reduce((sum, r) => sum + (r.bytes ?? 0), 0)),
-    [state.rows],
+    () =>
+      boomExpectationLine(
+        state.rows.length
+          ? state.rows.reduce((sum, r) => sum + (r.bytes ?? 0), 0)
+          : (state.plan?.items ?? []).reduce((sum, i) => sum + (i.bytes ?? 0), 0),
+      ),
+    [state.rows, state.plan],
   );
+
+  /* THE REAL DOORS THE RAIL OFFERS, computed from THIS relationship's book. A
+     door with nothing behind it is not drawn: an empty covenant package and a
+     relationship with no spread on file each simply have one door fewer. */
+  const doors = useMemo<Array<{ id: SpreadDoor; label: string }>>(() => {
+    const out: Array<{ id: SpreadDoor; label: string }> = [];
+    if (ctx.covenants.length) out.push({ id: "covenants", label: doorCovenants(ctx.covenants.length) });
+    const last = ctx.onFilePeriods[ctx.onFilePeriods.length - 1];
+    if (last) out.push({ id: "lastSpread", label: doorLastSpread(last) });
+    out.push({ id: "financials", label: DOOR_FINANCIALS });
+    out.push({ id: "worklist", label: DOOR_WORKLIST });
+    return out;
+  }, [ctx.covenants.length, ctx.onFilePeriods]);
+
+  const pinnedKeys = useMemo(() => new Set(Object.keys(pinned)), [pinned]);
+
+  /** The files the ghost register already stands up, so their card does not say
+   *  the same facts a second time. */
+  const carried = useMemo(() => new Set(ghost.map((g) => g.fileId)), [ghost]);
+
+  /* WHERE THE FILE GOT TO ON BOOM'S OWN LADDER, which is what the validation
+     word is read off: a `completed` file is not a validated one, however much
+     the room would like to say otherwise. Verified only where EVERY file Boom
+     answered for reached it. */
+  const fileStatus = useMemo(() => {
+    const answered = state.rows.filter((r) => r.state === "completed" || r.state === "verified");
+    if (!answered.length) return null;
+    return answered.every((r) => r.state === "verified") ? ("verified" as const) : ("completed" as const);
+  }, [state.rows]);
 
   /* WHAT THE SHEET IS ABOUT, IN ITS STAMP. Before the spread the period is the
      one the browser read out of the file; after it, the one Boom moved. */
   const settled = state.stage === "spread";
   const period = (settled ? state.newPeriod : null) ?? state.provisional?.period ?? null;
-  const title = sheetTitle(state.stage, lane);
+  const title = sheetTitle(state.stage, lane, settled && !state.statements.length);
   const stamp = period ? `${ctx.company} · ${period}` : ctx.company;
 
   /* ONE ELEMENT, TWO PLACES. It is the same node wherever it renders, so the
@@ -559,7 +718,7 @@ export function SpreadingRoom({
                 engine's own stage, so the room cannot be in one place and say it
                 is in another. */}
             <SpreadSteps stage={state.stage} />
-            <p className="sp-guide">{spreadGuidance(state)}</p>
+            <p className="sp-guide">{spreadGuidance({ ...state, empty: settled && !state.statements.length })}</p>
 
             {!landed && dropZone}
 
@@ -571,10 +730,14 @@ export function SpreadingRoom({
               </div>
             )}
 
-            {state.cards.length > 0 && (
+            {/* THE CARD IS THE FILE BEFORE IT GOES, and the RECEIPT is the file
+                once Boom has it (0.9.32). Both at once is the same file named
+                twice on one sheet, so the cards stand down the moment the ladder
+                has a row. */}
+            {state.cards.length > 0 && state.rows.length === 0 && (
               <div className="sp-cards">
                 {state.cards.map((card) => (
-                  <SpreadFileCard key={card.id} card={card} />
+                  <SpreadFileCard key={card.id} card={card} carried={carried.has(card.id)} />
                 ))}
               </div>
             )}
@@ -617,7 +780,11 @@ export function SpreadingRoom({
 
                 AND THE ROOM ENDS IN DOORS, like the modification finale: the
                 memo, and the way back to the relationship. */}
-            {(state.plan || state.rows.length > 0) && (
+            {/* THE SHEET STANDS FROM THE FIRST LINE THE PRE-READ PLACES
+                (0.9.32). It used to wait for the plan, so the register that IS
+                the pre-read had nowhere to be while the room was still asking
+                its one question. */}
+            {(state.plan || state.rows.length > 0 || ghost.length > 0) && (
               <section
                 className={`sp-act wk-sheet ${state.rows.length > 0 ? "sp-ladder" : "sp-plan"}`}
                 data-stage={state.stage}
@@ -645,14 +812,40 @@ export function SpreadingRoom({
                     {state.rows.map((row) => (
                       <SpreadReceipt key={row.fileId} row={row} company={ctx.company} now={now} />
                     ))}
-                    {/* THE WAIT'S OWN FOOT. The expectation line is drawn only
-                        where this page has WATCHED Boom finish a set about this
-                        size; before that there is nothing honest to say and the
-                        line is absent. The sentence under it is the promise the
+                    {/* THE GUIDED RAIL (0.9.32). Watching is not waiting: what
+                        Boom is doing in its own four words, what happens when it
+                        answers, and the real doors this relationship has while
+                        it reads. The sentence under it is the promise the
                         page-level poll keeps. */}
                     {!settled && (
                       <div className="sp-wait">
-                        {expectation && <p className="sp-wait-x">{expectation}</p>}
+                        <dl className="sp-rail">
+                          <dt>{RAIL_DOING}</dt>
+                          <dd>
+                            {boomDoingLine(state.rows)} <em>{RAIL_WORDS}</em>
+                          </dd>
+                          <dt>{RAIL_NEXT}</dt>
+                          <dd>
+                            {RAIL_NEXT_LINE} <em>{RAIL_NEXT_QUIET}</em>
+                          </dd>
+                          <dt>{RAIL_MEANWHILE}</dt>
+                          <dd>
+                            <div className="sp-doors">
+                              {doors.map((door) => (
+                                <button
+                                  key={door.id}
+                                  type="button"
+                                  className="sp-door"
+                                  data-door={door.id}
+                                  onClick={() => onDoor?.(door.id)}
+                                  disabled={!onDoor}
+                                >
+                                  {door.label}
+                                </button>
+                              ))}
+                            </div>
+                          </dd>
+                        </dl>
                         <p className="sp-wait-l">{LEAVE_LINE}</p>
                       </div>
                     )}
@@ -670,70 +863,93 @@ export function SpreadingRoom({
                       </div>
                     )}
                   </div>
-                ) : (
-                  <>
-                    <div className="wk-sheet-sec" data-block="plan">
-                      <div className="wk-sheet-k">{PLAN_SEC_HEAD}</div>
-                      <p className="sp-plan-s">{state.plan?.summary}</p>
-                      <p className="sp-plan-n">{PLAN_NOTE}</p>
+                ) : state.plan ? (
+                  /* THE CONFIRM BEAT (0.9.32), AND NOT ONE FRAME BEFORE THERE IS
+                     A PLAN. One banker sentence and one ink pill. The READ AS /
+                     STATEMENTS / PERIODS table that stood here is gone: the ghost
+                     register below carries the file, the statement, the periods
+                     and the scale, and saying them again over it is the same
+                     facts twice. */
+                  <div className="wk-sheet-sec sp-confirm" data-block="plan">
+                    <div className="sp-confirm-say">
+                      <p className="sp-confirm-l">
+                        {confirmLine(state.plan.items.length, ctx.company, ctx.accountId)}
+                        {expectation ? ` ${expectation}` : ""}
+                      </p>
+                      {/* WHAT IS BEING CONFIRMED, in the plan's own words. It is
+                          the only place the statement QUALITY going to Boom is
+                          said, so it is not a fact the register repeats. */}
+                      <p className="sp-plan-s">{state.plan.summary}</p>
                       {lane !== "live" && <p className="sp-plan-w">{STUB_NOTE}</p>}
                     </div>
-                    {preBrief.length > 0 && (
-                      <div className="wk-sheet-sec sp-brief" data-block="read">
-                        <div className="wk-sheet-k">{PROVISIONAL_HEAD}</div>
-                        {preBrief.map((line) => (
-                          <p key={line}>{line}</p>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
+                    {/* THE COMMIT MOMENT IS INK (rule 27/41), and it is the ONE
+                        control in this room that is not glass. Everything the
+                        banker does after Boom has answered is a door, and a door
+                        is glass. */}
+                    <button
+                      type="button"
+                      className="sp-go eg-btn-ink c360-press"
+                      onClick={() => void engine.confirm()}
+                    >
+                      {CONFIRM}
+                    </button>
+                  </div>
+                ) : null}
 
-                {/* THE PANEL EXISTS WHEN THERE IS A SPREAD AND NOT ONE FRAME
-                    BEFORE. It used to open on the provisional read, under the
-                    confirm, so a banker saw tiles, a trend and statement tabs
-                    for a spread nobody had sent yet. What the file reads as sits
-                    in the plan above, in four lines; this is the thing that
-                    lands. */}
-                {settled && (
+                {/* ============ THE REGISTER, AND THE BEAT IT LIGHTS IN
+
+                    IT STANDS FROM THE FIRST FILE (0.9.32). Before Boom answers
+                    it is the room's own pre-read in faint ink; when Boom answers
+                    its lines land on those same rows and the brief, the tiles
+                    and the trend appear ABOVE it. The tiles and the trend are
+                    still the arrival's alone: a tile over a spread nobody has
+                    sent is a figure claiming to be Boom's. */}
+                {(ghost.length > 0 || settled) && (
                   <section className="wk-sheet-sec sp-fin" data-block="financials" aria-label={FIN_HEAD}>
-                    <div className="sp-fin-head">
-                      <div className="wk-sheet-k">{FIN_HEAD}</div>
-                      {/* THE VALIDATION IS THE REGISTER'S, PER STATEMENT (0.9.28).
-                          A file-level "Validated in Boom" beside a register that
-                          says it statement by statement, over a link the
-                          register's own footer carries, is the same fact three
-                          times. What stays here is the word about the FIGURES:
-                          provisional is about the tiles, which are the browser's
-                          own read until Boom answers. */}
-                      {state.figuresProvisional && <span className="sp-badge is-prov">{PROVISIONAL_BADGE}</span>}
-                      {onExplain && (
-                        <button
-                          type="button"
-                          className="sp-explain"
-                          aria-label="Explain these financials"
-                          onClick={() => onExplain(FIN_EXPLAIN)}
-                        >
-                          Explain
-                        </button>
-                      )}
-                    </div>
-                    {/* THE ARRIVAL, TYPED, BEFORE THE REGISTER UNFOLDS. What
-                        Boom found, whether an analyst has signed it off, and
-                        which line fed each headline figure: the last of those is
-                        the one thing the tiles below cannot say. */}
-                    <ArrivalBrief lines={brief} />
-                    <div className="sp-tiles">
-                      {tilesFor(state.figures).map((tile) => (
-                        <SpreadTile key={tile.key} tile={tile} />
-                      ))}
-                    </div>
-                    <SpreadTrend points={points} provisional={state.figuresProvisional} />
-                    {state.figuresProvisional && <p className="sp-note">{PROVISIONAL_NOTE}</p>}
-                    {state.statements.length ? (
+                    {settled && (
+                      <>
+                        <div className="sp-fin-head">
+                          <div className="wk-sheet-k">{FIN_HEAD}</div>
+                          {/* THE VALIDATION IS THE REGISTER'S, PER STATEMENT
+                              (0.9.28). What stays here is the word about the
+                              FIGURES: provisional is about the tiles, which are
+                              the browser's own read until Boom answers. */}
+                          {state.figuresProvisional && <span className="sp-badge is-prov">{PROVISIONAL_BADGE}</span>}
+                          {onExplain && (
+                            <button
+                              type="button"
+                              className="sp-explain"
+                              aria-label="Explain these financials"
+                              onClick={() => onExplain(FIN_EXPLAIN)}
+                            >
+                              Explain
+                            </button>
+                          )}
+                        </div>
+                        {/* THE ARRIVAL, TYPED, BEFORE THE REGISTER LIGHTS. What
+                            Boom found, whether an analyst has signed it off,
+                            which line fed each headline figure, and what Boom
+                            did to the rows the banker pinned. */}
+                        <ArrivalBrief lines={brief} />
+                        <div className="sp-tiles">
+                          {tilesFor(state.figures).map((tile) => (
+                            <SpreadTile key={tile.key} tile={tile} />
+                          ))}
+                        </div>
+                        <SpreadTrend points={points} provisional={state.figuresProvisional} />
+                        {state.figuresProvisional && <p className="sp-note">{PROVISIONAL_NOTE}</p>}
+                      </>
+                    )}
+                    {state.statements.length || ghost.length ? (
                       <SpreadRegister
                         statements={state.statements}
                         support={state.support}
+                        ghost={ghost}
+                        failures={failures}
+                        settled={settled}
+                        fileStatus={fileStatus}
+                        pinned={pinnedKeys}
+                        onTogglePin={togglePin}
                         mode="room"
                         adjusted={state.adjusted}
                         onAdjustedChange={
@@ -773,28 +989,25 @@ export function SpreadingRoom({
                   </section>
                 )}
 
-                {/* TWO DOORS, AND NEVER A THIRD (workroom.css `.wk-sheet-acts`).
+                {/* THE ROOM ENDS IN TWO DOORS, AND BOTH ARE GLASS (rule 27/41,
+                    0.9.32). The prototype drew "Draft the credit memo" in ink;
+                    ink is the commit moment and the commit already happened at
+                    the confirm beat, so what is left here are two ways on.
                     While Boom is spreading there is no door at all: the sheet is
                     working, the stall above is the only question it can ask, and
                     the room's own close is always on the header. */}
                 {(state.stage === "plan" || settled) && (
                   <div className="wk-sheet-acts">
-                    {settled
-                      ? onDraftMemo && (
-                          <button
-                            type="button"
-                            className="wk-sheet-go"
-                            data-door="memo"
-                            onClick={() => onDraftMemo(period)}
-                          >
-                            {DRAFT_MEMO}
-                          </button>
-                        )
-                      : (
-                          <button type="button" className="sp-go wk-sheet-go" onClick={() => void engine.confirm()}>
-                            {CONFIRM}
-                          </button>
-                        )}
+                    {settled && onDraftMemo && (
+                      <button
+                        type="button"
+                        className="wk-sheet-go"
+                        data-door="memo"
+                        onClick={() => onDraftMemo(period)}
+                      >
+                        {DRAFT_MEMO}
+                      </button>
+                    )}
                     <button type="button" className="sp-back wk-sheet-back" onClick={onClose}>
                       {settled ? backTo(ctx.company) : LEAVE}
                     </button>
@@ -846,9 +1059,15 @@ function SpreadFactRow({ fact }: { fact: SpreadFact }) {
   );
 }
 
-function SpreadFileCard({ card }: { card: SpreadCard }) {
+/** `carried` is TRUE where the ghost register below already stands this file's
+ *  own lines up. The card then says only what the register cannot: that the
+ *  file is being read, that it is out of the plan, and what the read could not
+ *  do. Its FACTS are drawn only for a file with no lines on the glass, because
+ *  the register's own line already names the file, the periods and the scale
+ *  (facts once, 0.9.32). */
+function SpreadFileCard({ card, carried = false }: { card: SpreadCard; carried?: boolean }) {
   return (
-    <article className={`sp-card${card.excluded ? " is-out" : ""}`} data-phase={card.phase}>
+    <article className={`sp-card${card.excluded ? " is-out" : ""}`} data-phase={card.phase} data-carried={carried ? "" : undefined}>
       <div className="sp-card-h">
         <span className="sp-card-n">{card.name}</span>
         <span className="sp-card-b">{sizeWord(card.bytes) ?? ""}</span>
@@ -856,11 +1075,13 @@ function SpreadFileCard({ card }: { card: SpreadCard }) {
         {card.excluded && <span className="sp-card-s">{LEFT_OUT}</span>}
       </div>
       {card.refusal && <p className="sp-card-r">{card.refusal}</p>}
-      <dl className="sp-card-f">
-        {card.facts.map((fact) => (
-          <SpreadFactRow key={fact.key} fact={fact} />
-        ))}
-      </dl>
+      {!carried && (
+        <dl className="sp-card-f">
+          {card.facts.map((fact) => (
+            <SpreadFactRow key={fact.key} fact={fact} />
+          ))}
+        </dl>
+      )}
       {card.warnings.map((line) => (
         <p className="sp-card-w" key={line}>
           {line}
@@ -1163,6 +1384,22 @@ export function SpreadingRoomHost() {
     [session],
   );
 
+  /* THE RAIL'S DOORS, OPENED (0.9.32). Each one closes the room first, because
+     the thing it opens lives behind this room's scrim and a tab nobody can see
+     is not somewhere to go. The room decides WHICH doors exist from the book;
+     this decides what each one does. */
+  const onDoor = useCallback(
+    (door: SpreadDoor) => {
+      closeSpreadingRoom();
+      if (door === "worklist") {
+        dispatch({ type: "GO_HOME" });
+        return;
+      }
+      dispatch({ type: "SET_TAB", tab: door === "covenants" ? "covenants" : "financials" });
+    },
+    [dispatch],
+  );
+
   if (!ctx || !session) return null;
   return (
     <RoomBoundary what="the spreading room" scope="room">
@@ -1174,6 +1411,7 @@ export function SpreadingRoomHost() {
         onSpreadEvent={onSpreadEvent}
         onExplain={onExplain}
         onDraftMemo={onDraftMemo}
+        onDoor={onDoor}
         onClose={closeSpreadingRoom}
       />
     </RoomBoundary>

@@ -44,23 +44,33 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), "spread-e2e-"));
 fs.mkdirSync(path.join(dir, "b"), { recursive: true });
 execFileSync("node", [path.join(ROOT, "app/scripts/assemble-artifact.mjs"), path.join(ROOT, "artifact/live-data.json"), path.join(dir, "b/index.html"), BUNDLE], { stdio: "ignore" });
 
+/* THE STATEMENT AS A PAGE PRINTS IT, and NOT as Boom spreads it (0.9.32). The
+   income figures are the ones the lane's Boom answers with, so the room's own
+   pre-read and Boom's spread are two readings of ONE statement and the ghost
+   register can be reconciled against it: the page prints SG and A and D and A
+   where Boom returns one operating-expense line, and prints the tax provision
+   positive where Boom flags its sign. */
 const csv = [
   BOOK.relationship,
   "Income Statement (in thousands)",
-  "Fiscal year ended December 31,2025,2024",
-  "Net sales revenue,71200,64486",
-  "Cost of sales,49840,45140",
-  "Gross profit,21360,19346",
-  "Operating expenses,15960,14100",
-  "Operating profit,5400,5246",
-  "Interest expense,1750,1989",
-  "Net income,2700,2400",
+  "Fiscal year ended December 31,2025,2024,2023",
+  "Net Sales,64486,59915,56266",
+  "Cost of Sales,50422,45371,40829",
+  "Gross Profit,14064,14544,15437",
+  '"Selling, General and Administrative",8830,8800,8743',
+  "Depreciation and Amortization,2396,2189,2009",
+  "Income from Operations,2838,3555,4685",
+  "Interest Expense,(1076),(1019),(947)",
+  '"Other Income (Expense), Net",55,(45),71',
+  "Income before Income Taxes,1817,2491,3809",
+  "Provision for Income Taxes,427,623,936",
+  "Net Income,1390,1868,2873",
   "",
   "Balance Sheet (in thousands)",
-  "As of December 31,2025,2024",
-  "Total assets,52000,50000",
-  "Total liabilities,32000,31500",
-  "Total equity,20000,18500",
+  "As of December 31,2025,2024,2023",
+  "Total assets,46761,40117,36062",
+  "Total liabilities,27891,22343,20396",
+  "Total equity,18870,17774,15666",
 ].join("\n");
 let csvPath = path.join(dir, "statements-fy2025.csv");
 fs.writeFileSync(csvPath, csv);
@@ -136,6 +146,16 @@ if (ladderState !== "completed") { console.log(JSON.stringify({ timings: t, asks
 await page.waitForSelector(".sp-fin", { timeout: 10000 });
 await page.waitForTimeout(9000);
 const finText = await page.textContent(".sp-fin");
+/* THE GHOST REGISTER, RECONCILED (0.9.32). Derived on the page from the two
+   readings of the same statement, never a constant. Read while the room is
+   still open, which is the only place it exists. */
+const ghost = {
+  recon: ((await page.textContent(".rg-recon").catch(() => "")) || "").trim(),
+  statements: await page.$$eval(".rg-sel option", (ns) => ns.map((n) => n.textContent)).catch(() => []),
+  verdicts: await page
+    .$$eval(".sp-fin .rg-t tbody tr[data-verdict]", (ns) => ns.map((n) => n.dataset.verdict))
+    .catch(() => []),
+};
 const roomText = await page.textContent("[aria-label='Spread financials']");
 const proseText = (await page.textContent(".sp-prose").catch(() => "")) || "";
 // activity + Financials tab
@@ -168,6 +188,9 @@ const out = {
   activity: { found: hadAct, mentionsStub: /Boom \(stub, provisional\)/.test(actTab) },
   boomStubCalls: boomCalls.length, boomToolsSeen: [...new Set(boomCalls)],
   iris: /iris/i.test(roomText + finTab + actTab + finText), emDash: /—/.test(roomText0 + roomText + finText + proseText),
+  /* THE GHOST REGISTER, RECONCILED (0.9.32). Derived on the page from the two
+     readings of the same statement, never a constant. */
+  ghost,
   pageErrors: errors,
 };
 console.log(JSON.stringify(out, null, 2));

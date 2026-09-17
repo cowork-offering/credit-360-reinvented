@@ -493,24 +493,120 @@
   font-size: 14px;
   color: var(--ink-strong);
 }
-.sp-plan-n {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--ink-muted);
-}
 .sp-plan-w {
   margin: 0;
   font-size: 12.5px;
   color: var(--warning-prose);
 }
 
-/* WHAT THE FILE READS AS, BEFORE IT GOES. Four lines at most, in a block of the
-   sheet's own rather than a card inside a card, because a provisional panel of
-   tiles under an unsent plan read as a spread that had already happened. */
-.sp-brief p {
+/* ------------------------------------------------------------ the confirm beat
+
+   0.9.32. One banker sentence, the plan's own summary under it, and the ink
+   commit pill: the ONE control in this room that is not glass (rule 27/41). The
+   READ AS / STATEMENTS / PERIODS table that stood here is gone, because the
+   ghost register below already carries every one of those facts. */
+/* The sentence reads left, the commit sits right: one beat on one line, the
+   prototype's own arrangement. Below the fold of a narrow room it wraps and the
+   pill drops under the sentence rather than shrinking it. */
+.sp-confirm {
+  display: flex;
+  /* EXPLICIT, because `.wk-sheet-sec` is a column and a row that forgot to say
+     so wraps into two columns with the pill floating in the middle of them. */
+  flex-direction: row;
+  align-items: center;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.sp-confirm-say {
+  flex: 1 1 380px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sp-confirm-l {
   margin: 0;
   font-size: 12.5px;
+  line-height: 1.55;
   color: var(--ink-body);
+}
+.sp-confirm .sp-plan-s {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.sp-confirm .sp-go {
+  flex: none;
+}
+
+/* ---------------------------------------------------------- the reading rail
+
+   NOT A SIDEBAR (design 0.9.32). Three labelled lines under the receipts, the
+   caption band of the register rather than a column of chrome beside it: what
+   Boom is doing in its own four words, what happens when it answers, and the
+   real doors this relationship has while it reads. */
+.sp-rail {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+}
+.sp-rail dt {
+  padding-top: 1px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+.sp-rail dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-body);
+}
+.sp-rail dd em {
+  font-style: normal;
+  color: var(--ink-faint);
+}
+.sp-doors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+/* A DOOR IS GLASS. Nothing on this rail commits anything, so nothing on it is
+   ink (rule 27/41). */
+.sp-door {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--glass-hairline);
+  box-shadow: var(--glass-rim);
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.sp-door:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--accent-hairline);
+}
+.sp-door:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (max-width: 860px) {
+  .sp-rail {
+    grid-template-columns: 1fr;
+    gap: 2px 0;
+  }
+  .sp-rail dt {
+    padding-top: 7px;
+  }
 }
 
 /* --------------------------------------------------------- the receipts
@@ -644,11 +740,6 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-.sp-wait-x {
-  margin: 0;
-  font-size: 11px;
-  color: var(--ink-faint);
 }
 .sp-wait-l {
   margin: 0;

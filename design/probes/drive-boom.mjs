@@ -30,6 +30,17 @@
      6  never verified   nothing in the run returns `verified`, a validated
                          statement or a validation URL: verification is an
                          analyst's act inside Boom and no stub may claim one
+     8  the ghost      THE 0.9.32 BEATS, on the built page, with the banker
+                         STAYING in the room: the pre-read stands as the register
+                         before Boom is called (faint, no chips, labelled as the
+                         file's own reading), the confirm is one banker sentence
+                         and one ink pill, the rail carries Boom's four words and
+                         real doors, and at the arrival Boom's lines light those
+                         same rows, the fold dissolves, the flagged sign carries
+                         the page's figure struck beside Boom's, the
+                         reconciliation is DERIVED from the two sides, a pin set
+                         on the ghost is answered by name, and the room ends in
+                         two GLASS doors
      7  the wait follows THE 0.9.31 REQUIREMENT, on the built page rather than at
                          the wire: drop a statement, LEAVE the Spreading room for
                          the worklist, and the header carries the indicator with
@@ -91,24 +102,54 @@ const ROOT = `${HERE}../..`;
 const BUNDLE = `${ROOT}/app/dist/cockpit.html`;
 const SAMPLE = readFileSync(`${HERE}lib/stub-sample.js`, "utf8");
 
-/** One statement, this borrower's own name on it, so the room's company ask
- *  resolves rather than asking the drive to answer it. */
+/** THE STATEMENT AS A PAGE PRINTS IT, with this borrower's own name on it so
+ *  the room's company ask resolves rather than asking the drive to answer it.
+ *
+ *  AND IT IS NOT THE SPREAD (0.9.32). The figures are Piedmont's own, so the
+ *  room's pre-read and the stub's Boom answer are two readings of ONE statement
+ *  and the ghost register can be reconciled against it. Two of the lines are the
+ *  whole point:
+ *    THE FOLD  the page prints SG and A and D and A on their own lines; Boom
+ *              returns one `total_operating_expenses` line carrying their sum.
+ *    THE SIGN  the page prints the tax provision as a positive number in a
+ *              deduction position; Boom flags it `flipSign`, so the register
+ *              carries it negative and the page's figure is struck beside it. */
 const STATEMENT_CSV = `${OUT}/statements-fy2025.csv`;
 writeFileSync(
   STATEMENT_CSV,
   [
     COMPANY,
     "Income Statement (in thousands)",
-    "Fiscal year ended December 31,2025,2024",
-    "Net sales revenue,71200,64486",
-    "Cost of sales,49840,45140",
-    "Gross profit,21360,19346",
-    "Operating expenses,15960,14100",
-    "Operating profit,5400,5246",
-    "Interest expense,1750,1989",
-    "Net income,2700,2400",
+    "Fiscal year ended December 31,2025,2024,2023",
+    "Net Sales,64486,59915,56266",
+    "Cost of Sales,50422,45371,40829",
+    "Gross Profit,14064,14544,15437",
+    '"Selling, General and Administrative",8830,8800,8743',
+    "Depreciation and Amortization,2396,2189,2009",
+    "Income from Operations,2838,3555,4685",
+    "Interest Expense,(1076),(1019),(947)",
+    '"Other Income (Expense), Net",55,(45),71',
+    "Income before Income Taxes,1817,2491,3809",
+    "Provision for Income Taxes,427,623,936",
+    "Net Income,1390,1868,2873",
   ].join("\n"),
 );
+
+/** The printed lines above, in the order the page prints them. The ghost
+ *  register is asserted against this list and not against a count. */
+const PRINTED_LINES = [
+  "Net Sales",
+  "Cost of Sales",
+  "Gross Profit",
+  "Selling, General and Administrative",
+  "Depreciation and Amortization",
+  "Income from Operations",
+  "Interest Expense",
+  "Other Income (Expense), Net",
+  "Income before Income Taxes",
+  "Provision for Income Taxes",
+  "Net Income",
+];
 
 let site = null;
 
@@ -478,6 +519,243 @@ try {
     check("waitFollows", "the register is there on the way back in", registerRows > 0);
     check("waitFollows", "the arrival brief says what Boom found", /Boom found \d+ period/.test(brief));
     check("waitFollows", "and the pill clears once it has been looked at", clearedOnLook === 0);
+
+    await page.close();
+  }
+
+  /* ------------------------------------------- 8. the ghost register (0.9.32)
+
+     THE FOUR BEATS OF THE ROOM, on the BUILT PAGE, with the banker staying in
+     it. Scenario 7 proves the wait follows them out; this one proves what they
+     see if they stay.
+
+       ghost    the room's own pre-read IS the register before Boom is called:
+                every printed line, faint, chip column empty, labelled as the
+                file's own reading and not Boom's
+       confirm  one banker sentence and ONE ink pill, which is the only ink in
+                the room (rule 27/41)
+       reading  the guided rail: Boom's four words, what happens next, and real
+                doors computed from this relationship's own book
+       arrival  Boom's lines light those same rows, the two printed lines it
+                folded dissolve, the line it read the other way round carries
+                the file's own figure struck beside Boom's, the reconciliation
+                is DERIVED from the two sides, a pin set on the ghost survives
+                and is answered by name, and the room ends in two GLASS doors.  */
+  {
+    const page = await openCockpit(browser);
+    await page.evaluate(() => {
+      window.__LANES.boom.processingMs = 4000;
+    });
+
+    await page.click(`[data-open="${ACCOUNT}"]`);
+    await page.waitForSelector("#view-account .hero", { timeout: 15000 });
+    await page.click("#fab");
+    await page.waitForSelector("#actSpread", { state: "visible", timeout: 6000 });
+    await page.click("#actSpread");
+    await page.waitForSelector(".sp-body", { timeout: 6000 });
+    await page.setInputFiles("input.sp-file", STATEMENT_CSV);
+    await page.waitForSelector(".sp-cards", { timeout: 10000 });
+    for (let i = 0; i < 8; i += 1) {
+      if (await page.$(".sp-go")) break;
+      await page.waitForSelector(".sp-ask, .sp-go", { timeout: 15000 });
+      if (await page.$(".sp-go")) break;
+      await page.click(".sp-ask .sp-chip");
+      await page.waitForTimeout(400);
+    }
+    await page.waitForSelector(".sp-go", { timeout: 15000 });
+
+    /* THE GHOST, before Boom has been called at all. */
+    await page.waitForFunction(
+      (n) => document.querySelectorAll(".rg-t tbody tr").length >= n,
+      PRINTED_LINES.length,
+      { timeout: 15000 },
+    );
+    const ghostRows = await page.$$eval(".rg-t tbody tr", (ns) =>
+      ns.map((n) => ({
+        name: (n.querySelector(".rg-nm")?.textContent || "").trim(),
+        ghost: n.hasAttribute("data-ghost"),
+      })),
+    );
+    const ghostLine = ((await page.textContent(".rg-line")) || "").replace(/\s+/g, " ").trim();
+    const ghostChips = await page.$$eval(".rg-cat", (ns) => ns.length);
+    const confirmLine = ((await page.textContent(".sp-confirm-l")) || "").replace(/\s+/g, " ").trim();
+    const inkAtConfirm = await page.$$eval(".eg-btn-ink", (ns) =>
+      ns.map((n) => n.textContent.trim()),
+    );
+
+    /* A PIN, SET ON THE GHOST: it has to survive the wait and be answered by
+       name in the arrival brief. */
+    const PIN = "Net Sales";
+    await page.click('.rg-t tbody tr[data-row="net sales"] .rg-pin');
+    const pinnedOnGhost = await page.$$eval("tr[data-pin] .rg-nm", (ns) => ns.map((n) => n.textContent.trim()));
+
+    await page.click(".sp-go");
+
+    /* THE READING BEAT. */
+    await page.waitForSelector(".sp-rail", { timeout: 20000 });
+    const railHeads = await page.$$eval(".sp-rail dt", (ns) => ns.map((n) => n.textContent.trim()));
+    const railDoing = ((await page.textContent(".sp-rail dd")) || "").replace(/\s+/g, " ").trim();
+    const railDoors = await page.$$eval(".sp-rail .sp-door", (ns) =>
+      ns.map((n) => ({ door: n.dataset.door, label: n.textContent.trim(), ink: n.classList.contains("eg-btn-ink") })),
+    );
+    const leaveLine = ((await page.textContent(".sp-wait-l")) || "").trim();
+    const ghostDuringWait = await page.$$eval(".rg-t tbody tr[data-ghost]", (ns) => ns.length);
+
+    /* THE ARRIVAL. The reconciliation is written once the fold has settled. */
+    await page.waitForSelector(".rg-recon", { timeout: 40000 });
+    const recon = ((await page.textContent(".rg-recon")) || "").trim();
+    const litRows = await page.$$eval(".sp-fin .rg-t tbody tr", (ns) =>
+      ns.map((n) => ({
+        name: (n.querySelector(".rg-nm")?.textContent || "").trim(),
+        code: (n.querySelector(".rg-cat-l")?.textContent || "").trim(),
+        verdict: n.dataset.verdict || null,
+        note: (n.querySelector(".rg-note")?.textContent || "").trim(),
+        was: (n.querySelector(".rg-was")?.textContent || "").trim(),
+        pinned: n.hasAttribute("data-pin"),
+      })),
+    );
+    /* WAITED ON THE WHOLE SENTENCE. The brief TYPES, and a pinned line read at
+       its third word is a pinned line half written. */
+    await page.waitForFunction(
+      () => /You pinned .+\. Boom kept it as it stands\./.test(document.querySelector(".sp-arrive")?.textContent || ""),
+      null,
+      { timeout: 30000 },
+    );
+    const brief = ((await page.textContent(".sp-arrive")) || "").replace(/\s+/g, " ").trim();
+    const endDoors = await page.$$eval(".wk-sheet-acts > *", (ns) =>
+      ns.map((n) => ({ label: n.textContent.trim(), ink: n.classList.contains("eg-btn-ink"), cls: n.className })),
+    );
+    const inkAtEnd = await page.$$eval(".eg-btn-ink", (ns) => ns.length);
+
+    /* THE SENTENCE IS DERIVED, NOT A CONSTANT: every number in it has to
+       reconcile with the rows the page actually drew, on both sides of Boom. */
+    const said = /Boom kept (\d+) of the (\d+) lines/.exec(recon);
+    const foldSaid = /folded (\d+) into (\d+)/.exec(recon);
+    const signSaid = /read (\d+) with the opposite sign/.exec(recon);
+    const derived = said
+      ? {
+          kept: Number(said[1]),
+          read: Number(said[2]),
+          folded: foldSaid ? Number(foldSaid[1]) : 0,
+          foldedInto: foldSaid ? Number(foldSaid[2]) : 0,
+          sign: signSaid ? Number(signSaid[1]) : 0,
+        }
+      : null;
+
+    results.ghostRegister = {
+      ghostRows: ghostRows.map((r) => r.name),
+      ghostLine,
+      ghostChips,
+      confirmLine,
+      inkAtConfirm,
+      pinnedOnGhost,
+      railHeads,
+      railDoing,
+      railDoors,
+      leaveLine,
+      ghostDuringWait,
+      recon,
+      derived,
+      litRows,
+      brief: brief.slice(0, 500),
+      endDoors,
+      inkAtEnd,
+    };
+
+    check(
+      "ghostRegister",
+      "the register stands before Boom is called, and it is the page's own lines in its own order",
+      ghostRows.length === PRINTED_LINES.length && ghostRows.every((r, i) => r.name === PRINTED_LINES[i]),
+    );
+    check("ghostRegister", "in faint ink, every row of it", ghostRows.every((r) => r.ghost));
+    check("ghostRegister", "with the chip column empty, because a code is Boom's to give", ghostChips === 0);
+    check(
+      "ghostRegister",
+      "and it says whose reading it is, from which file, over which periods, at which scale",
+      /^Not yet mapped by Boom/.test(ghostLine) &&
+        /statements-fy2025\.csv/.test(ghostLine) &&
+        /FY2023, FY2024, FY2025/.test(ghostLine) &&
+        /thousands, as printed/.test(ghostLine),
+    );
+    check(
+      "ghostRegister",
+      "the confirm is one banker sentence naming the files, the relationship and Boom's Account Id",
+      /^Start Boom reading (this file|these \d+ files) for .+\. Boom registers the borrower under its Account Id 001[A-Za-z0-9]+ and reads each file on its own\./.test(
+        confirmLine,
+      ),
+    );
+    check(
+      "ghostRegister",
+      "and exactly one thing in the room is ink: the commit (rule 27/41)",
+      inkAtConfirm.length === 1 && inkAtConfirm[0] === "Confirm and spread",
+    );
+    check("ghostRegister", "a pin set on the ghost holds", pinnedOnGhost.length === 1 && pinnedOnGhost[0] === PIN);
+    check(
+      "ghostRegister",
+      "the rail carries its four sections",
+      railHeads.join(" | ") === "What Boom is doing | What happens next | Meanwhile" &&
+        /^You can leave this room\./.test(leaveLine),
+    );
+    check(
+      "ghostRegister",
+      "and Boom's own state word, with nothing invented between the rungs",
+      /processing, completed, verified or failed/.test(railDoing),
+    );
+    /* THE DOORS ARE COMPUTED, WHICH IS WHY THIS IS A SUBSEQUENCE AND NOT A LIST.
+       A relationship with no covenant package and one with no spread on file
+       each simply have one door fewer: a door with nothing behind it is not
+       drawn. What is asserted is the ORDER, that the two computed ones carry the
+       book's own figures wherever they ARE drawn, and that every one is glass. */
+    const DOOR_ORDER = ["covenants", "lastSpread", "financials", "worklist"];
+    const drawn = railDoors.map((d) => d.door);
+    const covenantDoor = railDoors.find((d) => d.door === "covenants");
+    const spreadDoor = railDoors.find((d) => d.door === "lastSpread");
+    check(
+      "ghostRegister",
+      "the doors on it are this relationship's own, computed and in order, and every one is glass",
+      drawn.every((d, i) => DOOR_ORDER.indexOf(d) > (i ? DOOR_ORDER.indexOf(drawn[i - 1]) : -1)) &&
+        drawn.includes("financials") &&
+        drawn.includes("worklist") &&
+        (!covenantDoor || /^\d+ covenants? on this relationship$/.test(covenantDoor.label)) &&
+        (!spreadDoor || /^The FY\d{4} spread already on file$/.test(spreadDoor.label)) &&
+        railDoors.every((d) => !d.ink),
+    );
+    check("ghostRegister", "the ghost stands through the whole wait", ghostDuringWait === PRINTED_LINES.length);
+    check(
+      "ghostRegister",
+      "Boom's lines light those same rows, chips and all",
+      litRows.length > 0 && litRows.every((r) => r.code.length > 0),
+    );
+    check(
+      "ghostRegister",
+      "the line Boom folded says what it folded, and the printed lines it took are gone",
+      litRows.some((r) => r.verdict === "fold" && /folded 2 printed lines into this one/.test(r.note)) &&
+        !litRows.some((r) => r.name === "Selling, General and Administrative"),
+    );
+    check(
+      "ghostRegister",
+      "the line Boom read the other way round says so, with the file's own figure struck beside it",
+      litRows.some((r) => r.verdict === "sign" && /opposite sign/.test(r.note) && r.was.length > 0),
+    );
+    check("ghostRegister", "the reconciliation is one banker sentence", /^Boom kept \d+ of the \d+ lines/.test(recon));
+    check(
+      "ghostRegister",
+      "and it is DERIVED: its counts reconcile with the rows the page drew, on both sides",
+      derived !== null &&
+        derived.read === ghostRows.length &&
+        derived.foldedInto === litRows.filter((r) => r.verdict === "fold").length &&
+        derived.sign === litRows.filter((r) => r.verdict === "sign").length &&
+        derived.kept === litRows.filter((r) => r.verdict === "kept").length &&
+        derived.kept + derived.sign + derived.folded === derived.read,
+    );
+    check("ghostRegister", "the pin survives to the arrival", litRows.some((r) => r.pinned && r.name === PIN));
+    check("ghostRegister", "and the brief answers it by name", new RegExp(`You pinned ${PIN}\\. Boom kept it`).test(brief));
+    check(
+      "ghostRegister",
+      "the room ends in exactly two doors, and both are GLASS",
+      endDoors.length === 2 && endDoors.every((d) => !d.ink && /wk-sheet-(go|back)/.test(d.cls)),
+    );
+    check("ghostRegister", "no ink is left in the room once the commit has happened", inkAtEnd === 0);
     await page.close();
   }
 

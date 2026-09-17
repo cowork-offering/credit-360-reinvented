@@ -2,6 +2,40 @@
 
 ## Changelog
 
+- **0.9.32 (2026-09-17)** THE GHOST REGISTER. Founder, on 0.9.31 live: "the spreading workroom still says only
+  reading ... not really guiding and interactive i need to make even the first iterations more cinematic". The room
+  already reads every printed line and figure off each file before Boom is called at all, and 0.9.31 spent that on a
+  five-row READ AS / STATEMENTS / PERIODS table and then made the banker watch a clock. THE PRE-READ IS NOW THE
+  REGISTER ITSELF (`components/workroom/register/ghostModel.ts`): each file's own statement, every line in the order
+  the page prints them, at the scale the page states, drawn on the SAME grid Boom's spread lands on. Faint ink, the
+  chip column reserved and RULED so not one row moves when the codes settle, rows appended one per beat rather than
+  pre-laid, the statement select meaningful from the first beat, and a pin on every row. The line above it says whose
+  reading it is and never Boom's: "Not yet mapped by Boom, the file, the periods, the units as printed". THE CONFIRM
+  IS A BEAT: one banker sentence naming the file count, the relationship and the Account Id Boom registers the
+  borrower under, the observed expectation line only where this page has watched Boom finish a set that size, and ONE
+  ink commit pill, which is the only ink in the room (rule 27/41). THE READING BEAT GUIDES rather than counts: the
+  receipts keep the filling ">", Boom's own state word and the elapsed clock, and a rail under them carries what Boom
+  is doing in its four words (nothing between them), what happens when it answers, and REAL doors computed from this
+  relationship's own book (the covenants with the book's count, the last spread on file, the Financials tab, back to
+  the worklist), with the leave sentence beneath. THE ARRIVAL LIGHTS THE GHOST IN PLACE: the chips settle at the
+  beat, pinned rows first; the lines Boom folded dissolve from their own left edge and the line they became settles
+  into the gap; the file's figure is struck beside Boom's where the two differ; the brief types in and answers each
+  pinned row with what Boom actually did to it. THE RECONCILIATION IS DERIVED, never a constant: Boom's lines are
+  matched to the printed ones by name, by figure and by adjacent sum, and the sentence reads "Boom kept 8 of the 11
+  lines this room read off the page as they stand, folded 2 into 1 and read 1 with the opposite sign" on the live
+  Piedmont pair, and is absent where Boom changed nothing. The validation word comes off Boom's own rung (a
+  `completed` file reads "Not validated in Boom"), a statement Boom did not return stands unmapped and says so, a
+  file Boom refused says that instead, and the room never says "The spread is in" over a set Boom returned nothing
+  for. The room still ends in exactly two doors and BOTH are glass: the commit already happened at the confirm.
+  Reduced motion reaches every one of those facts in one commit. Proof: 41 new vitest cases on the live Boom fixtures
+  (suite 237 files, 5,596 passing), `drive-boom.mjs` gains an eighth scenario on the built page with the banker
+  staying in the room (8 scenarios, 75 assertions), `spread-e2e.mjs` green and now reconciling the same 8 kept, 2
+  folded into 1, 1 opposite sign on the page. The stub lane mirrors the LIVE Piedmont income statement whole (row 52
+  rule), including the one operating-expense line the page prints as two and the tax provision Boom flags. Screenshots
+  `knowledge/proofs/0932-build/`. Design `knowledge/DESIGN-0.9.32-GHOST-REGISTER.md`. Bundle 2,205,841 bytes
+  (+17.7 KB over 0.9.31: the ghost model, the two-state register and the rail, which is the whole of the feature).
+  Backlog 75.
+
 - **0.9.31 (2026-09-16)** THE SPREADING STAGE, AND THE WAIT THAT FOLLOWS THE BANKER. After the first live Boom drop the
   founder asked for one thing above all: "so i can leave the workroom of spreading and there is a progress indicator
   somewhere?" Boom takes five to seven minutes on a real statement set and the poll lived inside the room, so closing

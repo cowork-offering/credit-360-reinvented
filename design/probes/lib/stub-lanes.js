@@ -1011,13 +1011,18 @@
     { id: "p2025", endDate: "2025-12-31", periodType: "annual" },
   ];
 
-  function boomLine(id, name, code, hierarchy, v23, v24, v25) {
+  function boomLine(id, name, code, hierarchy, v23, v24, v25, flipSign) {
     return {
       id: id,
       name: name,
       hierarchy: hierarchy,
       accountCode: code,
-      flipSign: false,
+      /* BOOM'S OWN MARKER that a line's printed sign is not the sign its
+         aggregate carries. The live Piedmont read carries it on exactly one
+         line, the provision for income taxes, and the stub mirrors that (row 52
+         rule): a stand-in that never flags a sign lets the room's ghost
+         reconciliation pass a test the live wire would fail. */
+      flipSign: flipSign === true,
       periodValues: { p2023: v23, p2024: v24, p2025: v25 },
     };
   }
@@ -1066,6 +1071,14 @@
     ];
   }
 
+  /* THE INCOME STATEMENT BOOM ACTUALLY RETURNED for Piedmont, line for line
+     (`app/src/__fixtures__/boom-live/spread-piedmont.json`, read 2026-09-15).
+     Two of these lines are the reason the set is mirrored whole rather than
+     trimmed (row 52 rule): `total_operating_expenses` is ONE Boom line where
+     the printed statement shows SG and A and D and A separately, which is the
+     FOLD the ghost register reconciles; and `current_income_tax` carries
+     `flipSign`, which is the SIGN it reconciles. A stub without them lets the
+     drive pass a page the live wire would light up differently. */
   function boomStatements(fileId) {
     var lines = [
       boomLine(fileId + "-l1", "Net Sales", "net_sales_revenue", "line_item", 56266000, 59915000, 64486000),
@@ -1074,7 +1087,10 @@
       boomLine(fileId + "-l4", "Operating Expenses", "total_operating_expenses", "line_item", 10752000, 10989000, 11226000),
       boomLine(fileId + "-l5", "Income from Operations", "operating_profit", "subtotal", 4685000, 3555000, 2838000),
       boomLine(fileId + "-l6", "Interest Expense", "interest_expense", "line_item", -947000, -1019000, -1076000),
-      boomLine(fileId + "-l7", "Net Income", "net_income", "total", 2873000, 1868000, 1390000),
+      boomLine(fileId + "-l7", "Other Income (Expense), Net", "other_income", "line_item", 71000, -45000, 55000),
+      boomLine(fileId + "-l8", "Income before Income Taxes", "profit_before_taxes", "total", 3809000, 2491000, 1817000),
+      boomLine(fileId + "-l9", "Provision for Income Taxes", "current_income_tax", "line_item", 936000, 623000, 427000, true),
+      boomLine(fileId + "-l10", "Net Income", "net_income", "total", 2873000, 1868000, 1390000),
     ];
     return [{
       id: fileId + "-s1",

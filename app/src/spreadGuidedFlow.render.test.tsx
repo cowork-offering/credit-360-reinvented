@@ -182,28 +182,33 @@ describe("the column reads in one order", () => {
     expect(order(room).at(-1)).toBe("sp-drop");
   });
 
-  it("puts the action LAST and opens no financials panel before the spread", async () => {
+  it("puts the action LAST and claims no figure of Boom's before the spread", async () => {
     const room = open();
     await drop(room);
     const column = order(room);
     // The sheet is the last thing that is CONTENT; under it sits only the quiet
     // "drop another" affordance.
     expect(column.filter((c) => c !== "sp-drop").at(-1)).toBe("sp-act");
-    expect(room.querySelector(".sp-fin")).toBeNull();
+    // The tiles and the trend are the ARRIVAL'S alone: a tile over a spread
+    // nobody has sent is a figure claiming to be Boom's.
     expect(room.querySelector(".sp-tiles")).toBeNull();
     expect(room.querySelector(".sp-trend")).toBeNull();
-    expect(room.querySelector(".rg")).toBeNull();
-    // What the file reads as is INSIDE the plan, in four lines at most.
-    const brief = room.querySelectorAll(".sp-brief p");
-    expect(brief.length).toBeGreaterThan(0);
-    expect(brief.length).toBeLessThanOrEqual(4);
+    // THE GHOST STANDS (0.9.32): the register is the room's own pre-read, in
+    // faint ink, and it says so.
+    const rows = room.querySelectorAll(".rg-t tbody tr");
+    expect(rows.length).toBeGreaterThan(0);
+    expect([...rows].every((tr) => tr.hasAttribute("data-ghost"))).toBe(true);
+    expect(room.querySelector(".rg-line")?.textContent).toContain("Not yet mapped by Boom");
+    // Nothing carries an account code, because a code is Boom's to give.
+    expect(room.querySelector(".rg-cat")).toBeNull();
   });
 
-  it("wears the filed sheet's glass doors rather than a solid pill of its own", async () => {
+  it("commits in ink and leaves in glass (rule 27/41)", async () => {
     const room = open();
     await drop(room);
     const go = room.querySelector(".sp-go")!;
-    expect(go.classList.contains("wk-sheet-go")).toBe(true);
+    expect(go.classList.contains("eg-btn-ink")).toBe(true);
+    expect(go.classList.contains("wk-sheet-go")).toBe(false);
     expect(go.textContent).toBe("Confirm and spread");
     expect(room.querySelector(".sp-back")?.classList.contains("wk-sheet-back")).toBe(true);
   });
@@ -229,7 +234,7 @@ describe("the column reads in one order", () => {
    the end of the modification room rather than as a fourth idea of a summary.
    ============================================================================= */
 describe("the room ends on the filed sheet's own register", () => {
-  it("opens the confirm as the sheet: the glass, the rainbow, the stamp and two doors", async () => {
+  it("opens the confirm as the sheet: the glass, the rainbow, the stamp, the ink pill and the way out", async () => {
     const room = open();
     await drop(room);
     const sheet = room.querySelector(".sp-act")!;
@@ -241,15 +246,16 @@ describe("the room ends on the filed sheet's own register", () => {
     expect(sheet.querySelector(".wk-sheet-s")?.textContent).toBe(`${COMPANY} · FY2025`);
     expect([...sheet.querySelectorAll(".wk-sheet-sec")].map((n) => n.getAttribute("data-block"))).toEqual([
       "plan",
-      "read",
+      "financials",
     ]);
 
-    // The doors are the LAST row of the sheet, and there are exactly two.
+    // The doors are the LAST row of the sheet. The commit is the ink pill in the
+    // confirm beat above, so what is left here is the one way out (0.9.32).
     const acts = sheet.querySelector(".wk-sheet-acts")!;
     expect(sheet.lastElementChild).toBe(acts);
-    expect(acts.children).toHaveLength(2);
-    expect(acts.children[0].textContent).toBe("Confirm and spread");
-    expect(acts.children[1].textContent).toBe("Leave it for now");
+    expect(acts.children).toHaveLength(1);
+    expect(acts.children[0].textContent).toBe("Leave it for now");
+    expect(sheet.querySelector(".sp-confirm .sp-go")?.textContent).toBe("Confirm and spread");
   });
 
   it("carries the same node from the confirm through Boom to the spread", async () => {
@@ -465,9 +471,12 @@ describe("the room's voice", () => {
       ".wk-sheet-s",
       ".wk-sheet-k",
       ".sp-plan-s",
-      ".sp-plan-n",
+      ".sp-confirm-l",
       ".sp-plan-w",
-      ".sp-brief p",
+      ".sp-rail dd",
+      ".rg-line",
+      ".rg-recon",
+      ".rg-note",
       ".sp-stall",
       ".wk-sheet-acts",
       ".sp-prose",
