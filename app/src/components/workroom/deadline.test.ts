@@ -127,7 +127,7 @@ describe("withDeadline", () => {
 
 describe("the budgets", () => {
   it("are the five the rooms were specified with", () => {
-    expect(DEADLINES).toEqual({ stage: 32_000, execute: 45_000, read: 15_000, narrate: 40_000, steer: 30_000 });
+    expect(DEADLINES).toEqual({ stage: 32_000, execute: 90_000, read: 15_000, narrate: 40_000, steer: 30_000 });
   });
 
   /* 0.9.29. THE STAGE BUDGET IS NOT A ROUND NUMBER, IT IS AN ARITHMETIC. It has

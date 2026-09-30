@@ -1282,7 +1282,7 @@ export function ActionPanel({
         setToolError({
           code: "TRANSPORT",
           message:
-            "The org has not answered in 45 seconds. I will not tell you this failed, because I cannot see that. " +
+            `The org has not answered in ${Math.round(DEADLINES.execute / 1000)} seconds. I will not tell you this failed, because I cannot see that. ` +
             "Check the record in Salesforce before sending it again; nothing here has changed.",
           resumable: true,
         });

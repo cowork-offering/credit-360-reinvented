@@ -6061,7 +6061,7 @@ export function Workroom({
 
          Null means the room has already said what happened and there is no card
          to land. */
-      const waitOut = async (refusal: unknown): Promise<WorkroomExecution | null> => {
+      const waitOut = async (refusal: unknown, first?: Promise<WorkroomExecution>): Promise<WorkroomExecution | null> => {
         const verdict = await awaitFiling(context.accountId, staging.stagingId, settleDeps);
         setFlow((f) => (f ? { ...f, running: false } : f));
         /* THE TOKEN WAS NEVER REDEEMED, so the refusal the room is already
@@ -6083,10 +6083,19 @@ export function Workroom({
            answers a spent key off the staging record before any check runs and
            has been measured at 0.27s doing it, so a call that has not answered
            in the execute budget is a call that will not. */
-        return byDeadline(engine.execute(approval), "execute", "the filing");
+        /* THE FIRST ANSWER MAY LAND WHILE THE ROOM READS THE TRAIL (2026-09-30,
+           STG-0000000186: the two-hop modification answered at 45 s, the engine
+           marked its token spent, and the replay was refused by the room's own
+           guard, "This confirmation has already been used", over a run the org
+           had completed). Whichever of the two asks answers first is the
+           filing; the room's refusal of its own replay is never the verdict. */
+        const replay = engine.execute(approval);
+        const asks = first ? Promise.any([first, replay]).catch((agg: AggregateError) => Promise.reject(agg.errors[agg.errors.length - 1])) : replay;
+        return byDeadline(asks, "execute", "the filing");
       };
 
       let landed: WorkroomExecution | null;
+      let first: Promise<WorkroomExecution> | undefined;
       if (resume) {
         // THE STATUS CHIP. The plan is already with the org under a spent token,
         // so this re-enters the wait and never the approval.
@@ -6101,7 +6110,8 @@ export function Workroom({
              answer does, and the org's own staging record says what happened.
              `nothingWasFiled` cannot claim a deadline: it has no `dispatched`
              stamp and no channel-none code, which is the whole design. */
-          landed = await byDeadline(engine.execute(approval), "execute", "the filing");
+          first = engine.execute(approval);
+          landed = await byDeadline(first, "execute", "the filing");
         } catch (e) {
           /* THE ANSWER WAS LOST, NOT THE FILING. Only a failure that PROVES
              nothing was written skips the wait; everything else is ambiguous,
@@ -6109,7 +6119,7 @@ export function Workroom({
              one read a second and can never write. */
           if (nothingWasFiled(e)) throw e;
           agent(isDeadline(e) ? executeDeadlineLine(e) : FILING_IN_FLIGHT);
-          landed = await waitOut(e);
+          landed = await waitOut(e, first);
         }
       }
       if (!landed) return;

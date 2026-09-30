@@ -87,8 +87,14 @@ export const DEADLINES = {
    *  own staging record and reports what it holds, which is a better instrument
    *  than more waiting. The write door still carries a LOST execute answer at
    *  the seam; what this bounds is how long the room sits before it starts
-   *  reading the record instead. */
-  execute: 45_000,
+   *  reading the record instead.
+   *
+   *  90 s SINCE 0.9.34 (2026-09-30). A modification is two relay hops (engine,
+   *  then arm), measured live on STG-0000000186 at 21.3 s and 22.8 s, 43 s from
+   *  token to executed: the old 45 s clock tripped on an ordinary run and the
+   *  room told the banker it had not answered. Two hops plus margin; the relay's
+   *  own ceiling is 120 s per hop. */
+  execute: 90_000,
   /** Any read a room opens on, or refreshes with. */
   read: 15_000,
   /** One memo section, streamed off the desk. */

@@ -880,7 +880,7 @@ export function MemoRoom({ ctx, dossier, changes, greeting, filed, settled = tru
     if (!attested || publishing || published) return;
     setPublishing(true);
     /* THE PUBLISH CARRIES THE WRITE BUDGET. It is five connector writes behind
-       one gesture; past forty-five seconds the room stops waiting on the socket
+       one gesture; past the execute budget the room stops waiting on the socket
        and says what it knows, which is that it cannot see the outcome. */
     let result: Awaited<ReturnType<typeof publish>>;
     try {
@@ -890,7 +890,7 @@ export function MemoRoom({ ctx, dossier, changes, greeting, filed, settled = tru
       say(
         "agent",
         isDeadline(e)
-          ? "The publish call has not answered in 45 seconds. I will not tell you it failed, because I cannot see that. " +
+          ? `The publish call has not answered in ${Math.round(DEADLINES.execute / 1000)} seconds. I will not tell you it failed, because I cannot see that. ` +
               "Check the memo in nCino before publishing again, and nothing here has changed in the meantime."
           : NOT_WIRED_LINE,
         true,

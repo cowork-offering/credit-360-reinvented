@@ -7,6 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { Workroom, neutralAsk, smartAsk, type RouterQuestion } from "./components/workroom/Workroom";
 import type { SmartOpening } from "./components/workroom/route";
 import type { SettleDeps } from "./components/workroom/settleExecution";
+import { DEADLINES } from "./components/workroom/deadline";
 import { clearComposed, createScriptedEngine, type WorkroomEngine } from "./workroom/engine";
 import { NO_CONNECTOR_REFUSAL } from "./workroom/explain";
 import { createModifyEngine } from "./workroom/modifyEngine";
@@ -1144,6 +1145,58 @@ describe("a filing whose answer was lost", () => {
     expect(room.querySelector(".wk-approve")).toBeNull();
     // Still ONE filing call, plus the one replay the chip spent.
     expect(executes).toBe(2);
+  });
+
+  it("lands the filing when the first answer arrives while the room reads the trail (STG-0000000186)", async () => {
+    /* THE LIVE SEQUENCE, 2026-09-30: the two-hop modification answered at the
+       execute clock; the room had already gone to the trail, the first answer
+       then landed and spent the token in the engine, and the replay was refused
+       by the engine's own guard. The room closed the approval over a filing the
+       org had completed. The clock is shortened so a test can reach it. */
+    const context = contextFor("modify");
+    const scripted = createScriptedEngine(context);
+    let releaseFirst: (() => void) | undefined;
+    let executes = 0;
+    let clock = 0;
+    const saved = DEADLINES.execute;
+    (DEADLINES as { execute: number }).execute = 30;
+    try {
+      const room = openWith(
+        context,
+        {
+          ...scripted,
+          execute: (approval) => {
+            executes += 1;
+            if (executes === 1) {
+              return new Promise((res, rej) => {
+                releaseFirst = () => scripted.execute(approval).then(res, rej);
+              });
+            }
+            return scripted.execute(approval);
+          },
+        },
+        {
+          readState: async () => {
+            releaseFirst?.();
+            await new Promise((r) => setTimeout(r, 0));
+            return { stagingId: "STG", status: "Completed" };
+          },
+          wait: async (ms: number) => {
+            clock += ms;
+          },
+          now: () => clock,
+        },
+      );
+      await approve();
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 120));
+      });
+      expect(room.textContent).not.toContain("already been used");
+      expect(room.querySelector(".wk-rescard")).toBeTruthy();
+      expect(executes).toBe(2);
+    } finally {
+      (DEADLINES as { execute: number }).execute = saved;
+    }
   });
 
   it("says a terminal failure as the org's own fact, and never as a timeout", async () => {

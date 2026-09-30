@@ -2,6 +2,18 @@
 
 ## Changelog
 
+- **0.9.34 (2026-09-30)** A FILED MODIFICATION IS NEVER CALLED A USED CONFIRMATION. Founder, live on Hartwell, the
+  same day 0.9.33 shipped: the rollback ran clean (STG-0000000185, 22 s at the relay) and the modification ended on
+  "This confirmation has already been used. Approval closed". The org had filed it: STG-0000000186 Completed, two relay
+  hops of 21.3 s and 22.8 s, 43 s from token to executed. The room's 45 s execute clock expired first, so it went to
+  the trail as designed; the first answer then landed late, the engine marked its token spent, and the room's replay
+  under the same key was refused by the engine's OWN guard before it reached the org. Fix (`Workroom.tsx` waitOut):
+  the room keeps the first ask and takes whichever of the two answers first, so its own refusal of its own replay is
+  never the verdict. And the clock: a modification is two hops by design (lesson 83), so `DEADLINES.execute` rises to
+  90 s, and the two sentences that hardcoded "45 seconds" (ActionPanel, MemoRoom) now read the clock. Test: the live
+  sequence reproduced with a shortened clock, and proven to fail without the fix. Gates: tsc 0; vitest 239 files,
+  5631 passed; Hartwell drive run alone on the 0.9.34 bundle; bundle 2,211,967 bytes.
+
 - **0.9.33 (2026-09-30)** THE ROLLBACK SAYS WHICH VERSION, AND SHOWS IT IS WORKING. Founder, 2026-09-29, after his
   first live rollback from the stage: "it says it has executed it however the records are still there", and "it
   basically looks like its stuck ... it stayed static". Both were true and neither was a failed write. STG-0000000183
