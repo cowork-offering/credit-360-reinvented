@@ -100,6 +100,8 @@
  * with a result id is armable (`assertArmable`, which consumes nothing), anything else terminal is
  * replayed here without a round trip, and a fresh run is checked with `assertClaimable`. A hop that
  * fails leaves the token unconsumed and the row exactly where it was, so the same call is the retry.
+ * The inner leg takes the staging row's lock before it forks, so a second execute that arrives while
+ * a run is live is refused RUN_IN_FLIGHT instead of being admitted beside it (29 Sep, STG-0000000183).
  *
  * Org contract: SPEC-0.9.23-TOOL-CONTRACT.md pair 2.
  */
@@ -139,6 +141,13 @@ global with sharing class ExecuteDiscardVersion {
     private static final String RELAY_UNAVAILABLE =
         'The execution path into the org is unavailable, so nothing was attempted and nothing was written. ' +
         'The decision token has not been used: retry this same call once the path is back.';
+
+    /**
+     * What a second execute hears while the first is still deleting. It is not an error for the
+     * banker: the run he confirmed is live, and the staging row will say how it ended.
+     */
+    private static final String RUN_IN_FLIGHT =
+        'This rollback is still running in Salesforce. Nothing needs to be pressed; the page will settle when it finishes.';
 
     /**
      * THE REFUSAL SEAM, and why a delete chain needs one.
@@ -312,6 +321,9 @@ global with sharing class ExecuteDiscardVersion {
         } catch (C360Facilities.SelectionException e) {
             res.ok = false;
             res.error = err('VALIDATION_FAILED', e.getMessage(), null, null, false, req.idempotencyKey);
+        } catch (C360ActionStaging.RunInFlightException e) {
+            res.ok = false;
+            res.error = err('RUN_IN_FLIGHT', RUN_IN_FLIGHT, e.getMessage(), null, false, req.idempotencyKey);
         } catch (C360ActionStaging.StagingException e) {
             res.ok = false;
             res.error = err('TOKEN_REFUSED', e.getMessage(), null, null, false, req.idempotencyKey);
@@ -661,6 +673,14 @@ global with sharing class ExecuteDiscardVersion {
 
         Id approver = C360Plan.asId(req.approverUserId);
 
+        // ONE RUN AT A TIME. The fork below reads the row's committed state, and a run in flight has
+        // committed nothing yet: its row still reads Staged, or Executing from the stop it is
+        // resuming, so the fork alone would admit a second run beside it (STG-0000000183, 29 Sep).
+        // Taking the row lock first makes every read below see the state the last run LEFT, and a
+        // caller that cannot get it is refused RUN_IN_FLIGHT having read and written nothing. A
+        // stopped run holds no lock, so its resume is unchanged. See C360ActionStaging.lockForRun.
+        C360ActionStaging.lockForRun(req.stagingId);
+
         // The resume fork, and the whole of it turns on the staging status.
         //
         //   Executing + a result id  = a chain that stopped mid-way. assertArmable admits exactly
@@ -712,9 +732,13 @@ global with sharing class ExecuteDiscardVersion {
         // A version that is already gone is a completed run whose outcome was never written: the
         // package delete landed and the transaction died before recordOutcome. Report it as such
         // rather than refusing on a package that cannot be read.
-        Boolean versionResolves = [
-            SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionPackageId WITH USER_MODE
-        ] > 0;
+        // The Name is read here, before anything is deleted, because it is the only moment it can be:
+        // the step details name the package in banker words rather than by its id (lesson 82).
+        List<LLC_BI__Product_Package__c> versionRows = [
+            SELECT Name FROM LLC_BI__Product_Package__c WHERE Id = :versionPackageId WITH USER_MODE
+        ];
+        Boolean versionResolves = !versionRows.isEmpty();
+        String versionLabel = versionLabel(versionResolves ? versionRows[0].Name : null, versionPackageId);
 
         StageDiscardVersion.Inventory inv = null;
         if (versionResolves) {
@@ -732,15 +756,15 @@ global with sharing class ExecuteDiscardVersion {
                     : StageDiscardVersion.discover(String.valueOf(versionPackageId));
                 assertNothingNew(inv, confirmed);
             } catch (Exception e) {
-                C360Plan.markRefused(steps, e.getMessage());
+                C360Plan.markRefused(steps, withoutIds(e.getMessage()));
                 C360ActionStaging.recordOutcome(stg, steps, C360Plan.TERMINAL_FAILED, null);
                 throw e;
             }
         } else if (!resuming) {
-            C360Plan.markRefused(steps, 'Version package ' + versionPackageId + ' no longer resolves, and this run never started.');
+            C360Plan.markRefused(steps, 'The version package no longer resolves, and this run never started.');
             C360ActionStaging.recordOutcome(stg, steps, C360Plan.TERMINAL_FAILED, null);
             throw new ToolException(
-                'Version package ' + versionPackageId + ' no longer exists. Someone else discarded it. Nothing was written.'
+                'The version package no longer exists. Someone else discarded it. Nothing was written.'
             );
         }
 
@@ -770,7 +794,7 @@ global with sharing class ExecuteDiscardVersion {
 
         if (stoppedAt == null) {
             verifyParents(parentIds, steps, out);
-            verifyVersionGone(versionPackageId, steps, out);
+            verifyVersionGone(versionPackageId, versionLabel, steps, out);
             withdrawTrail(confirmedTrail, steps, out);
         } else {
             C360Plan.setState(
@@ -803,10 +827,10 @@ global with sharing class ExecuteDiscardVersion {
 
         if (stoppedAt == null && terminal != C360Plan.TERMINAL_FAILED) {
             C360ActionStaging.recordOutcome(stg, steps, terminal, String.valueOf(versionPackageId));
-            out.outcome = 'Version ' + versionPackageId + ' discarded: ' + out.deletedCount + ' record' +
+            out.outcome = versionLabel + ' discarded: ' + out.deletedCount + ' record' +
                 (out.deletedCount == 1 ? '' : 's') + ' deleted, ' + out.parentsCleared.size() +
                 ' booked parent' + (out.parentsCleared.size() == 1 ? '' : 's') + ' confirmed back to hasRenewal false' +
-                (out.sourcePackageId == null ? '' : ', the relationship back to package ' + out.sourcePackageId) + '.';
+                (out.sourcePackageId == null ? '' : ', the relationship back to its booked package') + '.';
         } else {
             // The run stays OPEN. Status Executing plus a result id is what makes the same
             // idempotency key resumable rather than replayable.
@@ -927,7 +951,7 @@ global with sharing class ExecuteDiscardVersion {
             if (orgRefusal != null) {
                 C360Plan.setState(
                     steps, g.stepId, C360Plan.STATE_FAILED,
-                    'The org refused this delete: ' + orgRefusal
+                    'The org refused this delete: ' + withoutIds(orgRefusal)
                 );
                 C360Plan.setState(
                     steps, g.stepId + '_verify', C360Plan.STATE_SKIPPED,
@@ -973,7 +997,7 @@ global with sharing class ExecuteDiscardVersion {
                     steps, g.stepId + '_verify', C360Plan.STATE_FAILED,
                     left.size() + ' of ' + targets.size() + ' ' + g.objectName +
                     ' records read back after the delete. The chain stops here.' +
-                    (partialRefusal == null ? '' : ' The org said: ' + partialRefusal)
+                    (partialRefusal == null ? '' : ' The org said: ' + withoutIds(partialRefusal))
                 );
                 stoppedAt = g.stepId;
                 continue;
@@ -1089,7 +1113,7 @@ global with sharing class ExecuteDiscardVersion {
         for (C360Plan.Step s : steps) {
             if (s.state == C360Plan.STATE_PENDING) {
                 s.state = C360Plan.STATE_VERIFIED;
-                s.detail = 'Version package ' + versionPackageId + ' and everything on it were already gone when ' +
+                s.detail = 'The version package and everything on it were already gone when ' +
                     'this run resumed, so this group had nothing left to remove.';
             }
         }
@@ -1198,19 +1222,51 @@ global with sharing class ExecuteDiscardVersion {
     }
 
     /** Proves the version id no longer resolves. A package that reads back is a failed discard. */
-    private static void verifyVersionGone(Id versionPackageId, List<C360Plan.Step> steps, ExecuteResult out) {
+    private static void verifyVersionGone(Id versionPackageId, String versionLabel, List<C360Plan.Step> steps, ExecuteResult out) {
         Integer left = [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionPackageId WITH USER_MODE];
         if (left == 0) {
             C360Plan.setState(
                 steps, 'verify_version_gone', C360Plan.STATE_VERIFIED,
-                'Version package ' + versionPackageId + ' no longer resolves.'
+                versionLabel + ' no longer resolves.'
             );
         } else {
             C360Plan.setState(
                 steps, 'verify_version_gone', C360Plan.STATE_FAILED,
-                'Version package ' + versionPackageId + ' still reads back after the delete.'
+                versionLabel + ' still reads back after the delete.'
             );
         }
+    }
+
+    /**
+     * How a step detail names the version package: by its own Name when that is a real name, and as
+     * "The version package" otherwise. The id never reaches the glass (lesson 82, 2026-09-29: the
+     * cockpit printed `verify_version_gone` verbatim with the record id in it). The real-name test is
+     * `StageDiscardVersion.bankerName`'s own, so there is one id-shape rule rather than two: it hands
+     * the raw Name back only when it judged it a name.
+     *
+     * @param rawName The package Name read before the delete, or null when it no longer resolves.
+     * @param versionPackageId The package, for the id-shape test.
+     * @return A sentence subject a banker can read. Never an id.
+     */
+    @TestVisible
+    private static String versionLabel(String rawName, Id versionPackageId) {
+        Boolean real = String.isNotBlank(rawName) &&
+            StageDiscardVersion.bankerName('LLC_BI__Product_Package__c', rawName, versionPackageId, null) == rawName;
+        return real ? 'Version package ' + rawName : 'The version package';
+    }
+
+    /**
+     * The org's own refusal text with any record id replaced by "a record". A DmlException names the
+     * row it failed on ("first exception on row 0 with id ..."), and the detail it lands in is printed
+     * to the banker; the ids are already on the item lines, where the cockpit renders them as names.
+     * Only a 15 or 18 character token carrying a digit is touched, so no status code or word is.
+     *
+     * @param text The org's words.
+     * @return The same words without record ids.
+     */
+    @TestVisible
+    private static String withoutIds(String text) {
+        return text == null ? null : text.replaceAll('\\b(?=[a-zA-Z]*[0-9])[a-zA-Z0-9]{15}(?:[a-zA-Z0-9]{3})?\\b', 'a record');
     }
 
     /**
@@ -1310,8 +1366,7 @@ global with sharing class ExecuteDiscardVersion {
         r.remainingCount = 0;
         r.items = new List<InventoryItem>();
         r.parentsCleared = new List<String>();
-        r.outcome = 'This idempotency key already discarded version ' + prior.cm_Result_Record_Id__c +
-            '. Nothing was deleted.';
+        r.outcome = 'This idempotency key already discarded this version. Nothing was deleted.';
         r.steps = prior.cm_Tracker_JSON__c == null
             ? new List<StepResult>()
             : toWireSteps((List<C360Plan.Step>) JSON.deserialize(prior.cm_Tracker_JSON__c, List<C360Plan.Step>.class));

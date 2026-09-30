@@ -57,6 +57,23 @@ export const UNSETTLED_BODY =
   "It may still land: nothing has said it failed. Check the record in Salesforce before staging this " +
   "again, filing it twice is the one thing that cannot be undone from here.";
 
+/* THE STAGE'S WAIT, IN ITS OWN REGISTER (0.9.33). One line under the lede while
+   Salesforce has the plan, never a notice before the ceiling. "Still with
+   Salesforce", never "still working": the page knows the call is open, and the
+   trail reads Staged until the one transaction commits. Only RUN_IN_FLIGHT, the
+   org's own report, may say the run is going. */
+export const STAGE_WAIT = "Salesforce is removing this version in one pass. The rows settle when it answers.";
+export const STAGE_STILL = "Still with Salesforce. Rollbacks through the relay have taken close to two minutes.";
+export const STAGE_IN_FLIGHT = "Salesforce reports this run still going. The rows settle when it answers.";
+/** Past the ceiling the line shortens, so the notice is the one place the news is. */
+export const STAGE_LATE = "Still with Salesforce.";
+export const STAGE_LATE_TITLE = "Longer than any rollback the relay has shown";
+export const STAGE_LATE_BODY =
+  "Nothing has said it failed, and the rows stay as they are until it answers. Check the version in Salesforce " +
+  "before staging this again: filing it twice cannot be undone from here.";
+/** The clock stops and its time moves into the line. */
+export const stageAnswered = (mss: string) => `Salesforce answered after ${mss}.`;
+
 /** The fixed closing line. Not a variant, not a template. */
 export const CLOSING_LINE = "Real approval happens in Salesforce's credit-risk process.";
 

@@ -63,7 +63,7 @@ import {
 } from "../actions/discardVersion";
 import { GovernedStage } from "./GovernedStage";
 import { forgetRun, recallRun, rememberRun, stoppedMidRun } from "../actions/resumeRun";
-import { discardTargetFor } from "../actions/discardTarget";
+import { discardIdentity, discardTargetFor } from "../actions/discardTarget";
 import { bundleAfterDiscard } from "../channel/syncSweep";
 import { packageDeepLink } from "./DeepLink";
 import type { DecisionToken } from "../actions/decisionToken";
@@ -469,6 +469,9 @@ export function ActionPanel({
   /** The key session-local activity is stored under. Resolved the same way the
    *  Activity tab resolves it, so a written entry is always a readable one. */
   const activityAccountId = accountKey(state.accountId, bundle?.snapshot?.accountId);
+  /** The org's durable trail for this relationship. The discard door reads it,
+   *  because a filed modification names its version where the mirror cannot. */
+  const history = state.actionHistory[activityAccountId];
 
   /** Legal values the tool returned on a VALIDATION_FAILED. Authoritative:
    *  they supersede the partial observed cache for that field. */
@@ -509,10 +512,10 @@ export function ActionPanel({
       // builder: `actions/schemas.ts` is what `book/packages.ts` reads
       // `packageRecords` out of, so a schema that reached back for the roster
       // would close a module cycle (see actions/discardTarget.ts).
-      discard: discardTargetFor(bundle, pickedPackage ?? null),
+      discard: discardTargetFor(bundle, pickedPackage ?? null, history),
     });
     return base ? withDrafts(base, actionId, bundle, reasons) : null;
-  }, [actionId, bundle, accountId, accountName, legalValues, reasons, data.meta?.generatedAt, pickedPackage]);
+  }, [actionId, bundle, accountId, accountName, legalValues, reasons, data.meta?.generatedAt, pickedPackage, history]);
 
   const briefing = useMemo(
     () => buildBriefing(actionId, schema, bundle, accountName, reasons),
@@ -566,6 +569,8 @@ export function ActionPanel({
   const stageTitleRef = useRef<string | null>(null);
   /** Where the stage's closing scene points, bound at the same instant. */
   const stageDoneHrefRef = useRef<string | null>(null);
+  /** Which version the stage takes, in banker words, bound at the same instant. */
+  const stageIdentityRef = useRef<string | null>(null);
 
   const engine = useMemo(
     () => computeSuggestions({ data, bundle, actionId, liveStoredAt, liveSections }),
@@ -576,9 +581,9 @@ export function ActionPanel({
    *  every other action and wherever the view stages no host. */
   const versionHref = useMemo(() => {
     if (actionId !== DISCARD_ACTION_ID) return null;
-    const target = discardTargetFor(bundle, null);
+    const target = discardTargetFor(bundle, null, history);
     return target ? packageDeepLink(data.meta?.instanceUrl, target.version.id) : null;
-  }, [actionId, bundle, data.meta?.instanceUrl]);
+  }, [actionId, bundle, history, data.meta?.instanceUrl]);
 
   // A31.1 modal chrome: focus in on open, focus back to the opener on close.
   useEffect(() => {
@@ -782,7 +787,7 @@ export function ActionPanel({
        the reason, and the idempotency key. What would be deleted is the ORG's
        to discover, so this page sends nothing about it. */
     if (actionId === DISCARD_ACTION_ID) {
-      const target = discardTargetFor(bundle, null);
+      const target = discardTargetFor(bundle, null, history);
       if (!target) return null;
       return {
         idempotencyKey,
@@ -1146,7 +1151,7 @@ export function ActionPanel({
          unlocks on this render rather than on the next Sync, and the Sync
          gesture remains the authority that confirms it. */
       if (actionId === DISCARD_ACTION_ID) {
-        const discarded = discardTargetFor(bundle, null);
+        const discarded = discardTargetFor(bundle, null, history);
         const entry = versionDiscardedActivityEntry({
           outcome: executed,
           versionName: discarded?.version.name ?? null,
@@ -1351,8 +1356,12 @@ export function ActionPanel({
        removing it was still on the glass. The stage names what it is doing,
        from open to fold. */
     if (!stageTitleRef.current) {
-      const target = discardTargetFor(bundle, null);
-      stageTitleRef.current = target ? `Discard the version ${target.version.name}` : "Discard the version";
+      const target = discardTargetFor(bundle, null, history);
+      /* THE NAME RIDES ON THE IDENTITY LINE, NOT THE TITLE (backlog row 77). A
+         version and its source carry the same derived headline, so the title
+         says what the act is and the identity says which version, once. */
+      stageTitleRef.current = "Discard the version";
+      stageIdentityRef.current = target ? discardIdentity(target) : null;
       /* AND THE ADDRESS THE CLOSE OFFERS. What the discard removed cannot be
          opened, so the door at the end is the BOOKED package the relationship
          returns to, resolved while the roster can still name it. */
@@ -1365,6 +1374,7 @@ export function ActionPanel({
         plan={plan}
         actionId={actionId}
         title={stageTitleRef.current}
+        identity={stageIdentityRef.current}
         objectTitles={DISCARD_OBJECT_TITLES}
         commitLabel={DISCARD_LABEL}
         simulated={!live}

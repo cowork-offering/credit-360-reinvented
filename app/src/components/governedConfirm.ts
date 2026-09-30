@@ -37,6 +37,7 @@ import { mintDecisionToken, type DecisionToken } from "../actions/decisionToken"
 import {
   EXECUTE_CLOCK_MS,
   EXECUTION_HELD_COPY,
+  RUN_IN_FLIGHT,
   executeAction,
   executionHeldReason,
   isExecutionHeld,
@@ -49,6 +50,20 @@ import {
 import { mcpAvailable } from "../channel/mcp";
 import { resolveBundle } from "../actions/registry";
 import { DISCARD_ACTION_ID } from "../actions/discardVersion";
+
+/**
+ * PAST THIS, A WAIT IS NEWS (0.9.33). The longest rollback the relay has shown
+ * is STG-0000000183 at 112 s; this is that plus about a third, rounded to 2:30.
+ * Before it the stage says only that Salesforce has the plan; after it the
+ * stage raises its one warning. Revisit as the relay journal builds samples:
+ * the p99 of discard wall clock plus 30 s.
+ */
+export const STAGE_CEILING_MS = 150_000;
+
+/** How long a run the org reports in flight is watched on its trail from the
+ *  stage. Far past the ceiling: the call is still open, and the ceiling's notice
+ *  is what tells the banker to look in Salesforce. */
+const IN_FLIGHT_WATCH_MS = 10 * 60_000;
 
 export interface GovernedConfirmInput {
   plan: StagedOutput;
@@ -81,6 +96,13 @@ export interface GovernedConfirm {
   /** Violations, leaks or a hold: the gesture may not be offered. */
   blocked: boolean;
   executing: boolean;
+  /** When the execute went out. Set until the ORG answers, which can be long
+   *  after `executing` clears: the page's clock ends the gesture's wait at
+   *  EXECUTE_CLOCK_MS and the call keeps running behind it. Null when idle. */
+  sentAt: number | null;
+  /** The org reported this run still executing (RUN_IN_FLIGHT). Not an error:
+   *  the trail is being read for its ending. */
+  inFlight: boolean;
   /** The attempt now going out while the same key is re-asked. Zero when idle. */
   asking: number;
   /** True once the surface's own clock ran out on a call still in flight. */
@@ -110,6 +132,8 @@ export function useGovernedConfirm({
   const [toolError, setToolError] = useState<ToolError | null>(null);
   const [unsettled, setUnsettled] = useState(false);
   const [asking, setAsking] = useState(0);
+  const [sentAt, setSentAt] = useState<number | null>(null);
+  const [inFlight, setInFlight] = useState(false);
   /** WHICH GESTURE OWNS THE SCREEN. The clock leaves a call running behind the
    *  notice and a retry starts another under the same key. Both may answer;
    *  only the LATEST may settle, or a superseded ask would land over the one
@@ -153,6 +177,7 @@ export function useGovernedConfirm({
     setError(null);
     setToolError(null);
     setUnsettled(false);
+    setInFlight(false);
 
     // A33.2.7, MANDATORY recompute. A plan is never executed against figures
     // the banker did not see. A moved FIGURE stops here; a newer timestamp over
@@ -207,6 +232,7 @@ export function useGovernedConfirm({
     }
 
     setExecuting(true);
+    setSentAt(Date.now());
     setAsking(0);
     const mine = ++run.current;
 
@@ -226,6 +252,10 @@ export function useGovernedConfirm({
         onAttempt: (n) => {
           if (run.current === mine) setAsking(n);
         },
+        onInFlight: () => {
+          if (run.current === mine) setInFlight(true);
+        },
+        inFlightBudgetMs: IN_FLIGHT_WATCH_MS,
       },
     );
 
@@ -233,6 +263,14 @@ export function useGovernedConfirm({
       if (run.current !== mine) return;
       setUnsettled(false);
       setAsking(0);
+      /* THE ORG STILL REPORTS THE RUN GOING and the trail has not settled: the
+         wait goes on, and nothing about it is an error. */
+      if (!outcome.ok && outcome.error.code === RUN_IN_FLIGHT) {
+        setInFlight(true);
+        return;
+      }
+      setSentAt(null);
+      setInFlight(false);
       if (!outcome.ok) {
         setToolError(outcome.error);
         return;
@@ -252,6 +290,8 @@ export function useGovernedConfirm({
       if (run.current !== mine) return;
       setUnsettled(false);
       setAsking(0);
+      setSentAt(null);
+      setInFlight(false);
       /* THE ROOM'S SENTENCE LEADS AND THE PLATFORM'S CODE FOLLOWS. "request
          failed (502)" in critical ink over a write nobody has heard back about
          reads as a verdict and it is not one. The org's own refusals still lead
@@ -291,6 +331,9 @@ export function useGovernedConfirm({
       if (!expired) fail(e);
     } finally {
       if (timer !== undefined) clearTimeout(timer);
+      // The GESTURE's wait ends here, at the clock or the answer. The CALL may
+      // still be open behind it; `sentAt`, cleared only by settle and fail, is
+      // what says so.
       setExecuting(false);
     }
   }, [recompute, data.meta, plan, simulated, actionId, idempotencyKey, state.accountId, onConfirmed]);
@@ -309,6 +352,8 @@ export function useGovernedConfirm({
     heldReason,
     blocked,
     executing,
+    sentAt,
+    inFlight,
     asking,
     unsettled,
     toolError,

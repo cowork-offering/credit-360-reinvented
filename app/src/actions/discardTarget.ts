@@ -10,8 +10,9 @@
    lives here, where importing the roster is safe.
    ============================================================================= */
 
-import { amendablePackage, IN_APPROVAL_REFUSAL, packageRoster, type PackageEntry } from "../book/packages";
+import { amendablePackage, filingRow, IN_APPROVAL_REFUSAL, packageRoster, type PackageEntry } from "../book/packages";
 import type { ActionHistoryRow, BorrowerBundle } from "../data/contract";
+import { fmtMoney } from "../data/format";
 import { AMBIGUOUS_VERSION_REASON, NO_VERSION_REASON } from "./discardVersion";
 
 /* ------------------------------------------------------------ who it is for */
@@ -22,6 +23,9 @@ export interface DiscardTarget {
   version: PackageEntry;
   /** The booked package the version forked from, where the roster links one. */
   source: PackageEntry | null;
+  /** When the org filed the modification that forked it, off the trail row.
+   *  Null where no filed row in reach names this version. */
+  filedAt: string | null;
 }
 
 /** Editable in-flight versions on this relationship, in roster order. */
@@ -42,6 +46,7 @@ function editableVersions(roster: readonly PackageEntry[]): PackageEntry[] {
 export function discardTarget(
   roster: readonly PackageEntry[],
   anchoredPackageId: string | null,
+  history?: readonly ActionHistoryRow[],
 ): DiscardTarget | null {
   const anchored = anchoredPackageId ? (roster.find((e) => e.id === anchoredPackageId) ?? null) : null;
 
@@ -63,7 +68,11 @@ export function discardTarget(
   // a version that has climbed to Approval / Loan Committee is the org's now.
   if (!version?.inFlightVersion || !amendablePackage(version)) return null;
 
-  return { version, source: roster.find((e) => e.inFlightVersionId === version.id) ?? null };
+  return {
+    version,
+    source: roster.find((e) => e.inFlightVersionId === version.id) ?? null,
+    filedAt: filingRow(version, history)?.executedAt ?? null,
+  };
 }
 
 /** The door's target for a BUNDLE. Every surface asks this way, so none of them
@@ -73,7 +82,39 @@ export function discardTargetFor(
   anchoredPackageId: string | null,
   history?: readonly ActionHistoryRow[],
 ): DiscardTarget | null {
-  return discardTarget(packageRoster(bundle, history), anchoredPackageId);
+  return discardTarget(packageRoster(bundle, history), anchoredPackageId, history);
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "22 Sep", pinned to UTC so the day reads the same in London and Atlanta.
+ *  Spelled by hand: ICU's en-GB short month is "Sept" on some runtimes. */
+function dayMonth(iso: string): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+/**
+ * WHICH VERSION, IN BANKER WORDS (backlog row 77).
+ *
+ * A version and its source carry the same derived headline, so a name alone
+ * does not say which version a discard takes. This line does: the package it
+ * was forked from, its size, its commitment and, where the trail holds the
+ * filing, the day the org filed it. Never a record id.
+ */
+export function discardIdentity(target: DiscardTarget): string {
+  const { version, source, filedAt } = target;
+  const n = version.members.length;
+  const filed = filedAt ? dayMonth(filedAt) : null;
+  return [
+    source ? `Version of ${source.name}` : `Unbooked version ${version.name}`,
+    `${n} ${n === 1 ? "facility" : "facilities"}`,
+    `${fmtMoney(version.committed)} committed`,
+    filed ? `filed ${filed}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** May this door be taken, and what does the disabled row say?

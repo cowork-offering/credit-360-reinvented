@@ -263,6 +263,18 @@ const ID_CARRYING_KEYS = new Set([
 
 const RECORD_ID = /^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$/;
 
+/**
+ * EVERY SALESFORCE-ID-SHAPED TOKEN IN A RUN OF TEXT, unanchored (0.9.33). The
+ * fence above tests one value; this reads what a banker would read. A 15 or 18
+ * character token counts only when it carries a digit, so a long word is never
+ * mistaken for an id. Used by the stage's no-record-id test and nothing else.
+ */
+export function recordIdsIn(text: string): string[] {
+  return (text.match(/\b[a-zA-Z0-9]{15}(?:[a-zA-Z0-9]{3})?\b/g) ?? []).filter(
+    (t) => RECORD_ID.test(t) && /\d/.test(t) && /[a-zA-Z]/.test(t),
+  );
+}
+
 /** True for a provenance citation path: A26 says the citation IS the record id. */
 function isProvenanceCitation(path: string): boolean {
   return /^provenance\b/.test(path) && /\bcitation$/.test(path);

@@ -13,7 +13,7 @@ import {
   STAGING_KEPT,
   whatStays,
 } from "./discardVersion";
-import { discardAvailability, discardTargetFor } from "./discardTarget";
+import { discardAvailability, discardIdentity, discardTargetFor } from "./discardTarget";
 import { ACTIONS_BY_ID } from "./registry";
 import { PANEL_SCHEMAS } from "./schemas";
 import { assertNoRecordIds, type StagedOutput } from "./stagedPlan";
@@ -21,7 +21,7 @@ import { DISCARD_VERSION_OBJECTS, validateDiscardPlan, validatePlan } from "./tr
 import { historyActivityEntry, versionDiscardedActivityEntry } from "./executedActivity";
 import type { ExecuteResult } from "../channel/writeTools";
 import { IN_APPROVAL_REFUSAL, packageRoster } from "../book/packages";
-import type { BorrowerBundle, C360Data, Facility } from "../data/contract";
+import type { ActionHistoryRow, BorrowerBundle, C360Data, Facility } from "../data/contract";
 import live from "../../../artifact/live-data.json";
 
 /* =============================================================================
@@ -414,3 +414,88 @@ const rosterOf = (bundle: BorrowerBundle) => packageRoster(bundle);
 function dataWith(bundle: BorrowerBundle): C360Data {
   return { ...data, borrowers: { ...data.borrowers, [HARTWELL]: bundle } } as C360Data;
 }
+
+/* --------------------------------- the trail names what the mirror cannot (row 76)
+
+   Live 2026-09-29: version a5Fbb000000JKB7EAO was invisible to the mirror, so
+   the unanchored door aimed at the only version it could see. Here a second
+   version off a5Fbb000000J6BNEA0 carries the net-new arm's extra facility, so
+   its size differs from its source's and only the trail can name it. */
+
+const SECOND = "a5Fbb00000SECONDV";
+const J6BN = "a5Fbb000000J6BNEA0";
+
+/** A filed modification row, at the trail's own contract. */
+const filed = (resultRecordId: string, productPackageId: string, over: Partial<ActionHistoryRow> = {}): ActionHistoryRow => ({
+  stagingId: `STG-${resultRecordId.slice(-4)}`,
+  actionId: "loan-modification",
+  status: "Completed",
+  resultRecordId,
+  productPackageId,
+  executedAt: "2026-09-22T14:05:00.000Z",
+  ...over,
+});
+
+/** `forked()` plus a second version of J6BN, one facility larger than it. */
+function twoVersions(): BorrowerBundle {
+  const bundle = forked();
+  const on = (bundle.exposure?.facilities ?? []).filter((f) => f.productPackageId === J6BN);
+  const copies = on.map((f, i) => ({ ...f, loanId: `a4Zbb00000SECOND${i}`, productPackageId: SECOND, stage: "Qualification", outstanding: 0 }));
+  const added = { ...copies[0], loanId: "a4Zbb00000SECONDN", name: "Hartwell Precision Manufacturing LLC - Equipment - $2,000,000.00", committed: 2_000_000 };
+  bundle.exposure!.facilities = [...bundle.exposure!.facilities!, ...copies, added];
+  return bundle;
+}
+
+const BOTH = [filed("a4Zbb000009CLONE0", SOURCE), filed("a4Zbb00000SECOND0", J6BN)];
+
+describe("the unanchored door, where the trail names a version the mirror missed", () => {
+  it("reproduces the live miss: without the trail the door aims at the only version it can see", () => {
+    expect(discardTargetFor(twoVersions(), null)!.version.id).toBe(VERSION);
+  });
+
+  it("refuses AMBIGUOUS once the trail names both versions", () => {
+    const bundle = twoVersions();
+    expect(discardTargetFor(bundle, null, BOTH)).toBeNull();
+    expect(discardAvailability(packageRoster(bundle, BOTH), null).reason).toBe(AMBIGUOUS_VERSION_REASON);
+    const said = ACTIONS_BY_ID[DISCARD_ACTION_ID].availability(dataWith(bundle), HARTWELL, BOTH);
+    expect(said).toEqual({ available: false, reason: AMBIGUOUS_VERSION_REASON });
+  });
+
+  it("still finds each version from the booked source the trail links it to", () => {
+    const bundle = twoVersions();
+    expect(discardTargetFor(bundle, J6BN, BOTH)!.version.id).toBe(SECOND);
+    expect(discardTargetFor(bundle, SOURCE, BOTH)!.version.id).toBe(VERSION);
+  });
+
+  it("names nothing off a Withdrawn row, so the door is as it was", () => {
+    const withdrawn = [filed("a4Zbb00000SECOND0", J6BN, { status: "Withdrawn" })];
+    expect(discardTargetFor(twoVersions(), null, withdrawn)!.version.id).toBe(VERSION);
+  });
+});
+
+/* ------------------------------------------ which version, in banker words (row 77) */
+
+describe("the identity line names the version without a record id", () => {
+  const RECORD_ID = /\b[a-zA-Z0-9]{15}(?:[a-zA-Z0-9]{3})?\b/;
+
+  it("names the source, the size, the commitment and the day the org filed it", () => {
+    const target = discardTargetFor(forked(), null, [filed("a4Zbb000009CLONE0", SOURCE)])!;
+    expect(target.filedAt).toBe("2026-09-22T14:05:00.000Z");
+    const line = discardIdentity(target);
+    expect(line).toBe(`Version of ${target.source!.name} · 7 facilities · $49M committed · filed 22 Sep`);
+    expect(line).not.toMatch(RECORD_ID);
+  });
+
+  it("drops the filing day where no filed row names this version", () => {
+    const target = discardTargetFor(forked(), null)!;
+    expect(target.filedAt).toBeNull();
+    expect(discardIdentity(target)).toBe(`Version of ${target.source!.name} · 7 facilities · $49M committed`);
+  });
+
+  it("says Unbooked version where the roster links no source", () => {
+    const target = discardTargetFor(forked(), null)!;
+    const line = discardIdentity({ ...target, source: null });
+    expect(line.startsWith(`Unbooked version ${target.version.name} · `)).toBe(true);
+    expect(line).not.toMatch(RECORD_ID);
+  });
+});

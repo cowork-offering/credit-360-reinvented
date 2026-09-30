@@ -97,7 +97,18 @@ const isBooked = (f: Facility) => (f.stage ?? "").trim().toLowerCase() === BOOKE
    nobody can reconcile.
 
    WHAT THE SHELL CAN HONESTLY READ. Two sources, both field-level, and the
-   fork's own shape is the one that does not need a sweep to have run:
+   trail is the stronger of the two:
+
+     the trail       A `Customer360ActionHistory` row with
+                     `actionId: "loan-modification"` and a filed status names
+                     the SOURCE package in `productPackageId` and, the field
+                     that surprised the seam, a LOAN id in `resultRecordId`,
+                     never the output package's. Observed:
+                     `resultRecordId: "a4Zbb000002IEpoEAG"`, a member of the
+                     version. So the version is the roster package that HOLDS
+                     that loan, whatever its size. This is the immutable record
+                     of what the system did (lesson 81), so it NAMES the version
+                     and its source on its own.
 
      the mirror      A package whose ACTIVE members are ALL at an unbooked stage
                      (Qualification, Proposal, Final Review) and which MIRRORS a
@@ -107,27 +118,26 @@ const isBooked = (f: Facility) => (f.stage ?? "").trim().toLowerCase() === BOOKE
                      Verified against the live org 2026-09-03: package
                      a5Fbb000000J6PtEAK holds seven loans, every one
                      `stage: "Qualification"`, six of the seven named identically
-                     to the seven Booked loans on a5Fbb000000IHFJEA4 — the
+                     to the seven Booked loans on a5Fbb000000IHFJEA4; the
                      seventh differs because the filing is what renamed it
                      ("- $15,000,000.00" became "- $20,000,000.00").
 
-     the trail       A `Customer360ActionHistory` row with
-                     `actionId: "loan-modification"` and a terminal status names
-                     the SOURCE package in `productPackageId` and — this is the
-                     field that surprised the seam — a LOAN id in
-                     `resultRecordId`, never the output package's. Observed:
-                     `resultRecordId: "a4Zbb000002IEpoEAG"`, a member of the
-                     version. So the version is resolved by finding the roster
-                     package that HOLDS that loan.
+   THE MIRROR IS ONLY THE FALLBACK, for a version with no trail row in reach. It
+   needs equal member counts, and two real shapes break that (2026-09-29): a
+   modification with the net-new facility arm holds MORE loans than its source,
+   and a source carrying an extra unbooked loan holds more than its copy. Live,
+   version a5Fbb000000JKB7EAO was invisible to the mirror and the unanchored
+   discard door aimed at the only version it could see.
 
-   THE MIRROR IS WHY A COUNT ALONE IS NOT ENOUGH. "All members unbooked" on its
-   own is also the shape of a brand-new deal staged into its own package, which
-   is a room the banker must still be able to work in. The mirror is what tells
-   a fork from a first draft.
+   THE MIRROR IS ALSO WHY A COUNT ALONE IS NOT ENOUGH. "All members unbooked" on
+   its own is also the shape of a brand-new deal staged into its own package,
+   which is a room the banker must still be able to work in. The trail or the
+   mirror is what tells a fork from a first draft.
    ============================================================================ */
 
 /** The statuses a filing only reaches once the org has finished with it. A
- *  Staged row wrote nothing, so it forked no version. */
+ *  Staged row wrote nothing, so it forked no version. Withdrawn is deliberately
+ *  absent: it is what a DISCARDED version's row reads, and its package is gone. */
 const FILED_STATUS = new Set(["Completed", "Partial"]);
 const MODIFICATION_ACTION = "loan-modification";
 
@@ -159,11 +169,45 @@ function mirrors(version: PackageEntry, source: PackageEntry): boolean {
   return shared >= Math.ceil(mine.length / 2);
 }
 
+/** Mark an entry as the in-flight version, one builder for the trail and the
+ *  mirror so the two paths cannot drift. */
+function markInFlight(version: PackageEntry): void {
+  const count = `${version.members.length} ${version.members.length === 1 ? "facility" : "facilities"}`;
+  version.inFlightVersion = true;
+  /* EDITABLE UNTIL APPROVAL. One member at `Approval / Loan Committee` or
+     above takes the whole version out of the banker's hands (the org approves
+     a version, not a loan), so the test is `some`, not `every`. */
+  version.inFlightEditable = !version.members.some(atOrPastApproval);
+  version.reason = [
+    "Modification in flight",
+    version.inFlightEditable ? "editable until approval" : "in approval · locked",
+    count,
+    fmtMoney(version.committed),
+  ].join(" · ");
+}
+
+/** The filed modification row that forked this version, where the trail holds
+ *  one. The same test the roster names a version by. */
+export function filingRow(
+  version: PackageEntry,
+  history: readonly ActionHistoryRow[] | undefined,
+): ActionHistoryRow | null {
+  return (
+    (history ?? []).find(
+      (r) =>
+        r.actionId === MODIFICATION_ACTION &&
+        FILED_STATUS.has(r.status ?? "") &&
+        version.members.some((m) => m.loanId === r.resultRecordId),
+    ) ?? null
+  );
+}
+
 /** Every product package this relationship stages, the snapshot's leading.
  *
- *  `history` is the durable action trail, where the caller holds one. The
- *  roster names an in-flight version and its source without it; the trail only
- *  ever CORRECTS which booked package a version was forked from. */
+ *  `history` is the durable action trail, where the caller holds one. With it
+ *  a filed modification names its version and source outright; without it the
+ *  roster falls back to the mirror, which misses a version whose size differs
+ *  from its source's. */
 export function packageRoster(
   bundle: BorrowerBundle | null | undefined,
   history?: readonly ActionHistoryRow[],
@@ -205,47 +249,44 @@ export function packageRoster(
     };
   });
 
-  /* THE FORK, READ OFF THE ROSTER. An all-unbooked package that mirrors a
-     booked one is a copy of it, and the copy is the version in flight. The
-     snapshot's own anchor is never a version: it is the relationship's package.
-     Where the mirror finds a source, the link comes with it — no trail needed. */
+  /* THE CANDIDATES. Members, none booked, a stage the read carries, and never
+     the snapshot's own anchor, which is the relationship's package. */
   const anchorId = bundle?.snapshot?.productPackageId ?? null;
   const unbooked = entries.filter((e) => e.members.length > 0 && e.booked === 0 && e.stage && e.id !== anchorId);
   const booked = entries.filter((e) => e.booked > 0);
-  for (const version of unbooked) {
-    const source = booked.find((b) => mirrors(version, b));
+
+  /* THE TRAIL FIRST, because it is what the org did. A filed modification row
+     whose result loan sits in a candidate NAMES that candidate as the version,
+     at any size, and its `productPackageId` names the source. */
+  const filed = (history ?? []).filter((r) => r.actionId === MODIFICATION_ACTION && FILED_STATUS.has(r.status ?? ""));
+  const trailed: Array<[PackageEntry, string | undefined]> = [];
+  for (const row of filed) {
+    const version = unbooked.find((e) => e.members.some((m) => m.loanId === row.resultRecordId));
+    if (!version) continue;
+    markInFlight(version);
+    trailed.push([version, row.productPackageId]);
+  }
+  // The trail reads newest first, so the newest filing's source is the one kept.
+  const linkedByTrail = new Set<PackageEntry>();
+  for (const [version, sourceId] of trailed) {
+    if (entries.some((e) => e.inFlightVersionId === version.id)) continue;
+    const source = entries.find((e) => e.id === sourceId && !e.inFlightVersion);
     if (!source) continue;
-    const count = `${version.members.length} ${version.members.length === 1 ? "facility" : "facilities"}`;
-    version.inFlightVersion = true;
-    /* EDITABLE UNTIL APPROVAL. One member at `Approval / Loan Committee` or
-       above takes the whole version out of the banker's hands — the org
-       approves a version, not a loan — so the test is `some`, not `every`. */
-    version.inFlightEditable = !version.members.some(atOrPastApproval);
-    version.reason = [
-      "Modification in flight",
-      version.inFlightEditable ? "editable until approval" : "in approval · locked",
-      count,
-      fmtMoney(version.committed),
-    ].join(" · ");
     source.hasInFlightModification = true;
     source.inFlightVersionId = version.id;
+    linkedByTrail.add(source);
   }
 
-  /* THE TRAIL'S OWN LINK, over the top. It cannot name a version the mirror
-     missed — a package the roster cannot see as a copy is not one this shell
-     will lock a room on — but it CAN correct which booked package a version
-     was forked from, which the mirror can only infer. */
-  for (const row of history ?? []) {
-    if (row.actionId !== MODIFICATION_ACTION || !FILED_STATUS.has(row.status ?? "")) continue;
-    const version = entries.find((e) => e.inFlightVersion && e.members.some((m) => m.loanId === row.resultRecordId));
-    const source = entries.find((e) => e.id === row.productPackageId && !e.inFlightVersion);
-    if (!version || !source) continue;
-    for (const e of entries) {
-      if (e.inFlightVersionId === version.id && e !== source) {
-        e.inFlightVersionId = null;
-        e.hasInFlightModification = false;
-      }
-    }
+  /* THE MIRROR AS THE FALLBACK. An all-unbooked package that mirrors a booked
+     one is a copy of it; it also infers the source of a trail-named version
+     whose row names no package on this roster. It never overrides a link the
+     trail made. */
+  for (const version of unbooked) {
+    if (entries.some((e) => e.inFlightVersionId === version.id)) continue;
+    const source = booked.find((b) => mirrors(version, b));
+    if (!source) continue;
+    markInFlight(version);
+    if (linkedByTrail.has(source)) continue;
     source.hasInFlightModification = true;
     source.inFlightVersionId = version.id;
   }

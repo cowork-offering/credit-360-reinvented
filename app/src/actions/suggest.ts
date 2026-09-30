@@ -13,7 +13,7 @@
    support.
    ============================================================================= */
 
-import type { C360Data, Id, ReasonCode, Worklist } from "../data/contract";
+import type { ActionHistoryRow, C360Data, Id, ReasonCode, Worklist } from "../data/contract";
 import { ACTIONS_BY_ID, renderPrompt, resolveBundle } from "./registry";
 import { collectNextSteps } from "./nextSteps";
 
@@ -65,6 +65,7 @@ export function suggestActions(
   worklist: Worklist,
   accountId: Id | null,
   accountName: string | null,
+  history?: readonly ActionHistoryRow[],
 ): Suggestion[] {
   // Home / book level is decided by ACCOUNT PRESENCE, never by the name (C4):
   // a real account with a missing name is still an account, and must get
@@ -80,7 +81,7 @@ export function suggestActions(
     const action = ACTIONS_BY_ID[actionId];
     if (!action) return;
     // Availability gate — never suggest what the data can't support.
-    if (!action.availability(data, accountId).available) return;
+    if (!action.availability(data, accountId, history).available) return;
     seen.add(actionId);
     out.push({ id: action.id, label: action.label, prompt: renderPrompt(action, name, accountId) });
   };

@@ -433,3 +433,43 @@ describe("a resume needs the run this page made", () => {
     expect(recallRun(plan.stagingId)).toBeNull();
   });
 });
+
+/* ======================================== which version, once per beat (row 77) */
+
+describe("the identity line says which version, once on the plan and once in the closing", () => {
+  const IDENTITY = "Version of Sunbelt Hospitality Group Inc credit package · 2 facilities · $37M committed · filed 14 Sep";
+  const shown = () =>
+    [...document.querySelectorAll("[data-identity]")].filter((el) => el.getAttribute("aria-hidden") !== "true");
+
+  it("stands under the title on the plan, and nowhere else", async () => {
+    stage(await livePlan(), { identity: IDENTITY });
+    expect(shown().map((el) => el.getAttribute("data-identity"))).toEqual(["plan"]);
+    expect(text(document.querySelector(".gs-hd"))).toContain(IDENTITY);
+  });
+
+  it("moves to the closing once the version has gone, and the header's copy leaves the reader", async () => {
+    const plan = await livePlan();
+    executeAction.mockResolvedValue({ ok: true, attempts: 1, result: ranClean(plan) });
+    stage(plan, { identity: IDENTITY });
+    await act(async () => {
+      byText(new RegExp(`^${DISCARD_LABEL}$`))!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(sheet().getAttribute("data-phase")).toBe("close");
+    expect(shown().map((el) => [el.getAttribute("data-identity"), el.textContent])).toEqual([["close", IDENTITY]]);
+  });
+
+  it("stays on the header alone when the run stops, where the version still stands", async () => {
+    const plan = await livePlan();
+    executeAction.mockResolvedValue({ ok: true, attempts: 1, result: stoppedAtChain(plan) });
+    stage(plan, { identity: IDENTITY });
+    await act(async () => {
+      byText(new RegExp(`^${DISCARD_LABEL}$`))!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(shown().map((el) => el.getAttribute("data-identity"))).toEqual(["plan"]);
+  });
+
+  it("renders no identity line where the caller could not name the version", async () => {
+    stage(await livePlan());
+    expect(document.querySelectorAll("[data-identity]")).toHaveLength(0);
+  });
+});

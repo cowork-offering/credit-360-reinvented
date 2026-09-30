@@ -26,7 +26,27 @@
 public with sharing class C360ActionStaging {
 
     /** Raised when staging, token or idempotency preconditions are not met. */
-    public class StagingException extends Exception {}
+    public virtual class StagingException extends Exception {}
+
+    /**
+     * Raised when another transaction holds this staging row, which means a run of the same plan is
+     * executing right now. It extends StagingException so an execute that has not learned the
+     * distinct code still answers ok:false rather than faulting; the resumable executes catch it
+     * first and report RUN_IN_FLIGHT. Nothing was read past the lock and nothing was written.
+     */
+    public class RunInFlightException extends StagingException {}
+
+    /** The banker sentence for a run that is still going. Each execute may say it in its own words. */
+    public static final String RUN_IN_FLIGHT_MESSAGE =
+        'This action is still running in Salesforce. Nothing needs to be pressed; the page will settle when it finishes.';
+
+    /**
+     * Test seam: makes lockForRun behave exactly as it does when another transaction holds the row.
+     * Two concurrent transactions cannot be staged inside one Apex test, so the refusal is injected
+     * at the one line the platform would throw from, and runs through the same mapping.
+     */
+    @TestVisible
+    private static Boolean rowHeldElsewhere = false;
 
     /** The outcome of a stage_* call: the handle, the hash, and the token this caller now holds. */
     public class Staged {
@@ -165,12 +185,52 @@ public with sharing class C360ActionStaging {
         String decisionToken,
         Id approverUserId
     ) {
+        // Lock BEFORE the gate reads, so the read sees the committed row and not a stale one: a claim
+        // that read Staged and then waited on another run's lock would otherwise burn the token a
+        // second time the moment that run committed. See lockForRun.
+        lockForRun(stagingId);
         cm_Action_Staging__c rec = assertClaimable(stagingId, planHash, decisionToken, approverUserId);
         rec.cm_Token_Consumed_At__c = System.now();
         rec.cm_Approver_User__c = approverUserId;
         rec.cm_Status__c = 'Executing';
         update as user rec;
         return rec;
+    }
+
+    /**
+     * Takes the row lock on a staging record for the rest of this transaction, or refuses because a
+     * run of the same plan holds it right now (2026-09-29, STG-0000000183: a second execute arrived
+     * while the first was 60 s into a 112 s discard and was admitted by the gate).
+     *
+     * WHY A LOCK AND NOT A STATE TEST. An inline execute runs as ONE transaction, so nothing it writes
+     * (the claim, the progress, the result id) is visible to another transaction until it commits:
+     * from outside, an in-flight run reads exactly like a Staged row or a stopped one, and no field
+     * can tell them apart. The row lock is the only fact the platform shares across transactions
+     * while a run is live, so the second caller waits for it (Salesforce holds it for about ten
+     * seconds) and is refused RUN_IN_FLIGHT; a genuinely stopped run holds no lock and resumes at
+     * once, and every read after the lock sees the committed row.
+     *
+     * Only a leg that WRITES may call this. The relay's outer leg must never take it: it would hold
+     * the lock across the callout, and the inner leg it calls would then wait on its own caller.
+     *
+     * @param stagingId The handle returned by stage_*.
+     * @throws RunInFlightException when another transaction holds the row.
+     */
+    public static void lockForRun(String stagingId) {
+        try {
+            if (rowHeldElsewhere) {
+                throw new QueryException('Record Currently Unavailable: the record is being modified by another user.');
+            }
+            List<cm_Action_Staging__c> held = [
+                SELECT Id FROM cm_Action_Staging__c WHERE Id = :stagingId WITH USER_MODE FOR UPDATE
+            ];
+        } catch (QueryException e) {
+            String m = e.getMessage();
+            if (m != null && (m.contains('Record Currently Unavailable') || m.contains('UNABLE_TO_LOCK_ROW'))) {
+                throw new RunInFlightException(RUN_IN_FLIGHT_MESSAGE);
+            }
+            throw e;
+        }
     }
 
     /**

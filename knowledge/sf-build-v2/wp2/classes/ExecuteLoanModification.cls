@@ -149,6 +149,10 @@ global with sharing class ExecuteLoanModification {
         'verification land there and are recorded on the staging record, which is the authority. ' +
         'Nothing here is claimed until it does.';
 
+    /** What a second execute hears while the first is still running. The run is live, not failed. */
+    private static final String RUN_IN_FLIGHT =
+        'This modification is still running in Salesforce. Nothing needs to be pressed; the page will settle when it finishes.';
+
     private static final String RELAY_UNAVAILABLE =
         'The execution path into the org is unavailable, so nothing was attempted and nothing was written. ' +
         'The decision token has not been used: retry this same call once the path is back.';
@@ -463,6 +467,9 @@ global with sharing class ExecuteLoanModification {
         } catch (C360Facilities.SelectionException e) {
             res.ok = false;
             res.error = err('VALIDATION_FAILED', e.getMessage(), null, null, false, req.idempotencyKey);
+        } catch (C360ActionStaging.RunInFlightException e) {
+            res.ok = false;
+            res.error = err('RUN_IN_FLIGHT', RUN_IN_FLIGHT, e.getMessage(), null, false, req.idempotencyKey);
         } catch (C360ActionStaging.StagingException e) {
             res.ok = false;
             res.error = err('TOKEN_REFUSED', e.getMessage(), null, null, false, req.idempotencyKey);
@@ -899,6 +906,12 @@ global with sharing class ExecuteLoanModification {
         if (String.isBlank(req.planHash)) {
             throw new ToolException('planHash is required.');
         }
+
+        // ONE RUN AT A TIME. A run in flight has committed nothing, so without the lock this fork
+        // reads its row as Staged and a retry is claimed beside it. With it, a caller waits for the
+        // live run and is refused RUN_IN_FLIGHT, or reads what that run committed and replays it.
+        // See C360ActionStaging.lockForRun.
+        C360ActionStaging.lockForRun(req.stagingId);
 
         cm_Action_Staging__c prior = C360ActionStaging.findCompleted(req.idempotencyKey);
         if (prior != null) {
@@ -3223,6 +3236,9 @@ global with sharing class ExecuteLoanModification {
         if (String.isBlank(req.stagingId) || String.isBlank(req.planHash)) {
             throw new ToolException('stagingId and planHash are required on the arm hop.');
         }
+        // The arm writes onto clones the engine hop left, so two arms at once would carry the junction
+        // graph twice. The lock admits one; assertArmable, reading after it, refuses a finished run.
+        C360ActionStaging.lockForRun(req.stagingId);
         cm_Action_Staging__c staged = readStaging(req.stagingId);
         if (staged == null) {
             throw new ToolException('No staging record found for stagingId ' + req.stagingId + '.');

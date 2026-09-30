@@ -5,9 +5,18 @@ import { prefersReducedMotion } from "../data/motion";
 import type { StagedOutput } from "../actions/stagedPlan";
 import { SIMULATION_BANNER } from "../actions/stagedPlan";
 import type { DecisionToken } from "../actions/decisionToken";
-import { ASKING_AGAIN, toolErrorCopy, type ExecuteResult } from "../channel/writeTools";
-import { CLOSING_LINE, UNSETTLED_BODY, UNSETTLED_TITLE } from "./ConfirmGate";
-import { useGovernedConfirm } from "./governedConfirm";
+import { ASKING_AGAIN, EXECUTE_CLOCK_MS, toolErrorCopy, type ExecuteResult } from "../channel/writeTools";
+import {
+  CLOSING_LINE,
+  STAGE_IN_FLIGHT,
+  STAGE_LATE,
+  STAGE_LATE_BODY,
+  STAGE_LATE_TITLE,
+  STAGE_STILL,
+  STAGE_WAIT,
+  stageAnswered,
+} from "./ConfirmGate";
+import { STAGE_CEILING_MS, useGovernedConfirm } from "./governedConfirm";
 import {
   closingSentences,
   groupOutcome,
@@ -78,7 +87,25 @@ const T = {
   typeMin: 400,
   saidPause: 460,
   afterAt: 520,
+  /** The wait line cross-fades when it changes (0.9.33). */
+  swap: 320,
+  /** The lens pass fades out over this when the answer lands. It lives in
+   *  stage.css; named here because it must sit inside `toFirst`. */
+  lensOut: 240,
+  /** One lens pass, rest included. ASKING_AGAIN holds the line for one. */
+  lens: 4800,
 } as const;
+
+/** The org's own count sentence ("This action DELETES 17 records ..."). Picked by
+ *  what it says, never by where it sits: on STG-0000000183 the org put two
+ *  self-anchor notes ahead of it. */
+const ORG_COUNT_LINE = /\bDELETES \d+ records?\b/;
+
+/** m:ss, the clock's own format. */
+function mss(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
 /** The list says at its edge when it has more under it. */
 function useScrollMask(deps: unknown[]): (el: HTMLUListElement | null) => void {
@@ -103,7 +130,7 @@ function useScrollMask(deps: unknown[]): (el: HTMLUListElement | null) => void {
 }
 
 type RowState = "queued" | "writing" | "verified" | "leaving" | "gone" | "kept" | "stopped" | "skipped";
-type Phase = "plan" | "run" | "close" | "stopped";
+type Phase = "plan" | "wait" | "run" | "close" | "stopped";
 
 export interface GovernedStageProps {
   plan: StagedOutput;
@@ -111,6 +138,10 @@ export interface GovernedStageProps {
   /** The action in banker words, e.g. "Discard the version <name>". The book
    *  names the target; the stage never derives a name from a plan string. */
   title: string;
+  /** WHICH record the action takes, in banker words, bound by the caller from
+   *  the book (backlog row 77). Said once on the plan and once in the closing,
+   *  never twice on one beat. Null where the book cannot name it. */
+  identity?: string | null;
   /** Short banker titles per org object. An object it does not name renders off
    *  its API name rather than not at all. */
   objectTitles?: Record<string, string>;
@@ -143,6 +174,7 @@ export function GovernedStage({
   plan,
   actionId,
   title,
+  identity,
   objectTitles,
   commitLabel,
   simulated,
@@ -171,6 +203,9 @@ export function GovernedStage({
   const [afterOn, setAfterOn] = useState(false);
   const [stopDetail, setStopDetail] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<ExecuteResult | null>(resume?.outcome ?? null);
+  /** How long Salesforce took, once it answered. The clock stops on it. */
+  const [answeredMs, setAnsweredMs] = useState<number | null>(null);
+  const sentAt = useRef<number | null>(null);
 
   /** The banker this page is signed in as, as the page names people. */
   const approver = resume?.approver ?? data.meta?.user ?? null;
@@ -201,12 +236,77 @@ export function GovernedStage({
     liveSections,
     asOf,
     onConfirmed: (token, executed, note) => {
+      if (sentAt.current !== null) setAnsweredMs(Date.now() - sentAt.current);
       setOutcome(executed ?? null);
       onConfirmed(token, executed, note);
     },
   });
 
   const listRef = useScrollMask([phase, rows]);
+
+  /* ------------------------------------------------------------- the wait
+     0.9.33, knowledge/DESIGN-0.9.33-STAGE-WAIT.md. Between the press and the
+     org's answer NO ROW MOVES: the org commits the whole run in one transaction
+     and has reported nothing. What the sheet may say is that it is listening
+     (one lens pass over the whole list, in stage.css) and how long it has been
+     (the clock). The wait starts from the send, never from the press, so a
+     blocked or drifted press never shows a clock. */
+  const waiting = gate.sentAt !== null && !outcome && !gate.toolError;
+  const [now, setNow] = useState(() => Date.now());
+  const [askedAt, setAskedAt] = useState<number | null>(null);
+  useEffect(() => {
+    if (gate.sentAt !== null) sentAt.current = gate.sentAt;
+  }, [gate.sentAt]);
+  useEffect(() => {
+    if (!waiting) return;
+    setAnsweredMs(null);
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [waiting]);
+  useEffect(() => {
+    if (gate.asking > 1) {
+      setAskedAt(Date.now());
+      setNow(Date.now());
+    }
+  }, [gate.asking]);
+  const elapsed = waiting && gate.sentAt !== null ? Math.max(0, now - gate.sentAt) : 0;
+  const overdue = waiting && elapsed >= STAGE_CEILING_MS;
+  /* The same key going back out is a fact about the wire, not a warning: it
+     holds the line for one lens pass. */
+  const asked = waiting && askedAt !== null && now - askedAt < T.lens;
+  const waitLine =
+    answeredMs !== null
+      ? stageAnswered(mss(answeredMs))
+      : !waiting
+        ? ""
+        : overdue
+          ? STAGE_LATE
+          : asked
+            ? ASKING_AGAIN
+            : gate.inFlight
+              ? STAGE_IN_FLIGHT
+              : elapsed >= EXECUTE_CLOCK_MS
+                ? STAGE_STILL
+                : STAGE_WAIT;
+  /* A changed line cross-fades in the same ink and size. The first line and the
+     answered line land at once, and reduced motion never fades. */
+  const [shown, setShown] = useState("");
+  const [swapping, setSwapping] = useState(false);
+  useEffect(() => {
+    if (waitLine === shown) return;
+    if (reduced || !shown || !waitLine || answeredMs !== null) {
+      setShown(waitLine);
+      setSwapping(false);
+      return;
+    }
+    setSwapping(true);
+    const id = window.setTimeout(() => {
+      setShown(waitLine);
+      setSwapping(false);
+    }, T.swap);
+    return () => window.clearTimeout(id);
+  }, [waitLine, shown, reduced, answeredMs]);
 
   /* ------------------------------------------------------------- the beats */
 
@@ -413,11 +513,16 @@ export function GovernedStage({
   const press = useCallback(() => {
     stopClock();
     setOpen(null);
-    setPhase("run");
+    setPhase("wait");
     void gate.confirm();
   }, [stopClock, gate]);
 
   const planning = phase === "plan";
+  /* REFUSED AFTER THE PRESS. The wait ended with no answer to reveal, so the
+     foot comes back with the org's words and the same two controls the plan
+     beat offers: the same key again, or leave. A sheet that goes quiet here
+     leaves the banker with no sentence and no door. */
+  const refused = phase === "wait" && !outcome && Boolean(gate.toolError) && !gate.executing;
   const running = phase === "run";
   /* THE SHEET EMPTIES ONLY WHEN THE VERSION HAS LEFT THE ORG. A STOP KEEPS ITS
      LIST: the refused group, the org's own words under it and every row that
@@ -426,9 +531,11 @@ export function GovernedStage({
      sheet with no account of where the chain got to. */
   const emptied = phase === "close";
   const closed = phase === "close" || phase === "stopped";
-  /* The count line is the ORG'S, verbatim: the first warning is the one that
-     says how many records leave and what is not touched. */
-  const [countLine, ...restWarnings] = plan.warnings;
+  /* The count line is the ORG'S, verbatim: the warning that says how many
+     records leave and what is not touched. Every other warning keeps its place
+     in the foot, and a plan with no such sentence renders no count line. */
+  const countLine = plan.warnings.find((w) => ORG_COUNT_LINE.test(w)) ?? null;
+  const restWarnings = plan.warnings.filter((w) => w !== countLine);
   const observed = useMemo(
     () => observedSentences(plan, groups, outcome?.steps ?? []),
     [plan, groups, outcome],
@@ -446,6 +553,7 @@ export function GovernedStage({
           aria-modal="true"
           aria-label={title}
           data-phase={phase}
+          data-wait={waiting ? "" : undefined}
         >
           <div className="gs-aura" aria-hidden="true">
             <i />
@@ -454,32 +562,55 @@ export function GovernedStage({
           <header className="gs-hd" data-quiet={emptied ? "" : undefined}>
             <div className="gs-kick">Governed action</div>
             <h2>{title}</h2>
+            {/* The header's ledes fold away on the close, which carries the
+                identity itself; hidden from the reader too, so it is said once. */}
+            {identity && (
+              <p className="gs-lede" data-identity="plan" aria-hidden={emptied || undefined}>
+                {identity}
+              </p>
+            )}
             {simulated && <p className="gs-lede">{SIMULATION_BANNER}</p>}
             {countLine && <p className="gs-lede">{countLine}</p>}
+            {/* THE WAIT LINE, with its quiet clock. It lives in the header, so it
+                goes quiet with the header when the close arrives. */}
+            <div className="gs-wait" data-on={waiting || answeredMs !== null ? "" : undefined}>
+              <div>
+                <div className="gs-wait-in">
+                  <p className="gs-wait-line" aria-live="polite" data-swap={swapping ? "" : undefined}>
+                    {shown}
+                  </p>
+                  <span className="gs-wait-clock tnum">{waiting ? mss(elapsed) : ""}</span>
+                </div>
+              </div>
+            </div>
           </header>
 
           {/* ------------------------------------------------- the inventory */}
           <section className="gs-inv" data-gone={emptied ? "" : undefined} data-off={afterOn && emptied ? "" : undefined}>
             <div className="gs-inv-in">
               <div className="gs-colhead">
-                <span>{running ? "Working through the plan" : "The inventory, as the org grouped it"}</span>
+                <span>{running ? "As Salesforce reports it" : "The inventory, as the org grouped it"}</span>
                 <span>Records</span>
               </div>
-              <ul className="gs-rows" ref={listRef}>
-                {groups.map((g) => (
-                  <StageRow
-                    key={g.id}
-                    group={g}
-                    state={rows[g.id] ?? "queued"}
-                    detail={details[g.id] ?? g.names}
-                    p={fills[g.id] ?? 0}
-                    open={open === g.id}
-                    interactive={planning}
-                    stopDetail={stopDetail}
-                    onToggle={() => setOpen((prev) => (prev === g.id ? null : g.id))}
-                  />
-                ))}
-              </ul>
+              {/* The lens pass belongs to the list, never to a row. */}
+              <div className="gs-rows-wrap">
+                <ul className="gs-rows" ref={listRef}>
+                  {groups.map((g) => (
+                    <StageRow
+                      key={g.id}
+                      group={g}
+                      state={rows[g.id] ?? "queued"}
+                      detail={details[g.id] ?? g.names}
+                      p={fills[g.id] ?? 0}
+                      open={open === g.id}
+                      interactive={planning}
+                      stopDetail={stopDetail}
+                      onToggle={() => setOpen((prev) => (prev === g.id ? null : g.id))}
+                    />
+                  ))}
+                </ul>
+                <div className="gs-sweep" aria-hidden="true" />
+              </div>
             </div>
           </section>
 
@@ -495,13 +626,16 @@ export function GovernedStage({
                 ))}
               </div>
               <div className="gs-after" data-on={afterOn ? "" : undefined}>
+                {phase === "close" && identity && <p data-identity="close">{identity}</p>}
                 {phase === "stopped" ? (
                   <p>{RESUME_LINE}</p>
                 ) : (
                   observed.map((line, i) => <p key={i}>{line}</p>)
                 )}
                 <p className="gs-prov">
-                  Plan {plan.planHash.slice(0, 8)} · staging {plan.stagingId}
+                  {/* No staging reference: the plan carries only the row's record
+                      id, never its STG name, and a record id is not banker copy. */}
+                  Plan {plan.planHash.slice(0, 8)}
                   {approver ? ` · confirmed by ${approver}` : ""} · {groups.length}{" "}
                   {groups.length === 1 ? "group" : "groups"}, each re-queried before the next.
                 </p>
@@ -533,7 +667,7 @@ export function GovernedStage({
           </div>
 
           {/* ----------------------------------------------------- the foot */}
-          <footer className="gs-foot" data-quiet={planning ? undefined : ""}>
+          <footer className="gs-foot" data-quiet={planning || refused ? undefined : ""}>
             {/* A33.5.3: every side effect the org named is read BEFORE the
                 gesture, never after. The first warning is the lede above; the
                 rest sit here in the sheet's quietest type, inside their own
@@ -580,12 +714,12 @@ export function GovernedStage({
                 surface that says nothing for four seconds is how a banker
                 decides the page is broken and files the work a second time
                 somewhere else. */}
-            {gate.asking > 1 && (
+            {gate.asking > 1 && !waiting && (
               <div className="gs-notice" data-tone="warning" data-asking={gate.asking}>
                 {ASKING_AGAIN}
               </div>
             )}
-            {gate.toolError && planning && (
+            {gate.toolError && (planning || refused) && (
               <div className="gs-notice" data-tone="critical">
                 <b>{gate.toolError.code === "TRANSPORT" ? "The answer did not come back" : "This did not go through"}</b>
                 {toolErrorCopy(gate.toolError)}
@@ -615,15 +749,20 @@ export function GovernedStage({
               : "This view has no signed-in banker, so nothing can be confirmed from here."}
           </p>
 
-          {/* NOBODY KNOWS YET, AND THAT IS ITS OWN STATE. Warning ink, never
-              critical: critical is what the cockpit uses when the org has said
-              no, and the org has said nothing at all. */}
-          {gate.unsettled && (
-            <div className="gs-notice" data-tone="warning" data-unsettled="1">
-              <b>{UNSETTLED_TITLE}</b>
-              {UNSETTLED_BODY}
+          {/* PAST THE CEILING, AND ONLY THEN, WARNING INK. Never critical:
+              critical is what the cockpit uses when the org has said no, and the
+              org has said nothing at all. Before the ceiling a long wait is not
+              news, and the line above carries it. */}
+          <div className="gs-late" data-on={overdue ? "" : undefined}>
+            <div>
+              {overdue && (
+                <div className="gs-notice" data-tone="warning" data-late="1">
+                  <b>{STAGE_LATE_TITLE}</b>
+                  {STAGE_LATE_BODY}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </section>
       </div>
     </Portal>

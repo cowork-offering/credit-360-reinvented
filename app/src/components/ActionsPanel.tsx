@@ -165,7 +165,11 @@ export function ActionsPanelBody() {
           <section key={category}>
             <div className="kicker px-4 pb-1 pt-3">{category}</div>
             {rows.map((action) => {
-              const { available, reason } = action.availability(data, accountId);
+              const { available, reason } = action.availability(
+                data,
+                accountId,
+                accountId ? state.actionHistory[accountId] : undefined,
+              );
               const sent = sentId === action.id;
               return (
                 <ActionRow

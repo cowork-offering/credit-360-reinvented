@@ -3046,4 +3046,72 @@ private class StageExecuteLoanModificationTest {
         System.assertEquals(false, res.ok, 'A carry exclusion on a facility that carries nothing has no referent at all');
         System.assert(res.error.message.contains('carries nothing'), res.error.message);
     }
+
+    // -------------------------------------------------------------------------------------------
+    // One run at a time (2026-09-29, STG-0000000183 on the discard, same hole here). An inline leg
+    // commits nothing until it ends, so a retry that arrives mid-run reads the row as Staged (engine
+    // hop) or Executing with a result id (arm hop) and the gate alone admits it. Each leg now takes
+    // the staging row's lock first and refuses RUN_IN_FLIGHT when another transaction holds it.
+    // C360ActionStaging.rowHeldElsewhere injects the platform's lock refusal at the line that throws it.
+    // -------------------------------------------------------------------------------------------
+
+    @IsTest
+    static void anEngineHopWhileTheRunIsInFlightIsRefusedAndConsumesNothing() {
+        C360TestFixture.armCalloutMock();
+        ExecuteLoanModification.engineOverride = new ObservedCloneEngine();
+        String k = key('inflight');
+
+        Test.startTest();
+        StageLoanModification.Response staged = stage(stageReq(k));
+        Test.stopTest();
+        System.assertEquals(true, staged.ok, whyStage(staged));
+
+        C360ActionStaging.rowHeldElsewhere = true;
+        ExecuteLoanModification.Response refused = execute(execReq(k, staged.result));
+        C360ActionStaging.rowHeldElsewhere = false;
+
+        System.assertEquals(false, refused.ok, 'A second execute beside a live run is refused');
+        System.assertEquals('RUN_IN_FLIGHT', refused.error.code, whyExec(refused));
+        System.assert(refused.error.message.startsWith('This modification is still running in Salesforce.'), refused.error.message);
+        System.assertEquals(false, refused.error.resumable, 'Nothing for the banker to press: the run is going');
+        System.assertEquals(null, consumedAt(staged.result.stagingId), 'The refused call spent nothing');
+        System.assertEquals(0, cloneCount(), 'And wrote nothing');
+
+        ExecuteLoanModification.Response ran = execute(execReq(k, staged.result));
+        System.assertEquals(true, ran.ok, 'The same token runs once the row is free: ' + whyExec(ran));
+        System.assertEquals(1, cloneCount(), 'One key, one modification');
+    }
+
+    @IsTest
+    static void anArmHopWhileAnotherArmIsInFlightIsRefusedAndTheWaitingRunStillArms() {
+        C360TestFixture.armCalloutMock();
+        ExecuteLoanModification.engineOverride = new ObservedCloneEngine();
+        String k = key('arminflight');
+
+        Test.startTest();
+        StageLoanModification.Response staged = stage(stageReq(k));
+        Test.stopTest();
+        System.assertEquals(true, staged.ok, whyStage(staged));
+
+        ExecuteLoanModification.Request engineHop = execReq(k, staged.result);
+        engineHop.phase = 'engine';
+        ExecuteLoanModification.Response first = execute(engineHop);
+        System.assertEquals(true, first.ok, 'precondition: the engine hop ran: ' + whyExec(first));
+        Id cloneId = (Id) first.result.cloneLoanId;
+
+        ExecuteLoanModification.Request armHop = execReq(k, staged.result);
+        armHop.phase = 'arm';
+        C360ActionStaging.rowHeldElsewhere = true;
+        ExecuteLoanModification.Response refused = execute(armHop);
+        C360ActionStaging.rowHeldElsewhere = false;
+
+        System.assertEquals('RUN_IN_FLIGHT', refused.error.code, whyExec(refused));
+        System.assertEquals(1000000, [SELECT LLC_BI__Amount__c FROM LLC_BI__Loan__c WHERE Id = :cloneId].LLC_BI__Amount__c,
+            'The refused arm wrote nothing onto the clone');
+
+        ExecuteLoanModification.Response armed = execute(armHop);
+        System.assertEquals(true, armed.ok, 'A run waiting on its arm holds no lock and arms as before: ' + whyExec(armed));
+        System.assertEquals(C360Plan.TERMINAL_SUCCESS, armed.result.terminalState, JSON.serialize(armed.result.steps));
+        System.assertEquals(1500000, [SELECT LLC_BI__Amount__c FROM LLC_BI__Loan__c WHERE Id = :cloneId].LLC_BI__Amount__c);
+    }
 }

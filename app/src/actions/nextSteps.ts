@@ -14,7 +14,7 @@
    disabled and honest, exactly like the Actions panel.
    ============================================================================= */
 
-import type { BorrowerBundle, C360Data, Id, NextStep } from "../data/contract";
+import type { ActionHistoryRow, BorrowerBundle, C360Data, Id, NextStep } from "../data/contract";
 import { ACTIONS_BY_ID, renderPrompt, type Availability, type ClientAction } from "./registry";
 
 export interface ResolvedNextStep {
@@ -31,6 +31,7 @@ export function resolveNextSteps(
   data: C360Data,
   accountId: Id,
   accountName: string,
+  history?: readonly ActionHistoryRow[],
 ): ResolvedNextStep[] {
   const out: ResolvedNextStep[] = [];
   const seen = new Set<string>();
@@ -41,7 +42,7 @@ export function resolveNextSteps(
     out.push({
       action,
       note: step.note,
-      availability: action.availability(data, accountId),
+      availability: action.availability(data, accountId, history),
       prompt: renderPrompt(action, accountName, accountId),
     });
   }

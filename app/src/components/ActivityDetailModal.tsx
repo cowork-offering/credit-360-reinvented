@@ -107,8 +107,15 @@ export function ActivityDetailModal({
   const risks = detail?.risks ?? linked?.detail?.risks;
 
   const steps = useMemo(
-    () => resolveNextSteps(detail?.nextSteps ?? linked?.detail?.nextSteps, data, accountId, accountName),
-    [detail?.nextSteps, linked, data, accountId, accountName],
+    () =>
+      resolveNextSteps(
+        detail?.nextSteps ?? linked?.detail?.nextSteps,
+        data,
+        accountId,
+        accountName,
+        state.actionHistory[accountId],
+      ),
+    [detail?.nextSteps, linked, data, accountId, accountName, state.actionHistory],
   );
 
   // Focus trap + Esc, matching FloatingPanel's contract.

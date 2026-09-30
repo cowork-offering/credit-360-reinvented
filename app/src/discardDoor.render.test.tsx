@@ -335,3 +335,46 @@ describe("a run that stopped part way is offered a resume, or an honest line", (
     expect(el.querySelector("[data-stopped-run]")).toBeNull();
   });
 });
+
+/* =============================================================================
+   A VERSION ONLY THE TRAIL CAN NAME REACHES EVERY DOOR (backlog row 76).
+
+   The net-new facility arm makes the version one loan larger than its source,
+   so the mirror misses it. The trail row the org filed for the modification is
+   in the store, and both surfaces read it.
+   ============================================================================= */
+
+describe("a version the mirror misses reaches the doors through the trail", () => {
+  function grown(): BorrowerBundle {
+    const bundle = forked();
+    const clone = bundle.exposure!.facilities!.find((f) => f.loanId === "a4Zbb000009CLONE0")!;
+    bundle.exposure!.facilities!.push({ ...clone, loanId: "a4Zbb000009NEWARM", name: "Hartwell Precision Manufacturing LLC - Term Loan - $4,000,000.00", committed: 4_000_000 });
+    return bundle;
+  }
+  const FILED: ActionHistoryRow[] = [
+    {
+      stagingId: "STG-0000000182",
+      actionId: "loan-modification",
+      status: "Completed",
+      resultRecordId: "a4Zbb000009CLONE0",
+      productPackageId: SOURCE,
+      executedAt: "2026-09-22T14:05:00.000Z",
+    },
+  ];
+  const row = (el: HTMLElement) =>
+    [...el.querySelectorAll("button")].find((b) => (b.textContent ?? "").includes(DISCARD_LABEL)) ?? null;
+
+  it("stands the Modification in Progress row up on the trail's word, and not without it", () => {
+    const bundle = grown();
+    expect(render(<ActivityTab bundle={bundle} />, dataWith(bundle)).querySelector('[data-inflight-row="1"]')).toBeNull();
+    act(() => root?.unmount());
+    const said = text(render(<ActivityTab bundle={bundle} />, dataWith(bundle), FILED).querySelector('[data-inflight-row="1"]'));
+    expect(said).toContain("8 facilities");
+    expect(said).toContain("cannot take a second modification");
+  });
+
+  it("enables the Client Actions row on the trail's word", () => {
+    const bundle = grown();
+    expect(row(render(<ActionsPanelBody />, dataWith(bundle), FILED))!.getAttribute("aria-disabled")).toBe("false");
+  });
+});

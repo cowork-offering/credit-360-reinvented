@@ -27,7 +27,7 @@
    they feed with a dashed "stub" provenance chip. They announce themselves.
    ============================================================================= */
 
-import type { Boom, BorrowerBundle, CollateralValuationRow, Covenant, Facility } from "../data/contract";
+import type { ActionHistoryRow, Boom, BorrowerBundle, CollateralValuationRow, Covenant, Facility } from "../data/contract";
 import { fmtMoney } from "../data/format";
 import { packageRoster } from "../book/packages";
 import icRaw from "./vendor/plugin-assets/ic_placeholder.json?raw";
@@ -455,9 +455,14 @@ function pairOn(
   }
 }
 
-/** The editable version this bundle's anchored package carries, or null. */
-export function versionOverlayFor(bundle: BorrowerBundle | null | undefined): VersionOverlay | null {
-  const roster = packageRoster(bundle);
+/** The editable version this bundle's anchored package carries, or null.
+ *  `history` lets a filed modification name a version the mirror cannot, such
+ *  as one the net-new facility arm made larger than its source. */
+export function versionOverlayFor(
+  bundle: BorrowerBundle | null | undefined,
+  history?: readonly ActionHistoryRow[],
+): VersionOverlay | null {
+  const roster = packageRoster(bundle, history);
   const anchor = bundle?.snapshot?.productPackageId ?? null;
   const source = roster.find((p) => p.inFlightVersionId && (!anchor || p.id === anchor));
   if (!source) return null;
@@ -999,6 +1004,8 @@ export interface BuildDossierOptions {
   productPackageName?: string | null;
   /** Manifest credit-event id. Defaults to an existing relationship with a material event. */
   creditEvent?: string;
+  /** The org's action trail, where the caller holds one. It names the version in flight. */
+  history?: readonly ActionHistoryRow[];
   /** "core" or "enhanced". */
   tier?: string;
   /** Prior per-section sign-offs, replayed so a re-render never wipes the checklist. */
@@ -1015,7 +1022,7 @@ export interface BuildDossierOptions {
  * golden parity test hold it to a byte.
  */
 export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
-  const { bundle, changes = [], instanceUrl = null, attestation } = options;
+  const { bundle, changes = [], instanceUrl = null, attestation, history } = options;
   const snapshot = bundle.snapshot;
   const facilities = bundle.exposure?.facilities ?? [];
 
@@ -1023,7 +1030,7 @@ export function buildMemoDossier(options: BuildDossierOptions): MemoDossier {
      The org's exposure read returns the booked facilities AND their clones, so
      without this the memo listed both as separate loans, summed both into
      exposure and printed no pro forma column at all. */
-  const overlay = versionOverlayFor(bundle);
+  const overlay = versionOverlayFor(bundle, history);
   const addedIds = new Set(overlay?.added.map((f) => f.loanId).filter((id): id is string => !!id) ?? []);
   /* A CLONE IS NEVER A LOAN OF ITS OWN. It is the proposed side of the booked
      facility it restates, or, where it restates nothing, a facility the version

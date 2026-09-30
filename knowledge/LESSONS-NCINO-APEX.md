@@ -1308,3 +1308,24 @@ that lives only in a session transcript does not exist.*
     no failure. Conclusion: leave both alone. The trigger for revisiting is not a new field or a new
     arm, it is any new write that touches `LLC_BI__LoanRenewal__c`, moves a facility between
     packages, or rolls or renews anything.
+
+## 8q. A run in flight is invisible to every other transaction, so only a row lock can refuse a racing retry (2026-09-29, backlog row 79)
+
+85. **The evidence.** STG-0000000183, the founder's Hartwell discard: the relay journal shows the real
+    `ExecuteDiscardVersion` taking 112 s and a second one for the same row arriving 68 s in, which
+    returned after 10.47 s, the platform's row-lock wait. The page's same-key ladder had re-sent the
+    execute because the dispatcher gave up on the first hop. The row lock that stopped it was an
+    accident of DML, not a design: no class took `FOR UPDATE`, and `assertClaimable` /
+    `assertArmable` read the row unlocked.
+    **Why no field can fix it.** An inline execute is ONE transaction. Its claim, its progress and its
+    result id are invisible to any other transaction until it commits, so from outside a live run
+    reads exactly like a Staged row (first run) or a stopped one (resume). Every state test is blind
+    to it. The worse window: a retry that read the row, then got the lock AFTER the first run
+    committed, would act on its stale read and re-run a finished plan (a discard rewriting Completed
+    as Failed; a modification running the credit action twice).
+    **The rule.** Every leg that WRITES takes `C360ActionStaging.lockForRun(stagingId)` before the gate
+    reads the row, so the read sees the committed state, and a held row is refused `RUN_IN_FLIGHT`
+    having read and written nothing and spent no token. The relay's outer leg never takes it: it
+    would hold the lock across the callout and the inner leg would wait on its own caller.
+    GENERALISE: when two callers may run the same governed write, the only shared fact while one
+    is live is the lock; check-then-act on fields is a race by construction.

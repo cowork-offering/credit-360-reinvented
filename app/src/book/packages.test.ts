@@ -9,7 +9,7 @@ import {
 } from "./packages";
 import { heroOf } from "./hero";
 import { APPROVAL_STAGE, atOrPastApproval, stageRung } from "../data/facilityStage";
-import type { BorrowerBundle, Facility } from "../data/contract";
+import type { ActionHistoryRow, BorrowerBundle, Facility } from "../data/contract";
 
 /* =============================================================================
    THE THREE STATES OF A MODIFICATION, AGAINST THE LIVE ORG'S OWN VOCABULARY.
@@ -211,5 +211,83 @@ describe("state 2 and 3 — the modification books and REPLACES what it supersed
     ]);
     expect(packageRoster(discarded).find((p) => p.id === VERSION)).toBeUndefined();
     expect(heroOf(discarded, Date.UTC(2026, 8, 12))!.anchors.find((a) => a.label === "Committed")!.value).toBe("$8.0M");
+  });
+});
+
+/* ------------------------------ rule 2: the trail names what the mirror cannot
+
+   Backlog row 76 (2026-09-29). The mirror needs equal member counts, and two
+   real shapes break it: the net-new facility arm makes a version LARGER than
+   its source, and a source carrying an extra unbooked loan is larger than its
+   copy. Live, version a5Fbb000000JKB7EAO was invisible. A filed modification
+   row whose result loan sits in the version names it outright. */
+
+describe("rule 2: a filed modification names its version at any size", () => {
+  /** The trail row the org files for a modification, at its own contract. */
+  const filedRow = (over: Partial<ActionHistoryRow> = {}): ActionHistoryRow => ({
+    stagingId: "STG-0000000182",
+    actionId: "loan-modification",
+    status: "Completed",
+    resultRecordId: "a4Zbb000002KFD4EAO",
+    productPackageId: SOURCE,
+    executedAt: "2026-09-22T14:05:00.000Z",
+    ...over,
+  });
+
+  /** The net-new facility the modification's arm adds to the version. */
+  const netNew = loan({
+    loanId: "a4Zbb000002KFD5EAO",
+    name: "Hartwell - Equipment - $3,000,000.00",
+    committed: 3_000_000,
+    outstanding: 0,
+    productPackageId: VERSION,
+    stage: "Qualification",
+  });
+
+  it("finds a version one loan LARGER than its source (the net-new arm) through the trail", () => {
+    const bundle = bundleOf([...BOOKED_MEMBERS, ...versionMembers(), netNew]);
+    const roster = packageRoster(bundle, [filedRow()]);
+    const version = roster.find((p) => p.id === VERSION)!;
+    const source = roster.find((p) => p.id === SOURCE)!;
+    expect(version.inFlightVersion).toBe(true);
+    expect(version.inFlightEditable).toBe(true);
+    expect(version.reason).toBe("Modification in flight · editable until approval · 3 facilities · $16.50M");
+    expect(source.hasInFlightModification).toBe(true);
+    expect(source.inFlightVersionId).toBe(VERSION);
+    expect(lockedSourcePackage(roster, SOURCE)?.id).toBe(SOURCE);
+  });
+
+  it("finds the version where the SOURCE carries an extra unbooked loan", () => {
+    const stray = loan({ loanId: "a4Zbb000002CECXEA4", name: "Hartwell - Equipment - $3,000,000.00", committed: 3_000_000, stage: "Proposal" });
+    const bundle = bundleOf([...BOOKED_MEMBERS, stray, ...versionMembers()]);
+    // The mirror alone cannot see it: three members against two.
+    expect(packageRoster(bundle).find((p) => p.id === VERSION)!.inFlightVersion).toBe(false);
+    const roster = packageRoster(bundle, [filedRow()]);
+    expect(roster.find((p) => p.id === VERSION)!.inFlightVersion).toBe(true);
+    expect(roster.find((p) => p.id === SOURCE)!.inFlightVersionId).toBe(VERSION);
+  });
+
+  it("leaves the fallback as it was: no filed row and mismatched sizes stays invisible", () => {
+    const bundle = bundleOf([...BOOKED_MEMBERS, ...versionMembers(), netNew]);
+    for (const history of [undefined, [], [filedRow({ status: "Staged" })], [filedRow({ status: "Executing" })]]) {
+      const roster = packageRoster(bundle, history);
+      expect(roster.find((p) => p.id === VERSION)!.inFlightVersion).toBe(false);
+      expect(roster.find((p) => p.id === SOURCE)!.hasInFlightModification).toBe(false);
+    }
+  });
+
+  it("names nothing off a Withdrawn row: that is a discarded version's", () => {
+    const bundle = bundleOf([...BOOKED_MEMBERS, ...versionMembers(), netNew]);
+    const roster = packageRoster(bundle, [filedRow({ status: "Withdrawn" })]);
+    expect(roster.some((p) => p.inFlightVersion)).toBe(false);
+    expect(roster.find((p) => p.id === SOURCE)!.inFlightVersionId).toBeNull();
+  });
+
+  it("never names the relationship's own anchor, nor a booked package, as a version", () => {
+    const anchored = { ...bundleOf([...BOOKED_MEMBERS, ...versionMembers(), netNew]) };
+    anchored.snapshot = { ...anchored.snapshot!, productPackageId: VERSION };
+    expect(packageRoster(anchored, [filedRow()]).find((p) => p.id === VERSION)!.inFlightVersion).toBe(false);
+    const onBooked = packageRoster(bundleOf([...BOOKED_MEMBERS]), [filedRow({ resultRecordId: "a4Zbb000002ICnxEAG" })]);
+    expect(onBooked.some((p) => p.inFlightVersion)).toBe(false);
   });
 });

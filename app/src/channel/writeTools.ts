@@ -1133,7 +1133,23 @@ export interface WriteCallOptions {
   productPackageId?: string | null;
   /** Called before each re-ask with the attempt about to be made. */
   onAttempt?: (attempt: number) => void;
+  /** Called when the org answers {@link RUN_IN_FLIGHT}: the run this key names is
+   *  still executing, and the answer is now read off the trail. */
+  onInFlight?: () => void;
+  /** How long a run the org reports in flight is watched on its trail before the
+   *  call hands back. Defaults to {@link EXECUTE_CLOCK_MS}. */
+  inFlightBudgetMs?: number;
 }
+
+/**
+ * THE ORG SAYS THE RUN IS STILL GOING (row 79). A retry or a resume that reaches
+ * a staging row another transaction still holds is refused with this code,
+ * having read and written nothing. It is not a failure and never reads as one:
+ * it is the one answer in which the org itself reports the run alive, so the
+ * write lane watches the trail for its ending exactly as it does for a lost
+ * answer. The one place the string is spelled.
+ */
+export const RUN_IN_FLIGHT = "RUN_IN_FLIGHT";
 
 /** A transport failure on a write that carried a key, after every attempt was
  *  spent. Structurally an {@link McpFailure}, so every existing branch still
@@ -1514,6 +1530,28 @@ function executionFromTrail(row: ActionHistoryRow): ExecuteResult {
   };
 }
 
+/**
+ * A RUN THE ORG REPORTS IN FLIGHT, WATCHED TO ITS END. The trail is read until
+ * the row turns terminal, and that reading IS the answer. A run still going when
+ * the budget ends hands back `pending` under {@link RUN_IN_FLIGHT} rather than
+ * as a transport failure: nothing was lost, the org simply has not finished.
+ */
+async function watchRunInFlight(
+  stagingId: string,
+  attempts: number,
+  orgMessage: string,
+  opts: WriteCallOptions,
+): Promise<ExecuteOutcome> {
+  opts.onInFlight?.();
+  const row = opts.accountId
+    ? await settleFromTrail(opts.accountId, stagingId, opts.inFlightBudgetMs ?? EXECUTE_CLOCK_MS)
+    : undefined;
+  if (row && isTerminalStatus(row.status)) {
+    return { ok: true, attempts, recovered: true, result: executionFromTrail(row) };
+  }
+  return { ok: false, attempts, pending: true, error: { code: RUN_IN_FLIGHT, message: orgMessage, resumable: true } };
+}
+
 /** Call `execute_*`. USER GESTURE ONLY, and only behind a confirmed plan. */
 export async function executeAction(
   actionId: WriteActionId,
@@ -1643,6 +1681,9 @@ export async function executeAction(
         })
       : [],
   }));
+  if (!out.ok && out.error.code === RUN_IN_FLIGHT) {
+    return watchRunInFlight(payload.stagingId, res.attempts ?? 1, out.error.message, opts);
+  }
   return { ...out, attempts: res.attempts ?? 1, door: res.door };
 }
 

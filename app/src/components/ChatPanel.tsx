@@ -361,8 +361,15 @@ export function ChatPanelBody() {
   );
 
   const suggestions = useMemo(
-    () => suggestActions(data, worklist, account?.accountId ?? null, account?.name ?? null),
-    [data, worklist, account],
+    () =>
+      suggestActions(
+        data,
+        worklist,
+        account?.accountId ?? null,
+        account?.name ?? null,
+        account ? state.actionHistory[account.accountId] : undefined,
+      ),
+    [data, worklist, account, state.actionHistory],
   );
 
   const available = chatReachable(channel);

@@ -228,9 +228,11 @@ export function createCreateEngine(args: {
   const createsPackage = !joining;
   /* THE ROSTER, READ ONCE. It is what tells a booked source with a version in
      flight from an ordinary booked package, and what names the version this
-     room may have been opened from. No trail is passed: the mirror names a
-     version without one, and the trail only ever CORRECTS which booked package
-     a version forked from, which changes nothing this room asks. */
+     room may have been opened from. No trail reaches this engine (the engine is
+     built once per room, off context, data and bundle), so a version only the
+     trail can name, one whose size differs from its source's, is not marked
+     here: it is not offered first as the version the banker came from, and its
+     source is not refused as a join target by the in-flight rule. */
   const roster = packageRoster(bundle);
   const joinable = joinableChoices(bundle, roster);
 

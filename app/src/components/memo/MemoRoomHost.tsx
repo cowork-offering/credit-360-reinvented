@@ -154,8 +154,9 @@ export function MemoRoomHost() {
       instanceUrl: data.meta?.instanceUrl ?? null,
       productPackageName: packageName,
       creditEvent: session?.trigger === "create" ? "new_relationship" : "existing_material",
+      history: rows,
     });
-  }, [bundle, changes, data.meta?.instanceUrl, packageName, session?.trigger]);
+  }, [bundle, changes, data.meta?.instanceUrl, packageName, session?.trigger, rows]);
 
   const greeting = useMemo(() => {
     if (!dossier) return null;

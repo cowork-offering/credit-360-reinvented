@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { ActivityEntry, ActivityKind, BorrowerBundle } from "../../data/contract";
+import type { ActionHistoryRow, ActivityEntry, ActivityKind, BorrowerBundle } from "../../data/contract";
 import { fmtDate, fmtRelative } from "../../data/format";
 import { accountKey, useApp } from "../../state/appState";
 import { historyActivityEntry, mergeTrail } from "../../actions/executedActivity";
@@ -204,8 +204,16 @@ function TrailEntry({
    on it is the same `discard-version` panel the Client Actions row opens, gated
    by the same `discardAvailability`.
    ============================================================================= */
-function ModificationInProgressRow({ bundle, onDiscard }: { bundle: BorrowerBundle; onDiscard: () => void }) {
-  const target = discardTargetFor(bundle, null);
+function ModificationInProgressRow({
+  bundle,
+  history,
+  onDiscard,
+}: {
+  bundle: BorrowerBundle;
+  history: readonly ActionHistoryRow[] | undefined;
+  onDiscard: () => void;
+}) {
+  const target = discardTargetFor(bundle, null, history);
   // The standing row is about a version the banker can still act on. A version
   // the org has taken to approval is the approval's business, not this tab's.
   if (!target) return null;
@@ -297,7 +305,11 @@ export function ActivityTab({ bundle }: { bundle: BorrowerBundle }) {
     <Pane id="activity">
       <PaneCard>
         <SecHead kicker="Audit trail" sub="Activity" explain={EXPLAIN} />
-        <ModificationInProgressRow bundle={bundle} onDiscard={() => setPanelActionId(DISCARD_ACTION_ID)} />
+        <ModificationInProgressRow
+          bundle={bundle}
+          history={state.actionHistory[accountId]}
+          onDiscard={() => setPanelActionId(DISCARD_ACTION_ID)}
+        />
         {entries.length === 0 ? (
           <EmptyPane
             title="No recorded activity in this view"

@@ -2,6 +2,35 @@
 
 ## Changelog
 
+- **0.9.33 (2026-09-30)** THE ROLLBACK SAYS WHICH VERSION, AND SHOWS IT IS WORKING. Founder, 2026-09-29, after his
+  first live rollback from the stage: "it says it has executed it however the records are still there", and "it
+  basically looks like its stuck ... it stayed static". Both were true and neither was a failed write. STG-0000000183
+  discarded the Hartwell version of 22 Sep (a5Fbb000000JT37EAG), every group verified; the version he was looking at
+  (a5Fbb000000JKB7EAO, 15 Sep) was never the target, because the roster could not see it.
+  THE TRAIL NAMES THE VERSION (backlog 76): `packageRoster` found a version only by the mirror, member count equal to
+  the booked source's. A modification that adds a facility makes N+1 against N, and a stray unbooked loan on the source
+  makes N against N+1; either way the version was invisible and the relationship door aimed at the only one it saw. A
+  filed `loan-modification` trail row now names its version by the package holding its result loan and links its
+  source; the mirror is the fallback for a version with no row. The trail reaches every discard surface and the memo.
+  WHICH VERSION, IN BANKER WORDS (77): one line on the plan and once in the closing, "Version of <source> · N
+  facilities · $X committed · filed <d Mon>"; the org's step details now name the package, never its id; the
+  provenance line no longer prints the staging record id.
+  THE WAIT IS ALIVE (78, design `knowledge/DESIGN-0.9.33-STAGE-WAIT.md`, option approved "is perfect"): the execute is
+  one call and STG-183 took 112 s at the relay, so the sheet sat still and a warning landed at 45 s. Now a light passes
+  over the whole list from the commit, one line and an m:ss clock say Salesforce has it, the 45 s line changes in the
+  same register, warning ink only past a 150 s ceiling, and the unchanged reveal plays when the answer lands. No row
+  moves before the org reports it. The count line is the org's DELETES sentence by content, not `warnings[0]`; a
+  refusal after the press brings the org's words and both controls back instead of a silent sheet.
+  A RETRY NEVER RACES A LIVE RUN (79, org, validated 0Afbb00000E8Im5CAF, 306 of 306, deploy by the founder): the relay
+  journal showed a second execute of STG-183 arriving 68 s into the first; no class took `FOR UPDATE`, and a late
+  retry could have re-run a finished plan. `C360ActionStaging.lockForRun` now takes the row lock before every claim and
+  on the resumable inner legs; a held row answers `RUN_IN_FLIGHT` having read, written and spent nothing, and the page
+  reads it as still running and watches the trail. Lesson 85. Org data: the stray Hartwell loan a4Zbb000002CECXEA4
+  (August test) removed on the founder's go.
+  Gates: tsc 0; vitest 239 files, 5630 passed, 0 failed; drive gate on the 0.9.33 bundle PASS, Hartwell 13 rows (run
+  alone) plus Kingsley and Piedmont (see below); bundle 2,211,785 bytes (2.109 MiB, +5.9 KB over 0.9.32). Row 80 open
+  (the New-facility room does not read the trail).
+
 - **0.9.32 (2026-09-17)** THE GHOST REGISTER. Founder, on 0.9.31 live: "the spreading workroom still says only
   reading ... not really guiding and interactive i need to make even the first iterations more cinematic". The room
   already reads every printed line and figure off each file before Boom is called at all, and 0.9.31 spent that on a

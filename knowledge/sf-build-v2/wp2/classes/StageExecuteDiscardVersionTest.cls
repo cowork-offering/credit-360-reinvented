@@ -2394,4 +2394,205 @@ private class StageExecuteDiscardVersionTest {
         System.assertEquals(standing, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId],
             'And deletes nothing further');
     }
+
+    // -------------------------------------------------------------------------------------------
+    // One run at a time (2026-09-29, STG-0000000183). The founder's rollback ran 112 s over the relay,
+    // and a second execute for the same row arrived 68 s in and was admitted by the gate: the run in
+    // flight had committed nothing, so its row still read Staged. Only the row lock stopped it. The
+    // inline leg now takes that lock before it forks and refuses RUN_IN_FLIGHT when it cannot. Two
+    // live transactions cannot be staged inside one test, so C360ActionStaging.rowHeldElsewhere
+    // injects the platform's own lock refusal at the one line that would throw it.
+    // -------------------------------------------------------------------------------------------
+
+    @IsTest
+    static void aSecondExecuteWhileTheRunIsInFlightIsRefusedAndConsumesNothing() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('inflight');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+
+        C360ActionStaging.rowHeldElsewhere = true;
+        ExecuteDiscardVersion.Response refused = executeOf(k, staged.result);
+        C360ActionStaging.rowHeldElsewhere = false;
+        cm_Action_Staging__c untouched = rowState(staged.result.stagingId);
+        Integer versionStanding = [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId];
+
+        ExecuteDiscardVersion.Response ran = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(false, refused.ok, 'A second execute beside a live run is refused.');
+        System.assertEquals('RUN_IN_FLIGHT', refused.error.code, whyExec(refused));
+        System.assertEquals(
+            'This rollback is still running in Salesforce. Nothing needs to be pressed; the page will settle when it finishes.',
+            refused.error.message, 'The banker hears that the run is live, not that something failed.'
+        );
+        System.assertEquals(false, refused.error.resumable, 'There is nothing for the banker to resume: the run is going.');
+        System.assertEquals('Staged', untouched.cm_Status__c, 'The refused call wrote nothing to the row.');
+        System.assertEquals(null, untouched.cm_Token_Consumed_At__c, 'And spent nothing: the token belongs to the live run.');
+        System.assertEquals(1, versionStanding, 'And deleted nothing.');
+
+        System.assertEquals(true, ran.ok, 'The same token still runs once the row is free. ' + whyExec(ran));
+        System.assertEquals(C360Plan.TERMINAL_SUCCESS, ran.result.terminalState, ran.result.outcome);
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId], 'The version went.');
+    }
+
+    @IsTest
+    static void aStoppedRunStillResumesAndARetryDuringTheResumeIsRefused() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('stopinflight');
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        System.assertEquals(true, staged.ok, 'Stage should succeed. ' + why(staged));
+
+        Test.startTest();
+        ExecuteDiscardVersion.refuseGroupOnce = 'delete_members';
+        ExecuteDiscardVersion.Response stopped = executeOf(k, staged.result);
+        System.assertEquals(C360Plan.TERMINAL_PARTIAL, stopped.result.terminalState, whyExec(stopped));
+        cm_Action_Staging__c open = [
+            SELECT cm_Status__c, cm_Tracker_JSON__c, cm_Result_Record_Id__c
+            FROM cm_Action_Staging__c WHERE Id = :staged.result.stagingId
+        ];
+
+        // A resume is live and a retry of it arrives: the row reads Executing with a result id, the
+        // exact shape assertArmable admits, and the lock is what tells the two apart.
+        C360ActionStaging.rowHeldElsewhere = true;
+        ExecuteDiscardVersion.Response refused = executeOf(k, staged.result);
+        C360ActionStaging.rowHeldElsewhere = false;
+        cm_Action_Staging__c still = [
+            SELECT cm_Status__c, cm_Tracker_JSON__c, cm_Result_Record_Id__c
+            FROM cm_Action_Staging__c WHERE Id = :staged.result.stagingId
+        ];
+
+        ExecuteDiscardVersion.Response resumed = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals('Executing', open.cm_Status__c, 'Precondition: the run stopped and is waiting on a resume.');
+        System.assertEquals('RUN_IN_FLIGHT', refused.error.code, whyExec(refused));
+        System.assertEquals(open.cm_Status__c, still.cm_Status__c, 'The refused retry left the status alone.');
+        System.assertEquals(open.cm_Tracker_JSON__c, still.cm_Tracker_JSON__c, 'And the tracker.');
+        System.assertEquals(open.cm_Result_Record_Id__c, still.cm_Result_Record_Id__c, 'And the result id.');
+
+        assertNoIdOnTheGlass(stopped);
+        assertNoIdOnTheGlass(resumed);
+        System.assertEquals(true, resumed.ok, 'A stopped run holds no lock and resumes exactly as before. ' + whyExec(resumed));
+        System.assertEquals(false, resumed.result.replayed, 'It is a resume, with work left to do.');
+        System.assertEquals(C360Plan.TERMINAL_SUCCESS, resumed.result.terminalState, resumed.result.outcome);
+        System.assertEquals(0, [SELECT COUNT() FROM LLC_BI__Product_Package__c WHERE Id = :versionId], 'The version went.');
+    }
+
+    @IsTest
+    static void aTerminalRunStillReplaysOnTheOuterLegWhichNeverTakesTheLock() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('terminallock');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        ExecuteDiscardVersion.Response first = executeOf(k, staged.result);
+        Test.stopTest();
+        System.assertEquals(true, first.ok, whyExec(first));
+
+        DoorMock m = doors(new GoodSession(), versionId);
+        C360ActionStaging.rowHeldElsewhere = true;
+        ExecuteDiscardVersion.Response again = ExecuteDiscardVersion.run(
+            new List<ExecuteDiscardVersion.Request>{ execRequest(k, staged.result) }
+        )[0];
+        C360ActionStaging.rowHeldElsewhere = false;
+
+        System.assertEquals(true, again.ok, 'A finished run replays whoever holds the row. ' + whyExec(again));
+        System.assertEquals(true, again.result.replayed, 'It is the same replay as before the lock existed.');
+        System.assertEquals(C360Plan.TERMINAL_SUCCESS, again.result.terminalState);
+        System.assertEquals(0, m.selfCalls + m.boxCalls, 'And it is answered here, without a hop.');
+    }
+
+    @IsTest
+    static void theOuterLegCarriesAnInFlightRefusalThroughAndWritesNothing() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('relayinflight');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        Test.stopTest();
+        System.assertEquals(true, staged.ok, why(staged));
+
+        // The inner leg's own answer while the row is held, wrapped the way the Actions API wraps it.
+        C360ActionStaging.rowHeldElsewhere = true;
+        ExecuteDiscardVersion.Response innerAnswer = executeOf(k, staged.result);
+        C360ActionStaging.rowHeldElsewhere = false;
+
+        DoorMock m = doors(new GoodSession(), versionId);
+        m.selfBody = envelope(innerAnswer, true, null);
+        ExecuteDiscardVersion.Response res = ExecuteDiscardVersion.run(
+            new List<ExecuteDiscardVersion.Request>{ execRequest(k, staged.result) }
+        )[0];
+
+        System.assertEquals(1, m.selfCalls, 'The outer leg is read-only and relays; the lock is the inner leg\'s.');
+        System.assertEquals(false, res.ok);
+        System.assertEquals('RUN_IN_FLIGHT', res.error.code, 'The page sees the inner leg\'s code verbatim. ' + whyExec(res));
+        System.assertEquals(false, res.error.resumable);
+        cm_Action_Staging__c row = rowState(staged.result.stagingId);
+        System.assertEquals('Staged', row.cm_Status__c, 'Nothing on the row moved.');
+        System.assertEquals(null, row.cm_Token_Consumed_At__c, 'And the token is unspent.');
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // No record id on the glass (2026-09-29, lesson 82 applied to the step details). The cockpit
+    // printed `verify_version_gone` verbatim, "Version package a5F... no longer resolves.", so a raw
+    // id reached the banker. Every detail and the outcome are now held to bankerName's own id shape,
+    // unanchored, so an id anywhere in the sentence fails.
+    // -------------------------------------------------------------------------------------------
+
+    private static final Pattern ID_ANYWHERE = Pattern.compile('[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?');
+
+    private static void assertNoIdOnTheGlass(ExecuteDiscardVersion.Response res) {
+        System.assertNotEquals(null, res.result, whyExec(res));
+        for (ExecuteDiscardVersion.StepResult st : res.result.steps) {
+            String d = st.detail == null ? '' : st.detail;
+            System.assert(!ID_ANYWHERE.matcher(d).find(), 'Step ' + st.id + ' carries a record id: ' + d);
+        }
+        String o = res.result.outcome == null ? '' : res.result.outcome;
+        System.assert(!ID_ANYWHERE.matcher(o).find(), 'The outcome carries a record id: ' + o);
+    }
+
+    @IsTest
+    static void noStepDetailOnACompletedDiscardOrItsReplayCarriesARecordId() {
+        C360TestFixture.armCalloutMock();
+        Id versionId = versionPackageId();
+        String k = key('noids');
+
+        Test.startTest();
+        StageDiscardVersion.Response staged = stage(k, versionId);
+        ExecuteDiscardVersion.Response ran = executeOf(k, staged.result);
+        ExecuteDiscardVersion.Response again = executeOf(k, staged.result);
+        Test.stopTest();
+
+        System.assertEquals(true, ran.ok, whyExec(ran));
+        System.assertEquals(C360Plan.TERMINAL_SUCCESS, ran.result.terminalState, ran.result.outcome);
+        assertNoIdOnTheGlass(ran);
+        assertNoIdOnTheGlass(again);
+        System.assert(
+            stepOf(ran, 'verify_version_gone').detail.endsWith(' no longer resolves.'),
+            'The package is named in words: ' + stepOf(ran, 'verify_version_gone').detail
+        );
+    }
+
+    @IsTest
+    static void aPackageNamedAfterItsOwnIdIsCalledTheVersionPackage() {
+        Id pkgId = versionPackageId();
+        String idShaped = String.valueOf(pkgId).left(15);
+        System.assertEquals('The version package', ExecuteDiscardVersion.versionLabel(idShaped, pkgId));
+        System.assertEquals('The version package', ExecuteDiscardVersion.versionLabel(null, pkgId));
+        System.assertEquals('Version package Hartwell 2026', ExecuteDiscardVersion.versionLabel('Hartwell 2026', pkgId));
+
+        String org = 'Delete failed. First exception on row 0 with id a4Zbb000002KwhpEAC; first error: DELETE_FAILED, ' +
+            'your attempt to delete a4Zbb000002Kwhp could not be completed';
+        String scrubbed = ExecuteDiscardVersion.withoutIds(org);
+        System.assert(!ID_ANYWHERE.matcher(scrubbed).find(), scrubbed);
+        System.assert(scrubbed.contains('DELETE_FAILED'), 'The status code survives: ' + scrubbed);
+        System.assert(scrubbed.contains('with id a record;'), scrubbed);
+    }
 }

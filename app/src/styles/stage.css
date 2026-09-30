@@ -173,6 +173,56 @@ body[data-c360-stage="folding"] #root {
   margin-top: 0;
 }
 
+/* ------------------------------------------------------------ the wait line
+   0.9.33. It lives in the header, so it goes quiet with the header when the
+   close arrives and never stands beside the closing sentences. */
+.gs-wait {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 460ms var(--ease-settle), opacity 360ms var(--ease-settle),
+    margin-top 460ms var(--ease-settle);
+}
+.gs-wait[data-on] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 7px;
+}
+.gs-hd[data-quiet] .gs-wait {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin-top: 0;
+}
+.gs-wait > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.gs-wait-in {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0 1px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+.gs-wait-line {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-body);
+  transition: opacity 320ms var(--ease-settle);
+}
+.gs-wait-line[data-swap] {
+  opacity: 0;
+}
+.gs-wait-clock {
+  flex: none;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  letter-spacing: 0;
+}
+
 /* ------------------------------------------------------------ the inventory */
 .gs-inv {
   display: grid;
@@ -230,6 +280,54 @@ body[data-c360-stage="folding"] #root {
    resume control off the page. */
 .gs-sheet[data-phase="stopped"] .gs-rows {
   max-height: min(300px, calc(100vh - 486px));
+}
+
+/* --------------------------------------------------------------- the lens pass
+   0.9.33. PRESENTATION ONLY, AND IT BELONGS TO THE LIST, NOT TO A ROW. A soft
+   band of the brand's own wash travels the whole visible list top to bottom,
+   rests, and travels again. Same speed, same band, every pass: it never slows
+   on a row, never stops on one, never fills a ">" and never changes with the
+   count, so it cannot be read as how far the org has got. It says the sheet is
+   listening. Paint only: one layer, `background-position`. */
+.gs-rows-wrap {
+  position: relative;
+}
+.gs-sweep {
+  position: absolute;
+  inset: 0 -8px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 240ms var(--ease-out);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    transparent 44.5%,
+    rgba(161, 0, 255, 0.035) 46.5%,
+    rgba(117, 0, 192, 0.095) 50%,
+    rgba(161, 0, 255, 0.035) 53.5%,
+    transparent 55.5%,
+    transparent 100%
+  );
+  background-size: 100% 300%;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  mix-blend-mode: multiply;
+}
+.gs-sheet[data-wait] .gs-sweep {
+  opacity: 1;
+  animation: gs-lens-pass 4800ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes gs-lens-pass {
+  0% {
+    background-position: 0 100%;
+  }
+  72% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
 }
 
 .gs-row {
@@ -341,6 +439,11 @@ body[data-c360-stage="folding"] #root {
 
 .gs-row[data-state="queued"] .gs-row-b {
   opacity: 0.78;
+}
+/* While the org has the plan the rows are read-only and say so by standing a
+   touch quieter than the plan beat; nothing about any one row changes. */
+.gs-sheet[data-wait] .gs-row[data-state="queued"] .gs-row-b {
+  opacity: 0.66;
 }
 .gs-row[data-state="writing"] .gs-t {
   color: var(--ink);
@@ -564,6 +667,21 @@ body[data-c360-stage="folding"] #root {
   margin: 0;
   padding: 0 0 0 14px;
 }
+/* The late notice. Warning ink only past the ceiling. */
+.gs-late {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 420ms var(--ease-settle), opacity 360ms var(--ease-settle);
+}
+.gs-late[data-on] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.gs-late > div {
+  overflow: hidden;
+  min-height: 0;
+}
 
 /* ----------------------------------------------------------------- the close */
 .gs-close {
@@ -700,11 +818,18 @@ body[data-c360-stage="folding"] #root {
   .gs-lede,
   .gs-gov,
   .gs-acts,
-  .gs-stopblk {
+  .gs-stopblk,
+  .gs-wait,
+  .gs-wait-line,
+  .gs-late {
     transition: none !important;
   }
   .gs-caret {
     animation: none;
+  }
+  /* No light. The clock still counts: it is content, not motion. */
+  .gs-sweep {
+    display: none;
   }
 }
 
@@ -728,5 +853,9 @@ body[data-c360-stage="folding"] #root {
   }
   .gs-said p {
     font-size: 14px;
+  }
+  .gs-wait-in {
+    flex-direction: column;
+    gap: 2px;
   }
 }

@@ -23,7 +23,7 @@
    ============================================================================= */
 
 import { bookedFacilityAvailability } from "../data/facilityStage";
-import type { BorrowerBundle, C360Data, Id } from "../data/contract";
+import type { ActionHistoryRow, BorrowerBundle, C360Data, Id } from "../data/contract";
 import { isActiveFacility } from "../data/worklist";
 import { DISCARD_LABEL, DISCARD_LINE } from "./discardVersion";
 import { discardAvailability } from "./discardTarget";
@@ -46,7 +46,9 @@ export interface ClientAction {
   /** 1-2 sentences of banker language, shown in the actions panel. */
   description: string;
   icon: ActionIcon;
-  availability: (data: C360Data, accountId: Id | null) => Availability;
+  /** `history` is the org's durable trail for the account, where the caller
+   *  holds one. Only the discard row reads it today. */
+  availability: (data: C360Data, accountId: Id | null, history?: readonly ActionHistoryRow[]) => Availability;
   /** `{account}` and `{accountId}` are substituted by renderPrompt(). */
   promptTemplate: string;
   /** PLANNED SEAM — v2 gated write via an Apex invocable. Unused in v1. */
@@ -294,8 +296,8 @@ export const ACTIONS: ClientAction[] = [
     icon: "package",
     promptTemplate:
       "Discard the unbooked modification version on {account} ({accountId}) and leave the booked package as it is.",
-    availability: (data, accountId) =>
-      withBundle(data, accountId, (b) => discardAvailability(packageRoster(b), null)),
+    availability: (data, accountId, history) =>
+      withBundle(data, accountId, (b) => discardAvailability(packageRoster(b, history), null)),
     hasPanel: true,
   },
   {
