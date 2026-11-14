@@ -341,15 +341,19 @@ The tool's own default of 90 days cannot see Prairie Ag's seasonal revolver, whi
 out and is the single most actionable fact on that relationship; a rebuild that takes the default
 bakes a first paint saying "None in window" over a book with a maturity in it.
 
-**`bookTotals` IS NOT THE BOOK, and must never be baked as if it were.** Measured 2026-09-08: this
-org holds 115 packaged accounts and about 105 are legacy demo rows (Vertex, Horizon, Bright, Summit,
-Quantum, BlueSky, Global, NextGen, Pinnacle, "Test Business account") carrying no exposure and years
-of abandoned balances. Read straight, `bookTotals` says 354 percent utilisation and $1.09B drawn
-against $308M committed. Sum the figures you bake from the account rows you keep (see (b)); the
-published page does the same, so the two agree.
+**Bake totals from the account rows you keep, never from `bookTotals` as received.** Until the
+2026-11-14 Apex fix, `bookTotals` summed every packaged account and read 356 percent utilisation:
+$1.096B drawn against $307.9M committed. The cause was not the ~105 legacy demo rows (Vertex,
+Horizon, Bright, Summit, Quantum, BlueSky, Global, NextGen, Pinnacle, "Test Business account"),
+which carry zero outstanding. It was one Credit Underwriting package on "Apple, Inc" carrying $850M
+outstanding against TCE 0, plus about $6M on three other TCE-0 packages. The fixed class confines
+`bookTotals` to accounts with committed exposure (Σ TCE > 0) and names what it left out in `note`,
+but a cockpit can meet an org running the old class, so sum the figures you bake from the account
+rows you keep (see (b)); the published page does the same, so the two agree.
 
-`bookTotals.accountCount` spans **ALL** packaged accounts, not the truncated list, and in this org
-that count is mostly legacy. Never state it as the size of the book.
+`bookTotals.accountCount` is never the truncated list. Under the old class it spans **ALL** packaged
+accounts, which in this org is mostly legacy; under the fixed class it is the accounts with committed
+exposure. Either way, state the size of the book from the rows you keep.
 
 ### (b) Determine the worklist scope
 The worklist is the **needs-action queue**: accounts carrying covenant tests due or breached,

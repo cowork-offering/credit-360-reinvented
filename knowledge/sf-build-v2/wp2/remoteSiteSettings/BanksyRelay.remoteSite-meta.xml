@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The execution relay host since 2026-11-14 (c360-relay on the Banksy box). ExecuteLoanModification
+  and ExecuteDiscardVersion call out here; the relay re-enters the org over REST, where nCino's
+  credit-action engine can run. Supersedes BotConnectryRelay, whose host now redirects.
+-->
+<RemoteSiteSetting xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Customer 360 execution relay, moved from bot.connectry.io 2026-11-14 (c360-relay on Banksy).</description>
+    <disableProtocolSecurity>false</disableProtocolSecurity>
+    <isActive>true</isActive>
+    <url>https://banksy.claudeeshannon.com</url>
+</RemoteSiteSetting>

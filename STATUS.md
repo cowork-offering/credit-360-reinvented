@@ -2,6 +2,20 @@
 
 ## Changelog
 
+- **0.9.35 (2026-11-14)** THE BOOK TOTALS ARE THE BOOK, AND THE RELAY HAS A HOME AGAIN. Two live faults found by a
+  full connector audit. (1) `Customer360Portfolio.bookTotals` summed every packaged account and read 356.1 percent
+  utilisation, $1.096B drawn against $307.9M committed. Reconciled to the dollar: not the legacy demo rows (they carry
+  zero outstanding) but four Credit Underwriting packages with TCE null, one of them "Apple, Inc" at $850M. The class
+  now sums the onBook set the signals already used and names what it left out in `note`; response fields unchanged,
+  so the MCP tool schema is unchanged. New `Customer360PortfolioTest`, 3/3 in the org, class coverage 100/139. Live on
+  both Customer 360 and the read backup: 78.1 percent, $240.4M over $307.9M, 9 accounts. The cockpit skill's
+  explanation of the old figure is corrected. (2) `bot.connectry.io/c360-relay` began answering with a 302 to
+  connectry.io, which silently broke `ExecuteLoanModification` and `ExecuteDiscardVersion`. The relay now runs on the
+  Banksy box (system unit, Caddy route on banksy.claudeeshannon.com, rotated secret, Remote Site `BanksyRelay`,
+  `cm_Relay_Config__c` repointed); `wp2/relay/DEPLOY.md` carries the install and the no-write proof. Proven with a real
+  Hartwell modification (STG-0000000209, relay legs 17.5 s and 27.9 s) and its rollback (16 records, 17.3 s), Hartwell
+  re-read clean at 8 booked loans. Org deploys by Tooling API from Banksy. No app or bundle change in this release.
+
 - **0.9.34 (2026-09-30)** A FILED MODIFICATION IS NEVER CALLED A USED CONFIRMATION. Founder, live on Hartwell, the
   same day 0.9.33 shipped: the rollback ran clean (STG-0000000185, 22 s at the relay) and the modification ended on
   "This confirmation has already been used. Approval closed". The org had filed it: STG-0000000186 Completed, two relay

@@ -1,15 +1,18 @@
 [Unit]
-Description=Customer 360 execution relay (org callout -> REST Actions API re-entry)
+Description=Customer 360 execution relay (org callout -> REST Actions API re-entry, port 8461)
 After=network.target
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
 [Service]
-EnvironmentFile=/opt/connectry/c360-relay/.env
-ExecStart=/home/fabian/.bun/bin/bun run /opt/connectry/c360-relay/server.ts
-WorkingDirectory=/opt/connectry/c360-relay
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/c360-relay
+# Shared secret + token helper path. chmod 600, never in a repo.
+EnvironmentFile=/home/ubuntu/c360-relay/.env
+ExecStart=/home/ubuntu/.bun/bin/bun run /home/ubuntu/c360-relay/server.ts
 Restart=on-failure
 RestartSec=3
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target

@@ -243,14 +243,28 @@ global with sharing class Customer360Portfolio {
                 if (pa.tce != null && pa.tce > 0) onBook.add(acctId);
             }
 
-            // Book totals span EVERY account with a package (before the display truncation).
+            /* BOOK TOTALS ARE THE BOOK, the same onBook set the signals name
+               (before the display truncation). Until 2026-11-14 they summed every
+               packaged account, so outstanding on a package with no committed
+               exposure was divided by a committed figure it never contributed
+               to: one Credit Underwriting package carrying $850M outstanding
+               against TCE 0 put book utilisation at 356 percent. What is left
+               out is counted and named in the note, never dropped silently. */
             BookTotals bt = new BookTotals();
             bt.totalCommitted = 0;
             bt.totalOutstanding = 0;
-            bt.accountCount = byAccount.size();
-            for (PortfolioAccount pa : byAccount.values()) {
-                bt.totalCommitted += pa.tce;
-                bt.totalOutstanding += pa.outstanding;
+            bt.accountCount = onBook.size();
+            Integer excludedWithBalance = 0;
+            Decimal excludedOutstanding = 0;
+            for (Id acctId : byAccount.keySet()) {
+                PortfolioAccount pa = byAccount.get(acctId);
+                if (onBook.contains(acctId)) {
+                    bt.totalCommitted += pa.tce;
+                    bt.totalOutstanding += pa.outstanding;
+                } else if (pa.outstanding != null && pa.outstanding > 0) {
+                    excludedWithBalance += 1;
+                    excludedOutstanding += pa.outstanding;
+                }
             }
             bt.utilizationPct = (bt.totalCommitted != null && bt.totalCommitted > 0)
                 ? (bt.totalOutstanding / bt.totalCommitted * 100).setScale(1)
@@ -345,7 +359,7 @@ global with sharing class Customer360Portfolio {
 
             res.note = res.accounts.isEmpty()
                 ? 'No accounts with a Product Package match this filter.'
-                : 'Rollups are package-level (Σ TCE/TBE/TOE/Outstanding — never a loan sum); risk rating + stage are from each account\'s highest-TCE package. Book totals span all ' + bt.accountCount + ' packaged accounts; the account list is truncated to the highest-TCE ' + res.accounts.size() + '. Signals name only the ' + onBook.size() + ' accounts whose packages carry exposure (Σ TCE > 0), are bounded by a ' + windowDays + '-day window and capped at ' + SIGNAL_CAP + ' rows each; overdue covenants (past due, still active) are included, flagged, and listed most recently missed first, ahead of the tests merely due. breachedCount counts the same exposure-carrying accounts. Financial / behavioral / risk-migration EWS lives elsewhere in the fleet.';
+                : 'Rollups are package-level (Σ TCE/TBE/TOE/Outstanding — never a loan sum); risk rating + stage are from each account\'s highest-TCE package. Book totals span the ' + bt.accountCount + ' accounts carrying committed exposure (Σ TCE > 0) out of ' + byAccount.size() + ' packaged accounts' + (excludedWithBalance > 0 ? '; left out of them: ' + excludedWithBalance + ' account(s) with outstanding balance but no committed exposure, ' + excludedOutstanding.setScale(0).format() + ' in all' : '') + '; the account list is truncated to the highest-TCE ' + res.accounts.size() + '. Signals name only the ' + onBook.size() + ' accounts whose packages carry exposure (Σ TCE > 0), are bounded by a ' + windowDays + '-day window and capped at ' + SIGNAL_CAP + ' rows each; overdue covenants (past due, still active) are included, flagged, and listed most recently missed first, ahead of the tests merely due. breachedCount counts the same exposure-carrying accounts. Financial / behavioral / risk-migration EWS lives elsewhere in the fleet.';
 
             results.add(res);
         }

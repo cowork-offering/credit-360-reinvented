@@ -39,31 +39,67 @@ refused action leaves the decision token unconsumed and the call retryable.
 
 ## Install
 
+**Moved 2026-11-14 to the Banksy box** (`ubuntu@98.87.86.133`, AWS). Its previous home,
+`bot.connectry.io/c360-relay`, began answering every request with a 302 to `connectry.io`, which
+silently broke both actions: the Apex reads a 3xx as a failed hop. Everything below is the Banksy
+install.
+
 ```
-/opt/connectry/c360-relay/server.ts        the service (this file, deployed)
-/opt/connectry/c360-relay/.env             chmod 600, NEVER committed
-~/.config/systemd/user/c360-relay.service  systemd user unit, linger is on
+/home/ubuntu/c360-relay/server.ts          the service (server.ts in this folder, verbatim)
+/home/ubuntu/c360-relay/token-helper.py    prints "TOKEN INSTANCE" (token-helper.py in this folder)
+/home/ubuntu/c360-relay/.env               chmod 600, NEVER committed
+/etc/systemd/system/c360-relay.service     system unit, User=ubuntu, enabled (c360-relay.service here)
 ```
+
+A system unit rather than a user unit because linger is off for `ubuntu` on this box, so a user unit
+would not come back after a reboot. It runs as `ubuntu`, like `sf-read-backup.service` beside it.
 
 `.env` carries `C360_RELAY_PORT`, `C360_RELAY_SECRET`, `C360_SF_API_VERSION`, `C360_TOKEN_HELPER`.
 The service refuses to start without a secret: an unauthenticated relay is a write door.
 
-Caddy routes `https://bot.connectry.io/c360-relay/*` to `127.0.0.1:8461`, in the `bot.connectry.io`
-block of `/etc/caddy/Caddyfile`.
+The token helper mints from the PlatformCLI refresh token Banksy's own Salesforce bridge holds in
+`/opt/brain/secrets/salesforce.env`, so the relay re-enters the org as the founder, exactly as it did
+before. When that token dies (a logout or password reset), Banksy's `salesforce_query` and this relay
+fail together; re-issue it with a laptop `sf org login web` against the sandbox My Domain, because
+device flow is disabled for PlatformCLI on this org.
+
+Caddy routes `https://banksy.claudeeshannon.com/c360-relay/*` to `127.0.0.1:8461` (prefix stripped,
+5-minute read and write timeouts, because a discard ran 112 s at the relay on 2026-09-29), in the
+banksy site block of `/etc/caddy/Caddyfile`, ABOVE the brain connector's catch-all `handle`.
+
+The org side is two pieces: the `cm_Relay_Config__c` org-default row (`cm_Relay_URL__c` =
+`https://banksy.claudeeshannon.com/c360-relay/relay`) and the Remote Site `BanksyRelay`
+(`../remoteSiteSettings/BanksyRelay.remoteSite-meta.xml`). `BotConnectryRelay` is retired and can be
+removed from the org.
+
+## Proving it without a write
+
+1. `curl https://banksy.claudeeshannon.com/c360-relay/healthz` answers `ok:true` and the allow-list.
+2. A signed `{"noop": true}` POST answers `orgStatus: 200`; a wrong secret answers `401`; an action
+   off the allow-list answers `403`.
+3. From inside the org, anonymous Apex that builds the same `HttpRequest` from
+   `cm_Relay_Config__c.getOrgDefaults()` with a `{"noop": true}` body, and throws the response so
+   `executeAnonymous` returns it, answers `status=200`. That is the exact callout the execute classes
+   make, with nothing executed.
+
+Proven live 2026-11-14 with a real modification on the Hartwell Real Estate package and its rollback,
+both `relayPath: box`, relay legs 17.5 s and 27.9 s (modification) and 17.3 s (discard).
 
 ## The secret
 
 Generated with `openssl rand -hex 32` and stored in exactly two places: the `.env` file above, and
-the `cm_Relay_Config__c` org-default row, inserted through the REST data API from this box. It is
+the `cm_Relay_Config__c` org-default row, written through the REST data API from this box. It is
 in no repository and no deploy artifact. Rotating it means writing both places in one sitting; the
-org row is the one Apex reads, and a mismatch shows up as a 401 in the service log.
+org row is the one Apex reads, and a mismatch shows up as a 401 in the service log. Rotated on the
+2026-11-14 move.
 
 ## Two things that will bite
 
-**Cloudflare fronts bot.connectry.io.** Its bot rules 403 some clients before the request reaches
-Caddy at all. `Python-urllib` is blocked, `curl` and `SFDC-Callout/67.0` (the agent Apex sends) are
-not. A 403 with no line in the service journal means the request never arrived. Test with the caller's
-real user agent, not a convenient one.
+**If the relay ever sits behind Cloudflare again** (its old `bot.connectry.io` home did), Cloudflare's
+bot rules 403 some clients before the request reaches Caddy at all: `Python-urllib` was blocked,
+`curl` and `SFDC-Callout/67.0` (the agent Apex sends) were not. A 403 with no line in the service
+journal means the request never arrived. Test with the caller's real user agent. The Banksy host is
+not behind Cloudflare.
 
 **Never log the body.** It carries the single-use decision token that proves a named human confirmed
 a specific plan. The service logs request id, method, path, status and duration, and that is the
