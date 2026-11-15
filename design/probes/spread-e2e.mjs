@@ -18,11 +18,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { chromium } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/node_modules/playwright/index.mjs";
-import { serveDir } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/lib/serve.mjs";
-import { bookParams, resolveBook } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/lib/book.mjs";
+import { chromium } from "playwright";
+import { serveDir } from "./lib/serve.mjs";
+import { bookParams, resolveBook } from "./lib/book.mjs";
 
-const ROOT = "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented";
+/* Repo root, from this file's own location, so the probes run on any box (was hardcoded to the Connectry box). */
+const ROOT = decodeURIComponent(new URL("../..", import.meta.url).pathname).replace(/\/$/, "");
 function takeFlag(name) {
   const at = process.argv.indexOf(`--${name}`);
   if (at === -1) return null;
@@ -80,7 +81,7 @@ console.log("BOOK:", ACCOUNT, BOOK.relationship);
 console.log("DROPPING:", KIND, csvPath);
 
 const server = await serveDir(dir);
-const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--no-sandbox"] });
+const browser = await chromium.launch({ ...(process.env.C360_CHROMIUM ? { executablePath: process.env.C360_CHROMIUM } : {}), args: ["--disable-dev-shm-usage", "--no-sandbox"] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));

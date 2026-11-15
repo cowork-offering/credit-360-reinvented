@@ -140,6 +140,14 @@ export const TOOLS = {
   covenants: "Customer360Covenants",
   opportunities: "Customer360Opportunities",
   structuralSignals: "Customer360StructuralSignals",
+  /* THE SIX IN ONE CALL (0.9.36, 2026-11-14). Customer360Bundle runs the six
+     detail reads above in one Apex transaction and returns each slice as the
+     JSON string of that tool's own outputValues, byte-identical (verified on
+     Hartwell, all six). One relay crossing instead of six, which under the
+     hosted hop's four-in-flight cap was two waves. Primary door only: the read
+     backup does not mirror it, so channel/openBundle.ts falls back to the six
+     lanes (either door) whenever it is refused or a slice fails. */
+  bundle: "Customer360Bundle",
   /* THE BOOK IS THE ORG'S BOOK (2026-09-03). Partial-name account search, and
      the door to every relationship this snapshot did not bake. IN THE MANIFEST
      as of this wave: the Customer 360 grant is 25 tools with this one in it

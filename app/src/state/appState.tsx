@@ -11,6 +11,8 @@ import { mergeLivePortfolio } from "../book/livePortfolio";
 import type { AgentChannel } from "../channel/adapter";
 import { createChannel, formatProbe, probeChannels } from "../channel/adapter";
 import { mcpAvailable } from "../channel/mcp";
+import { warmTopAccounts } from "../channel/openBundle";
+import { putLastGood } from "../channel/lastGood";
 import { useLivePortfolio, type LivePortfolio } from "../channel/useLivePortfolio";
 import type { ActionHistoryRow, ActivityEntry, BorrowerBundle, C360Data, Worklist } from "../data/contract";
 import { deriveQueue, type Queue } from "../data/queue";
@@ -383,6 +385,17 @@ export function AppProvider({ data: injected, children }: { data: C360Data; chil
   const anchor = data.meta.anchorAccountId;
   const queue = useMemo(() => deriveQueue(data, !!book.portfolio), [data, book.portfolio]);
   const worklist = queue.worklist;
+  /* THE TOP OF THE QUEUE IS READ BEFORE IT IS CLICKED (0.9.36). Only off a
+     LIVE queue: a baked one names relationships this org may not hold. The
+     warm-up stores last-good documents and nothing else, so it cannot move a
+     figure on screen. See channel/openBundle.ts. */
+  const warmIds = queue.summary.live ? queue.worklist.accountIds.slice(0, 3).join(",") : "";
+  useEffect(() => {
+    if (!warmIds || !mcpAvailable()) return;
+    void warmTopAccounts(warmIds.split(","), (accountId, key, tool, data, storedAt) => {
+      void putLastGood(accountId, key, tool, data, storedAt);
+    });
+  }, [warmIds]);
   const channel = useMemo(() => createChannel(), []);
 
   // Channel diagnostics: log ONCE on mount so the founder can read the real

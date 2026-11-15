@@ -2,7 +2,8 @@
 <!--
   Customer360 MCP server definition. SOURCE OF TRUTH IS THE ORG: this file was
   retrieved from bankinggpt-at on 2026-09-13 (28 tools) and extended with the
-  0.9.23 version-lifecycle pairs (4 tools). The earlier 8-tool copy in this
+  0.9.23 version-lifecycle pairs (4 tools), and with Customer360Bundle on
+  2026-11-14 (0.9.36: the six relationship reads in one call). The earlier 8-tool copy in this
   repo was stale; deploying it would have dropped every write tool the
   connector publishes. Before any deploy: retrieve, diff, then deploy.
   Write tools use snake_case toolName (what the cockpit calls); reads keep the
@@ -89,6 +90,19 @@
         <readOnly>false</readOnly>
         <returnDirect>false</returnDirect>
         <toolName>Customer360StructuralSignals</toolName>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>aa:apex-Customer360Bundle</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>Customer360Bundle</operation>
+        </apiDefinition>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>false</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>Customer360Bundle</toolName>
     </tools>
     <tools>
         <apiDefinition>

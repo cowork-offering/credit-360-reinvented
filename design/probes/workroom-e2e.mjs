@@ -38,10 +38,11 @@
    Usage: node workroom-e2e.mjs [bundle.html] [scenario] [out.json] [--book <accountId|name>] */
 import fs from "node:fs"; import os from "node:os"; import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { chromium } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/node_modules/playwright/index.mjs";
-import { serveDir } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/lib/serve.mjs";
-import { bookParams, resolveBook, fmtMoney } from "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented/design/probes/lib/book.mjs";
-const ROOT = "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented";
+import { chromium } from "playwright";
+import { serveDir } from "./lib/serve.mjs";
+import { bookParams, resolveBook, fmtMoney } from "./lib/book.mjs";
+/* Repo root, from this file's own location, so the probes run on any box (was hardcoded to the Connectry box). */
+const ROOT = decodeURIComponent(new URL("../..", import.meta.url).pathname).replace(/\/$/, "");
 /** `--book <id|name>` may sit anywhere; everything else stays positional. */
 function takeFlag(name) {
   const at = process.argv.indexOf(`--${name}`);
@@ -69,7 +70,7 @@ const patch = BOOK.patch;
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wk-e2e-")); fs.mkdirSync(path.join(dir, "b"), { recursive: true });
 execFileSync("node", [path.join(ROOT, "app/scripts/assemble-artifact.mjs"), path.join(ROOT, "artifact/live-data.json"), path.join(dir, "b/index.html"), BUNDLE], { stdio: "ignore" });
 const server = await serveDir(dir);
-const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--no-sandbox"] });
+const browser = await chromium.launch({ ...(process.env.C360_CHROMIUM ? { executablePath: process.env.C360_CHROMIUM } : {}), args: ["--disable-dev-shm-usage", "--no-sandbox"] });
 
 /* "THE LINE OF CREDIT" NAMES NEITHER, on a package carrying two of them, so the
    room asks which and the banker answers (D1, 2026-09-13). The pick is ADDED to

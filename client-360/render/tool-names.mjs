@@ -51,6 +51,13 @@ const TOOL_TOKEN = /\b(?:Customer360[A-Za-z0-9]+|(?:stage|execute|complete)_[a-z
  */
 export const ASSERTED_ABSENT = ["execute_renewal"];
 
+/**
+ * Words that share the tool-name shape but name something else, so the scan skips them.
+ * `stage_advance` is an Experience / nCino AUDIT EVENT TYPE that `ncino_advance_stage` self-logs
+ * (vendored memo skill finalize-and-writeback), not a Customer 360 tool.
+ */
+export const NOT_TOOLS = ["stage_advance"];
+
 /** Tool names the org's manifest declares, in the order it spells them. */
 export function manifestToolNames(manifestPath = MANIFEST_PATH) {
   let xml;
@@ -107,7 +114,7 @@ export function checkToolNames({ pluginRoot = PLUGIN_ROOT, manifestPath = MANIFE
       for (const match of text.matchAll(TOOL_TOKEN)) {
         const token = match[0];
         if (manifest.has(token)) mentioned.add(token);
-        else if (ASSERTED_ABSENT.includes(token)) continue;
+        else if (ASSERTED_ABSENT.includes(token) || NOT_TOOLS.includes(token)) continue;
         else unknown.push({ file: relative(pluginRoot, file), token, line: i + 1 });
       }
     });

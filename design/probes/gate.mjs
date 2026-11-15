@@ -49,7 +49,8 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 
-const ROOT = "/opt/connectry/projects/commercial-credit-reinvented/customer-360-reinvented";
+/* Repo root, from this file's own location, so the probes run on any box (was hardcoded to the Connectry box). */
+const ROOT = decodeURIComponent(new URL("../..", import.meta.url).pathname).replace(/\/$/, "");
 const PROBES = path.join(ROOT, "design/probes");
 
 function flag(name, fallback = null) {

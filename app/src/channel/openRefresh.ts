@@ -18,6 +18,7 @@ import { readThroughEitherLane } from "./gateway/lane";
 import { noteLaneStale } from "./laneHealth";
 import { loadLastGood, putLastGood, type CachedRead } from "./lastGood";
 import { claimPrefetch, type PrefetchedLane } from "./openPrefetch";
+import { bundleAvailable, bundledLanes } from "./openBundle";
 import { createPacer, slowTierWindowMs, SLOW_TIER_KEYS } from "./syncSweep";
 import { noteOpenRateLimited, openInFlightLimit, openLaunchGapMs } from "./openBurst";
 
@@ -150,7 +151,12 @@ export function startOpenRefresh(opts: OpenRefreshOptions): () => void {
      know the relationship before React does and send the six reads then; this
      adopts those calls rather than issuing them a second time. Claimed once and
      drained per lane, so a lane that fails still knocks again for itself. */
-  const prefetched = claimPrefetch(accountId);
+  /* NO HEAD START, ONE CALL ANYWAY (0.9.36). A cold open from the worklist has
+     no prefetch, so the refresh asks for the bundle itself: one relay crossing
+     instead of six, handed back as the same per-key promises a head start would
+     have been. Refused once this session, the six lanes run as they always did,
+     paced and bounded below. */
+  const prefetched = claimPrefetch(accountId) ?? (bundleAvailable() ? bundledLanes(accountId) : undefined);
 
   /* THE STORED DOCUMENTS FIRST, and they are a local read: they land long
      before any connector answers, which is the whole point of keeping them. */

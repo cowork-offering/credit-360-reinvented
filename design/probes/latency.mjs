@@ -192,7 +192,8 @@ async function take(browser, url, relayMs, withReload, throttle) {
           }
           if (out.allSixSlicesMs === null) {
             const ok = new Set(window.__LANES.settled.filter((s) => s.ok).map((s) => s.tool.replace(/^gw_/, "")));
-            if (tools.every((t) => ok.has(t))) out.allSixSlicesMs = since();
+            // 0.9.36: one Customer360Bundle answer IS all six slices.
+            if (tools.every((t) => ok.has(t)) || ok.has("Customer360Bundle")) out.allSixSlicesMs = since();
           }
           if (out.roomReadyMs === null && buttons(/Open the covenant review/i)) out.roomReadyMs = since();
 
@@ -324,7 +325,7 @@ async function main() {
   if (against) assemble(against, "a");
 
   const server = await serveDir(dir);
-  const browser = await chromium.launch({ args: ARGS });
+  const browser = await chromium.launch({ ...(process.env.C360_CHROMIUM ? { executablePath: process.env.C360_CHROMIUM } : {}), args: ARGS });
 
   const rows = [];
   try {

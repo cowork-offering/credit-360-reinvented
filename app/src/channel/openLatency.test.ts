@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { __resetBundleForTests } from "./openBundle";
 import { createFakeDb } from "../intent/fakeDb";
 import { __setDbForTests } from "./dbDoor";
 import { __resetLaneHealthForTests, laneCalls, laneOf, LANE_CALL_HISTORY } from "./laneHealth";
@@ -53,10 +54,15 @@ beforeEach(() => {
   __resetLaneHealthForTests();
   __resetOpenBurstForTests();
   __resetPrefetchForTests();
+  /* These cases pin the SIX-LANE path, which since 0.9.36 is the fallback the
+     page takes once the one-call bundle has been refused. openBundle.test.ts
+     covers the bundle path itself. */
+  __resetBundleForTests(false);
   __setDbForTests(createFakeDb());
 });
 
 afterEach(() => {
+  __resetBundleForTests();
   vi.useRealTimers();
   __setDbForTests(undefined);
   delete w.claude;

@@ -902,7 +902,7 @@ async function main() {
   fs.copyFileSync(BUNDLE, path.join(dir, "index.html"));
   const server = await serveDir(dir);
 
-  const browser = await chromium.launch({
+  const browser = await chromium.launch({ ...(process.env.C360_CHROMIUM ? { executablePath: process.env.C360_CHROMIUM } : {}),
     headless: !args.headed,
     args: ["--disable-dev-shm-usage", "--disable-gpu", "--no-sandbox"],
   });

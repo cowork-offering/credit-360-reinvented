@@ -2,6 +2,23 @@
 
 ## Changelog
 
+- **0.9.36 (2026-11-15)** ONE CALL TO OPEN A RELATIONSHIP, AND A ROOM THAT ASKS AGAIN BEFORE IT SHRUGS. The founder's
+  page recorded 14.5 s for one hosted read on 2026-11-10 while the read backup's own gateway answered the same reads in
+  ~250 ms: the time is the artifact-to-connector hop, paid six times per open and in two waves under the four-in-flight
+  cap. `Customer360Bundle` (in the org since 2026-09-06, never wired) is now on the Customer360 McpServerDefinition
+  (33 tools, deployed 0Afbb00000EtkWnCAJ after a checkOnly pass) and the page opens a relationship with it
+  (`channel/openBundle.ts`): one crossing, each slice re-wrapped as its own tool's answer (byte-identical, verified on
+  Hartwell for all six), a failed slice falling back to its own read, a refusal switching the bundle off for the
+  session. The top three needs-action relationships are read ahead into the last-good store once the live queue lands.
+  Latency probe, all six slices at L=300/500/800: 724/1122/1734 ms -> 362/538/867 ms, calls 9 -> 7. The room brain
+  keeps plain instructions on the quick tier and asks an UNREADABLE quick answer once more on the default tier before
+  showing "I could not read that answer" (`askBrain`, `isUnreadable`). Also: the probes resolve the repo from their own
+  location and take `C360_CHROMIUM`, so the drive gate runs off the Connectry box; `tool-names` is green again (33
+  tools, version pairs and the bundle named in the prose, `stage_advance` skipped as an audit event); the skill no
+  longer claims a baked first paint (a banker with a connector sees the shimmer, then the store, then live). VIEWERS
+  MUST REFRESH their Customer 360 connector in claude.ai once to see the new tool; until then the page opens six-wide
+  as before. Gates: tsc 0; vitest 241 files, 5646 passed; drive gate 39 rows + 3 spread files PASS; bundle 2,214,134 bytes.
+
 - **0.9.35 (2026-11-14)** THE BOOK TOTALS ARE THE BOOK, AND THE RELAY HAS A HOME AGAIN. Two live faults found by a
   full connector audit. (1) `Customer360Portfolio.bookTotals` summed every packaged account and read 356.1 percent
   utilisation, $1.096B drawn against $307.9M committed. Reconciled to the dollar: not the legacy demo rows (they carry

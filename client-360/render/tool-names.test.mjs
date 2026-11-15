@@ -15,7 +15,7 @@ import {
 /** The org's Customer360 definition as of 2026-09-03: 10 reads, 8 stage/execute pairs, the
  *  stage-only renewal and the second-hop `complete_new_facility_detail`. Pinned, not derived: a
  *  count that moved is a deployment the prose, the grant and this runbook have to catch up with. */
-const MANIFEST_TOOL_COUNT = 28;
+const MANIFEST_TOOL_COUNT = 33;
 
 test("the org manifest parses and declares the expected tools", () => {
   const tools = manifestToolNames();

@@ -472,6 +472,32 @@
       return sleep(0).then(function () { return give(envelope({ count: hits.length, results: hits })); });
     }
 
+    /* THE SIX IN ONE CALL (0.9.36). Customer360Bundle answers on the primary
+       door with each slice as the JSON string of what that tool answers alone,
+       built from the same LIVE bodies, patches and version fixture the six
+       lanes are served from, so a drive sees identical figures either way.
+       `L.bundle = "absent"` makes it refused the way a viewer whose connector
+       has not been refreshed sees it (not_in_manifest), so the six-lane
+       fallback can be driven on purpose. */
+    if (tool === "Customer360Bundle") {
+      if (L.bundle === "absent") {
+        return sleep(0).then(function () { return Promise.reject({ code: "not_in_manifest", message: "Customer360Bundle is not declared", retryable: false }); });
+      }
+      var slices = { snapshot: "Customer360Snapshot", relationshipGraph: "Customer360RelationshipGraph", exposure: "Customer360Exposure", covenants: "Customer360Covenants", opportunities: "Customer360Opportunities", structuralSignals: "Customer360StructuralSignals" };
+      var out = { accountId: (firstInput(input) || {}).accountId || ACCOUNT, errorsBySlice: [], note: "All six relationship reads returned." };
+      Object.keys(slices).forEach(function (field) {
+        var name = slices[field];
+        var b = LIVE[name];
+        var x = (L.livePatch || {})[name];
+        if (b && x) b = Object.assign({}, b, x);
+        b = withVersion(name, b);
+        if (b) out[field] = JSON.stringify(b);
+        else out.errorsBySlice.push(field + ": no body in this stub");
+      });
+      var bwait = mode === "slow" ? (L.latencyMs || 3000) : 0;
+      return sleep(bwait).then(function () { return give(envelope(out)); });
+    }
+
     var body = LIVE[unprefixed(tool)];
     var extra = (L.livePatch || {})[unprefixed(tool)];
     if (body && extra) body = Object.assign({}, body, extra);

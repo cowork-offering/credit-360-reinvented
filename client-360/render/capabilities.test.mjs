@@ -41,7 +41,9 @@ test("the read backup mirrors the org's ten reads, and carries its own health to
   assert.deepEqual(
     tools.filter((t) => t !== "gw_health"),
     manifestToolNames()
-      .filter((n) => n.startsWith("Customer360"))
+      // Customer360Bundle (0.9.36) is primary-door only: the gateway does not serve it, and the
+      // page falls back to the six mirrored reads when it is unavailable.
+      .filter((n) => n.startsWith("Customer360") && n !== "Customer360Bundle")
       .map((n) => `gw_${n}`)
   );
   for (const t of tools) {

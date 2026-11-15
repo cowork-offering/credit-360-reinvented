@@ -746,7 +746,7 @@ async function main() {
      out and takes the whole browser with it. The flag moves that allocation to
      /tmp, which costs a little speed on both sides of a paired run and costs
      nothing to a comparison. */
-  const browser = await chromium.launch({
+  const browser = await chromium.launch({ ...(process.env.C360_CHROMIUM ? { executablePath: process.env.C360_CHROMIUM } : {}),
     headless: !o.headed,
     args: ["--disable-dev-shm-usage"]
   });

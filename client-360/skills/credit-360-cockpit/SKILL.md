@@ -58,10 +58,12 @@ Resolve in this order and STOP at the first that answers:
    node <pluginRoot>/render/assemble-cockpit.mjs --data <pluginRoot>/assets/live-data.json --out /tmp/customer-360.html
    ```
 
-   **`assets/live-data.json` is the data a first open bakes.** It is the shipped five-borrower book
-   and it is a FIRST PAINT, not the answer: the moment this banker lands, the page reads their own
-   org through their own connectors, lane by lane, and every baked figure is replaced by its own
-   read (see "Why this is not a stale page" above). Running the whole fetch sequence before the
+   **`assets/live-data.json` is the data a first open bakes, and a banker with a connector never
+   sees it.** It is the shipped five-borrower book, held as the BACKSTOP: a fresh open with a
+   connector shows the shimmer skeleton directly, then this org's own last good book from the store
+   (marked with its age), then the live read; the baked book appears only on a share link opened
+   without a connector, or when the first read neither answers nor fails inside the backstop clock
+   (read deadline plus two seconds). See "Why this is not a stale page" below. Running the whole fetch sequence before the
    first publish buys a slower open and the same screen ten seconds later. **`assets/sample-data.json`
    is for the repo's tests and the render probes ONLY, and is never published to a banker**: it is
    fictitious, and it is not the book.
@@ -83,9 +85,14 @@ Resolve in this order and STOP at the first that answers:
 **Hand over exactly one URL, in one line.** Do not offer the banker a choice of cockpits and do not
 list the ones you rejected.
 
-**Why this is not a stale page.** The cockpit REFRESHES ITSELF. The moment a banker lands on a
-relationship the page reads that relationship live through the viewer's own Customer 360 connector,
-one lane per module, and each figure replaces its baked value as its own read lands. Until it does
+**Why this is not a stale page.** The cockpit REFRESHES ITSELF, and it never flashes the baked
+book at a banker who has a connector: the landing shimmers until the first real book arrives, from
+the store or live. The moment a banker lands on a relationship the page reads it live through the
+viewer's own Customer 360 connector: since 0.9.36 in ONE `Customer360Bundle` call that carries all
+six relationship reads, falling back to one lane per module when the bundle is refused (a viewer who
+has not yet refreshed their Customer 360 connector in claude.ai) or a slice fails. The top three
+needs-action relationships are read ahead in the background once the live queue lands, so clicking
+one paints from the store at once. Each figure replaces its stored value as its own read lands. Until it does
 the page shows the last figures it holds, marked `As of <time>`; the footer's connector line says
 which lanes are live, stale or unreachable and with which error code; and a lane that cannot reach
 the org retries on its own, three times inside twelve seconds and then quietly once a minute, so
@@ -276,11 +283,11 @@ Customer360 tools.** A wrong committed-exposure figure in front of a banker is w
 
 ## The MCP surfaces
 
-**Customer360**: Salesforce-hosted, per-user OAuth, **28 tools: 10 reads plus 18 governed write
+**Customer360**: Salesforce-hosted, per-user OAuth, **33 tools: 11 reads plus 22 governed write
 tools**. Tool names derive from the Apex class (`aa:apex-{ClassName}`), so match by the **class-name
 suffix**, since the host may namespace it (`customer360__Customer360Snapshot`). Never hardcode a prefix.
 
-### Reads (10): everything this skill fetches
+### Reads (11): everything this skill fetches
 
 | Tool | Returns |
 |---|---|
@@ -294,17 +301,19 @@ suffix**, since the host may namespace it (`customer360__Customer360Snapshot`). 
 | `Customer360StructuralSignals` | `modifications[]`, `modificationClusterFlag`, `renewals[]`, `maturityWatch[]`, `guarantorSignals[]`, `note` |
 | `Customer360ActionHistory` | governed actions already run against the account (`accountId` required, `maxResults` default 50, max 200, newest first) |
 | `Customer360Catalog` | the org's own chip sets: every picklist and both lookup catalogs the create grammar draws from. No input |
+| `Customer360Bundle` | the six relationship reads (Snapshot, Graph, Exposure, Covenants, Opportunities, Signals) in ONE call, each slice the JSON string of that tool's own answer. The page opens a relationship with it since 0.9.36 and falls back to the six when it is refused. Primary door only: the read backup does not mirror it |
 
-### Governed writes (18): never called by this skill
+### Governed writes (22): never called by this skill
 
-Eight `stage_*` / `execute_*` pairs, one stage-only tool, and one second-hop completion tool:
+Ten `stage_*` / `execute_*` pairs, one stage-only tool, and one second-hop completion tool:
 
 `stage_loan_modification` · `execute_loan_modification` · `stage_covenant_review` ·
 `execute_covenant_review` · `stage_collateral_valuation` · `execute_collateral_valuation` ·
 `stage_service_request` · `execute_service_request` · `stage_annual_review` ·
 `execute_annual_review` · `stage_risk_rating_review` · `execute_risk_rating_review` ·
 `stage_new_facility` · `execute_new_facility` · `complete_new_facility_detail` ·
-`stage_relationship_intake` · `execute_relationship_intake` · `stage_renewal`
+`stage_relationship_intake` · `execute_relationship_intake` · `stage_amend_version` ·
+`execute_amend_version` · `stage_discard_version` · `execute_discard_version` · `stage_renewal`
 
 **This skill renders. It does not write.** Every write runs through a guided skill, under the write
 discipline in `agents/credit-360.md`: stage, present the org's plan and warnings verbatim, the

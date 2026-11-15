@@ -78,9 +78,17 @@ export const SERVERS = {
  */
 export const READ_BACKUP_TOOLS = (manifestPath) =>
   manifestToolNames(manifestPath)
-    .filter((n) => n.startsWith("Customer360"))
+    .filter((n) => n.startsWith("Customer360") && !NOT_MIRRORED.has(n))
     .map((n) => `gw_${n}`)
     .concat("gw_health");
+
+/**
+ * Customer 360 reads the backup gateway does NOT serve, so no `gw_` twin is declared for them.
+ * `Customer360Bundle` (0.9.36) is the six detail reads in one call on the primary door only;
+ * when it is unavailable the page falls back to the six reads, which ARE mirrored. Matches
+ * `MIRRORED_READS` in app/src/channel/gateway/lane.ts.
+ */
+const NOT_MIRRORED = new Set(["Customer360Bundle"]);
 
 /**
  * THE GATEWAY'S NAME FOR ONE GOVERNED WRITE. One tool per Apex invocable class,

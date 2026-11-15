@@ -1,5 +1,6 @@
 import { DETAIL_KEYS, DETAIL_TOOLS, mcpAvailable, type DetailKey, type McpOk } from "./mcp";
 import { readThroughEitherLane, type LaneResult } from "./gateway/lane";
+import { bundleAvailable, bundledLanes } from "./openBundle";
 
 /* =============================================================================
    THE HEAD START: the six reads leave before React does.
@@ -58,6 +59,18 @@ const started = new Map<string, Entry>();
  */
 export function prefetchOpen(accountId: string): void {
   if (!accountId || !mcpAvailable() || started.has(accountId)) return;
+
+  /* ONE CALL WHERE THE ORG CAN ANSWER ONE (0.9.36). The bundle hands back the
+     same six per-key promises, so the refresh claims them exactly as before.
+     Once the bundle has been refused this session, the six go out as they
+     always did. See channel/openBundle.ts. */
+  if (bundleAvailable()) {
+    started.set(accountId, {
+      lanes: bundledLanes(accountId),
+      timer: setTimeout(() => started.delete(accountId), PREFETCH_TTL_MS),
+    });
+    return;
+  }
 
   const lanes = new Map<DetailKey, PrefetchedLane>();
   DETAIL_TOOLS.forEach((tool, i) => {

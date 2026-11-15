@@ -1043,8 +1043,37 @@ function doorFor(envelope: BrainEnvelope, deps: BrainAskDeps, choice: RungChoice
 /** What a door that threw resolves to, distinct from any text it could return. */
 const SILENT = Symbol("no-door-answered");
 
+/** TRUE for the one degrade a stronger model can fix: an answer that came back
+ *  but could not be read. A timeout, a silent door and a real clarifying
+ *  question are not this, and are never re-asked. */
+export function isUnreadable(reply: BrainReply): boolean {
+  if (reply.type !== "clarify" || !reply.degraded) return false;
+  return reply.text === UNREADABLE_CLARIFY.text || reply.text === unreadableClarify("relationship").text;
+}
+
+/**
+ * ASK, AND ESCALATE ONCE WHERE THE QUICK TIER COULD NOT BE READ (0.9.36).
+ *
+ * The quick tier keeps plain instructions fast, and that is right for most
+ * lines. But when its answer comes back unreadable the banker used to get "I
+ * could not read that answer", which is the room at its least intelligent and
+ * the founder's "the chat is just dumb" in one sentence. That line is now asked
+ * once more on the default tier before anything is shown. A caller that pins
+ * its own rung or its own door (the tests, a room with a reason) is asked once,
+ * exactly as before.
+ */
 export async function askBrain(envelope: BrainEnvelope, deps: BrainAskDeps = {}): Promise<BrainReply> {
   const choice = deps.rung ?? rungFor(envelope);
+  const first = await askBrainOnce(envelope, deps, choice);
+  if (deps.rung || deps.send || choice.tier !== "quick" || !isUnreadable(first)) return first;
+  return askBrainOnce(envelope, deps, {
+    ...choice,
+    tier: "default",
+    why: `${choice.why}; asked again on the default tier after an unreadable quick answer`,
+  });
+}
+
+async function askBrainOnce(envelope: BrainEnvelope, deps: BrainAskDeps, choice: RungChoice): Promise<BrainReply> {
   const send = deps.send ?? doorFor(envelope, deps, choice);
   const timeoutMs = deps.timeoutMs ?? timeoutFor(choice);
   if (!deps.send && !brainReachable()) return NOT_CONNECTED_CLARIFY;
